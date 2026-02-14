@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "motus.fullname" . }}-gps
+  labels:
+    {{- include "motus.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.serviceGPS.type }}
+  {{- if .Values.serviceGPS.loadBalancerIP }}
+  loadBalancerIP: {{ .Values.serviceGPS.loadBalancerIP | quote }}
+  {{- end }}
+  ports:
+  {{- if .Values.serviceGPS.ports.h02.enabled }}
+  - port: {{ .Values.serviceGPS.ports.h02.port }}
+    targetPort: gps-h02
+    protocol: TCP
+    name: h02
+  {{- end }}
+  {{- if .Values.serviceGPS.ports.watch.enabled }}
+  - port: {{ .Values.serviceGPS.ports.watch.port }}
+    targetPort: gps-watch
+    protocol: TCP
+    name: watch
+  {{- end }}
+  selector:
+    {{- include "motus.selectorLabels" . | nindent 4 }}

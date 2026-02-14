@@ -1,0 +1,7 @@
+-- +goose Up
+ALTER TABLE devices ADD COLUMN mileage DOUBLE PRECISION;
+ALTER TABLE devices ADD COLUMN pending_mileage DOUBLE PRECISION NOT NULL DEFAULT 0;
+
+-- +goose Down
+ALTER TABLE devices DROP COLUMN IF EXISTS pending_mileage;
+ALTER TABLE devices DROP COLUMN IF EXISTS mileage;

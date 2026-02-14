@@ -1,0 +1,62 @@
+# Version control
+.git/
+
+# AI / IDE tooling
+.claude/
+.vscode/
+.idea/
+
+# Locally-built binaries (goreleaser / go build output)
+dist/
+bin/
+/motus
+/import
+/traccar-demo
+
+# Test and coverage output
+coverage.out
+*.out
+*.test
+*.pcap
+
+# Secrets and local kubeconfig files
+.env*
+kube_*.yaml
+*.pem
+*.key
+secrets/
+
+# Docker Compose files (not needed inside the image)
+docker-compose*.yml
+
+# Documentation
+docs/
+README.md
+
+# Build tooling (not needed at runtime)
+Makefile
+.goreleaser.yaml
+go.work
+go.work.sum
+
+# Helm / Kubernetes charts
+charts/
+
+# Log files
+*.log
+
+# Database dumps (root-level dev artefacts, NOT migrations)
+traccar_dump_*.sql
+
+# Dev / test scripts
+scripts/
+
+# Frontend build artefacts (rebuilt inside Docker)
+web/node_modules/
+web/.svelte-kit/
+web/build/
+web/test-results/
+web/playwright-report/
+
+# Root node_modules (safety net)
+node_modules/

@@ -1,0 +1,118 @@
+{{- if .Values.demo.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "motus.demo.fullname" . }}
+  labels:
+    {{- include "motus.demo.labels" . | nindent 4 }}
+spec:
+  replicas: 1  # Single replica to avoid duplicate GPS injection
+  selector:
+    matchLabels:
+      {{- include "motus.demo.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "motus.demo.selectorLabels" . | nindent 8 }}
+    spec:
+      initContainers:
+      - name: wait-for-db
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}{{- if .Values.image.digest }}@{{ .Values.image.digest }}{{- end }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        command: ["/motus", "wait-for-db"]
+        env:
+        {{- if .Values.postgresUriSecret.enabled }}
+        - name: POSTGRES_URI
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.postgresUriSecret.name }}
+              key: {{ .Values.postgresUriSecret.key }}
+        {{- else }}
+        - name: MOTUS_DATABASE_HOST
+          value: {{ include "motus.database.host" . | quote }}
+        - name: MOTUS_DATABASE_PORT
+          value: {{ include "motus.database.port" . | quote }}
+        - name: MOTUS_DATABASE_NAME
+          value: {{ include "motus.database.name" . | quote }}
+        - name: MOTUS_DATABASE_USER
+          value: {{ include "motus.database.user" . | quote }}
+        - name: MOTUS_DATABASE_PASSWORD
+          value: {{ include "motus.database.password" . | quote }}
+        - name: MOTUS_DATABASE_SSLMODE
+          value: {{ include "motus.database.sslmode" . | quote }}
+        {{- end }}
+      - name: reset-demo
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}{{- if .Values.image.digest }}@{{ .Values.image.digest }}{{- end }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        command: ["/motus", "reset-demo"]
+        env:
+        {{- if .Values.postgresUriSecret.enabled }}
+        - name: POSTGRES_URI
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.postgresUriSecret.name }}
+              key: {{ .Values.postgresUriSecret.key }}
+        {{- else }}
+        - name: MOTUS_DATABASE_HOST
+          value: {{ include "motus.database.host" . | quote }}
+        - name: MOTUS_DATABASE_PORT
+          value: {{ include "motus.database.port" . | quote }}
+        - name: MOTUS_DATABASE_NAME
+          value: {{ include "motus.database.name" . | quote }}
+        - name: MOTUS_DATABASE_USER
+          value: {{ include "motus.database.user" . | quote }}
+        - name: MOTUS_DATABASE_PASSWORD
+          value: {{ include "motus.database.password" . | quote }}
+        - name: MOTUS_DATABASE_SSLMODE
+          value: {{ include "motus.database.sslmode" . | quote }}
+        {{- end }}
+      containers:
+      - name: demo-simulator
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}{{ with .Values.image.digest }}@{{ . }}{{ end }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        env:
+        {{- if .Values.postgresUriSecret.enabled }}
+        - name: POSTGRES_URI
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.postgresUriSecret.name }}
+              key: {{ .Values.postgresUriSecret.key }}
+        {{- else }}
+        - name: MOTUS_DATABASE_HOST
+          value: {{ include "motus.database.host" . | quote }}
+        - name: MOTUS_DATABASE_PORT
+          value: {{ include "motus.database.port" . | quote }}
+        - name: MOTUS_DATABASE_NAME
+          value: {{ include "motus.database.name" . | quote }}
+        - name: MOTUS_DATABASE_USER
+          value: {{ include "motus.database.user" . | quote }}
+        - name: MOTUS_DATABASE_PASSWORD
+          value: {{ include "motus.database.password" . | quote }}
+        - name: MOTUS_DATABASE_SSLMODE
+          value: {{ include "motus.database.sslmode" . | quote }}
+        {{- end }}
+        - name: MOTUS_SERVER_PORT
+          value: "18080"  # Different port to avoid conflict
+        - name: MOTUS_GPS_H02_PORT
+          value: "15013"  # Not exposed (uses main app's H02 via localhost)
+        - name: MOTUS_GPS_WATCH_PORT
+          value: "15093"  # Not exposed
+        - name: MOTUS_DEMO_ENABLED
+          value: "true"
+        - name: MOTUS_DEMO_POD
+          value: "true"
+        - name: MOTUS_DEMO_GPX_DIR
+          value: {{ .Values.demo.gpxDir | quote }}
+        - name: MOTUS_DEMO_RESET_TIME
+          value: {{ .Values.demo.resetTime | quote }}
+        - name: MOTUS_DEMO_DEVICE_IMEIS
+          value: {{ .Values.demo.deviceIMEIs | quote }}
+        - name: MOTUS_DEMO_SPEED_MULTIPLIER
+          value: {{ .Values.demo.speedMultiplier | quote }}
+        - name: MOTUS_DEMO_INTERPOLATION_INTERVAL
+          value: {{ .Values.demo.interpolationInterval | quote }}
+        - name: MOTUS_DEMO_H02_TARGET
+          value: "{{ include "motus.fullname" . }}-gps:5013"  # Target main app's GPS service
+        resources:
+          {{- toYaml .Values.demo.resources | nindent 10 }}
+{{- end }}

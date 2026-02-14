@@ -1,0 +1,92 @@
+# Binaries
+/bin/
+/import
+/cmd/*/motus*
+/cmd/*/main
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary
+*.test
+
+# Output
+*.out
+
+# Go workspace
+go.work
+go.work.sum
+
+# Vendor
+/vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Config
+config.local.yaml
+*.local.yaml
+
+# Helm dev values (contain environment-specific secrets and hostnames)
+charts/motus/values-dev.yaml
+
+# Logs
+*.log
+
+# Build artifacts
+/dist/
+/build/
+
+# Frontend
+/web/node_modules/
+/web/build/*
+!/web/build/.gitkeep
+/web/.svelte-kit/
+
+
+# Tests
+/tests/*/node_modules/
+/tests/*/package-lock.json
+
+# Root node_modules (safety net)
+node_modules/
+
+# Database
+*.db
+*.sqlite
+traccar_dump_*.sql
+h02.log
+*.pcap
+
+# Allow migration files
+!migrations/*.sql
+
+# Secrets
+*.pem
+*.key
+secrets/
+kube_*.yaml
+
+# Environment files
+.env
+.env.local
+web/test-results/
+web/playwright-report/
+.claude/
+bin/
+/motus
+web/.auth/
+web/test-run-output.txt
+
+charts/motus/values-dev.yaml
+AGENTS.md.local

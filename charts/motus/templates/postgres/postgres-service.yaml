@@ -1,0 +1,17 @@
+{{- if .Values.postgres.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "motus.postgres.fullname" . }}
+  labels:
+    {{- include "motus.postgres.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+  - port: 5432
+    targetPort: postgres
+    protocol: TCP
+    name: postgres
+  selector:
+    {{- include "motus.postgres.selectorLabels" . | nindent 4 }}
+{{- end }}

@@ -1,0 +1,73 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "motus.fullname" . }}-migration-{{ .Release.Revision }}
+  labels:
+    {{- include "motus.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migration
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "1"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  backoffLimit: 5
+  activeDeadlineSeconds: 300
+  template:
+    metadata:
+      labels:
+        {{- include "motus.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: migration
+    spec:
+      restartPolicy: OnFailure
+      initContainers:
+      - name: wait-for-db
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}{{- if .Values.image.digest }}@{{ .Values.image.digest }}{{- end }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        command: ["/motus", "wait-for-db"]
+        env:
+        {{- if .Values.postgresUriSecret.enabled }}
+        - name: POSTGRES_URI
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.postgresUriSecret.name }}
+              key: {{ .Values.postgresUriSecret.key }}
+        {{- else }}
+        - name: MOTUS_DATABASE_HOST
+          value: {{ include "motus.database.host" . | quote }}
+        - name: MOTUS_DATABASE_PORT
+          value: {{ include "motus.database.port" . | quote }}
+        - name: MOTUS_DATABASE_NAME
+          value: {{ include "motus.database.name" . | quote }}
+        - name: MOTUS_DATABASE_USER
+          value: {{ include "motus.database.user" . | quote }}
+        - name: MOTUS_DATABASE_PASSWORD
+          value: {{ include "motus.database.password" . | quote }}
+        - name: MOTUS_DATABASE_SSLMODE
+          value: {{ include "motus.database.sslmode" . | quote }}
+        {{- end }}
+      containers:
+      - name: migration
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}{{ with .Values.image.digest }}@{{ . }}{{ end }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        command: ["/motus", "db-migrate"]
+        env:
+        {{- if .Values.postgresUriSecret.enabled }}
+        - name: POSTGRES_URI
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.postgresUriSecret.name }}
+              key: {{ .Values.postgresUriSecret.key }}
+        {{- else }}
+        - name: MOTUS_DATABASE_HOST
+          value: {{ include "motus.database.host" . | quote }}
+        - name: MOTUS_DATABASE_PORT
+          value: {{ include "motus.database.port" . | quote }}
+        - name: MOTUS_DATABASE_NAME
+          value: {{ include "motus.database.name" . | quote }}
+        - name: MOTUS_DATABASE_USER
+          value: {{ include "motus.database.user" . | quote }}
+        - name: MOTUS_DATABASE_PASSWORD
+          value: {{ include "motus.database.password" . | quote }}
+        - name: MOTUS_DATABASE_SSLMODE
+          value: {{ include "motus.database.sslmode" . | quote }}
+        {{- end }}

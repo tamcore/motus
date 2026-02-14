@@ -1,0 +1,32 @@
+{{- if and .Values.redis.enabled .Values.redis.builtin.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "motus.redis.fullname" . }}
+  labels:
+    {{- include "motus.redis.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ include "motus.redis.fullname" . }}
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "motus.redis.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "motus.redis.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+      - name: redis
+        image: {{ .Values.redis.builtin.image }}
+        ports:
+        - containerPort: 6379
+          name: redis
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi
+{{- end }}

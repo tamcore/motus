@@ -1,0 +1,15 @@
+# Demo mode overlay
+# Usage: helm install motus ./charts/motus -f values-demo.yaml
+# Merges on top of values.yaml defaults.
+
+serviceGPS:
+  ports:
+    h02:
+      enabled: true
+    watch:
+      enabled: false
+
+demo:
+  enabled: true
+  deviceIMEIs: "9000000000001,9000000000002"
+  speedMultiplier: 3.0

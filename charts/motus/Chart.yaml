@@ -1,0 +1,25 @@
+apiVersion: v2
+name: motus
+description: GPS tracking system with Traccar API compatibility, real-time WebSocket updates, and PostGIS geofencing
+version: 3.0.0
+appVersion: "3.0.0"
+type: application
+home: https://github.com/tamcore/motus
+icon: https://raw.githubusercontent.com/tamcore/motus/master/docs/icon.png
+sources:
+  - https://github.com/tamcore/motus
+maintainers:
+  - name: tamcore
+    url: https://github.com/tamcore
+keywords:
+  - gps
+  - tracking
+  - traccar
+  - home-assistant
+  - geofencing
+  - websocket
+  - postgis
+annotations:
+  org.opencontainers.image.source: https://github.com/tamcore/motus
+  org.opencontainers.image.description: GPS Tracking System with H02 and WATCH protocol support
+  org.opencontainers.image.licenses: MIT

@@ -1,0 +1,48 @@
+# syntax=docker/dockerfile:1
+
+# Development Dockerfile - Alpine-based with shell access for debugging.
+# Frontend is embedded into the Go binary via //go:embed.
+
+# Stage 1: Build SvelteKit frontend
+FROM node:24-alpine AS frontend
+WORKDIR /app/web
+COPY web/package.json web/package-lock.json web/.npmrc ./
+RUN npm ci
+COPY web/ ./
+RUN npm run build
+
+# Stage 2: Build Go backend with embedded frontend
+FROM golang:1.26-alpine AS backend
+
+ARG VERSION=dev
+ARG COMMIT=unknown
+ARG BUILD_DATE=unknown
+ARG BRANCH=unknown
+
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+COPY cmd ./cmd/
+COPY internal ./internal/
+COPY web ./web/
+COPY migrations ./migrations/
+
+# Copy frontend build into web/build/ so //go:embed picks it up
+COPY --from=frontend /app/web/build ./web/build/
+RUN CGO_ENABLED=0 go build -a \
+    -ldflags "-s -w \
+      -X github.com/tamcore/motus/internal/version.Version=${VERSION} \
+      -X github.com/tamcore/motus/internal/version.Commit=${COMMIT} \
+      -X github.com/tamcore/motus/internal/version.BuildDate=${BUILD_DATE} \
+      -X github.com/tamcore/motus/internal/version.Branch=${BRANCH}" \
+    -o /bin/motus ./cmd/motus
+
+# Stage 3: Final image (Alpine for dev - includes shell, curl, etc.)
+FROM alpine:latest
+RUN apk add --no-cache ca-certificates tzdata curl
+COPY --from=backend /bin/motus /motus
+COPY migrations /migrations
+COPY data /data
+EXPOSE 8080 5013 5093
+ENTRYPOINT ["/motus"]
+CMD ["serve"]

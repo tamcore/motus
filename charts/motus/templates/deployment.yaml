@@ -1,0 +1,215 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "motus.fullname" . }}
+  labels:
+    {{- include "motus.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "motus.selectorLabels" . | nindent 6 }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        {{- include "motus.selectorLabels" . | nindent 8 }}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: motus
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}{{ with .Values.image.digest }}@{{ . }}{{ end }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - containerPort: {{ .Values.service.port }}
+          name: http
+        {{- if .Values.serviceGPS.ports.h02.enabled }}
+        - containerPort: {{ .Values.serviceGPS.ports.h02.port }}
+          name: gps-h02
+        {{- end }}
+        {{- if .Values.serviceGPS.ports.watch.enabled }}
+        - containerPort: {{ .Values.serviceGPS.ports.watch.port }}
+          name: gps-watch
+        {{- end }}
+        env:
+        {{- if .Values.postgresUriSecret.enabled }}
+        - name: POSTGRES_URI
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.postgresUriSecret.name }}
+              key: {{ .Values.postgresUriSecret.key }}
+        {{- else }}
+        - name: MOTUS_DATABASE_HOST
+          value: {{ include "motus.database.host" . | quote }}
+        - name: MOTUS_DATABASE_PORT
+          value: {{ include "motus.database.port" . | quote }}
+        - name: MOTUS_DATABASE_NAME
+          value: {{ include "motus.database.name" . | quote }}
+        - name: MOTUS_DATABASE_USER
+          value: {{ include "motus.database.user" . | quote }}
+        {{- if .Values.externalDatabase.existingSecret }}
+        - name: MOTUS_DATABASE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.externalDatabase.existingSecret }}
+              key: {{ .Values.externalDatabase.existingSecretKey | default "password" }}
+        {{- else }}
+        - name: MOTUS_DATABASE_PASSWORD
+          value: {{ include "motus.database.password" . | quote }}
+        {{- end }}
+        - name: MOTUS_DATABASE_SSLMODE
+          value: {{ include "motus.database.sslmode" . | quote }}
+        {{- end }}
+        {{- if .Values.config.csrf.secret }}
+        - name: MOTUS_CSRF_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "motus.fullname" . }}-csrf
+              key: csrf-secret
+        {{- end }}
+        {{- if .Values.redis.enabled }}
+        - name: MOTUS_REDIS_ENABLED
+          value: "true"
+        - name: MOTUS_REDIS_URL
+          value: {{ include "motus.redis.url" . | quote }}
+        {{- end }}
+        - name: MOTUS_SERVER_PORT
+          value: {{ .Values.config.server.port | quote }}
+        {{- if .Values.serviceGPS.ports.h02.enabled }}
+        - name: MOTUS_GPS_H02_PORT
+          value: {{ .Values.serviceGPS.ports.h02.port | quote }}
+        {{- if .Values.serviceGPS.ports.h02.relayTarget }}
+        - name: MOTUS_GPS_H02_RELAY_TARGET
+          value: {{ .Values.serviceGPS.ports.h02.relayTarget | quote }}
+        {{- end }}
+        {{- end }}
+        {{- if .Values.serviceGPS.ports.watch.enabled }}
+        - name: MOTUS_GPS_WATCH_PORT
+          value: {{ .Values.serviceGPS.ports.watch.port | quote }}
+        {{- if .Values.serviceGPS.ports.watch.relayTarget }}
+        - name: MOTUS_GPS_WATCH_RELAY_TARGET
+          value: {{ .Values.serviceGPS.ports.watch.relayTarget | quote }}
+        {{- end }}
+        {{- end }}
+        {{- if .Values.websocket }}
+        - name: MOTUS_WS_ALLOWED_ORIGINS
+          value: {{ .Values.websocket.allowedOrigins | quote }}
+        {{- end }}
+        {{- if .Values.device }}
+        - name: MOTUS_DEVICE_AUTO_CREATE
+          value: {{ .Values.device.autoCreate.enabled | quote }}
+        - name: MOTUS_DEVICE_AUTO_CREATE_USER
+          value: {{ .Values.device.autoCreate.defaultUser | quote }}
+        {{- if .Values.device.uniqueIdPrefix }}
+        - name: MOTUS_DEVICE_UNIQUE_ID_PREFIX
+          value: {{ .Values.device.uniqueIdPrefix | quote }}
+        {{- end }}
+        {{- end }}
+        {{- if .Values.demo }}
+        - name: MOTUS_DEMO_ENABLED
+          value: {{ .Values.demo.enabled | quote }}
+        - name: MOTUS_DEMO_GPX_DIR
+          value: {{ .Values.demo.gpxDir | quote }}
+        - name: MOTUS_DEMO_RESET_TIME
+          value: {{ .Values.demo.resetTime | quote }}
+        - name: MOTUS_DEMO_DEVICE_IMEIS
+          value: {{ .Values.demo.deviceIMEIs | quote }}
+        - name: MOTUS_DEMO_SPEED_MULTIPLIER
+          value: {{ .Values.demo.speedMultiplier | quote }}
+        - name: MOTUS_DEMO_INTERPOLATION_INTERVAL
+          value: {{ .Values.demo.interpolationInterval | quote }}
+        {{- end }}
+        {{- if .Values.oidc.enabled }}
+        - name: MOTUS_OIDC_ENABLED
+          value: "true"
+        - name: MOTUS_OIDC_ISSUER
+          value: {{ .Values.oidc.issuer | quote }}
+        - name: MOTUS_OIDC_CLIENT_ID
+          value: {{ .Values.oidc.clientId | quote }}
+        {{- if .Values.oidc.clientSecretRef.secretName }}
+        - name: MOTUS_OIDC_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.oidc.clientSecretRef.secretName }}
+              key: {{ .Values.oidc.clientSecretRef.secretKey }}
+        {{- else }}
+        - name: MOTUS_OIDC_CLIENT_SECRET
+          value: {{ .Values.oidc.clientSecret | quote }}
+        {{- end }}
+        - name: MOTUS_OIDC_REDIRECT_URL
+          value: {{ .Values.oidc.redirectUrl | quote }}
+        - name: MOTUS_OIDC_SIGNUP_ENABLED
+          value: {{ .Values.oidc.signupEnabled | quote }}
+        {{- if .Values.oidc.adminEmailRegex }}
+        - name: MOTUS_OIDC_ADMIN_EMAIL_REGEX
+          value: {{ .Values.oidc.adminEmailRegex | quote }}
+        {{- end }}
+        {{- if .Values.oidc.adminClaim }}
+        - name: MOTUS_OIDC_ADMIN_CLAIM
+          value: {{ .Values.oidc.adminClaim | quote }}
+        {{- end }}
+        {{- if .Values.oidc.adminClaimValue }}
+        - name: MOTUS_OIDC_ADMIN_CLAIM_VALUE
+          value: {{ .Values.oidc.adminClaimValue | quote }}
+        {{- end }}
+        {{- if .Values.oidc.scopes }}
+        - name: MOTUS_OIDC_SCOPES
+          value: {{ .Values.oidc.scopes | quote }}
+        {{- end }}
+        {{- end }}
+        {{- if .Values.rateLimit.login }}
+        - name: MOTUS_LOGIN_RATE_LIMIT
+          value: {{ .Values.rateLimit.login | quote }}
+        {{- end }}
+        {{- if .Values.rateLimit.api }}
+        - name: MOTUS_API_RATE_LIMIT
+          value: {{ .Values.rateLimit.api | quote }}
+        {{- end }}
+        {{- if .Values.config.log }}
+        {{- if .Values.config.log.level }}
+        - name: MOTUS_LOG_LEVEL
+          value: {{ .Values.config.log.level | quote }}
+        {{- end }}
+        {{- if .Values.config.log.format }}
+        - name: MOTUS_LOG_FORMAT
+          value: {{ .Values.config.log.format | quote }}
+        {{- end }}
+        {{- end }}
+        {{- if .Values.config.env }}
+        - name: MOTUS_ENV
+          value: {{ .Values.config.env | quote }}
+        {{- end }}
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}

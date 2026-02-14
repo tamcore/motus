@@ -1,0 +1,186 @@
+image:
+  repository: ghcr.io/tamcore/motus
+  tag: latest
+  pullPolicy: Always
+
+replicaCount: 2
+
+# PodDisruptionBudget ensures at least N pods remain during disruptions (node drains, upgrades)
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1  # At least 1 pod must remain available
+
+service:
+  type: ClusterIP
+  port: 8080
+
+serviceGPS:
+  type: LoadBalancer
+  loadBalancerIP: ""
+  ports:
+    h02:
+      enabled: true
+      port: 5013
+      relayTarget: ""  # optional: "traccar.example.com:5013"
+    watch:
+      enabled: true
+      port: 5093
+      relayTarget: ""  # optional: "traccar.example.com:5093"
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: motus.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - hosts:
+        - motus.example.com
+
+# PostgreSQL Configuration
+# For DEVELOPMENT: Set postgres.enabled=true to deploy a PostgreSQL StatefulSet
+# For PRODUCTION: Set postgres.enabled=false and configure external database below
+postgres:
+  enabled: false  # Use external database in production
+  image: postgis/postgis:16-3.4
+  storage: 10Gi
+  storageClass: ""  # e.g., gp3 (AWS), standard (GKE), managed-premium (AKS)
+  database: motus
+  username: motus
+  password: motus123
+
+# External Database Configuration
+# When postgres.enabled=false, configure your external PostgreSQL cluster here
+# Option 1: Use individual connection parameters
+externalDatabase:
+  host: ""  # e.g., postgres-cluster.example.com or motus-postgresql-rw.motus
+  port: "5432"
+  database: motus
+  username: motus
+  password: ""  # Use existingSecret in production instead of this plain value
+  sslmode: require  # Use 'require' or 'verify-full' for production
+  # Reference an existing Kubernetes Secret containing the database password.
+  # When set, the password field above is ignored.
+  existingSecret: ""      # e.g., motus-db-credentials
+  existingSecretKey: ""   # e.g., password (defaults to "password" if empty)
+
+# Option 2: Use full POSTGRES_URI from a Secret (Cloudnative-PG compatible)
+# This takes precedence over externalDatabase if set
+postgresUriSecret:
+  enabled: false
+  name: ""  # e.g., motus-postgresql-app
+  key: ""   # e.g., uri or pguri
+
+config:
+  database:
+    # Host is dynamically set: motus-postgres if internal, or externalDatabase.host if external
+    host: ""  # Set to your external database host
+    port: "5432"
+    database: motus
+    username: motus
+    password: ""  # Use a Secret in production
+    sslmode: require
+  server:
+    port: "8080"
+  csrf:
+    # REQUIRED for production deployments with multiple pods
+    # Generate with: openssl rand -hex 32
+    # If empty, a random key is generated at startup (tokens won't survive restarts)
+    secret: ""
+  gps: {}  # GPS protocol ports and relay targets are configured under serviceGPS.ports
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# Redis Configuration
+# For cross-pod WebSocket broadcasting with multiple replicas
+redis:
+  enabled: false  # Disabled by default (single replica is sufficient)
+
+  # External Redis (e.g., redis-ha chart, managed Redis)
+  external:
+    enabled: false
+    url: ""  # e.g., redis://redis-ha:6379 or redis://user:password@host:6379/0
+
+  # Built-in Redis (single StatefulSet, not HA)
+  builtin:
+    enabled: false
+    image: redis:7-alpine
+    storage: 1Gi
+    storageClass: ""
+
+# Demo Mode Configuration (disabled in production)
+demo:
+  enabled: false
+  gpxDir: /data/demo
+  resetTime: "00:00"
+  deviceIMEIs: ""
+  speedMultiplier: 10.0
+  interpolationInterval: 100.0
+  resources:
+    requests:
+      cpu: 100m
+      memory: 64Mi
+    limits:
+      cpu: 500m
+      memory: 128Mi
+
+# WebSocket allowed origins (configure for your domain)
+websocket:
+  allowedOrigins: ""
+
+# Device Auto-Creation
+# Automatically register unknown devices when they send their first GPS position
+device:
+  autoCreate:
+    enabled: true  # Set to false to require manual device registration
+    defaultUser: "admin@motus.local"  # Email of user to assign auto-created devices to
+
+# OIDC Authentication
+# Allows users to log in via an OpenID Connect provider (e.g. Keycloak, Authentik, Google).
+oidc:
+  enabled: false
+  # Issuer URL for OIDC discovery (e.g. https://accounts.google.com or https://keycloak.example.com/realms/myrealm)
+  issuer: ""
+  # OAuth2 client ID
+  clientId: ""
+  # OAuth2 client secret (plain value — use clientSecretRef for production)
+  clientSecret: ""
+  # Reference to an existing Kubernetes Secret containing the client secret.
+  # When set, clientSecret above is ignored.
+  clientSecretRef:
+    secretName: ""  # e.g. motus-oidc-secret
+    secretKey: "client-secret"
+  # Full callback URL registered with the OIDC provider
+  # Example: https://motus.example.com/api/auth/oidc/callback
+  redirectUrl: ""
+  # Allow new users to register via OIDC (default: false — pre-existing accounts only)
+  signupEnabled: false
+  # Optional regex applied to the user's email; match grants admin role
+  adminEmailRegex: ""
+  # Optional claim key + value that grants admin role (e.g. groups = motus-admin)
+  adminClaim: ""
+  adminClaimValue: ""
+  # Extra OAuth2 scopes beyond openid, email, profile (space-separated)
+  scopes: ""
+
+# Metrics Configuration
+metrics:
+  enabled: false
+  port: 9090
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+    labels: {}
+
+# Rate limiting (requests per minute). 0 = use built-in defaults.
+rateLimit:
+  login: 0
+  api: 0

@@ -1,0 +1,13 @@
+{{- if and .Values.podDisruptionBudget.enabled (gt .Values.replicaCount 1.0) }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "motus.fullname" . }}
+  labels:
+    {{- include "motus.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "motus.selectorLabels" . | nindent 6 }}
+{{- end }}

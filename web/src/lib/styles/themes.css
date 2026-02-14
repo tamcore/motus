@@ -1,0 +1,168 @@
+/* Dark Theme (Default) */
+[data-theme="dark"] {
+  /* Backgrounds */
+  --bg-primary: #1a1a1a;
+  --bg-secondary: #2d2d2d;
+  --bg-tertiary: #3a3a3a;
+  --bg-hover: #404040;
+  --bg-active: #4a4a4a;
+
+  /* Text */
+  --text-primary: #ffffff;
+  --text-secondary: #a0a0a0;
+  --text-tertiary: #808080;
+  --text-inverse: #1a1a1a;
+
+  /* Accent (Waze-like bright blue) */
+  --accent-primary: #00d4ff;
+  --accent-hover: #00b8e6;
+  --accent-active: #009ccc;
+
+  /* Status */
+  --status-online: #00ff88;
+  --status-offline: #ff4444;
+  --status-idle: #ffaa00;
+  --status-moving: #00d4ff;
+
+  /* Semantic */
+  --success: #00ff88;
+  --warning: #ffaa00;
+  --error: #ff4444;
+  --info: #00d4ff;
+
+  /* Borders */
+  --border-color: #404040;
+  --border-hover: #505050;
+  --border-active: #00d4ff;
+
+  /* Shadows (adjusted for dark) */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.6);
+
+  /* Map */
+  --map-marker-online: #00ff88;
+  --map-marker-offline: #ff4444;
+}
+
+/* Light Theme */
+[data-theme="light"] {
+  /* Backgrounds */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f5f5;
+  --bg-tertiary: #ebebeb;
+  --bg-hover: #e0e0e0;
+  --bg-active: #d6d6d6;
+
+  /* Text */
+  --text-primary: #1a1a1a;
+  --text-secondary: #666666;
+  --text-tertiary: #999999;
+  --text-inverse: #ffffff;
+
+  /* Accent */
+  --accent-primary: #0099cc;
+  --accent-hover: #007aa3;
+  --accent-active: #005b7a;
+
+  /* Status */
+  --status-online: #00cc66;
+  --status-offline: #cc3333;
+  --status-idle: #ff9900;
+  --status-moving: #0099cc;
+
+  /* Semantic */
+  --success: #00cc66;
+  --warning: #ff9900;
+  --error: #cc3333;
+  --info: #0099cc;
+
+  /* Borders */
+  --border-color: #e0e0e0;
+  --border-hover: #d0d0d0;
+  --border-active: #0099cc;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.15);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.2);
+
+  /* Map */
+  --map-marker-online: #00cc66;
+  --map-marker-offline: #cc3333;
+}
+
+/* Typography Scale */
+:root {
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+}
+
+/* Spacing System (4px grid) */
+:root {
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+}
+
+/* Border Radius */
+:root {
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --radius-full: 9999px;
+}
+
+/* Transitions */
+:root {
+  --transition-fast: 150ms ease;
+  --transition-base: 200ms ease;
+  --transition-slow: 300ms ease;
+}
+
+/* Smooth theme transitions */
+* {
+  transition: background-color var(--transition-base),
+              color var(--transition-base),
+              border-color var(--transition-base);
+}
+
+/*
+ * Leaflet manages its own transitions for tile loading, zoom animation,
+ * and pane positioning. The universal * transition above can interfere
+ * with tile visibility and pane transforms, so we explicitly reset it
+ * for all Leaflet-managed elements.
+ */
+.leaflet-pane,
+.leaflet-tile,
+.leaflet-tile-container,
+.leaflet-tile-pane,
+.leaflet-tile-pane *,
+.leaflet-map-pane,
+.leaflet-overlay-pane,
+.leaflet-marker-pane,
+.leaflet-tooltip-pane,
+.leaflet-popup-pane,
+.leaflet-shadow-pane {
+  transition: none;
+}

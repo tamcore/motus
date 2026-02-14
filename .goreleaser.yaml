@@ -1,0 +1,63 @@
+version: 2
+
+before:
+  hooks:
+    - sh -c "cd web && npm ci"
+    - sh -c "cd web && npm run build"
+    - go mod tidy
+
+builds:
+  - id: motus
+    main: ./cmd/motus
+    binary: motus
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/tamcore/motus/internal/version.Version={{.Version}}
+      - -X github.com/tamcore/motus/internal/version.Commit={{.Commit}}
+      - -X github.com/tamcore/motus/internal/version.BuildDate={{.Date}}
+      - -X github.com/tamcore/motus/internal/version.Branch={{.Branch}}
+
+archives:
+  - id: motus-archive
+    formats:
+      - tar.gz
+    name_template: "motus_{{ .Tag }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  version_template: "{{ incpatch .Tag }}-next"
+
+changelog:
+  use: github
+  sort: asc
+
+dockers_v2:
+  - ids: [motus]
+    images:
+      - "ghcr.io/tamcore/motus"
+    tags:
+      - "{{ .Tag }}"
+      - latest
+    dockerfile: Dockerfile
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    labels:
+      "org.opencontainers.image.created": "{{.Date}}"
+      "org.opencontainers.image.title": "{{.ProjectName}}"
+      "org.opencontainers.image.revision": "{{.FullCommit}}"
+      "org.opencontainers.image.version": "{{.Version}}"
+      "org.opencontainers.image.source": "https://github.com/tamcore/motus"
+      "org.opencontainers.image.description": "Motus GPS Tracking System"
+    extra_files:
+      - migrations

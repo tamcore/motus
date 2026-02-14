@@ -1,0 +1,65 @@
+{
+	"name": "Motus GPS Tracking",
+	"short_name": "Motus",
+	"description": "Real-time GPS tracking and fleet management. Monitor devices, view trip reports, manage geofences, and receive notifications.",
+	"start_url": "/",
+	"scope": "/",
+	"display": "standalone",
+	"orientation": "any",
+	"theme_color": "#1a1a1a",
+	"background_color": "#1a1a1a",
+	"categories": ["navigation", "utilities"],
+	"icons": [
+		{
+			"src": "/icon-192.png",
+			"sizes": "192x192",
+			"type": "image/png",
+			"purpose": "any"
+		},
+		{
+			"src": "/icon-512.png",
+			"sizes": "512x512",
+			"type": "image/png",
+			"purpose": "any"
+		},
+		{
+			"src": "/icon-maskable-192.png",
+			"sizes": "192x192",
+			"type": "image/png",
+			"purpose": "maskable"
+		},
+		{
+			"src": "/icon-maskable-512.png",
+			"sizes": "512x512",
+			"type": "image/png",
+			"purpose": "maskable"
+		},
+		{
+			"src": "/apple-touch-icon.png",
+			"sizes": "180x180",
+			"type": "image/png",
+			"purpose": "any"
+		}
+	],
+	"screenshots": [],
+	"shortcuts": [
+		{
+			"name": "Live Map",
+			"short_name": "Map",
+			"url": "/map",
+			"description": "View real-time device locations on the map"
+		},
+		{
+			"name": "Devices",
+			"short_name": "Devices",
+			"url": "/devices",
+			"description": "Manage tracked devices"
+		},
+		{
+			"name": "Reports",
+			"short_name": "Reports",
+			"url": "/reports",
+			"description": "View trip reports and analytics"
+		}
+	]
+}

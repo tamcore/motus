@@ -37,6 +37,16 @@ export const TEST_NOTIFICATION = {
   template: '{"device": "{{device.name}}", "event": "{{event.type}}"}',
 };
 
+export const OIDC_ADMIN_CREDENTIALS = {
+  username: 'admin@motus.local',
+  password: 'admin',
+};
+
+export const OIDC_USER_CREDENTIALS = {
+  username: 'user@motus.local',
+  password: 'user',
+};
+
 export const NAV_LINKS = [
   { label: 'Dashboard', path: '/' },
   { label: 'Devices', path: '/devices' },

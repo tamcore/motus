@@ -49,4 +49,20 @@ export class LoginPage {
   get submitButton() {
     return this.page.locator('button:has-text("Login")');
   }
+
+  get ssoButton() {
+    return this.page.locator('a.sso-button');
+  }
+
+  async expectSSOButtonVisible() {
+    await expect(this.ssoButton).toBeVisible();
+  }
+
+  async expectSSOButtonHidden() {
+    await expect(this.ssoButton).toHaveCount(0);
+  }
+
+  async clickSSO() {
+    await this.ssoButton.click();
+  }
 }

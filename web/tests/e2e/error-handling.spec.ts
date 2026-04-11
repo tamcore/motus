@@ -75,14 +75,8 @@ test.describe('Error Handling', () => {
   });
 
   test('should handle session expiry by redirecting to login', async ({ authedPage }) => {
-    await authedPage.route('**/api/session', (route) => {
-      if (route.request().method() === 'GET') {
-        route.fulfill({ status: 401, body: '{"error":"unauthorized"}' });
-      } else {
-        route.continue();
-      }
-    });
-    // Clear auth state
+    // Clear session cookie to simulate expiry
+    await authedPage.context().clearCookies();
     await authedPage.evaluate(() => {
       localStorage.setItem('motus_authenticated', 'false');
       localStorage.setItem('motus_user', 'null');

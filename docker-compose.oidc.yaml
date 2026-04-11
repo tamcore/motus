@@ -1,0 +1,32 @@
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.6
+    command: start-dev --import-realm
+    environment:
+      KC_HTTP_PORT: "8180"
+      KC_HEALTH_ENABLED: "true"
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    ports:
+      - "8180:8180"
+    volumes:
+      - ./data/keycloak:/opt/keycloak/data/import
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000"]
+      start_period: 15s
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  motus:
+    depends_on:
+      keycloak:
+        condition: service_healthy
+    environment:
+      MOTUS_OIDC_ENABLED: "true"
+      MOTUS_OIDC_ISSUER: "http://keycloak:8180/realms/motus"
+      MOTUS_OIDC_CLIENT_ID: "motus"
+      MOTUS_OIDC_CLIENT_SECRET: "motus-secret"
+      MOTUS_OIDC_REDIRECT_URL: "http://localhost:8080/api/auth/oidc/callback"
+      MOTUS_OIDC_SIGNUP_ENABLED: "true"
+      MOTUS_OIDC_ADMIN_EMAIL_REGEX: "^admin@motus\\.local$"

@@ -1,0 +1,59 @@
+{
+  "realm": "motus",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "clients": [
+    {
+      "clientId": "motus",
+      "name": "Motus GPS Tracker",
+      "enabled": true,
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "motus-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": [
+        "http://localhost:8080/api/auth/oidc/callback"
+      ],
+      "webOrigins": [
+        "http://localhost:8080"
+      ],
+      "protocol": "openid-connect"
+    }
+  ],
+  "users": [
+    {
+      "username": "admin",
+      "email": "admin@motus.local",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "OIDC",
+      "lastName": "Admin",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "user",
+      "email": "user@motus.local",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "OIDC",
+      "lastName": "User",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "user",
+          "temporary": false
+        }
+      ]
+    }
+  ]
+}

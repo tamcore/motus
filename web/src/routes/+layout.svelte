@@ -72,13 +72,10 @@
 			return;
 		}
 
-		if (!$isAuthenticated) {
-			goto('/login');
-			loading = false;
-			return;
-		}
-
 		try {
+			// Always try the session cookie. This handles both returning users
+			// (localStorage says authenticated) and OIDC callback redirects
+			// (server just set a session cookie but localStorage is stale).
 			const user = await api.getCurrentUser();
 			currentUser.set(user);
 			isAuthenticated.set(true);
@@ -92,7 +89,7 @@
 			// not on aborted requests (e.g., user refreshing rapidly) or
 			// transient network errors which would incorrectly log the user out.
 			const isAuthError = err instanceof APIError && err.status === 401;
-			if (isAuthError) {
+			if (isAuthError || !$isAuthenticated) {
 				currentUser.set(null);
 				isAuthenticated.set(false);
 				if (!isPublicRoute) {

@@ -9,15 +9,32 @@ on:
 jobs:
   test-e2e:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [regular, oidc]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      - name: Add keycloak to /etc/hosts
+        if: matrix.mode == 'oidc'
+        run: echo "127.0.0.1 keycloak" | sudo tee -a /etc/hosts
+
       - name: Start app stack
+        if: matrix.mode == 'regular'
         run: docker compose -f docker-compose.dev.yaml up -d --build --wait
+
+      - name: Start app stack with OIDC
+        if: matrix.mode == 'oidc'
+        run: docker compose -f docker-compose.dev.yaml -f docker-compose.oidc.yaml up -d --build --wait
 
       - name: Show container logs
         if: failure()
-        run: docker compose -f docker-compose.dev.yaml logs
+        run: |
+          docker compose -f docker-compose.dev.yaml logs
+          if [ "${{ matrix.mode }}" = "oidc" ]; then
+            docker compose -f docker-compose.dev.yaml -f docker-compose.oidc.yaml logs keycloak
+          fi
 
       - name: Setup Node
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
@@ -33,12 +50,18 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run E2E tests
+        if: matrix.mode == 'regular'
         working-directory: ./web
-        run: npx playwright test
+        run: npx playwright test --project=setup --project=chromium --project=auth
+
+      - name: Run OIDC E2E tests
+        if: matrix.mode == 'oidc'
+        working-directory: ./web
+        run: npx playwright test --project=oidc
 
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.mode }}
           path: web/playwright-report/

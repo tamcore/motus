@@ -33,7 +33,7 @@ export default defineConfig({
       },
       dependencies: ["setup"],
       testDir: "./tests/e2e",
-      testIgnore: /auth\.spec\.ts/,
+      testIgnore: [/auth\.spec\.ts/, /oidc-.*\.spec\.ts/],
     },
     {
       name: "auth",
@@ -43,6 +43,15 @@ export default defineConfig({
       },
       testDir: "./tests/e2e",
       testMatch: /auth\.spec\.ts/,
+    },
+    {
+      name: "oidc",
+      use: {
+        ...devices["Desktop Chrome"],
+        storageState: { cookies: [], origins: [] },
+      },
+      testDir: "./tests/e2e",
+      testMatch: /oidc-.*\.spec\.ts/,
     },
   ],
   timeout: 30000,

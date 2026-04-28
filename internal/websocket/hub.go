@@ -39,6 +39,11 @@ type DeviceAccessChecker interface {
 // if the user is not authenticated.
 type UserIDExtractor func(r *http.Request) int64
 
+// AdminChecker reports whether the user identified by userID has administrator
+// privileges. Called once per WebSocket connection to avoid per-message DB
+// lookups. Return false on error or if the user is not an admin.
+type AdminChecker func(ctx context.Context, userID int64) bool
+
 // ShareTokenValidator validates a share token and returns the associated device ID.
 // Returns deviceID > 0 if valid, 0 if invalid/expired.
 type ShareTokenValidator interface {
@@ -49,6 +54,7 @@ type ShareTokenValidator interface {
 type Client struct {
 	UserID         int64
 	SharedDeviceID int64 // non-zero for share-token connections (scoped to one device)
+	IsAdmin        bool  // bypasses per-device access filtering; set once at connection time
 	Conn           *websocket.Conn
 	mu             sync.Mutex // protects Conn.WriteMessage from concurrent calls
 }
@@ -78,6 +84,7 @@ type Hub struct {
 	isDevelopment  bool
 	upgrader       websocket.Upgrader
 	accessChecker  DeviceAccessChecker
+	adminChecker   AdminChecker
 	extractUserID  UserIDExtractor
 	shareValidator ShareTokenValidator
 	pubsub         pubsub.PubSub
@@ -150,6 +157,13 @@ func (h *Hub) SetPubSub(ps pubsub.PubSub) {
 // query parameter to receive position updates for a specific shared device.
 func (h *Hub) SetShareTokenValidator(v ShareTokenValidator) {
 	h.shareValidator = v
+}
+
+// SetAdminChecker configures admin detection for the hub. When set, it is called
+// once per authenticated WebSocket connection. Admin clients bypass per-device
+// access filtering and receive broadcasts for all devices.
+func (h *Hub) SetAdminChecker(fn AdminChecker) {
+	h.adminChecker = fn
 }
 
 // StartSubscriber begins listening for messages from Redis pub/sub and relays
@@ -266,9 +280,15 @@ func (h *Hub) HandleConnect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var isAdmin bool
+	if userID != 0 && h.adminChecker != nil {
+		isAdmin = h.adminChecker(r.Context(), userID)
+	}
+
 	client := &Client{
 		UserID:         userID,
 		SharedDeviceID: sharedDeviceID,
+		IsAdmin:        isAdmin,
 		Conn:           conn,
 	}
 
@@ -448,10 +468,14 @@ func (h *Hub) validateShareToken(ctx context.Context, token string) int64 {
 // clientCanReceive checks whether a client should receive a broadcast for
 // the given device. Authenticated clients are checked against allowedUserIDs.
 // Share-token clients only receive updates for their specific SharedDeviceID.
+// Admin clients receive broadcasts for all devices.
 func clientCanReceive(client *Client, deviceID int64, allowedUserIDs []int64) bool {
 	if client.SharedDeviceID > 0 {
 		// Share-token client: only receives updates for its scoped device.
 		return client.SharedDeviceID == deviceID
+	}
+	if client.IsAdmin {
+		return true
 	}
 	// Regular authenticated client: checked against the access list.
 	return userIDInSlice(client.UserID, allowedUserIDs)

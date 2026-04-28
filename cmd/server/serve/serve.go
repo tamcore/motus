@@ -220,6 +220,13 @@ func Run() {
 		hub.SetPubSub(redisPubSub)
 	}
 	hub.SetShareTokenValidator(&shareTokenAdapter{shares: shareRepo})
+	hub.SetAdminChecker(func(ctx context.Context, userID int64) bool {
+		user, err := userRepo.GetByID(ctx, userID)
+		if err != nil || user == nil {
+			return false
+		}
+		return user.IsAdmin()
+	})
 	if cfg.Security.Env == "development" {
 		hub.SetDevelopmentMode(true)
 	}

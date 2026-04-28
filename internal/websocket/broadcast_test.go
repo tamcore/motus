@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -137,5 +138,50 @@ func TestBroadcast_NilAccessChecker(t *testing.T) {
 	_, _, err := conn.ReadMessage()
 	if err == nil {
 		t.Error("expected no message when access checker is nil")
+	}
+}
+
+func TestBroadcastPosition_AdminReceivesAll(t *testing.T) {
+	// Device 10 is only assigned to user 2 in user_devices.
+	// User 1 is an admin and should receive broadcasts for all devices even
+	// without an explicit user_devices entry.
+	checker := &mockAccessChecker{
+		deviceUsers: map[int64][]int64{
+			10: {2},
+		},
+	}
+
+	counter := int64(0)
+	hub := NewHub(nil, checker, func(_ *http.Request) int64 {
+		counter++
+		return counter
+	})
+	hub.SetAdminChecker(func(_ context.Context, userID int64) bool {
+		return userID == 1 // only user 1 is admin
+	})
+
+	conn1 := connectClient(t, hub) // userID=1, IsAdmin=true
+	conn2 := connectClient(t, hub) // userID=2, not admin, explicitly assigned
+
+	pos := &model.Position{ID: 1, DeviceID: 10, Latitude: 52.0, Longitude: 13.0, Timestamp: time.Now().UTC()}
+	hub.BroadcastPosition(pos)
+
+	// Admin (conn1) must receive despite having no user_devices entry.
+	_ = conn1.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_, msg1, err := conn1.ReadMessage()
+	if err != nil {
+		t.Fatalf("admin client failed to read: %v", err)
+	}
+	var traccarMsg1 TraccarMessage
+	_ = json.Unmarshal(msg1, &traccarMsg1)
+	if len(traccarMsg1.Positions) != 1 {
+		t.Errorf("admin: expected 1 position, got %d", len(traccarMsg1.Positions))
+	}
+
+	// Assigned non-admin user (conn2) also receives.
+	_ = conn2.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_, _, err = conn2.ReadMessage()
+	if err != nil {
+		t.Fatalf("assigned user should also receive: %v", err)
 	}
 }

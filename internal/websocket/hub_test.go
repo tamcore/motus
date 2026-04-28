@@ -200,6 +200,27 @@ func TestClientCanReceive(t *testing.T) {
 			allowedUserIDs: nil,
 			want:           false,
 		},
+		{
+			name:           "admin user receives without explicit access",
+			client:         &Client{UserID: 2, IsAdmin: true},
+			deviceID:       10,
+			allowedUserIDs: []int64{1}, // user 2 not listed
+			want:           true,
+		},
+		{
+			name:           "admin user receives with nil access list",
+			client:         &Client{UserID: 2, IsAdmin: true},
+			deviceID:       10,
+			allowedUserIDs: nil,
+			want:           true,
+		},
+		{
+			name:           "share token takes precedence over admin flag",
+			client:         &Client{UserID: 2, IsAdmin: true, SharedDeviceID: 20},
+			deviceID:       10, // different from SharedDeviceID
+			allowedUserIDs: nil,
+			want:           false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -638,5 +659,16 @@ func TestStartSubscriber_SubscribeError(t *testing.T) {
 	case <-done:
 	case <-time.After(2 * time.Second):
 		t.Fatal("StartSubscriber did not return after context cancellation")
+	}
+}
+
+func TestSetAdminChecker(t *testing.T) {
+	hub := NewHub(nil, nil, dummyExtractor)
+	if hub.adminChecker != nil {
+		t.Error("adminChecker should be nil by default")
+	}
+	hub.SetAdminChecker(func(_ context.Context, _ int64) bool { return true })
+	if hub.adminChecker == nil {
+		t.Error("adminChecker should be set after SetAdminChecker")
 	}
 }

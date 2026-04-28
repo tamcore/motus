@@ -9,6 +9,10 @@ permissions:
   contents: write
   packages: write
 
+env:
+  CHART_DIR: charts/motus
+  CHART_REPOSITORY: ghcr.io/${{ github.repository_owner }}/charts
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -48,3 +52,59 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  chart-release:
+    runs-on: ubuntu-latest
+    needs: [release]
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 1
+
+      - name: Install Helm
+        uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4
+
+      - name: Login to registry
+        run: |
+          echo '${{ secrets.GITHUB_TOKEN }}' | \
+            helm registry login \
+              -u '${{ github.actor }}' \
+              --password-stdin \
+              ghcr.io
+
+      - name: Install yq
+        env:
+          YQ_VERSION: "v4.35.2"
+        run: |
+          sudo wget https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64 -O /usr/bin/yq && \
+            sudo chmod +x /usr/bin/yq
+
+      - name: Update Chart version
+        env:
+          VERSION: "${{ github.ref_name }}"
+        run: |
+          yq -i '.version = strenv(VERSION)' '${{ env.CHART_DIR }}/Chart.yaml'
+          yq -i '.appVersion = strenv(VERSION)' '${{ env.CHART_DIR }}/Chart.yaml'
+
+      - name: Package chart
+        run: |
+          echo PACKAGE=$(helm package ${{ env.CHART_DIR }} -u | cut -d " " -f 8) >> ${GITHUB_ENV}
+
+      - name: Push chart
+        run: |
+          helm push \
+            ${{ env.PACKAGE }} \
+            oci://${{ env.CHART_REPOSITORY }}
+
+      - name: Template chart
+        run: |
+          helm template \
+            motus \
+            ${{ env.CHART_DIR }} > install.yaml
+
+      - name: Upload manifest to release
+        uses: svenstaro/upload-release-action@b98a3b12e86552593f3e4e577ca8a62aa2f3f22b # v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: install.yaml
+          tag: ${{ github.ref }}

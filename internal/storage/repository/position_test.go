@@ -136,7 +136,7 @@ func TestPositionRepository_GetByDeviceAndTimeRange(t *testing.T) {
 	}
 }
 
-func TestPositionRepository_GetByDeviceAndTimeRange_LimitDefault(t *testing.T) {
+func TestPositionRepository_GetByDeviceAndTimeRange_NoLimit(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	posRepo := repository.NewPositionRepository(pool)
@@ -147,18 +147,95 @@ func TestPositionRepository_GetByDeviceAndTimeRange_LimitDefault(t *testing.T) {
 	_, device := createTestDevice(t, pool, deviceRepo, userRepo)
 
 	now := time.Now().UTC()
-	pos := &model.Position{DeviceID: device.ID, Latitude: 52.0, Longitude: 13.0, Timestamp: now}
-	if err := posRepo.Create(ctx, pos); err != nil {
-		t.Fatalf("Create failed: %v", err)
+	for i := range 5 {
+		p := &model.Position{
+			DeviceID:  device.ID,
+			Latitude:  52.0 + float64(i)*0.01,
+			Longitude: 13.0,
+			Timestamp: now.Add(time.Duration(-5+i) * time.Minute),
+		}
+		if err := posRepo.Create(ctx, p); err != nil {
+			t.Fatalf("Create failed: %v", err)
+		}
 	}
 
-	// Invalid limit should default to maxPositionsPerQuery (10000).
+	// limit=0 must return all positions without any cap.
+	results, err := posRepo.GetByDeviceAndTimeRange(ctx, device.ID, now.Add(-time.Hour), now.Add(time.Minute), 0)
+	if err != nil {
+		t.Fatalf("GetByDeviceAndTimeRange failed: %v", err)
+	}
+	if len(results) != 5 {
+		t.Errorf("expected 5 positions with no limit, got %d", len(results))
+	}
+}
+
+func TestPositionRepository_GetByDeviceAndTimeRange_NegativeLimitTreatedAsUnlimited(t *testing.T) {
+	pool := testutil.SetupTestDB(t)
+	testutil.CleanTables(t, pool)
+	posRepo := repository.NewPositionRepository(pool)
+	deviceRepo := repository.NewDeviceRepository(pool)
+	userRepo := repository.NewUserRepository(pool)
+	ctx := context.Background()
+
+	_, device := createTestDevice(t, pool, deviceRepo, userRepo)
+
+	now := time.Now().UTC()
+	for i := range 3 {
+		p := &model.Position{
+			DeviceID:  device.ID,
+			Latitude:  52.0 + float64(i)*0.01,
+			Longitude: 13.0,
+			Timestamp: now.Add(time.Duration(-3+i) * time.Minute),
+		}
+		if err := posRepo.Create(ctx, p); err != nil {
+			t.Fatalf("Create failed: %v", err)
+		}
+	}
+
+	// Negative limit must behave the same as 0 (unlimited).
 	results, err := posRepo.GetByDeviceAndTimeRange(ctx, device.ID, now.Add(-time.Hour), now.Add(time.Minute), -1)
 	if err != nil {
 		t.Fatalf("GetByDeviceAndTimeRange failed: %v", err)
 	}
-	if len(results) != 1 {
-		t.Errorf("expected 1 position, got %d", len(results))
+	if len(results) != 3 {
+		t.Errorf("expected 3 positions for negative limit (treated as unlimited), got %d", len(results))
+	}
+}
+
+func TestPositionRepository_GetByDeviceAndTimeRange_PositiveLimitCaps(t *testing.T) {
+	pool := testutil.SetupTestDB(t)
+	testutil.CleanTables(t, pool)
+	posRepo := repository.NewPositionRepository(pool)
+	deviceRepo := repository.NewDeviceRepository(pool)
+	userRepo := repository.NewUserRepository(pool)
+	ctx := context.Background()
+
+	_, device := createTestDevice(t, pool, deviceRepo, userRepo)
+
+	now := time.Now().UTC()
+	for i := range 5 {
+		p := &model.Position{
+			DeviceID:  device.ID,
+			Latitude:  52.0 + float64(i)*0.01,
+			Longitude: 13.0,
+			Timestamp: now.Add(time.Duration(-5+i) * time.Minute),
+		}
+		if err := posRepo.Create(ctx, p); err != nil {
+			t.Fatalf("Create failed: %v", err)
+		}
+	}
+
+	// Explicit positive limit must cap at that value.
+	results, err := posRepo.GetByDeviceAndTimeRange(ctx, device.ID, now.Add(-time.Hour), now.Add(time.Minute), 2)
+	if err != nil {
+		t.Fatalf("GetByDeviceAndTimeRange failed: %v", err)
+	}
+	if len(results) != 2 {
+		t.Errorf("expected 2 positions for limit=2, got %d", len(results))
+	}
+	// Must be oldest-first (ASC order).
+	if results[0].Latitude >= results[1].Latitude {
+		t.Error("expected positions in ascending timestamp order")
 	}
 }
 

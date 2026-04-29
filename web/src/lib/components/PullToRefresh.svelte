@@ -20,7 +20,7 @@
 
 	function onTouchStart(e: TouchEvent) {
 		if (refreshing || !$refreshHandler) return;
-		if (container.scrollTop > 0) return;
+		if (window.scrollY > 0) return;
 		startY = e.touches[0].clientY;
 		pulling = true;
 	}
@@ -116,11 +116,8 @@
 <style>
 	.ptr-container {
 		position: relative;
-		overflow-y: auto;
-		overflow-x: hidden;
 		overscroll-behavior-y: contain;
-		height: 100%;
-		-webkit-overflow-scrolling: touch;
+		min-height: 100%;
 	}
 
 	.ptr-indicator {

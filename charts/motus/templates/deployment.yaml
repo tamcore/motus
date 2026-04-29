@@ -121,7 +121,7 @@ spec:
           value: {{ .Values.device.uniqueIdPrefix | quote }}
         {{- end }}
         {{- end }}
-        {{- if .Values.demo }}
+        {{- if .Values.demo.enabled }}
         - name: MOTUS_DEMO_ENABLED
           value: {{ .Values.demo.enabled | quote }}
         - name: MOTUS_DEMO_GPX_DIR

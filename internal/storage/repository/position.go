@@ -114,37 +114,44 @@ func (r *PositionRepository) GetLatestAll(ctx context.Context) ([]*model.Positio
 	return scanPositions(rows)
 }
 
-// maxPositionsPerQuery is the safety cap on the number of positions returned
-// by a single time-range query. This prevents unbounded memory usage while
-// still being large enough for 24h trails at high update frequencies (e.g.
-// a simulator sending one position per second would produce ~86 400 points
-// per day, but real devices typically send every 5-60s).
-const maxPositionsPerQuery = 10000
-
-// GetByDeviceAndTimeRange returns positions for a device within a time range.
-// A limit of 0 or negative means "use maxPositionsPerQuery". Any positive
-// value is capped at maxPositionsPerQuery.
+// GetByDeviceAndTimeRange returns positions for a device within a time range,
+// ordered by timestamp ascending. limit=0 (or negative) returns all matching
+// rows with no cap; a positive limit restricts the result set to that count.
 func (r *PositionRepository) GetByDeviceAndTimeRange(
 	ctx context.Context, deviceID int64, from, to time.Time, limit int,
 ) ([]*model.Position, error) {
-	if limit <= 0 || limit > maxPositionsPerQuery {
-		limit = maxPositionsPerQuery
+	if limit < 0 {
+		limit = 0
 	}
 
-	rows, err := r.pool.Query(ctx,
-		`SELECT `+positionColumns+`
+	const baseQuery = `SELECT ` + positionColumns + `
 		 FROM positions
 		 WHERE device_id = $1 AND timestamp >= $2 AND timestamp <= $3
-		 ORDER BY timestamp ASC
-		 LIMIT $4`,
-		deviceID, from, to, limit,
-	)
+		 ORDER BY timestamp ASC`
+
+	var rows pgx.Rows
+	var err error
+	if limit > 0 {
+		rows, err = r.pool.Query(ctx, baseQuery+` LIMIT $4`, deviceID, from, to, limit)
+	} else {
+		rows, err = r.pool.Query(ctx, baseQuery, deviceID, from, to)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("get positions by time range: %w", err)
 	}
 	defer rows.Close()
 
-	return scanPositions(rows)
+	positions, err := scanPositions(rows)
+	if err != nil {
+		return nil, err
+	}
+	if len(positions) > 50_000 {
+		slog.Warn("large position query result — consider a narrower time range",
+			slog.Int64("deviceID", deviceID),
+			slog.Int("count", len(positions)),
+		)
+	}
+	return positions, nil
 }
 
 // GetPreviousByDevice returns the position immediately before the given timestamp

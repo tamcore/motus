@@ -22,12 +22,22 @@
 
 	interface Device { id: number; name: string; uniqueId: string; status: string; }
 
+	const PAGE_SIZE_OPTIONS = [5, 10, 25, 50, 100];
+	const DEFAULT_PAGE_SIZE = 10;
+
 	let loading = true;
 	let fetchingTrips = false;
 	let fetchingStops = false;
 	let devices: Device[] = [];
 	let trips: Trip[] = [];
 	let stops: Stop[] = [];
+	let pageSize = DEFAULT_PAGE_SIZE;
+	let visibleTripCount = pageSize;
+	let visibleStopCount = pageSize;
+	let tripSentinel: HTMLElement | undefined;
+	let stopSentinel: HTMLElement | undefined;
+	let tripObserver: IntersectionObserver | undefined;
+	let stopObserver: IntersectionObserver | undefined;
 	let selectedDeviceId = '';
 	let activeTab: 'trips' | 'stops' | 'summary' = 'trips';
 	let datePreset: 'day' | 'week' | 'month' | 'custom' = 'week';
@@ -127,6 +137,49 @@
 		return { from: from.toISOString(), to };
 	}
 
+	function makeScrollObserver(onIntersect: () => void): IntersectionObserver {
+		// Root is null (window viewport). PullToRefresh no longer creates its
+		// own scroll container (uses min-height instead of height: 100% +
+		// overflow-y: auto), so the window is always the scroll container.
+		return new IntersectionObserver(
+			(entries) => { if (entries[0]?.isIntersecting) onIntersect(); },
+			{ rootMargin: '200px' },
+		);
+	}
+
+	// Re-wire observers only when the sentinel DOM node itself changes.
+	// Using a local variable to track which node is currently observed
+	// prevents spurious disconnect/reconnect on every data update.
+	let observedTripSentinel: HTMLElement | undefined;
+	let observedStopSentinel: HTMLElement | undefined;
+
+	$: if (tripSentinel !== observedTripSentinel) {
+		tripObserver?.disconnect();
+		observedTripSentinel = tripSentinel;
+		if (tripSentinel) {
+			tripObserver = makeScrollObserver(
+				() => { visibleTripCount = Math.min(visibleTripCount + pageSize, trips.length); },
+			);
+			tripObserver.observe(tripSentinel);
+		}
+	}
+
+	$: if (stopSentinel !== observedStopSentinel) {
+		stopObserver?.disconnect();
+		observedStopSentinel = stopSentinel;
+		if (stopSentinel) {
+			stopObserver = makeScrollObserver(
+				() => { visibleStopCount = Math.min(visibleStopCount + pageSize, stops.length); },
+			);
+			stopObserver.observe(stopSentinel);
+		}
+	}
+
+	function onPageSizeChange() {
+		visibleTripCount = pageSize;
+		visibleStopCount = pageSize;
+	}
+
 	async function fetchReports() {
 		fetchingTrips = true;
 		fetchingStops = true;
@@ -138,14 +191,14 @@
 			const allStops: Stop[] = [];
 			// Fetch positions for each device independently so that a
 			// failure for one device does not prevent the others from
-			// being displayed. This fixes the bug where only one demo
-			// device appeared in the reports page.
+			// being displayed. No limit is passed — the API returns all
+			// positions in the requested range.
 			await Promise.all(deviceIds.map(async (devId) => {
 				const device = devices.find((d) => d.id === devId);
 				if (!device) return;
 				try {
 					const positions = (await api.getPositions({
-						deviceId: devId, from, to, limit: 10000
+						deviceId: devId, from, to,
 					})) as Position[];
 					const deviceTrips = detectTrips(positions, device.name, device.id);
 					const deviceStops = detectStops(positions, device.name);
@@ -159,6 +212,8 @@
 			allStops.sort((a, b) => new Date(b.arrivalTime).getTime() - new Date(a.arrivalTime).getTime());
 			trips = allTrips;
 			stops = allStops;
+			visibleTripCount = pageSize;
+			visibleStopCount = pageSize;
 		} catch (error) {
 			console.error('Failed to fetch reports:', error);
 		} finally {
@@ -203,7 +258,11 @@
 		$refreshHandler = reloadDevices;
 	});
 
-	onDestroy(() => { $refreshHandler = null; });
+	onDestroy(() => {
+		$refreshHandler = null;
+		tripObserver?.disconnect();
+		stopObserver?.disconnect();
+	});
 
 	async function reloadDevices() {
 		const isAdmin = ($currentUser as Record<string, unknown> | null)?.administrator === true;
@@ -301,6 +360,14 @@
 			</div>
 		{:else if activeTab === 'trips'}
 			<div class="table-toolbar">
+				<div class="page-size-control">
+					<label for="page-size" class="page-size-label">Rows per page</label>
+					<select id="page-size" class="page-size-select" bind:value={pageSize} on:change={onPageSizeChange}>
+						{#each PAGE_SIZE_OPTIONS as size}
+							<option value={size}>{size}</option>
+						{/each}
+					</select>
+				</div>
 				<div class="column-settings">
 					<!-- svelte-ignore a11y-click-events-have-key-events -->
 					<button
@@ -335,6 +402,9 @@
 					{/if}
 				</div>
 			</div>
+			{#if trips.length > pageSize}
+				<p class="lazy-info">Showing {Math.min(visibleTripCount, trips.length)} of {trips.length} trips</p>
+			{/if}
 			<div class="table-wrapper">
 				<table class="trips-table">
 					<thead><tr>
@@ -348,7 +418,7 @@
 						<th>Actions</th>
 					</tr></thead>
 					<tbody>
-						{#each trips as trip (trip.id)}
+						{#each trips.slice(0, visibleTripCount) as trip (trip.id)}
 							<tr class:ongoing={isTripOngoing(trip)}>
 								{#if columnConfig.device}<td>{trip.deviceName}</td>{/if}
 								{#if columnConfig.startTime}<td>{formatDate(trip.startTime)}</td>{/if}
@@ -379,6 +449,9 @@
 						{/each}
 					</tbody>
 				</table>
+				{#if visibleTripCount < trips.length}
+					<div bind:this={tripSentinel} class="scroll-sentinel" aria-hidden="true"></div>
+				{/if}
 			</div>
 		{:else if activeTab === 'stops' && stops.length === 0}
 			<div class="empty-state">
@@ -390,6 +463,9 @@
 				<p class="empty-hint">Stops are detected when a device remains below 1 km/h for at least 5 minutes. Select a device and date range, then click Apply.</p>
 			</div>
 		{:else if activeTab === 'stops'}
+			{#if stops.length > pageSize}
+				<p class="lazy-info">Showing {Math.min(visibleStopCount, stops.length)} of {stops.length} stops</p>
+			{/if}
 			<div class="table-wrapper">
 				<table class="trips-table">
 					<thead><tr>
@@ -397,7 +473,7 @@
 						<th>Departure</th><th>Duration</th>
 					</tr></thead>
 					<tbody>
-						{#each stops as stop (stop.id)}
+						{#each stops.slice(0, visibleStopCount) as stop (stop.id)}
 							<tr>
 								<td>{stop.deviceName}</td>
 								<td class="address-cell" title={stop.address}>{stop.address}</td>
@@ -408,6 +484,9 @@
 						{/each}
 					</tbody>
 				</table>
+				{#if visibleStopCount < stops.length}
+					<div bind:this={stopSentinel} class="scroll-sentinel" aria-hidden="true"></div>
+				{/if}
 			</div>
 		{:else if activeTab === 'summary'}
 			<div class="chart-container">
@@ -496,7 +575,8 @@
 
 	/* Column settings */
 	.table-toolbar {
-		display: flex; justify-content: flex-end; margin-bottom: var(--space-3);
+		display: flex; justify-content: space-between; align-items: center;
+		margin-bottom: var(--space-3);
 	}
 	.column-settings {
 		position: relative;
@@ -596,6 +676,24 @@
 	}
 	.live-link { color: var(--success); margin-left: var(--space-2); }
 	.live-link:hover { color: var(--success); }
+
+	.lazy-info {
+		font-size: var(--text-sm); color: var(--text-tertiary);
+		margin-bottom: var(--space-2); text-align: right;
+	}
+	.page-size-control {
+		display: flex; align-items: center; gap: var(--space-2);
+	}
+	.page-size-label {
+		font-size: var(--text-sm); color: var(--text-secondary); white-space: nowrap;
+	}
+	.page-size-select {
+		padding: var(--space-1) var(--space-2);
+		background-color: var(--bg-primary);
+		border: 1px solid var(--border-color); border-radius: var(--radius-md);
+		color: var(--text-primary); font-size: var(--text-sm); cursor: pointer;
+	}
+	.scroll-sentinel { height: 1px; }
 
 	@media (max-width: 768px) {
 		.filters-bar { flex-direction: column; align-items: stretch; }

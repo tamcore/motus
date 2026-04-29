@@ -41,7 +41,7 @@
 	let customFrom = '';
 	let customTo = '';
 	let selectedMetrics: string[] = ['speed'];
-	let positionLimit = 5000;
+	let positionLimit = 0;
 	let availableMetrics: MetricDefinition[] = METRICS;
 
 	// Chart
@@ -414,6 +414,7 @@
 				<div class="filter-group limit-group">
 					<label for="chart-limit" class="filter-label">Max positions</label>
 					<select id="chart-limit" bind:value={positionLimit} class="select select-sm">
+						<option value={0}>All</option>
 						<option value={1000}>1,000</option>
 						<option value={2500}>2,500</option>
 						<option value={5000}>5,000</option>

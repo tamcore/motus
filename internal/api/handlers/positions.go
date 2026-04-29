@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -10,6 +11,13 @@ import (
 	"github.com/tamcore/motus/internal/model"
 	"github.com/tamcore/motus/internal/storage/repository"
 )
+
+// positionQueryTimeout caps the server-side wall time for a single
+// position range query. Unbounded queries (no limit) can be large; this
+// prevents a slow or stalled client from holding a DB connection open
+// indefinitely. WriteTimeout is intentionally 0 (WebSocket compat), so
+// this is the only ceiling on this path.
+const positionQueryTimeout = 120 * time.Second
 
 // PositionHandler handles position-related API endpoints.
 type PositionHandler struct {
@@ -103,7 +111,10 @@ func (h *PositionHandler) GetPositions(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	positions, err := h.positions.GetByDeviceAndTimeRange(r.Context(), deviceID, from, to, limit)
+	queryCtx, cancel := context.WithTimeout(r.Context(), positionQueryTimeout)
+	defer cancel()
+
+	positions, err := h.positions.GetByDeviceAndTimeRange(queryCtx, deviceID, from, to, limit)
 	if err != nil {
 		slog.Error("GetByDeviceAndTimeRange failed",
 			slog.Int64("deviceID", deviceID),

@@ -105,11 +105,12 @@ test.describe('Form Validation', () => {
       await expect(authedPage.locator('.form-error')).toContainText('required');
     });
 
-    test('should disable identifier field when editing', async ({ authedPage }) => {
+    test('should keep identifier field editable when editing', async ({ authedPage }) => {
+      // Identifier must remain editable so users can swap a defective GPS
+      // tracker without recreating the device.
       await authedPage.goto('/devices');
       await authedPage.waitForSelector('h1:has-text("Devices")');
 
-      // Check if there are devices to edit
       const editBtns = authedPage.locator('.device-table tbody tr.table-row button:has-text("Edit")');
       const count = await editBtns.count();
       if (count === 0) return;
@@ -118,7 +119,7 @@ test.describe('Form Validation', () => {
       await authedPage.waitForSelector('[role="dialog"]');
 
       const uniqueIdInput = authedPage.locator('[role="dialog"] input[name="uniqueId"]');
-      await expect(uniqueIdInput).toBeDisabled();
+      await expect(uniqueIdInput).toBeEditable();
     });
   });
 

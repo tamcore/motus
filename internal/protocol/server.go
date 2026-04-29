@@ -369,22 +369,13 @@ func (s *Server) handleConnection(ctx context.Context, conn net.Conn) {
 		}
 	}()
 
-	// Establish relay connection if configured.
-	var relayConn net.Conn
+	// Relay client: lazily dials on first message, reconnects transparently on
+	// broken-pipe errors. nil when no relay is configured; safe to call methods
+	// on a nil pointer.
+	var relay *relayClient
 	if s.relayTarget != "" {
-		var relayErr error
-		relayConn, relayErr = net.DialTimeout("tcp", s.relayTarget, 10*time.Second)
-		if relayErr != nil {
-			s.log().Warn("relay connect failed, continuing without relay",
-				slog.String("protocol", s.name),
-				slog.String("target", s.relayTarget),
-				slog.Any("error", relayErr),
-			)
-		} else {
-			defer func() { _ = relayConn.Close() }()
-			// Drain relay responses so the connection doesn't block.
-			go func() { _, _ = io.Copy(io.Discard, relayConn) }()
-		}
+		relay = &relayClient{target: s.relayTarget, protocol: s.name, logger: s.log()}
+		defer relay.close()
 	}
 
 	scanner := bufio.NewScanner(conn)
@@ -425,18 +416,11 @@ func (s *Server) handleConnection(ctx context.Context, conn net.Conn) {
 		// Reset read deadline on each message.
 		_ = conn.SetReadDeadline(time.Now().Add(readTimeout))
 
-		// Forward raw line to relay target before decode.
-		if relayConn != nil {
-			_ = relayConn.SetWriteDeadline(time.Now().Add(5 * time.Second))
-			if _, err := fmt.Fprintf(relayConn, "%s\r\n", line); err != nil {
-				s.log().Warn("relay write failed, disabling relay for this connection",
-					slog.String("protocol", s.name),
-					slog.String("target", s.relayTarget),
-					slog.Any("error", err),
-				)
-				relayConn = nil
-			}
-		}
+		// Forward raw line to relay target before decode. Lazy dial + reconnect:
+		// the relay TCP is opened on the first message and re-dialed transparently
+		// if the existing conn returns a broken-pipe-style error. Probes that
+		// connect to motus but never send data therefore never touch Traccar.
+		relay.send(line)
 
 		s.log().Debug("rx",
 			slog.String("type", "gps"),
@@ -726,6 +710,79 @@ func ptrFloat(f *float64) float64 {
 		return 0
 	}
 	return *f
+}
+
+// relayDialTimeout bounds how long the relay client waits when establishing a
+// TCP connection to the relay target. Kept short so a dead Traccar doesn't
+// stall device handling.
+const relayDialTimeout = 3 * time.Second
+
+// relayWriteTimeout bounds how long a single relay write may block.
+const relayWriteTimeout = 3 * time.Second
+
+// relayClient is a per-device-connection helper that forwards H02 frames to a
+// configured relay target (typically Traccar). It dials lazily on the first
+// frame and reconnects transparently if the existing conn returns a write
+// error. All errors are non-fatal: they are logged and the device session
+// continues. Not safe for concurrent use; one instance per connection
+// goroutine.
+type relayClient struct {
+	target   string
+	protocol string
+	logger   *slog.Logger
+	conn     net.Conn
+}
+
+// send forwards a single line to the relay target with CRLF termination.
+// On a write error the stale conn is closed and a redial is attempted once.
+// Safe to call on a nil receiver — that case is a no-op so callers can use a
+// single code path whether relay is configured or not.
+func (r *relayClient) send(line string) {
+	if r == nil {
+		return
+	}
+	data := []byte(line + "\r\n")
+
+	if r.conn != nil {
+		_ = r.conn.SetWriteDeadline(time.Now().Add(relayWriteTimeout))
+		if _, err := r.conn.Write(data); err == nil {
+			return
+		}
+		_ = r.conn.Close()
+		r.conn = nil
+	}
+
+	conn, err := net.DialTimeout("tcp", r.target, relayDialTimeout)
+	if err != nil {
+		r.logger.Warn("relay dial failed",
+			slog.String("protocol", r.protocol),
+			slog.String("target", r.target),
+			slog.Any("error", err),
+		)
+		return
+	}
+	_ = conn.SetWriteDeadline(time.Now().Add(relayWriteTimeout))
+	if _, err := conn.Write(data); err != nil {
+		r.logger.Warn("relay write failed after redial",
+			slog.String("protocol", r.protocol),
+			slog.String("target", r.target),
+			slog.Any("error", err),
+		)
+		_ = conn.Close()
+		return
+	}
+	r.conn = conn
+	go func(c net.Conn) { _, _ = io.Copy(io.Discard, c) }(conn)
+}
+
+// close terminates the active relay connection, if any. Safe to call on a nil
+// receiver.
+func (r *relayClient) close() {
+	if r == nil || r.conn == nil {
+		return
+	}
+	_ = r.conn.Close()
+	r.conn = nil
 }
 
 // h02SplitFunc is a bufio.SplitFunc that extracts individual H02 protocol

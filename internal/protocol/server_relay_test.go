@@ -165,6 +165,146 @@ func TestRelay_FailOpen_UnreachableRelay(t *testing.T) {
 	}
 }
 
+// TestRelay_LazyDial_NoTraccarTouchedForProbe verifies that a TCP probe — a
+// connection that opens and closes without sending any H02 frame — never
+// triggers a relay dial. This avoids hammering Traccar with idle TCP sessions
+// every time a health check or load balancer probe hits the device port.
+func TestRelay_LazyDial_NoTraccarTouchedForProbe(t *testing.T) {
+	dialAttempts := make(chan struct{}, 4)
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("relay listen: %v", err)
+	}
+	t.Cleanup(func() { _ = ln.Close() })
+
+	go func() {
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			dialAttempts <- struct{}{}
+			_ = c.Close()
+		}
+	}()
+
+	srv := &Server{
+		name:        "h02",
+		port:        "0",
+		relayTarget: ln.Addr().String(),
+		decoder:     noopDecoder(nil),
+	}
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	srv.listener = listener
+	port := listener.Addr().(*net.TCPAddr).Port
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go srv.acceptLoop(ctx)
+
+	// Simulate a probe: connect and immediately close without sending data.
+	probe, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", port), 2*time.Second)
+	if err != nil {
+		t.Fatalf("probe dial: %v", err)
+	}
+	_ = probe.Close()
+
+	// Give the server time to clean up the probe connection.
+	time.Sleep(300 * time.Millisecond)
+
+	select {
+	case <-dialAttempts:
+		t.Fatal("relay was dialed for a probe-style connection that sent no data")
+	default:
+	}
+}
+
+// TestRelay_RedialsAfterBrokenPipe verifies that after a relay write fails,
+// the next device frame redials and gets through. The previous behavior would
+// permanently disable relay for the connection on the first failure.
+func TestRelay_RedialsAfterBrokenPipe(t *testing.T) {
+	// Mock relay: drops the first inbound conn after one byte, then accepts the
+	// next conn and forwards every subsequent line to a channel.
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("relay listen: %v", err)
+	}
+	t.Cleanup(func() { _ = ln.Close() })
+
+	secondConnLines := make(chan string, 4)
+	firstConnDropped := make(chan struct{})
+
+	go func() {
+		c1, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		buf := make([]byte, 1)
+		_, _ = c1.Read(buf)
+		_ = c1.Close()
+		close(firstConnDropped)
+
+		c2, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		defer func() { _ = c2.Close() }()
+		sc := bufio.NewScanner(c2)
+		for sc.Scan() {
+			secondConnLines <- sc.Text()
+		}
+	}()
+
+	srv := &Server{
+		name:        "h02",
+		port:        "0",
+		relayTarget: ln.Addr().String(),
+		decoder:     noopDecoder(nil),
+	}
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	srv.listener = listener
+	port := listener.Addr().(*net.TCPAddr).Port
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go srv.acceptLoop(ctx)
+
+	devConn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", port), 2*time.Second)
+	if err != nil {
+		t.Fatalf("device dial: %v", err)
+	}
+	defer func() { _ = devConn.Close() }()
+
+	if _, err := fmt.Fprintf(devConn, "*HQ,123,V1,first#\r\n"); err != nil {
+		t.Fatalf("write first: %v", err)
+	}
+	select {
+	case <-firstConnDropped:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout: relay never accepted+dropped first conn")
+	}
+	time.Sleep(150 * time.Millisecond)
+
+	if _, err := fmt.Fprintf(devConn, "*HQ,123,V1,second#\r\n"); err != nil {
+		t.Fatalf("write second: %v", err)
+	}
+
+	select {
+	case got := <-secondConnLines:
+		if got != "*HQ,123,V1,second#" {
+			t.Errorf("unexpected relayed line: %q", got)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("timeout: redial did not deliver second frame after broken pipe")
+	}
+}
+
 // TestRelay_FailOpen_RelayDropsMidSession verifies that when the relay
 // connection drops mid-session, Motus continues serving the device.
 func TestRelay_FailOpen_RelayDropsMidSession(t *testing.T) {

@@ -87,6 +87,16 @@ func (s *MileageService) ProcessPosition(ctx context.Context, pos *model.Positio
 		)
 		if dist < MaxReasonableDistanceKm && dist > 0.001 {
 			device.PendingMileage += dist
+			// Persist the accumulated pending mileage. HandlePosition reloads
+			// the device from the DB on every incoming position, so without
+			// this write the in-memory accumulator would be reset to zero
+			// before the next frame and trip completion would never fire.
+			if err := s.deviceRepo.Update(ctx, device); err != nil {
+				s.logger.Error("failed to persist pending mileage",
+					slog.Int64("deviceID", device.ID),
+					slog.Any("error", err),
+				)
+			}
 		}
 		return nil // Still moving; don't check for trip completion.
 	}

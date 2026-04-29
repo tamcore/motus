@@ -151,7 +151,8 @@ func TestProcessPosition_AccumulatesDistanceWhenMoving(t *testing.T) {
 	// Berlin (52.52, 13.405) → ~500m away
 	prev := makeMovingPos(1, 52.52, 13.405, 60, now.Add(-10*time.Second))
 	posRepo := &mileageMockPositionRepo{prev: prev}
-	svc := NewMileageService(posRepo, nil, nil, nil, nil)
+	devRepo := &mileageMockDeviceRepo{}
+	svc := NewMileageService(posRepo, devRepo, nil, nil, nil)
 
 	mileage := 1000.0
 	device := &model.Device{ID: 1, Mileage: &mileage, PendingMileage: 0}
@@ -165,6 +166,17 @@ func TestProcessPosition_AccumulatesDistanceWhenMoving(t *testing.T) {
 	}
 	if *device.Mileage != 1000.0 {
 		t.Errorf("mileage should not change during accumulation, got %f", *device.Mileage)
+	}
+	// Regression check: the accumulated pending mileage MUST be persisted
+	// so it survives the device reload that HandlePosition does on every
+	// incoming frame. Without this, pending_mileage stays at 0 in the DB
+	// forever and trip completion never fires.
+	if devRepo.updated == nil {
+		t.Fatal("expected device.Update to be called so pending mileage is persisted")
+	}
+	if devRepo.updated.PendingMileage != device.PendingMileage {
+		t.Errorf("persisted pending_mileage = %f, want %f",
+			devRepo.updated.PendingMileage, device.PendingMileage)
 	}
 }
 

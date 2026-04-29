@@ -5,10 +5,18 @@ import (
 	"sync"
 )
 
-// allowedHosts is the package-level set of hostnames whose webhook URLs are
-// permitted to resolve to private IP addresses. Self-hosted services on
-// internal networks (e.g. ntfy.example.lan) need this opt-in to coexist with
-// the default SSRF protection. Empty (default) preserves strict behavior.
+// allowedHosts is the package-level set of hostnames treated as trusted
+// internal endpoints. Membership grants two relaxations to the default
+// webhook security checks:
+//   - the URL/dialer skip the private-IP SSRF block, so RFC1918 targets
+//     are reachable;
+//   - the TLS handshake skips certificate verification, so self-signed
+//     or private-CA endpoints work without baking custom roots in.
+//
+// Empty (default) preserves strict behavior. Both relaxations are coupled
+// intentionally because the typical use case (self-hosted ntfy on a home
+// network) needs them together; operators who want only one should not
+// add the host here.
 var (
 	allowedHostsMu sync.RWMutex
 	allowedHosts   map[string]struct{}

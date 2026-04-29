@@ -3,6 +3,7 @@ package notification
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"log/slog"
@@ -38,60 +39,81 @@ func NewSender() *Sender {
 // the first safe IP directly — preventing DNS rebinding attacks.
 //
 // Explicit loopback addresses (127.0.0.1, ::1) and "localhost" are allowed
-// to match the ValidateWebhookURL exception used for development.
+// to match the ValidateWebhookURL exception used for development. Hosts in
+// the operator-configured allowlist additionally have TLS verification
+// skipped so self-hosted internal endpoints with private CAs can be reached
+// without baking custom roots into the container.
 func newSSRFSafeTransport() *http.Transport {
 	baseDialer := &net.Dialer{Timeout: 10 * time.Second}
 	return &http.Transport{
 		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-			host, port, err := net.SplitHostPort(addr)
+			return ssrfSafeDial(ctx, baseDialer, network, addr)
+		},
+		DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			rawConn, err := ssrfSafeDial(ctx, baseDialer, network, addr)
 			if err != nil {
-				return nil, fmt.Errorf("parse addr: %w", err)
+				return nil, err
 			}
-
-			// Allow localhost/127.0.0.1 explicitly for development and testing,
-			// matching the exception in ValidateWebhookURL. These addresses
-			// cannot DNS-rebound.
-			if host == "localhost" || host == "127.0.0.1" || host == "::1" {
-				return baseDialer.DialContext(ctx, network, addr)
+			host, _, _ := net.SplitHostPort(addr)
+			tlsConfig := &tls.Config{
+				ServerName:         host,
+				InsecureSkipVerify: isHostAllowed(host), //nolint:gosec // intentional: only allowlisted hosts skip verify
+				MinVersion:         tls.VersionTLS12,
 			}
-
-			// Operator-configured allowlist for self-hosted services on
-			// internal networks. Bypasses the private-IP check at dial time
-			// so webhook URLs that legitimately resolve into RFC1918 space
-			// (e.g. ntfy.example.lan) can be reached.
-			if isHostAllowed(host) {
-				return baseDialer.DialContext(ctx, network, addr)
+			tlsConn := tls.Client(rawConn, tlsConfig)
+			if err := tlsConn.HandshakeContext(ctx); err != nil {
+				_ = rawConn.Close()
+				return nil, fmt.Errorf("tls handshake to %s: %w", host, err)
 			}
-
-			// For explicit IP addresses there is no DNS to rebound; validate
-			// the IP directly. Loopback is already handled above.
-			if ip := net.ParseIP(host); ip != nil {
-				if isPrivateIP(ip) {
-					return nil, fmt.Errorf("webhook URL resolves to private IP address")
-				}
-				return baseDialer.DialContext(ctx, network, addr)
-			}
-
-			// Resolve DNS here and validate every returned IP before dialing.
-			addrs, err := net.DefaultResolver.LookupIPAddr(ctx, host)
-			if err != nil {
-				return nil, fmt.Errorf("resolve %s: %w", host, err)
-			}
-			if len(addrs) == 0 {
-				return nil, fmt.Errorf("no addresses for %s", host)
-			}
-			for _, a := range addrs {
-				if isPrivateIP(a.IP) {
-					return nil, fmt.Errorf("webhook URL resolves to private IP address")
-				}
-			}
-
-			// Pin to the first resolved IP to prevent DNS rebinding between
-			// the lookup and the actual TCP dial.
-			pinnedAddr := net.JoinHostPort(addrs[0].IP.String(), port)
-			return baseDialer.DialContext(ctx, network, pinnedAddr)
+			return tlsConn, nil
 		},
 	}
+}
+
+// ssrfSafeDial performs the SSRF-safe TCP dial: it allows loopback and
+// allowlisted hosts to dial through unchanged, otherwise resolves DNS and
+// rejects any private IP target before pinning the first resolved IP.
+func ssrfSafeDial(ctx context.Context, dialer *net.Dialer, network, addr string) (net.Conn, error) {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return nil, fmt.Errorf("parse addr: %w", err)
+	}
+
+	if host == "localhost" || host == "127.0.0.1" || host == "::1" {
+		return dialer.DialContext(ctx, network, addr)
+	}
+
+	// Operator-configured allowlist for self-hosted services on internal
+	// networks. Bypasses the private-IP check at dial time so webhook URLs
+	// that legitimately resolve into RFC1918 space can be reached.
+	if isHostAllowed(host) {
+		return dialer.DialContext(ctx, network, addr)
+	}
+
+	// For explicit IP addresses there is no DNS to rebound; validate
+	// the IP directly. Loopback is already handled above.
+	if ip := net.ParseIP(host); ip != nil {
+		if isPrivateIP(ip) {
+			return nil, fmt.Errorf("webhook URL resolves to private IP address")
+		}
+		return dialer.DialContext(ctx, network, addr)
+	}
+
+	addrs, err := net.DefaultResolver.LookupIPAddr(ctx, host)
+	if err != nil {
+		return nil, fmt.Errorf("resolve %s: %w", host, err)
+	}
+	if len(addrs) == 0 {
+		return nil, fmt.Errorf("no addresses for %s", host)
+	}
+	for _, a := range addrs {
+		if isPrivateIP(a.IP) {
+			return nil, fmt.Errorf("webhook URL resolves to private IP address")
+		}
+	}
+
+	pinnedAddr := net.JoinHostPort(addrs[0].IP.String(), port)
+	return dialer.DialContext(ctx, network, pinnedAddr)
 }
 
 // Send dispatches a notification based on the rule's channel type.

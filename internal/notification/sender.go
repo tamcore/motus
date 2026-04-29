@@ -55,6 +55,14 @@ func newSSRFSafeTransport() *http.Transport {
 				return baseDialer.DialContext(ctx, network, addr)
 			}
 
+			// Operator-configured allowlist for self-hosted services on
+			// internal networks. Bypasses the private-IP check at dial time
+			// so webhook URLs that legitimately resolve into RFC1918 space
+			// (e.g. ntfy.example.lan) can be reached.
+			if isHostAllowed(host) {
+				return baseDialer.DialContext(ctx, network, addr)
+			}
+
 			// For explicit IP addresses there is no DNS to rebound; validate
 			// the IP directly. Loopback is already handled above.
 			if ip := net.ParseIP(host); ip != nil {

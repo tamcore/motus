@@ -31,6 +31,14 @@ func ValidateWebhookURL(urlStr string) error {
 
 	hostname := u.Hostname()
 
+	// Operator-configured allowlist for self-hosted services on internal
+	// networks (e.g. ntfy.example.lan). Skips the private-IP check so
+	// webhook URLs that legitimately resolve into RFC1918 space can be
+	// configured without disabling SSRF protection globally.
+	if isHostAllowed(hostname) {
+		return nil
+	}
+
 	// If the hostname is already an IP address, check it directly.
 	if ip := net.ParseIP(hostname); ip != nil {
 		if isPrivateIP(ip) {

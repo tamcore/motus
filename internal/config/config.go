@@ -114,6 +114,12 @@ type SecurityConfig struct {
 	// Environment controls security behavior (e.g., Secure cookie flag).
 	// Loaded from MOTUS_ENV. Default: "production".
 	Env string
+	// WebhookAllowedHosts is the list of hostnames whose webhook URLs may
+	// legitimately resolve to private IP addresses. Used to allow
+	// self-hosted services on internal networks (e.g. ntfy.example.lan)
+	// without disabling SSRF protection globally.
+	// Loaded from MOTUS_WEBHOOK_ALLOWED_HOSTS (comma-separated).
+	WebhookAllowedHosts []string
 }
 
 // MetricsConfig holds Prometheus metrics server settings.
@@ -310,8 +316,9 @@ func LoadFromEnv() (*Config, error) {
 			Enabled: getEnvBool("MOTUS_METRICS_ENABLED", true),
 		},
 		Security: SecurityConfig{
-			CSRFSecret: getEnv("MOTUS_CSRF_SECRET", ""),
-			Env:        getEnv("MOTUS_ENV", "production"),
+			CSRFSecret:          getEnv("MOTUS_CSRF_SECRET", ""),
+			Env:                 getEnv("MOTUS_ENV", "production"),
+			WebhookAllowedHosts: getEnvSlice("MOTUS_WEBHOOK_ALLOWED_HOSTS"),
 		},
 		Positions: PositionsConfig{
 			RetentionDays: getEnvInt("MOTUS_POSITION_RETENTION_DAYS", 0),

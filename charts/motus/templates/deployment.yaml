@@ -177,6 +177,10 @@ spec:
         - name: MOTUS_LOGIN_RATE_LIMIT
           value: {{ .Values.rateLimit.login | quote }}
         {{- end }}
+        {{- if and .Values.security .Values.security.webhookAllowedHosts }}
+        - name: MOTUS_WEBHOOK_ALLOWED_HOSTS
+          value: {{ join "," .Values.security.webhookAllowedHosts | quote }}
+        {{- end }}
         {{- if .Values.rateLimit.api }}
         - name: MOTUS_API_RATE_LIMIT
           value: {{ .Values.rateLimit.api | quote }}

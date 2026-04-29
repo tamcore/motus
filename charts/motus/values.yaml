@@ -183,3 +183,11 @@ metrics:
 rateLimit:
   login: 0
   api: 0
+
+# Security-related settings.
+security:
+  # webhookAllowedHosts lists hostnames whose webhook URLs are permitted to
+  # resolve to private IP addresses. Used to allow self-hosted services on
+  # internal networks (e.g. ntfy.example.lan) without disabling SSRF
+  # protection globally. Empty list keeps the strict default.
+  webhookAllowedHosts: []

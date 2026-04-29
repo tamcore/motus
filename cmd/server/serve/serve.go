@@ -23,6 +23,7 @@ import (
 	"github.com/tamcore/motus/internal/demo"
 	"github.com/tamcore/motus/internal/geocoding"
 	"github.com/tamcore/motus/internal/logger"
+	"github.com/tamcore/motus/internal/notification"
 	"github.com/tamcore/motus/internal/protocol"
 	"github.com/tamcore/motus/internal/pubsub"
 	"github.com/tamcore/motus/internal/services"
@@ -113,6 +114,16 @@ func Run() {
 	notificationRepo := repository.NewNotificationRepository(pool)
 	shareRepo := repository.NewDeviceShareRepository(pool)
 	apiKeyRepo := repository.NewApiKeyRepository(pool)
+
+	// Configure the SSRF allowlist for webhook destinations on internal
+	// networks. Must run before any notification service is created so the
+	// validator and runtime dialer both pick up the configured hosts.
+	notification.SetAllowedHosts(cfg.Security.WebhookAllowedHosts)
+	if len(cfg.Security.WebhookAllowedHosts) > 0 {
+		slog.Info("webhook SSRF allowlist configured",
+			slog.Any("hosts", cfg.Security.WebhookAllowedHosts),
+		)
+	}
 
 	// Notification service (needs to be created before geofence event service).
 	notificationService := services.NewNotificationService(notificationRepo, deviceRepo, geofenceRepo, positionRepo)

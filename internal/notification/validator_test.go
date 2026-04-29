@@ -63,6 +63,27 @@ func TestValidateWebhookURL_ResolvableHost(t *testing.T) {
 	}
 }
 
+// TestValidateWebhookURL_AllowedHostBypassesPrivateIPCheck verifies that
+// hostnames in the operator-configured allowlist are accepted even when they
+// would otherwise be flagged as private. Uses literal private IPs as the
+// "hostname" to keep the test deterministic without DNS.
+func TestValidateWebhookURL_AllowedHostBypassesPrivateIPCheck(t *testing.T) {
+	if err := ValidateWebhookURL("https://10.0.0.1/hook"); err == nil {
+		t.Fatal("baseline: expected private IP to be rejected")
+	}
+
+	SetAllowedHosts([]string{"10.0.0.1"})
+	t.Cleanup(func() { SetAllowedHosts(nil) })
+
+	if err := ValidateWebhookURL("https://10.0.0.1/hook"); err != nil {
+		t.Errorf("allowlisted host should be accepted, got: %v", err)
+	}
+
+	if err := ValidateWebhookURL("https://192.168.1.1/hook"); err == nil {
+		t.Error("non-allowlisted private IP should still be rejected")
+	}
+}
+
 func TestIsPrivateIP(t *testing.T) {
 	tests := []struct {
 		name    string

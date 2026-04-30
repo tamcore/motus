@@ -182,6 +182,96 @@ func TestIdle_Deduplication(t *testing.T) {
 	}
 }
 
+// TestIdle_LongParkOnlyOneEvent verifies the regression fix: a device that
+// has been parked for many idle-threshold periods still only emits ONE
+// deviceIdle event total, instead of one every IdleThreshold (which spammed
+// webhook subscribers for hours).
+func TestIdle_LongParkOnlyOneEvent(t *testing.T) {
+	svc, eventRepo, deviceRepo, posRepo, userRepo := setupIdleService(t)
+	ctx := context.Background()
+
+	user := &model.User{Email: "longpark@example.com", PasswordHash: "hash", Name: "LongPark"}
+	_ = userRepo.Create(ctx, user)
+
+	device := &model.Device{UniqueID: "longpark-dev", Name: "Long Park", Status: "online"}
+	_ = deviceRepo.Create(ctx, device, user.ID)
+
+	zeroSpeed := 0.0
+	pos := &model.Position{
+		DeviceID:  device.ID,
+		Latitude:  52.52,
+		Longitude: 13.37,
+		Speed:     &zeroSpeed,
+		Timestamp: time.Now().UTC().Add(-12 * time.Hour),
+	}
+	_ = posRepo.Create(ctx, pos)
+
+	for i := 0; i < 10; i++ {
+		if err := svc.CheckIdle(ctx); err != nil {
+			t.Fatalf("CheckIdle iter %d failed: %v", i, err)
+		}
+	}
+
+	events, _ := eventRepo.GetByDevice(ctx, device.ID, 100)
+	idleCount := 0
+	for _, e := range events {
+		if e.Type == "deviceIdle" {
+			idleCount++
+		}
+	}
+	if idleCount != 1 {
+		t.Errorf("expected exactly 1 deviceIdle event for long-parked device, got %d", idleCount)
+	}
+}
+
+// TestIdle_NewPositionTriggersNewIdleEvent verifies that after the device
+// briefly moves (sends a fresh position) and then parks again, a second
+// deviceIdle event is correctly emitted.
+func TestIdle_NewPositionTriggersNewIdleEvent(t *testing.T) {
+	svc, eventRepo, deviceRepo, posRepo, userRepo := setupIdleService(t)
+	ctx := context.Background()
+
+	user := &model.User{Email: "park2@example.com", PasswordHash: "hash", Name: "Park2"}
+	_ = userRepo.Create(ctx, user)
+
+	device := &model.Device{UniqueID: "park2-dev", Name: "Park 2", Status: "online"}
+	_ = deviceRepo.Create(ctx, device, user.ID)
+
+	zeroSpeed := 0.0
+	pos1 := &model.Position{
+		DeviceID: device.ID,
+		Latitude: 52.52, Longitude: 13.37,
+		Speed:     &zeroSpeed,
+		Timestamp: time.Now().UTC().Add(-2 * time.Hour),
+	}
+	_ = posRepo.Create(ctx, pos1)
+	if err := svc.CheckIdle(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	pos2 := &model.Position{
+		DeviceID: device.ID,
+		Latitude: 52.53, Longitude: 13.38,
+		Speed:     &zeroSpeed,
+		Timestamp: time.Now().UTC().Add(-45 * time.Minute),
+	}
+	_ = posRepo.Create(ctx, pos2)
+	if err := svc.CheckIdle(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	events, _ := eventRepo.GetByDevice(ctx, device.ID, 100)
+	idleCount := 0
+	for _, e := range events {
+		if e.Type == "deviceIdle" {
+			idleCount++
+		}
+	}
+	if idleCount != 2 {
+		t.Errorf("expected 2 deviceIdle events (one per parking session), got %d", idleCount)
+	}
+}
+
 func TestIdle_NoPositions(t *testing.T) {
 	svc, eventRepo, deviceRepo, _, userRepo := setupIdleService(t)
 	ctx := context.Background()

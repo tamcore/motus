@@ -156,12 +156,16 @@ func (s *IdleService) CheckIdle(ctx context.Context) error {
 			continue // Not idle long enough.
 		}
 
-		// Deduplicate: check if we already created an idle event for this period.
+		// Deduplicate: only emit a new deviceIdle event if the device has sent
+		// a fresh position since the last idle event. Time-based dedup alone
+		// would re-emit every IdleThreshold for a long-parked device, spamming
+		// webhook notifications for hours on end (a 12h park = 24 events with
+		// the old logic).
 		recentEvents, err := s.eventRepo.GetRecentByDeviceAndType(ctx, device.ID, "deviceIdle", 1)
 		if err == nil && len(recentEvents) > 0 {
 			lastIdleEvent := recentEvents[0]
-			if time.Since(lastIdleEvent.Timestamp) < IdleThreshold {
-				continue // Already created event for this idle period.
+			if !lastIdleEvent.Timestamp.Before(position.Timestamp) {
+				continue // Device has not moved since the last idle event.
 			}
 		}
 

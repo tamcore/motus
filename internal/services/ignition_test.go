@@ -40,51 +40,48 @@ func TestIgnitionFromAttributes(t *testing.T) {
 	}
 }
 
-// --- CheckIgnition integration tests using stub repos ---
+// --- CheckIgnition tests using mock DeviceRepo ---
 
-type ignitionMockPositionRepo struct {
-	prev *model.Position
-}
-
-func (r *ignitionMockPositionRepo) GetPreviousByDevice(_ context.Context, _ int64, _ time.Time) (*model.Position, error) {
-	return r.prev, nil
+// ignitionMockDeviceRepo tracks ignition state in-memory, simulating the DB.
+type ignitionMockDeviceRepo struct {
+	device *model.Device
 }
 
-// Satisfy the full PositionRepo interface with no-ops.
-func (r *ignitionMockPositionRepo) Create(_ context.Context, _ *model.Position) error { return nil }
-func (r *ignitionMockPositionRepo) GetByID(_ context.Context, _ int64) (*model.Position, error) {
-	return nil, nil
+func (r *ignitionMockDeviceRepo) GetByID(_ context.Context, id int64) (*model.Device, error) {
+	return r.device, nil
 }
-func (r *ignitionMockPositionRepo) GetByIDs(_ context.Context, _ []int64) ([]*model.Position, error) {
-	return nil, nil
-}
-func (r *ignitionMockPositionRepo) GetLatestByDevice(_ context.Context, _ int64) (*model.Position, error) {
-	return nil, nil
-}
-func (r *ignitionMockPositionRepo) GetLatestByUser(_ context.Context, _ int64) ([]*model.Position, error) {
-	return nil, nil
-}
-func (r *ignitionMockPositionRepo) UpdateGeofenceIDs(_ context.Context, _ int64, _ []int64) error {
+
+func (r *ignitionMockDeviceRepo) UpdateIgnitionState(_ context.Context, _ int64, on bool, ts time.Time) error {
+	r.device.IgnitionOn = on
+	r.device.LastIgnitionTime = &ts
 	return nil
 }
-func (r *ignitionMockPositionRepo) GetByDeviceAndTimeRange(_ context.Context, _ int64, _, _ time.Time, _ int) ([]*model.Position, error) {
+
+// Satisfy the full DeviceRepo interface with no-ops.
+func (r *ignitionMockDeviceRepo) UserHasAccess(_ context.Context, _ *model.User, _ int64) bool {
+	return true
+}
+func (r *ignitionMockDeviceRepo) GetByUniqueID(_ context.Context, _ string) (*model.Device, error) {
 	return nil, nil
 }
-func (r *ignitionMockPositionRepo) GetByUserAndTimeRange(_ context.Context, _ int64, _, _ time.Time, _ int) ([]*model.Position, error) {
+func (r *ignitionMockDeviceRepo) GetByUser(_ context.Context, _ int64) ([]*model.Device, error) {
 	return nil, nil
 }
-func (r *ignitionMockPositionRepo) GetAllByTimeRange(_ context.Context, _, _ time.Time, _ int) ([]*model.Position, error) {
+func (r *ignitionMockDeviceRepo) GetAll(_ context.Context) ([]model.Device, error) { return nil, nil }
+func (r *ignitionMockDeviceRepo) GetAllWithOwners(_ context.Context) ([]model.Device, error) {
 	return nil, nil
 }
-func (r *ignitionMockPositionRepo) UpdateAddress(_ context.Context, _ int64, _ string) error {
+func (r *ignitionMockDeviceRepo) GetTimedOut(_ context.Context, _ time.Time) ([]model.Device, error) {
+	return nil, nil
+}
+func (r *ignitionMockDeviceRepo) GetUserIDs(_ context.Context, _ int64) ([]int64, error) {
+	return nil, nil
+}
+func (r *ignitionMockDeviceRepo) Create(_ context.Context, _ *model.Device, _ int64) error {
 	return nil
 }
-func (r *ignitionMockPositionRepo) GetLatestAll(_ context.Context) ([]*model.Position, error) {
-	return nil, nil
-}
-func (r *ignitionMockPositionRepo) GetLastMovingPosition(_ context.Context, _ int64, _ float64) (*model.Position, error) {
-	return nil, nil
-}
+func (r *ignitionMockDeviceRepo) Update(_ context.Context, _ *model.Device) error { return nil }
+func (r *ignitionMockDeviceRepo) Delete(_ context.Context, _ int64) error         { return nil }
 
 type ignitionMockEventRepo struct {
 	created []*model.Event
@@ -120,12 +117,22 @@ func makeIgnitionPos(deviceID int64, ignition bool, ts time.Time) *model.Positio
 	}
 }
 
-func TestCheckIgnition_NoEvent_WhenNoChange(t *testing.T) {
-	posRepo := &ignitionMockPositionRepo{
-		prev: makeIgnitionPos(1, true, time.Now().Add(-5*time.Second)),
+func newIgnitionDevice(ignOn bool, lastIgnTime *time.Time) *model.Device {
+	return &model.Device{
+		ID:               1,
+		UniqueID:         "test-ign",
+		Name:             "Test",
+		Status:           "online",
+		IgnitionOn:       ignOn,
+		LastIgnitionTime: lastIgnTime,
 	}
+}
+
+func TestCheckIgnition_NoEvent_WhenNoChange(t *testing.T) {
+	ts := time.Now().Add(-5 * time.Second)
+	devRepo := &ignitionMockDeviceRepo{device: newIgnitionDevice(true, &ts)}
 	evRepo := &ignitionMockEventRepo{}
-	svc := NewIgnitionService(posRepo, evRepo, nil, nil)
+	svc := NewIgnitionService(devRepo, evRepo, nil, nil)
 
 	curr := makeIgnitionPos(1, true, time.Now())
 	if err := svc.CheckIgnition(context.Background(), curr); err != nil {
@@ -137,11 +144,10 @@ func TestCheckIgnition_NoEvent_WhenNoChange(t *testing.T) {
 }
 
 func TestCheckIgnition_EmitsIgnitionOff(t *testing.T) {
-	posRepo := &ignitionMockPositionRepo{
-		prev: makeIgnitionPos(1, true, time.Now().Add(-5*time.Second)),
-	}
+	ts := time.Now().Add(-5 * time.Second)
+	devRepo := &ignitionMockDeviceRepo{device: newIgnitionDevice(true, &ts)}
 	evRepo := &ignitionMockEventRepo{}
-	svc := NewIgnitionService(posRepo, evRepo, nil, nil)
+	svc := NewIgnitionService(devRepo, evRepo, nil, nil)
 
 	curr := makeIgnitionPos(1, false, time.Now())
 	if err := svc.CheckIgnition(context.Background(), curr); err != nil {
@@ -156,11 +162,9 @@ func TestCheckIgnition_EmitsIgnitionOff(t *testing.T) {
 }
 
 func TestCheckIgnition_EmitsIgnitionOn(t *testing.T) {
-	posRepo := &ignitionMockPositionRepo{
-		prev: makeIgnitionPos(1, false, time.Now().Add(-5*time.Second)),
-	}
+	devRepo := &ignitionMockDeviceRepo{device: newIgnitionDevice(false, nil)}
 	evRepo := &ignitionMockEventRepo{}
-	svc := NewIgnitionService(posRepo, evRepo, nil, nil)
+	svc := NewIgnitionService(devRepo, evRepo, nil, nil)
 
 	curr := makeIgnitionPos(1, true, time.Now())
 	if err := svc.CheckIgnition(context.Background(), curr); err != nil {
@@ -175,11 +179,9 @@ func TestCheckIgnition_EmitsIgnitionOn(t *testing.T) {
 }
 
 func TestCheckIgnition_SkipsWhenNoIgnitionAttribute(t *testing.T) {
-	posRepo := &ignitionMockPositionRepo{
-		prev: makeIgnitionPos(1, true, time.Now().Add(-5*time.Second)),
-	}
+	devRepo := &ignitionMockDeviceRepo{device: newIgnitionDevice(true, nil)}
 	evRepo := &ignitionMockEventRepo{}
-	svc := NewIgnitionService(posRepo, evRepo, nil, nil)
+	svc := NewIgnitionService(devRepo, evRepo, nil, nil)
 
 	// Position without "ignition" attribute (e.g. WATCH protocol).
 	curr := &model.Position{
@@ -196,46 +198,11 @@ func TestCheckIgnition_SkipsWhenNoIgnitionAttribute(t *testing.T) {
 	}
 }
 
-func TestCheckIgnition_SkipsWhenNoPreviousPosition(t *testing.T) {
-	posRepo := &ignitionMockPositionRepo{prev: nil}
-	evRepo := &ignitionMockEventRepo{}
-	svc := NewIgnitionService(posRepo, evRepo, nil, nil)
-
-	curr := makeIgnitionPos(1, false, time.Now())
-	if err := svc.CheckIgnition(context.Background(), curr); err != nil {
-		t.Fatal(err)
-	}
-	if len(evRepo.created) != 0 {
-		t.Errorf("expected no events for first position, got %d", len(evRepo.created))
-	}
-}
-
-func TestCheckIgnition_SkipsWhenPreviousHasNoIgnitionAttribute(t *testing.T) {
-	prev := &model.Position{
-		ID:         1,
-		DeviceID:   1,
-		Timestamp:  time.Now().Add(-5 * time.Second),
-		Attributes: map[string]interface{}{"speed": 10.0}, // no ignition key
-	}
-	posRepo := &ignitionMockPositionRepo{prev: prev}
-	evRepo := &ignitionMockEventRepo{}
-	svc := NewIgnitionService(posRepo, evRepo, nil, nil)
-
-	curr := makeIgnitionPos(1, false, time.Now())
-	if err := svc.CheckIgnition(context.Background(), curr); err != nil {
-		t.Fatal(err)
-	}
-	if len(evRepo.created) != 0 {
-		t.Errorf("expected no events when previous has no ignition attribute, got %d", len(evRepo.created))
-	}
-}
-
 func TestCheckIgnition_EventCarriesPositionID(t *testing.T) {
-	posRepo := &ignitionMockPositionRepo{
-		prev: makeIgnitionPos(1, true, time.Now().Add(-5*time.Second)),
-	}
+	ts := time.Now().Add(-5 * time.Second)
+	devRepo := &ignitionMockDeviceRepo{device: newIgnitionDevice(true, &ts)}
 	evRepo := &ignitionMockEventRepo{}
-	svc := NewIgnitionService(posRepo, evRepo, nil, nil)
+	svc := NewIgnitionService(devRepo, evRepo, nil, nil)
 
 	curr := makeIgnitionPos(1, false, time.Now())
 	curr.ID = 42
@@ -251,5 +218,171 @@ func TestCheckIgnition_EventCarriesPositionID(t *testing.T) {
 	}
 	if ev.DeviceID != 1 {
 		t.Errorf("DeviceID = %d, want 1", ev.DeviceID)
+	}
+}
+
+// TestCheckIgnition_OutOfOrderPositions_SingleEvent verifies that out-of-order
+// positions arriving from the H02 tracker produce only one ignition event.
+// This is the core bug fix: the old position-comparison approach created one
+// event per out-of-order position.
+func TestCheckIgnition_OutOfOrderPositions_SingleEvent(t *testing.T) {
+	devRepo := &ignitionMockDeviceRepo{device: newIgnitionDevice(false, nil)}
+	evRepo := &ignitionMockEventRepo{}
+	svc := NewIgnitionService(devRepo, evRepo, nil, nil)
+
+	ctx := context.Background()
+	now := time.Now().UTC()
+
+	// Simulate 3 positions arriving out of order (like the real Kuga data):
+	// insertion order: ts=now, ts=now-20s, ts=now-4min — all ignition=true
+	positions := []*model.Position{
+		makeIgnitionPos(1, true, now),
+		makeIgnitionPos(1, true, now.Add(-20*time.Second)),
+		makeIgnitionPos(1, true, now.Add(-4*time.Minute)),
+	}
+
+	for _, pos := range positions {
+		if err := svc.CheckIgnition(ctx, pos); err != nil {
+			t.Fatalf("CheckIgnition failed: %v", err)
+		}
+	}
+
+	if len(evRepo.created) != 1 {
+		t.Errorf("expected exactly 1 ignitionOn event from out-of-order positions, got %d", len(evRepo.created))
+	}
+	if len(evRepo.created) > 0 && evRepo.created[0].Type != "ignitionOn" {
+		t.Errorf("event type = %q, want %q", evRepo.created[0].Type, "ignitionOn")
+	}
+}
+
+// TestCheckIgnition_DuplicateTimestamp_SingleEvent verifies that two positions
+// with the exact same device timestamp (common with H02 sending duplicates)
+// produce only one ignition event.
+func TestCheckIgnition_DuplicateTimestamp_SingleEvent(t *testing.T) {
+	ts := time.Now().Add(-10 * time.Second)
+	devRepo := &ignitionMockDeviceRepo{device: newIgnitionDevice(true, &ts)}
+	evRepo := &ignitionMockEventRepo{}
+	svc := NewIgnitionService(devRepo, evRepo, nil, nil)
+
+	ctx := context.Background()
+	dupTS := time.Now().UTC()
+
+	pos1 := makeIgnitionPos(1, false, dupTS)
+	pos2 := makeIgnitionPos(1, false, dupTS)
+
+	if err := svc.CheckIgnition(ctx, pos1); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.CheckIgnition(ctx, pos2); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(evRepo.created) != 1 {
+		t.Errorf("expected exactly 1 ignitionOff from duplicate timestamps, got %d", len(evRepo.created))
+	}
+}
+
+// TestCheckIgnition_OutOfOrderSkipped verifies that a position with an older
+// timestamp than the last state change is silently skipped.
+func TestCheckIgnition_OutOfOrderSkipped(t *testing.T) {
+	now := time.Now().UTC()
+	lastIgn := now // device ignition changed at "now"
+	devRepo := &ignitionMockDeviceRepo{device: newIgnitionDevice(true, &lastIgn)}
+	evRepo := &ignitionMockEventRepo{}
+	svc := NewIgnitionService(devRepo, evRepo, nil, nil)
+
+	// Position with ignition=false but older timestamp → should be skipped
+	oldPos := makeIgnitionPos(1, false, now.Add(-30*time.Second))
+	if err := svc.CheckIgnition(context.Background(), oldPos); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(evRepo.created) != 0 {
+		t.Errorf("expected no events for out-of-order position, got %d", len(evRepo.created))
+	}
+	// Device state should remain unchanged
+	if !devRepo.device.IgnitionOn {
+		t.Error("device ignition_on should still be true")
+	}
+}
+
+// TestCheckIgnition_NormalOnOffCycle verifies a complete on→off→on cycle.
+func TestCheckIgnition_NormalOnOffCycle(t *testing.T) {
+	devRepo := &ignitionMockDeviceRepo{device: newIgnitionDevice(false, nil)}
+	evRepo := &ignitionMockEventRepo{}
+	svc := NewIgnitionService(devRepo, evRepo, nil, nil)
+
+	ctx := context.Background()
+	now := time.Now().UTC()
+
+	// 1. Ignition on
+	pos1 := makeIgnitionPos(1, true, now)
+	if err := svc.CheckIgnition(ctx, pos1); err != nil {
+		t.Fatal(err)
+	}
+	if len(evRepo.created) != 1 || evRepo.created[0].Type != "ignitionOn" {
+		t.Fatalf("expected 1 ignitionOn event, got %d events", len(evRepo.created))
+	}
+
+	// 2. Still on — no event
+	pos2 := makeIgnitionPos(1, true, now.Add(10*time.Second))
+	if err := svc.CheckIgnition(ctx, pos2); err != nil {
+		t.Fatal(err)
+	}
+	if len(evRepo.created) != 1 {
+		t.Fatalf("expected still 1 event after same-state position, got %d", len(evRepo.created))
+	}
+
+	// 3. Ignition off
+	pos3 := makeIgnitionPos(1, false, now.Add(5*time.Minute))
+	if err := svc.CheckIgnition(ctx, pos3); err != nil {
+		t.Fatal(err)
+	}
+	if len(evRepo.created) != 2 || evRepo.created[1].Type != "ignitionOff" {
+		t.Fatalf("expected 2 events (on, off), got %d", len(evRepo.created))
+	}
+
+	// 4. Ignition on again
+	pos4 := makeIgnitionPos(1, true, now.Add(10*time.Minute))
+	if err := svc.CheckIgnition(ctx, pos4); err != nil {
+		t.Fatal(err)
+	}
+	if len(evRepo.created) != 3 || evRepo.created[2].Type != "ignitionOn" {
+		t.Fatalf("expected 3 events (on, off, on), got %d", len(evRepo.created))
+	}
+}
+
+// TestCheckIgnition_FirstPositionWithIgnitionOn fires an event when the
+// device has never had ignition state set (LastIgnitionTime is nil).
+func TestCheckIgnition_FirstPositionWithIgnitionOn(t *testing.T) {
+	devRepo := &ignitionMockDeviceRepo{device: newIgnitionDevice(false, nil)}
+	evRepo := &ignitionMockEventRepo{}
+	svc := NewIgnitionService(devRepo, evRepo, nil, nil)
+
+	curr := makeIgnitionPos(1, true, time.Now())
+	if err := svc.CheckIgnition(context.Background(), curr); err != nil {
+		t.Fatal(err)
+	}
+	if len(evRepo.created) != 1 {
+		t.Fatalf("expected 1 event for first ignition, got %d", len(evRepo.created))
+	}
+	if evRepo.created[0].Type != "ignitionOn" {
+		t.Errorf("event type = %q, want %q", evRepo.created[0].Type, "ignitionOn")
+	}
+}
+
+// TestCheckIgnition_FirstPositionIgnitionOff_NoEvent verifies that a device
+// with no prior ignition state receiving ignition=false does not fire an event.
+func TestCheckIgnition_FirstPositionIgnitionOff_NoEvent(t *testing.T) {
+	devRepo := &ignitionMockDeviceRepo{device: newIgnitionDevice(false, nil)}
+	evRepo := &ignitionMockEventRepo{}
+	svc := NewIgnitionService(devRepo, evRepo, nil, nil)
+
+	curr := makeIgnitionPos(1, false, time.Now())
+	if err := svc.CheckIgnition(context.Background(), curr); err != nil {
+		t.Fatal(err)
+	}
+	if len(evRepo.created) != 0 {
+		t.Errorf("expected no events for first position with ignition off, got %d", len(evRepo.created))
 	}
 }

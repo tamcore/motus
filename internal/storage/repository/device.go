@@ -23,7 +23,8 @@ func NewDeviceRepository(pool *pgxpool.Pool) *DeviceRepository {
 
 // deviceColumns is the list of columns selected for device queries.
 const deviceColumns = `id, unique_id, name, protocol, status, speed_limit, last_update,
-	position_id, group_id, phone, model, contact, category, disabled, mileage, pending_mileage, attributes,
+	position_id, group_id, phone, model, contact, category, disabled, mileage, pending_mileage,
+	ignition_on, last_ignition_time, attributes,
 	created_at, updated_at`
 
 // scanDevice scans a device row into a model.Device.
@@ -34,7 +35,8 @@ func scanDevice(scanner interface {
 	err := scanner.Scan(
 		&d.ID, &d.UniqueID, &d.Name, &d.Protocol, &d.Status, &d.SpeedLimit, &d.LastUpdate,
 		&d.PositionID, &d.GroupID, &d.Phone, &d.Model, &d.Contact, &d.Category, &d.Disabled,
-		&d.Mileage, &d.PendingMileage, &attrs,
+		&d.Mileage, &d.PendingMileage,
+		&d.IgnitionOn, &d.LastIgnitionTime, &attrs,
 		&d.CreatedAt, &d.UpdatedAt,
 	)
 	if err != nil {
@@ -100,7 +102,7 @@ func (r *DeviceRepository) GetByUser(ctx context.Context, userID int64) ([]*mode
 	rows, err := r.pool.Query(ctx,
 		`SELECT d.id, d.unique_id, d.name, d.protocol, d.status, d.speed_limit, d.last_update,
 			d.position_id, d.group_id, d.phone, d.model, d.contact, d.category, d.disabled,
-			d.mileage, d.pending_mileage, d.attributes,
+			d.mileage, d.pending_mileage, d.ignition_on, d.last_ignition_time, d.attributes,
 			d.created_at, d.updated_at
 		 FROM devices d
 		 JOIN user_devices ud ON ud.device_id = d.id
@@ -166,7 +168,8 @@ func (r *DeviceRepository) GetAllWithOwners(ctx context.Context) ([]model.Device
 		err := rows.Scan(
 			&d.ID, &d.UniqueID, &d.Name, &d.Protocol, &d.Status, &d.SpeedLimit, &d.LastUpdate,
 			&d.PositionID, &d.GroupID, &d.Phone, &d.Model, &d.Contact, &d.Category, &d.Disabled,
-			&d.Mileage, &d.PendingMileage, &attrs,
+			&d.Mileage, &d.PendingMileage,
+			&d.IgnitionOn, &d.LastIgnitionTime, &attrs,
 			&d.CreatedAt, &d.UpdatedAt,
 			&d.OwnerName,
 		)
@@ -275,15 +278,32 @@ func (r *DeviceRepository) Update(ctx context.Context, d *model.Device) error {
 		`UPDATE devices SET unique_id = $1, name = $2, protocol = $3, status = $4, speed_limit = $5, last_update = $6,
 			position_id = $7, phone = $8, model = $9, contact = $10, category = $11, disabled = $12,
 			mileage = $13, pending_mileage = $14, attributes = $15,
+			ignition_on = $16, last_ignition_time = $17,
 			updated_at = NOW()
-		 WHERE id = $16`,
+		 WHERE id = $18`,
 		d.UniqueID, d.Name, d.Protocol, d.Status, d.SpeedLimit, d.LastUpdate,
 		d.PositionID, d.Phone, d.Model, d.Contact, d.Category, d.Disabled,
 		d.Mileage, d.PendingMileage, attrs,
+		d.IgnitionOn, d.LastIgnitionTime,
 		d.ID,
 	)
 	if err != nil {
 		return fmt.Errorf("update device: %w", err)
+	}
+	return nil
+}
+
+// UpdateIgnitionState atomically sets the ignition_on flag and
+// last_ignition_time on a device. This is used by the IgnitionService to
+// track state transitions without a full Update (which writes every column
+// and could race with the handler's status update).
+func (r *DeviceRepository) UpdateIgnitionState(ctx context.Context, id int64, on bool, ts time.Time) error {
+	_, err := r.pool.Exec(ctx,
+		`UPDATE devices SET ignition_on = $1, last_ignition_time = $2 WHERE id = $3`,
+		on, ts, id,
+	)
+	if err != nil {
+		return fmt.Errorf("update ignition state: %w", err)
 	}
 	return nil
 }

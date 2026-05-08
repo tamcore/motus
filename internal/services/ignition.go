@@ -10,11 +10,12 @@ import (
 )
 
 // IgnitionService detects ACC/ignition state changes and emits ignitionOn /
-// ignitionOff events. It relies on the "ignition" boolean attribute written by
-// the H02 protocol decoder (flags bit 10). Positions from protocols that do
-// not set this attribute are silently ignored.
+// ignitionOff events. It tracks the ignition state on the device record itself
+// (ignition_on + last_ignition_time columns) rather than comparing consecutive
+// positions. This approach is immune to out-of-order and duplicate positions
+// that the H02 tracker frequently sends.
 type IgnitionService struct {
-	positionRepo        repository.PositionRepo
+	deviceRepo          repository.DeviceRepo
 	eventRepo           repository.EventRepo
 	hub                 *websocket.Hub
 	notificationService *NotificationService
@@ -23,13 +24,13 @@ type IgnitionService struct {
 
 // NewIgnitionService creates a new ignition detection service.
 func NewIgnitionService(
-	positionRepo repository.PositionRepo,
+	deviceRepo repository.DeviceRepo,
 	eventRepo repository.EventRepo,
 	hub *websocket.Hub,
 	notificationService *NotificationService,
 ) *IgnitionService {
 	return &IgnitionService{
-		positionRepo:        positionRepo,
+		deviceRepo:          deviceRepo,
 		eventRepo:           eventRepo,
 		hub:                 hub,
 		notificationService: notificationService,
@@ -45,9 +46,9 @@ func (s *IgnitionService) SetLogger(l *slog.Logger) {
 }
 
 // CheckIgnition compares the ignition attribute of the current position with
-// the previous one and emits an ignitionOn or ignitionOff event on a
-// transition. Positions without an "ignition" attribute (non-H02 protocols)
-// are skipped.
+// the device's tracked ignition state. An event is emitted only when the
+// authoritative state changes. Positions older than the last state change are
+// silently skipped to handle out-of-order arrivals.
 func (s *IgnitionService) CheckIgnition(ctx context.Context, position *model.Position) error {
 	// Only act on positions that carry explicit ignition data.
 	currIgnition, ok := ignitionFromAttributes(position.Attributes)
@@ -55,18 +56,29 @@ func (s *IgnitionService) CheckIgnition(ctx context.Context, position *model.Pos
 		return nil
 	}
 
-	prev, err := s.positionRepo.GetPreviousByDevice(ctx, position.DeviceID, position.Timestamp)
-	if err != nil || prev == nil {
-		return nil // No previous position to compare; skip.
+	device, err := s.deviceRepo.GetByID(ctx, position.DeviceID)
+	if err != nil {
+		return err
 	}
 
-	prevIgnition, ok := ignitionFromAttributes(prev.Attributes)
-	if !ok {
-		return nil // Previous position has no ignition data; can't determine transition.
+	// Skip out-of-order positions: if the device already has a newer ignition
+	// state change recorded, this position is stale.
+	if device.LastIgnitionTime != nil && position.Timestamp.Before(*device.LastIgnitionTime) {
+		return nil
 	}
 
-	if currIgnition == prevIgnition {
-		return nil // No change.
+	// No state change — update last_ignition_time if the position is newer
+	// (keeps the guard timestamp fresh) but don't fire an event.
+	if currIgnition == device.IgnitionOn {
+		if currIgnition && (device.LastIgnitionTime == nil || !position.Timestamp.Before(*device.LastIgnitionTime)) {
+			_ = s.deviceRepo.UpdateIgnitionState(ctx, device.ID, true, position.Timestamp)
+		}
+		return nil
+	}
+
+	// State changed: update device and fire event.
+	if err := s.deviceRepo.UpdateIgnitionState(ctx, device.ID, currIgnition, position.Timestamp); err != nil {
+		return err
 	}
 
 	eventType := "ignitionOff"

@@ -110,6 +110,10 @@ func (m *mockDeviceRepo) GetAllWithOwners(ctx context.Context) ([]model.Device, 
 	return nil, nil
 }
 
+func (m *mockDeviceRepo) UpdateIgnitionState(_ context.Context, _ int64, _ bool, _ time.Time) error {
+	return nil
+}
+
 // --- Mock-based unit tests ---
 // These tests run without a database and are significantly faster than
 // the integration tests in device_test.go.

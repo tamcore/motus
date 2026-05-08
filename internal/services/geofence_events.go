@@ -13,9 +13,11 @@ import (
 )
 
 // GeofenceDedupWindow suppresses duplicate enter/exit events when a device's
-// position oscillates across a geofence boundary (GPS jitter or duplicate
-// timestamps). A real transition will not repeat within this window.
-const GeofenceDedupWindow = 2 * time.Minute
+// position oscillates across a geofence boundary (GPS jitter, duplicate
+// timestamps, or interleaved stationary/moving position streams from the H02
+// tracker). A real transition will not repeat within this window. Matches
+// MotionDedupWindow.
+const GeofenceDedupWindow = 5 * time.Minute
 
 // GeofenceEventService detects geofence enter/exit events by comparing
 // a new position against the previous one for the same device.

@@ -365,7 +365,7 @@ func Run() {
 	motionService.SetLogger(svcLogger)
 
 	// Ignition detection service.
-	ignitionService := services.NewIgnitionService(positionRepo, eventRepo, hub, notificationService)
+	ignitionService := services.NewIgnitionService(deviceRepo, eventRepo, hub, notificationService)
 	ignitionService.SetLogger(svcLogger)
 
 	// Alarm detection service (SOS, power cut, vibration, overspeed from H02 flags).

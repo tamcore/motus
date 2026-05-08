@@ -365,3 +365,86 @@ func TestGeofenceEvent_DifferentGeofencesNotShadowed(t *testing.T) {
 		t.Errorf("expected 1 exit for geofence A, got %d", exitsByGeo[gA.ID])
 	}
 }
+
+// TestGeofenceEvent_ExitTwoMinutesApartSuppressed verifies that two geofenceExit
+// events for the same geofence 2m10s apart are suppressed under the 5-minute
+// dedup window. This reproduces the real Kuga bug where the old 2-minute window
+// let the second exit through.
+func TestGeofenceEvent_ExitTwoMinutesApartSuppressed(t *testing.T) {
+	svc, geoRepo, eventRepo, deviceRepo, posRepo, userRepo := setupGeofenceService(t)
+	ctx := context.Background()
+
+	user := &model.User{Email: "twomin@example.com", PasswordHash: "h", Name: "TwoMin"}
+	if err := userRepo.Create(ctx, user); err != nil {
+		t.Fatal(err)
+	}
+	device := &model.Device{UniqueID: "twomin-dev", Name: "TwoMin", Status: "online"}
+	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
+		t.Fatal(err)
+	}
+	g := &model.Geofence{Name: "TwoMin", Geometry: testGeoJSON}
+	if err := geoRepo.Create(ctx, g); err != nil {
+		t.Fatal(err)
+	}
+	if err := geoRepo.AssociateUser(ctx, user.ID, g.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	now := time.Now().UTC()
+
+	// Seed: device is inside the geofence
+	posInside := &model.Position{
+		DeviceID:  device.ID,
+		Latitude:  52.52,
+		Longitude: 13.37,
+		Timestamp: now.Add(-5 * time.Minute),
+	}
+	_ = posRepo.Create(ctx, posInside)
+	_ = svc.CheckGeofences(ctx, posInside)
+
+	// First exit at t=0
+	posExit1 := &model.Position{
+		DeviceID:  device.ID,
+		Latitude:  52.55,
+		Longitude: 13.50,
+		Timestamp: now,
+	}
+	_ = posRepo.Create(ctx, posExit1)
+	_ = svc.CheckGeofences(ctx, posExit1)
+
+	// Interleaved stationary position back inside (simulates H02 heartbeat)
+	posHeartbeat := &model.Position{
+		DeviceID:  device.ID,
+		Latitude:  52.52,
+		Longitude: 13.37,
+		Timestamp: now.Add(1 * time.Minute),
+	}
+	_ = posRepo.Create(ctx, posHeartbeat)
+	_ = svc.CheckGeofences(ctx, posHeartbeat)
+
+	// Second exit at t=2m10s — should be suppressed under the 5-min window
+	posExit2 := &model.Position{
+		DeviceID:  device.ID,
+		Latitude:  52.55,
+		Longitude: 13.50,
+		Timestamp: now.Add(2*time.Minute + 10*time.Second),
+	}
+	_ = posRepo.Create(ctx, posExit2)
+	if err := svc.CheckGeofences(ctx, posExit2); err != nil {
+		t.Fatal(err)
+	}
+
+	events, err := eventRepo.GetByDevice(ctx, device.ID, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	exitCount := 0
+	for _, e := range events {
+		if e.Type == "geofenceExit" {
+			exitCount++
+		}
+	}
+	if exitCount != 1 {
+		t.Errorf("expected exactly 1 geofenceExit (second should be suppressed within 5-min window), got %d", exitCount)
+	}
+}

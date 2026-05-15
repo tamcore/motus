@@ -1,11 +1,26 @@
 import { getStoredAuthToken } from "$lib/auth-token-store";
 import type { Position } from "$lib/types/api";
 
-const BYTES_PER_POSITION_EST = 500;
+function normalizeSpeed(pos: Position): Position {
+  return pos.speed != null ? { ...pos, speed: pos.speed * 1.852 } : pos;
+}
 
+// Parse the streaming JSON array response line-by-line.
+//
+// Go's json.Encoder writes each position as a single \n-terminated line, so
+// the body looks like:
+//   [{"id":1,...}\n,{"id":2,...}\n,...,{"id":N,...}\n]
+//
+// We strip the array-bracket / leading-comma wrappers and parse each small
+// JSON object individually, avoiding a single giant JSON.parse call on the
+// full response body (which blocks the main thread for several seconds and
+// risks OOM for large datasets like "All time").
+//
+// onProgress receives the number of NEW positions parsed since the last call
+// (a delta, not a cumulative total), so callers can do `count += delta`.
 export async function streamPositions(
   params: { deviceId?: number; from?: string; to?: string; limit?: number },
-  onProgress: (estimated: number) => void,
+  onProgress: (delta: number) => void,
 ): Promise<Position[]> {
   const query = new URLSearchParams();
   if (params.deviceId) query.set("deviceId", String(params.deviceId));
@@ -27,26 +42,49 @@ export async function streamPositions(
   }
 
   const reader = response.body!.getReader();
-  const chunks: Uint8Array[] = [];
-  let bytesReceived = 0;
+  const decoder = new TextDecoder();
+  const positions: Position[] = [];
+  let accumulated = "";
+  let lineStart = 0;
 
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
-    chunks.push(value);
-    bytesReceived += value.byteLength;
-    onProgress(Math.floor(bytesReceived / BYTES_PER_POSITION_EST));
+
+    accumulated += decoder.decode(value, { stream: true });
+
+    let newlineIdx: number;
+    let delta = 0;
+
+    while ((newlineIdx = accumulated.indexOf("\n", lineStart)) !== -1) {
+      const line = accumulated.slice(lineStart, newlineIdx).trim();
+      lineStart = newlineIdx + 1;
+
+      if (!line) continue;
+
+      // Strip JSON array wrapper characters: leading '[', leading ',', trailing ']'
+      let json = line;
+      if (json.charCodeAt(0) === 44 /* , */) json = json.slice(1);
+      if (json.charCodeAt(0) === 91 /* [ */) json = json.slice(1);
+      if (json.charCodeAt(json.length - 1) === 93 /* ] */) json = json.slice(0, -1);
+      if (!json || json.charCodeAt(0) !== 123 /* { */) continue;
+
+      try {
+        positions.push(normalizeSpeed(JSON.parse(json) as Position));
+        delta++;
+      } catch {
+        // Malformed line — skip silently
+      }
+    }
+
+    if (delta > 0) onProgress(delta);
+
+    // Compact the accumulated string periodically to prevent unbounded growth
+    if (lineStart > 65536) {
+      accumulated = accumulated.slice(lineStart);
+      lineStart = 0;
+    }
   }
 
-  const buffer = new Uint8Array(bytesReceived);
-  let offset = 0;
-  for (const chunk of chunks) {
-    buffer.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-
-  const raw = JSON.parse(new TextDecoder().decode(buffer)) as Position[];
-  return raw.map((pos) =>
-    pos.speed != null ? { ...pos, speed: pos.speed * 1.852 } : pos,
-  );
+  return positions;
 }

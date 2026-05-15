@@ -177,7 +177,7 @@
 				// Single device — direct history query.
 				positions = await streamPositions(
 					{ deviceId: parseInt(selectedDeviceId), from: fromISO, to: toISO },
-					(n) => { loadingCount = n; },
+					(delta) => { loadingCount += delta; },
 				);
 			} else {
 				// All devices — fan out per device so we get full history.
@@ -185,8 +185,8 @@
 				// device, not the range history needed for a heatmap.
 				const results = await Promise.all(
 					devices.map((d) =>
-						streamPositions({ deviceId: d.id, from: fromISO, to: toISO }, (n) => {
-							loadingCount += n;
+						streamPositions({ deviceId: d.id, from: fromISO, to: toISO }, (delta) => {
+							loadingCount += delta;
 						}).catch(() => [] as Position[]),
 					),
 				);
@@ -374,7 +374,7 @@
 			<h2>Heatmap</h2>
 			<span class="data-count" class:loading-badge={loading}>
 				{#if loading}
-					~{loadingCount.toLocaleString()} loading…
+					{loadingCount.toLocaleString()} loading…
 				{:else}
 					{positions.length.toLocaleString()} points
 				{/if}
@@ -603,7 +603,7 @@
 			<div class="map-loading">
 				<div class="spinner"></div>
 				{#if loadingCount > 0}
-					<span class="map-loading-count">~{loadingCount.toLocaleString()} pts</span>
+					<span class="map-loading-count">{loadingCount.toLocaleString()} pts</span>
 				{/if}
 			</div>
 		{/if}

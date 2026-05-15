@@ -17,9 +17,15 @@ function makePositionJSON(id: number) {
   };
 }
 
+// Mimics Go's json.Encoder output: [obj1\n,obj2\n,...,objN\n]
 function encodeBody(positions: object[]): ReadableStream<Uint8Array> {
-  const json = JSON.stringify(positions);
-  const bytes = new TextEncoder().encode(json);
+  let body = "[";
+  for (let i = 0; i < positions.length; i++) {
+    if (i > 0) body += ",";
+    body += JSON.stringify(positions[i]) + "\n";
+  }
+  body += "]";
+  const bytes = new TextEncoder().encode(body);
   return new ReadableStream({
     start(controller) {
       controller.enqueue(bytes);
@@ -43,13 +49,13 @@ describe("streamPositions", () => {
       }),
     );
 
-    const progress: number[] = [];
-    const result = await streamPositions({ deviceId: 1 }, (n) => progress.push(n));
+    const deltas: number[] = [];
+    const result = await streamPositions({ deviceId: 1 }, (delta) => deltas.push(delta));
 
     expect(result).toHaveLength(2);
     expect(result[0].speed).toBeCloseTo(10 * 1.852, 5);
     expect(result[1].speed).toBeCloseTo(10 * 1.852, 5);
-    expect(progress.length).toBeGreaterThan(0);
+    expect(deltas.reduce((a, b) => a + b, 0)).toBe(2);
   });
 
   it("sends deviceId, from, to as query params", async () => {

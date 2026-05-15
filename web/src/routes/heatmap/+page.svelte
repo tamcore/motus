@@ -175,9 +175,13 @@
 
 			if (selectedDeviceId) {
 				// Single device — direct history query.
+				// maxPositions=50000: heatmap renders at most 10k (samplePositions),
+				// so reservoir-sampling to 50k gives identical output with far less
+				// memory pressure for large "All time" datasets.
 				positions = await streamPositions(
 					{ deviceId: parseInt(selectedDeviceId), from: fromISO, to: toISO },
 					(delta) => { loadingCount += delta; },
+					50000,
 				);
 			} else {
 				// All devices — fan out per device so we get full history.
@@ -185,9 +189,11 @@
 				// device, not the range history needed for a heatmap.
 				const results = await Promise.all(
 					devices.map((d) =>
-						streamPositions({ deviceId: d.id, from: fromISO, to: toISO }, (delta) => {
-							loadingCount += delta;
-						}).catch(() => [] as Position[]),
+						streamPositions(
+							{ deviceId: d.id, from: fromISO, to: toISO },
+							(delta) => { loadingCount += delta; },
+							50000,
+						).catch(() => [] as Position[]),
 					),
 				);
 				positions = results.flat();
@@ -219,9 +225,17 @@
 		const map = leafletMap.getMap();
 		if (!L || !map || positions.length === 0) return;
 
-		const bounds = L.latLngBounds(
-			positions.map((p) => L.latLng(p.latitude, p.longitude))
-		);
+		// Manual min/max instead of positions.map(L.latLng) to avoid allocating
+		// N temporary objects for large datasets (e.g. 635k positions).
+		let minLat = Infinity, maxLat = -Infinity;
+		let minLon = Infinity, maxLon = -Infinity;
+		for (const p of positions) {
+			if (p.latitude < minLat) minLat = p.latitude;
+			if (p.latitude > maxLat) maxLat = p.latitude;
+			if (p.longitude < minLon) minLon = p.longitude;
+			if (p.longitude > maxLon) maxLon = p.longitude;
+		}
+		const bounds = L.latLngBounds([minLat, minLon], [maxLat, maxLon]);
 		map.fitBounds(bounds.pad(0.1));
 	}
 

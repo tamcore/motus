@@ -16,11 +16,17 @@ function normalizeSpeed(pos: Position): Position {
 // full response body (which blocks the main thread for several seconds and
 // risks OOM for large datasets like "All time").
 //
+// maxPositions: if > 0, reservoir-sample the stream down to that many items.
+// The reservoir gives a statistically uniform sample — callers that only
+// render a fraction of positions (e.g. heatmap → 10k) get identical visual
+// output with far less memory pressure.
+//
 // onProgress receives the number of NEW positions parsed since the last call
 // (a delta, not a cumulative total), so callers can do `count += delta`.
 export async function streamPositions(
   params: { deviceId?: number; from?: string; to?: string; limit?: number },
   onProgress: (delta: number) => void,
+  maxPositions = 0,
 ): Promise<Position[]> {
   const query = new URLSearchParams();
   if (params.deviceId) query.set("deviceId", String(params.deviceId));
@@ -46,6 +52,7 @@ export async function streamPositions(
   const positions: Position[] = [];
   let accumulated = "";
   let lineStart = 0;
+  let totalParsed = 0;
 
   while (true) {
     const { done, value } = await reader.read();
@@ -70,8 +77,19 @@ export async function streamPositions(
       if (!json || json.charCodeAt(0) !== 123 /* { */) continue;
 
       try {
-        positions.push(normalizeSpeed(JSON.parse(json) as Position));
+        const pos = normalizeSpeed(JSON.parse(json) as Position);
+        totalParsed++;
         delta++;
+
+        if (maxPositions <= 0 || positions.length < maxPositions) {
+          positions.push(pos);
+        } else {
+          // Reservoir sampling (Algorithm R): replace a random earlier entry
+          const j = Math.floor(Math.random() * totalParsed);
+          if (j < maxPositions) {
+            positions[j] = pos;
+          }
+        }
       } catch {
         // Malformed line — skip silently
       }

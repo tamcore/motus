@@ -153,7 +153,8 @@ func (r *SessionRepository) Delete(ctx context.Context, id string) error {
 func (r *SessionRepository) ListByUser(ctx context.Context, userID int64) ([]*model.Session, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT s.id, s.user_id, s.remember_me, s.original_user_id, s.is_sudo,
-		       s.api_key_id, s.created_at, s.expires_at, k.name
+		       s.api_key_id, s.created_at, s.expires_at, k.name,
+		       s.last_seen_at, s.last_seen_ip, s.last_seen_user_agent
 		FROM sessions s
 		LEFT JOIN api_keys k ON s.api_key_id = k.id
 		WHERE s.user_id = $1 AND s.expires_at > NOW()
@@ -169,6 +170,7 @@ func (r *SessionRepository) ListByUser(ctx context.Context, userID int64) ([]*mo
 		if err := rows.Scan(
 			&s.ID, &s.UserID, &s.RememberMe, &s.OriginalUserID, &s.IsSudo,
 			&s.ApiKeyID, &s.CreatedAt, &s.ExpiresAt, &s.ApiKeyName,
+			&s.LastSeenAt, &s.LastSeenIP, &s.LastSeenUserAgent,
 		); err != nil {
 			return nil, fmt.Errorf("scan session row: %w", err)
 		}
@@ -178,4 +180,17 @@ func (r *SessionRepository) ListByUser(ctx context.Context, userID int64) ([]*mo
 		return nil, fmt.Errorf("iterate session rows: %w", err)
 	}
 	return sessions, nil
+}
+
+// UpdateLastSeen records the IP address and user agent of the most recent
+// authenticated request for this session.
+func (r *SessionRepository) UpdateLastSeen(ctx context.Context, id, ip, userAgent string) error {
+	_, err := r.pool.Exec(ctx,
+		`UPDATE sessions SET last_seen_at = NOW(), last_seen_ip = $2, last_seen_user_agent = $3 WHERE id = $1`,
+		id, ip, userAgent,
+	)
+	if err != nil {
+		return fmt.Errorf("update session last seen: %w", err)
+	}
+	return nil
 }

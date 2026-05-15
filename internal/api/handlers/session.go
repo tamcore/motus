@@ -128,6 +128,8 @@ func (h *SessionHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	_ = h.sessions.UpdateLastSeen(r.Context(), session.ID, audit.ExtractIP(r), r.Header.Get("User-Agent"))
+
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_id",
 		Value:    session.ID,

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/tamcore/motus/internal/api"
+	"github.com/tamcore/motus/internal/audit"
 	"github.com/tamcore/motus/internal/storage/repository"
 )
 
@@ -79,6 +80,8 @@ func Auth(users repository.UserRepo, sessions repository.SessionRepo, apiKeys re
 							}
 						}
 						next.ServeHTTP(w, r.WithContext(ctx))
+						go sessions.UpdateLastSeen(context.Background(), session.ID, //nolint:errcheck
+							audit.ExtractIP(r), r.Header.Get("User-Agent"))
 						return
 					}
 				}
@@ -112,6 +115,8 @@ func Auth(users repository.UserRepo, sessions repository.SessionRepo, apiKeys re
 						}
 
 						next.ServeHTTP(w, r.WithContext(ctx))
+						go sessions.UpdateLastSeen(context.Background(), session.ID, //nolint:errcheck
+							audit.ExtractIP(r), r.Header.Get("User-Agent"))
 						return
 					}
 				}

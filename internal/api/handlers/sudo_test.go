@@ -110,6 +110,7 @@ func (m *sudoTestSessionRepo) Delete(ctx context.Context, id string) error {
 func (m *sudoTestSessionRepo) ListByUser(_ context.Context, _ int64) ([]*model.Session, error) {
 	return nil, nil
 }
+func (m *sudoTestSessionRepo) UpdateLastSeen(_ context.Context, _, _, _ string) error { return nil }
 
 func TestStartSudo_RequiresAdmin(t *testing.T) {
 	h := NewSudoHandler(nil, nil)

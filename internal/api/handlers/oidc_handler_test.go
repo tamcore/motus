@@ -124,6 +124,7 @@ func (m *oidcTestSessionRepo) Delete(_ context.Context, _ string) error { return
 func (m *oidcTestSessionRepo) ListByUser(_ context.Context, _ int64) ([]*model.Session, error) {
 	return nil, nil
 }
+func (m *oidcTestSessionRepo) UpdateLastSeen(_ context.Context, _, _, _ string) error { return nil }
 
 // oidcTestStateRepo is a minimal test double for repository.OIDCStateRepo.
 type oidcTestStateRepo struct {

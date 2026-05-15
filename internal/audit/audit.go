@@ -207,7 +207,7 @@ func (l *Logger) Log(ctx context.Context, userID *int64, action, resourceType st
 // LogFromRequest is a convenience method that extracts IP and User-Agent
 // from an HTTP request.
 func (l *Logger) LogFromRequest(r *http.Request, userID *int64, action, resourceType string, resourceID *int64, details map[string]interface{}) {
-	ip := extractIP(r)
+	ip := ExtractIP(r)
 	ua := r.UserAgent()
 	l.Log(r.Context(), userID, action, resourceType, resourceID, details, ip, ua)
 }
@@ -308,9 +308,9 @@ func (l *Logger) Query(ctx context.Context, params QueryParams) ([]Entry, int64,
 	return entries, total, nil
 }
 
-// extractIP returns the client IP from a request, handling X-Forwarded-For.
-func extractIP(r *http.Request) string {
-	// Chi's RealIP middleware sets RemoteAddr to the real IP.
+// ExtractIP returns the client IP from a request. Chi's RealIP middleware
+// rewrites RemoteAddr to the real IP, so we only need to strip the port.
+func ExtractIP(r *http.Request) string {
 	ip, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		return r.RemoteAddr

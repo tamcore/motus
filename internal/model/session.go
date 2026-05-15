@@ -17,8 +17,11 @@ type Session struct {
 	ExpiresAt      time.Time `json:"expiresAt"`
 
 	// Read-only fields populated at query time (never stored directly).
-	ApiKeyName *string `json:"apiKeyName,omitempty"`
-	IsCurrent  bool    `json:"isCurrent,omitempty"`
+	ApiKeyName        *string    `json:"apiKeyName,omitempty"`
+	IsCurrent         bool       `json:"isCurrent,omitempty"`
+	LastSeenAt        *time.Time `json:"lastSeenAt,omitempty"`
+	LastSeenIP        *string    `json:"lastSeenIp,omitempty"`
+	LastSeenUserAgent *string    `json:"lastSeenUserAgent,omitempty"`
 }
 
 // TruncatedID returns a shortened prefix of the session ID for display
@@ -34,31 +37,37 @@ func (s *Session) TruncatedID() string {
 // sessionJSON is the JSON-safe representation of a Session. It replaces
 // the full session token with a truncated display ID.
 type sessionJSON struct {
-	ID             string    `json:"id"`
-	UserID         int64     `json:"userId"`
-	RememberMe     bool      `json:"rememberMe"`
-	OriginalUserID *int64    `json:"originalUserId,omitempty"`
-	IsSudo         bool      `json:"isSudo,omitempty"`
-	ApiKeyID       *int64    `json:"apiKeyId,omitempty"`
-	CreatedAt      time.Time `json:"createdAt"`
-	ExpiresAt      time.Time `json:"expiresAt"`
-	ApiKeyName     *string   `json:"apiKeyName,omitempty"`
-	IsCurrent      bool      `json:"isCurrent,omitempty"`
+	ID                string     `json:"id"`
+	UserID            int64      `json:"userId"`
+	RememberMe        bool       `json:"rememberMe"`
+	OriginalUserID    *int64     `json:"originalUserId,omitempty"`
+	IsSudo            bool       `json:"isSudo,omitempty"`
+	ApiKeyID          *int64     `json:"apiKeyId,omitempty"`
+	CreatedAt         time.Time  `json:"createdAt"`
+	ExpiresAt         time.Time  `json:"expiresAt"`
+	ApiKeyName        *string    `json:"apiKeyName,omitempty"`
+	IsCurrent         bool       `json:"isCurrent,omitempty"`
+	LastSeenAt        *time.Time `json:"lastSeenAt,omitempty"`
+	LastSeenIP        *string    `json:"lastSeenIp,omitempty"`
+	LastSeenUserAgent *string    `json:"lastSeenUserAgent,omitempty"`
 }
 
 // MarshalJSON serialises the session with a truncated display ID instead
 // of the full session cookie token.
 func (s Session) MarshalJSON() ([]byte, error) {
 	return json.Marshal(sessionJSON{
-		ID:             s.TruncatedID(),
-		UserID:         s.UserID,
-		RememberMe:     s.RememberMe,
-		OriginalUserID: s.OriginalUserID,
-		IsSudo:         s.IsSudo,
-		ApiKeyID:       s.ApiKeyID,
-		CreatedAt:      s.CreatedAt,
-		ExpiresAt:      s.ExpiresAt,
-		ApiKeyName:     s.ApiKeyName,
-		IsCurrent:      s.IsCurrent,
+		ID:                s.TruncatedID(),
+		UserID:            s.UserID,
+		RememberMe:        s.RememberMe,
+		OriginalUserID:    s.OriginalUserID,
+		IsSudo:            s.IsSudo,
+		ApiKeyID:          s.ApiKeyID,
+		CreatedAt:         s.CreatedAt,
+		ExpiresAt:         s.ExpiresAt,
+		ApiKeyName:        s.ApiKeyName,
+		IsCurrent:         s.IsCurrent,
+		LastSeenAt:        s.LastSeenAt,
+		LastSeenIP:        s.LastSeenIP,
+		LastSeenUserAgent: s.LastSeenUserAgent,
 	})
 }

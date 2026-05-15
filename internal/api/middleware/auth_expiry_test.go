@@ -95,6 +95,7 @@ func (m *mockSessionRepo) GetByID(ctx context.Context, id string) (*model.Sessio
 func (m *mockSessionRepo) GetByIDPrefix(_ context.Context, _ int64, _ string) (*model.Session, error) {
 	return nil, errors.New("not found")
 }
+func (m *mockSessionRepo) UpdateLastSeen(_ context.Context, _, _, _ string) error { return nil }
 
 // mockApiKeyRepo satisfies repository.ApiKeyRepo for middleware tests.
 type mockApiKeyRepo struct {

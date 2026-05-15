@@ -63,6 +63,7 @@ type SessionRepo interface {
 	GetByIDPrefix(ctx context.Context, userID int64, prefix string) (*model.Session, error)
 	Delete(ctx context.Context, id string) error
 	ListByUser(ctx context.Context, userID int64) ([]*model.Session, error)
+	UpdateLastSeen(ctx context.Context, id, ip, userAgent string) error
 }
 
 // PositionRepo defines the operations on the positions table used by

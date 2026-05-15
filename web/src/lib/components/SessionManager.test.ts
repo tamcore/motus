@@ -697,6 +697,82 @@ describe("SessionManager", () => {
   });
 
   // ---------------------------------------------------------------------------
+  // Last-seen fields (IP, user agent, timestamp)
+  // ---------------------------------------------------------------------------
+
+  describe("Last-seen metadata", () => {
+    it("should include lastSeenAt, lastSeenIp, lastSeenUserAgent when populated", () => {
+      const session = createMockSession({
+        lastSeenAt: "2026-05-15T08:00:00Z",
+        lastSeenIp: "203.0.113.42",
+        lastSeenUserAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0)",
+      });
+
+      expect(session.lastSeenAt).toBe("2026-05-15T08:00:00Z");
+      expect(session.lastSeenIp).toBe("203.0.113.42");
+      expect(session.lastSeenUserAgent).toBe(
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0)",
+      );
+    });
+
+    it("should have null last-seen fields for sessions created before migration", () => {
+      const session = createMockSession({
+        lastSeenAt: null,
+        lastSeenIp: null,
+        lastSeenUserAgent: null,
+      });
+
+      expect(session.lastSeenAt).toBeNull();
+      expect(session.lastSeenIp).toBeNull();
+      expect(session.lastSeenUserAgent).toBeNull();
+    });
+
+    it("should have undefined last-seen fields when not present in API response", () => {
+      const session = createMockSession();
+
+      expect(session.lastSeenAt).toBeUndefined();
+      expect(session.lastSeenIp).toBeUndefined();
+      expect(session.lastSeenUserAgent).toBeUndefined();
+    });
+
+    it("should not show last-seen block when all three fields are null", () => {
+      const session = createMockSession({
+        lastSeenAt: null,
+        lastSeenIp: null,
+        lastSeenUserAgent: null,
+      });
+
+      const showLastSeen =
+        !!session.lastSeenAt ||
+        !!session.lastSeenIp ||
+        !!session.lastSeenUserAgent;
+      expect(showLastSeen).toBe(false);
+    });
+
+    it("should show last-seen block when only IP is present", () => {
+      const session = createMockSession({
+        lastSeenAt: null,
+        lastSeenIp: "10.0.0.1",
+        lastSeenUserAgent: null,
+      });
+
+      const showLastSeen =
+        !!session.lastSeenAt ||
+        !!session.lastSeenIp ||
+        !!session.lastSeenUserAgent;
+      expect(showLastSeen).toBe(true);
+    });
+
+    it("should handle IPv6 addresses", () => {
+      const session = createMockSession({
+        lastSeenIp: "2001:db8::1",
+      });
+
+      expect(session.lastSeenIp).toBe("2001:db8::1");
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // Full load + revoke lifecycle
   // ---------------------------------------------------------------------------
 

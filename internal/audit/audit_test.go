@@ -39,7 +39,7 @@ func TestExtractIP(t *testing.T) {
 	for _, tt := range tests {
 		req := httptest.NewRequest("GET", "/", nil)
 		req.RemoteAddr = tt.remoteAddr
-		got := extractIP(req)
+		got := ExtractIP(req)
 		if got != tt.want {
 			t.Errorf("extractIP(RemoteAddr=%q) = %q, want %q", tt.remoteAddr, got, tt.want)
 		}

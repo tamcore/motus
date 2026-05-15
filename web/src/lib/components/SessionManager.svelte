@@ -141,6 +141,23 @@
 							<span class="meta-separator">|</span>
 							<span class="session-date">Expires {formatDate(session.expiresAt)}</span>
 						</div>
+						{#if session.lastSeenAt || session.lastSeenIp || session.lastSeenUserAgent}
+							<div class="session-last-seen">
+								{#if session.lastSeenAt}
+									<span class="last-seen-item">Last seen {formatDate(session.lastSeenAt)}</span>
+								{/if}
+								{#if session.lastSeenIp}
+									{#if session.lastSeenAt}<span class="meta-separator">·</span>{/if}
+									<span class="last-seen-item last-seen-ip">{session.lastSeenIp}</span>
+								{/if}
+								{#if session.lastSeenUserAgent}
+									{#if session.lastSeenAt || session.lastSeenIp}<span class="meta-separator">·</span>{/if}
+									<span class="last-seen-item last-seen-ua" title={session.lastSeenUserAgent}>
+										{session.lastSeenUserAgent}
+									</span>
+								{/if}
+							</div>
+						{/if}
 					</div>
 					<div class="session-actions">
 						{#if session.isCurrent}
@@ -328,6 +345,28 @@
 
 	.meta-separator {
 		color: var(--border-color);
+	}
+
+	.session-last-seen {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		margin-top: var(--space-1);
+		font-size: var(--text-xs);
+		color: var(--text-tertiary);
+		flex-wrap: wrap;
+	}
+
+	.last-seen-item {
+		white-space: nowrap;
+	}
+
+	.last-seen-ua {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		max-width: 280px;
+		white-space: nowrap;
+		cursor: default;
 	}
 
 	.session-actions {

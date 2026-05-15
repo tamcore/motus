@@ -375,6 +375,9 @@ export interface Session {
   isCurrent?: boolean;
   createdAt: string;
   expiresAt: string;
+  lastSeenAt?: string | null;
+  lastSeenIp?: string | null;
+  lastSeenUserAgent?: string | null;
 }
 
 /** Response from login (POST /api/session). */

@@ -183,6 +183,7 @@ func (m *mockSessionRepo) Delete(ctx context.Context, id string) error {
 	}
 	return nil
 }
+func (m *mockSessionRepo) UpdateLastSeen(_ context.Context, _, _, _ string) error { return nil }
 func (m *mockSessionRepo) ListByUser(ctx context.Context, userID int64) ([]*model.Session, error) {
 	if m.listByUserFn != nil {
 		return m.listByUserFn(ctx, userID)

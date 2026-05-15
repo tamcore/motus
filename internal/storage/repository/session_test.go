@@ -358,6 +358,68 @@ func TestSessionRepository_ListByUser_ExcludesExpired(t *testing.T) {
 	}
 }
 
+func TestSessionRepository_UpdateLastSeen(t *testing.T) {
+	pool := testutil.SetupTestDB(t)
+	testutil.CleanTables(t, pool)
+	sessionRepo := repository.NewSessionRepository(pool)
+	userRepo := repository.NewUserRepository(pool)
+	ctx := context.Background()
+
+	user := &model.User{Email: "sess-lastseen@example.com", PasswordHash: "hash", Name: "Last Seen User"}
+	if err := userRepo.Create(ctx, user); err != nil {
+		t.Fatalf("Create user: %v", err)
+	}
+
+	session, err := sessionRepo.Create(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("Create session: %v", err)
+	}
+
+	// Initially all last-seen fields should be nil.
+	sessions, err := sessionRepo.ListByUser(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("ListByUser before update: %v", err)
+	}
+	if len(sessions) != 1 {
+		t.Fatalf("expected 1 session, got %d", len(sessions))
+	}
+	if sessions[0].LastSeenAt != nil {
+		t.Error("expected nil LastSeenAt before UpdateLastSeen")
+	}
+	if sessions[0].LastSeenIP != nil {
+		t.Error("expected nil LastSeenIP before UpdateLastSeen")
+	}
+	if sessions[0].LastSeenUserAgent != nil {
+		t.Error("expected nil LastSeenUserAgent before UpdateLastSeen")
+	}
+
+	// Update last seen.
+	if err := sessionRepo.UpdateLastSeen(ctx, session.ID, "203.0.113.42", "TestAgent/1.0"); err != nil {
+		t.Fatalf("UpdateLastSeen: %v", err)
+	}
+
+	// Verify the fields are now populated via ListByUser.
+	sessions, err = sessionRepo.ListByUser(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("ListByUser after update: %v", err)
+	}
+	if sessions[0].LastSeenAt == nil {
+		t.Error("expected non-nil LastSeenAt after UpdateLastSeen")
+	}
+	if sessions[0].LastSeenIP == nil {
+		t.Fatal("expected non-nil LastSeenIP after UpdateLastSeen")
+	}
+	if *sessions[0].LastSeenIP != "203.0.113.42" {
+		t.Errorf("expected LastSeenIP %q, got %q", "203.0.113.42", *sessions[0].LastSeenIP)
+	}
+	if sessions[0].LastSeenUserAgent == nil {
+		t.Fatal("expected non-nil LastSeenUserAgent after UpdateLastSeen")
+	}
+	if *sessions[0].LastSeenUserAgent != "TestAgent/1.0" {
+		t.Errorf("expected LastSeenUserAgent %q, got %q", "TestAgent/1.0", *sessions[0].LastSeenUserAgent)
+	}
+}
+
 func TestSessionRepository_CascadeDeleteApiKey(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)

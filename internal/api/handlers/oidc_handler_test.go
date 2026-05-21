@@ -128,6 +128,9 @@ func (m *oidcTestSessionRepo) UpdateLastSeen(_ context.Context, _, _, _ string) 
 func (m *oidcTestSessionRepo) UpdateExpiry(_ context.Context, _ string, _ time.Time) error {
 	return nil
 }
+func (m *oidcTestSessionRepo) DeleteAllByUser(_ context.Context, _ int64, _ string) error {
+	return nil
+}
 
 // oidcTestStateRepo is a minimal test double for repository.OIDCStateRepo.
 type oidcTestStateRepo struct {

@@ -114,6 +114,9 @@ func (m *sudoTestSessionRepo) UpdateLastSeen(_ context.Context, _, _, _ string) 
 func (m *sudoTestSessionRepo) UpdateExpiry(_ context.Context, _ string, _ time.Time) error {
 	return nil
 }
+func (m *sudoTestSessionRepo) DeleteAllByUser(_ context.Context, _ int64, _ string) error {
+	return nil
+}
 
 func TestStartSudo_RequiresAdmin(t *testing.T) {
 	h := NewSudoHandler(nil, nil)

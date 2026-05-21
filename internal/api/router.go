@@ -122,6 +122,7 @@ type Handlers struct {
 	// Session management (list / revoke).
 	ListSessions       http.HandlerFunc
 	DeleteSession      http.HandlerFunc
+	LogoutAll          http.HandlerFunc
 	AdminDeleteSession http.HandlerFunc
 
 	// OIDC authentication.
@@ -318,6 +319,7 @@ func NewRouter(h Handlers, authMiddleware, adminMiddleware func(http.Handler) ht
 
 		// Session management.
 		r.Get("/api/sessions", h.ListSessions)
+		r.Delete("/api/sessions", h.LogoutAll)
 		r.Delete("/api/sessions/{id}", h.DeleteSession)
 
 		// Self-service profile update (any authenticated user).

@@ -206,3 +206,15 @@ func (r *SessionRepository) UpdateLastSeen(ctx context.Context, id, ip, userAgen
 	}
 	return nil
 }
+
+// DeleteAllByUser removes all sessions for a user except the one with the given ID.
+func (r *SessionRepository) DeleteAllByUser(ctx context.Context, userID int64, exceptID string) error {
+	_, err := r.pool.Exec(ctx,
+		`DELETE FROM sessions WHERE user_id = $1 AND id != $2`,
+		userID, exceptID,
+	)
+	if err != nil {
+		return fmt.Errorf("delete all sessions for user: %w", err)
+	}
+	return nil
+}

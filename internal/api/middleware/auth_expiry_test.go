@@ -103,6 +103,7 @@ func (m *mockSessionRepo) UpdateExpiry(ctx context.Context, id string, expiresAt
 	}
 	return nil
 }
+func (m *mockSessionRepo) DeleteAllByUser(_ context.Context, _ int64, _ string) error { return nil }
 
 // mockApiKeyRepo satisfies repository.ApiKeyRepo for middleware tests.
 type mockApiKeyRepo struct {

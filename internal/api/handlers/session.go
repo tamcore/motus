@@ -284,6 +284,39 @@ func (h *SessionHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// LogoutAll revokes all sessions for the authenticated user except the current one.
+// DELETE /api/sessions
+func (h *SessionHandler) LogoutAll(w http.ResponseWriter, r *http.Request) {
+	user := api.UserFromContext(r.Context())
+	if user == nil {
+		api.RespondError(w, http.StatusUnauthorized, "not authenticated")
+		return
+	}
+
+	var currentSessionID string
+	if cookie, err := r.Cookie("session_id"); err == nil {
+		currentSessionID = cookie.Value
+	} else if hdr := r.Header.Get("X-Auth-Token"); hdr != "" {
+		currentSessionID = hdr
+	}
+	if currentSessionID == "" {
+		api.RespondError(w, http.StatusBadRequest, "could not determine current session")
+		return
+	}
+
+	if err := h.sessions.DeleteAllByUser(r.Context(), user.ID, currentSessionID); err != nil {
+		api.RespondError(w, http.StatusInternalServerError, "failed to revoke sessions")
+		return
+	}
+
+	if h.audit != nil {
+		h.audit.LogFromRequest(r, &user.ID, audit.ActionSessionRevoke, audit.ResourceSession, nil,
+			map[string]interface{}{"scope": "all_other_sessions"})
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // GenerateToken creates a new API token for the authenticated user.
 // POST /api/session/token
 func (h *SessionHandler) GenerateToken(w http.ResponseWriter, r *http.Request) {

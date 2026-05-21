@@ -330,6 +330,7 @@ func Run() {
 
 		ListSessions:       sessionHandler.ListSessions,
 		DeleteSession:      sessionHandler.DeleteSession,
+		LogoutAll:          sessionHandler.LogoutAll,
 		AdminDeleteSession: sessionHandler.AdminDeleteSession,
 
 		OIDCConfig:   oidcConfigFn,

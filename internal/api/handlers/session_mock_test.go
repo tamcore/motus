@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/tamcore/motus/internal/api"
 	"github.com/tamcore/motus/internal/api/handlers"
 	"github.com/tamcore/motus/internal/model"
 	"github.com/tamcore/motus/internal/storage/repository"
@@ -137,6 +138,7 @@ type mockSessionRepo struct {
 	getByIDPrefixFn    func(ctx context.Context, userID int64, prefix string) (*model.Session, error)
 	deleteFn           func(ctx context.Context, id string) error
 	listByUserFn       func(ctx context.Context, userID int64) ([]*model.Session, error)
+	deleteAllByUserFn  func(ctx context.Context, userID int64, exceptID string) error
 }
 
 var _ repository.SessionRepo = (*mockSessionRepo)(nil)
@@ -185,6 +187,12 @@ func (m *mockSessionRepo) Delete(ctx context.Context, id string) error {
 }
 func (m *mockSessionRepo) UpdateLastSeen(_ context.Context, _, _, _ string) error { return nil }
 func (m *mockSessionRepo) UpdateExpiry(_ context.Context, _ string, _ time.Time) error {
+	return nil
+}
+func (m *mockSessionRepo) DeleteAllByUser(ctx context.Context, userID int64, exceptID string) error {
+	if m.deleteAllByUserFn != nil {
+		return m.deleteAllByUserFn(ctx, userID, exceptID)
+	}
 	return nil
 }
 func (m *mockSessionRepo) ListByUser(ctx context.Context, userID int64) ([]*model.Session, error) {
@@ -663,5 +671,51 @@ func TestGetCurrentSession_ReadonlyApiKeyToken_LinksApiKey(t *testing.T) {
 	}
 	if capturedApiKeyID != 99 {
 		t.Errorf("expected CreateWithApiKey called with apiKeyID=99, got %d", capturedApiKeyID)
+	}
+}
+
+func TestLogoutAll_RevokesOtherSessions(t *testing.T) {
+	user := &model.User{ID: 3, Email: "user@example.com", Role: "user"}
+
+	var capturedUserID int64
+	var capturedExceptID string
+	sessions := &mockSessionRepo{
+		deleteAllByUserFn: func(_ context.Context, userID int64, exceptID string) error {
+			capturedUserID = userID
+			capturedExceptID = exceptID
+			return nil
+		},
+	}
+
+	h := handlers.NewSessionHandler(&mockUserRepo{}, sessions, &mockApiKeyRepo{})
+	req := httptest.NewRequest(http.MethodDelete, "/api/sessions", nil)
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "current-sess"})
+	req = req.WithContext(api.ContextWithUser(req.Context(), user))
+	rr := httptest.NewRecorder()
+	h.LogoutAll(rr, req)
+
+	if rr.Code != http.StatusNoContent {
+		t.Errorf("expected 204, got %d; body: %s", rr.Code, rr.Body.String())
+	}
+	if capturedUserID != 3 {
+		t.Errorf("expected userID=3, got %d", capturedUserID)
+	}
+	if capturedExceptID != "current-sess" {
+		t.Errorf("expected exceptID=current-sess, got %s", capturedExceptID)
+	}
+}
+
+func TestLogoutAll_NoSessionCookie_Returns400(t *testing.T) {
+	user := &model.User{ID: 3, Email: "user@example.com", Role: "user"}
+	sessions := &mockSessionRepo{}
+
+	h := handlers.NewSessionHandler(&mockUserRepo{}, sessions, &mockApiKeyRepo{})
+	req := httptest.NewRequest(http.MethodDelete, "/api/sessions", nil)
+	req = req.WithContext(api.ContextWithUser(req.Context(), user))
+	rr := httptest.NewRecorder()
+	h.LogoutAll(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 when no session cookie, got %d", rr.Code)
 	}
 }

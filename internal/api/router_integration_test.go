@@ -52,6 +52,7 @@ func allNopHandlers() Handlers {
 		AdminListUserKeys:         nopHandler(),
 		ListSessions:              nopHandler(),
 		DeleteSession:             nopHandler(),
+		LogoutAll:                 nopHandler(),
 		AdminDeleteSession:        nopHandler(),
 		ListUsers:                 nopHandler(),
 		CreateUser:                nopHandler(),

@@ -20,6 +20,15 @@
 	let deleteError = '';
 
 	// ---------------------------------------------------------------------------
+	// Revoke all state
+	// ---------------------------------------------------------------------------
+	let confirmingRevokeAll = false;
+	let revokingAll = false;
+	let revokeAllError = '';
+
+	$: otherSessionCount = sessions.filter((s) => !s.isCurrent).length;
+
+	// ---------------------------------------------------------------------------
 	// Lifecycle
 	// ---------------------------------------------------------------------------
 	onMount(() => {
@@ -81,6 +90,39 @@
 	}
 
 	// ---------------------------------------------------------------------------
+	// Revoke all
+	// ---------------------------------------------------------------------------
+	function requestRevokeAll() {
+		confirmingRevokeAll = true;
+		revokeAllError = '';
+	}
+
+	function cancelRevokeAll() {
+		confirmingRevokeAll = false;
+		revokeAllError = '';
+	}
+
+	async function confirmRevokeAll() {
+		revokingAll = true;
+		revokeAllError = '';
+		try {
+			await api.revokeAllOtherSessions();
+			await loadSessions();
+			confirmingRevokeAll = false;
+		} catch (e: unknown) {
+			if (e instanceof APIError) {
+				revokeAllError = e.message;
+			} else if (e instanceof Error) {
+				revokeAllError = e.message;
+			} else {
+				revokeAllError = 'Failed to revoke sessions. Please try again.';
+			}
+		} finally {
+			revokingAll = false;
+		}
+	}
+
+	// ---------------------------------------------------------------------------
 	// Helpers
 	// ---------------------------------------------------------------------------
 	function truncateId(id: string): string {
@@ -102,6 +144,11 @@
 				View and manage your active login sessions. Revoking a session will immediately log it out.
 			</p>
 		</div>
+		{#if otherSessionCount > 1}
+			<Button variant="danger" size="sm" on:click={requestRevokeAll}>
+				Revoke all other sessions
+			</Button>
+		{/if}
 	</div>
 
 	{#if loading}
@@ -170,6 +217,27 @@
 					</div>
 				</div>
 			{/each}
+		</div>
+	{/if}
+
+	<!-- Revoke all confirmation -->
+	{#if confirmingRevokeAll}
+		<div class="confirm-overlay">
+			<div class="confirm-box">
+				<p class="confirm-text">
+					Are you sure you want to revoke all other sessions? Every session except this one will be
+					immediately logged out.
+				</p>
+				{#if revokeAllError}
+					<div class="message error">{revokeAllError}</div>
+				{/if}
+				<div class="confirm-actions">
+					<Button variant="secondary" size="sm" on:click={cancelRevokeAll}>Cancel</Button>
+					<Button variant="danger" size="sm" loading={revokingAll} on:click={confirmRevokeAll}>
+						{revokingAll ? 'Revoking...' : 'Revoke All Other Sessions'}
+					</Button>
+				</div>
+			</div>
 		</div>
 	{/if}
 

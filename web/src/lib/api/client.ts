@@ -439,6 +439,10 @@ export const api = {
   revokeSession: (id: string) =>
     request<void>(`/sessions/${id}`, { method: "DELETE" }),
 
+  /** Revoke all sessions for the current user except the active one. */
+  revokeAllOtherSessions: () =>
+    request<void>("/sessions", { method: "DELETE" }),
+
   // ---------------------------------------------------------------------------
   // Device sharing
   // ---------------------------------------------------------------------------

@@ -741,3 +741,67 @@ func TestDeleteSession_MissingID(t *testing.T) {
 		t.Errorf("expected status 400, got %d; body: %s", rr.Code, rr.Body.String())
 	}
 }
+
+// TestGenerateToken_ReadonlyApiKey_Returns403 verifies that a read-only API
+// key cannot mint a full user token even if the middleware exemption is bypassed.
+func TestGenerateToken_ReadonlyApiKey_Returns403(t *testing.T) {
+	user := &model.User{ID: 1, Email: "readonly@example.com", Role: model.RoleUser}
+	readonlyKey := &model.ApiKey{ID: 1, Permissions: model.PermissionReadonly}
+
+	generateTokenCalled := false
+	users := &mockUserRepo{
+		generateTokenFn: func(_ context.Context, _ int64) (string, error) {
+			generateTokenCalled = true
+			return "should-not-be-returned", nil
+		},
+	}
+
+	h := handlers.NewSessionHandler(users, &mockSessionRepo{}, &mockApiKeyRepo{})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/session/token", nil)
+	ctx := api.ContextWithUser(req.Context(), user)
+	ctx = api.ContextWithApiKey(ctx, readonlyKey)
+	req = req.WithContext(ctx)
+	rr := httptest.NewRecorder()
+	h.GenerateToken(rr, req)
+
+	if rr.Code != http.StatusForbidden {
+		t.Errorf("expected 403 for readonly key, got %d; body: %s", rr.Code, rr.Body.String())
+	}
+	if generateTokenCalled {
+		t.Error("GenerateToken on users repo should NOT be called for a read-only key")
+	}
+}
+
+// TestGenerateToken_FullApiKey_Succeeds verifies that a full-permission API
+// key can still mint a user token.
+func TestGenerateToken_FullApiKey_Succeeds(t *testing.T) {
+	user := &model.User{ID: 2, Email: "full@example.com", Role: model.RoleUser}
+	fullKey := &model.ApiKey{ID: 2, Permissions: model.PermissionFull}
+
+	users := &mockUserRepo{
+		generateTokenFn: func(_ context.Context, _ int64) (string, error) {
+			return "generated-token", nil
+		},
+	}
+
+	h := handlers.NewSessionHandler(users, &mockSessionRepo{}, &mockApiKeyRepo{})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/session/token", nil)
+	ctx := api.ContextWithUser(req.Context(), user)
+	ctx = api.ContextWithApiKey(ctx, fullKey)
+	req = req.WithContext(ctx)
+	rr := httptest.NewRecorder()
+	h.GenerateToken(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected 200 for full key, got %d; body: %s", rr.Code, rr.Body.String())
+	}
+	var resp map[string]string
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp["token"] != "generated-token" {
+		t.Errorf("expected token 'generated-token', got %q", resp["token"])
+	}
+}

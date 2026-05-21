@@ -96,3 +96,23 @@ func TestRequireWriteAccess_ReadonlyKey_BlocksWrites(t *testing.T) {
 		})
 	}
 }
+
+// TestRequireWriteAccess_ReadonlyKey_BlocksSessionToken verifies that a
+// read-only API key cannot POST to /api/session/token to mint a full user
+// token, closing the privilege-escalation path via the session-route exemption.
+func TestRequireWriteAccess_ReadonlyKey_BlocksSessionToken(t *testing.T) {
+	handler := middleware.RequireWriteAccess(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	readonlyKey := &model.ApiKey{ID: 1, Permissions: model.PermissionReadonly}
+	req := httptest.NewRequest(http.MethodPost, "/api/session/token", nil)
+	ctx := api.ContextWithApiKey(req.Context(), readonlyKey)
+	req = req.WithContext(ctx)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusForbidden {
+		t.Errorf("expected 403 for readonly key on /api/session/token, got %d", rr.Code)
+	}
+}

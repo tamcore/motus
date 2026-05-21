@@ -45,7 +45,6 @@ func RequireWriteAccess(next http.Handler) http.Handler {
 // be exempt from readonly restrictions.
 func isSessionRoute(path string) bool {
 	return path == "/api/session" ||
-		path == "/api/session/token" ||
 		path == "/api/sessions" ||
 		strings.HasPrefix(path, "/api/sessions/")
 }

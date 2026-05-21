@@ -336,6 +336,11 @@ func (h *SessionHandler) GenerateToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if k := api.ApiKeyFromContext(r.Context()); k != nil && k.IsReadonly() {
+		api.RespondError(w, http.StatusForbidden, "this API key has read-only permissions")
+		return
+	}
+
 	token, err := h.users.GenerateToken(r.Context(), user.ID)
 	if err != nil {
 		api.RespondError(w, http.StatusInternalServerError, "failed to generate token")

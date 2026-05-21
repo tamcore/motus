@@ -750,3 +750,42 @@ func TestSessionWithApiKey_ContextHasCorrectApiKey(t *testing.T) {
 		t.Errorf("expected permissions %q, got %q", model.PermissionReadonly, gotKey.Permissions)
 	}
 }
+
+// TestReadonlyApiKey_CannotMintUserToken verifies end-to-end that a read-only
+// API key bearer token is blocked from POST /api/session/token by the
+// RequireWriteAccess middleware. This closes the privilege-escalation path
+// where a readonly key could obtain a full user token.
+func TestReadonlyApiKey_CannotMintUserToken(t *testing.T) {
+	pool := testutil.SetupTestDB(t)
+	testutil.CleanTables(t, pool)
+
+	userRepo := repository.NewUserRepository(pool)
+	sessionRepo := repository.NewSessionRepository(pool)
+	apiKeyRepo := repository.NewApiKeyRepository(pool)
+
+	user := &model.User{Email: "readonly-token@example.com", PasswordHash: "hash", Name: "Readonly Token User"}
+	if err := userRepo.Create(context.Background(), user); err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+
+	key := &model.ApiKey{UserID: user.ID, Name: "Readonly Key", Permissions: model.PermissionReadonly}
+	if err := apiKeyRepo.Create(context.Background(), key); err != nil {
+		t.Fatalf("create api key: %v", err)
+	}
+
+	authMw := middleware.Auth(userRepo, sessionRepo, apiKeyRepo)
+	writeMw := middleware.RequireWriteAccess
+
+	handler := authMw(writeMw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})))
+
+	req := httptest.NewRequest(http.MethodPost, "/api/session/token", nil)
+	req.Header.Set("Authorization", "Bearer "+key.Token)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusForbidden {
+		t.Errorf("expected 403 for readonly key on /api/session/token, got %d; body: %s", rr.Code, rr.Body.String())
+	}
+}

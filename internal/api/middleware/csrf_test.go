@@ -1,6 +1,7 @@
 package middleware_test
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -246,6 +247,68 @@ func TestCSRF_HeadRequestAllowed(t *testing.T) {
 
 	if rr.Code != http.StatusOK {
 		t.Errorf("HEAD request: expected 200, got %d", rr.Code)
+	}
+}
+
+func TestCSRF_POSTWithXAuthToken_ValidSession_Exempt(t *testing.T) {
+	mw := middleware.CSRF(middleware.CSRFConfig{
+		Secret: testCSRFSecret(),
+		Secure: false,
+		ValidateXAuthToken: func(_ context.Context, token string) bool {
+			return token == "valid-session-id"
+		},
+	})
+	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest(http.MethodPost, "/api/devices", strings.NewReader(`{}`))
+	req.Header.Set("X-Auth-Token", "valid-session-id")
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("POST with valid X-Auth-Token: expected 200, got %d; body: %s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestCSRF_POSTWithXAuthToken_InvalidSession_Rejected(t *testing.T) {
+	mw := middleware.CSRF(middleware.CSRFConfig{
+		Secret: testCSRFSecret(),
+		Secure: false,
+		ValidateXAuthToken: func(_ context.Context, token string) bool {
+			return false // token does not resolve to a live session
+		},
+	})
+	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest(http.MethodPost, "/api/devices", strings.NewReader(`{}`))
+	req.Header.Set("X-Auth-Token", "bogus-or-expired-session")
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusForbidden {
+		t.Errorf("POST with invalid X-Auth-Token: expected 403, got %d", rr.Code)
+	}
+}
+
+func TestCSRF_POSTWithXAuthToken_NilValidator_Exempt(t *testing.T) {
+	// When ValidateXAuthToken is nil (existing behaviour), any non-empty
+	// X-Auth-Token grants the CSRF exemption without a session lookup.
+	mw := csrfMiddleware() // nil ValidateXAuthToken
+	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest(http.MethodPost, "/api/devices", strings.NewReader(`{}`))
+	req.Header.Set("X-Auth-Token", "any-value-at-all")
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("POST with X-Auth-Token and nil validator: expected 200, got %d", rr.Code)
 	}
 }
 

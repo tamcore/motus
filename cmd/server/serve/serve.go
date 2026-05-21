@@ -352,6 +352,10 @@ func Run() {
 		CSRFProtect: middleware.CSRF(middleware.CSRFConfig{
 			Secret: csrfSecret,
 			Secure: csrfSecure,
+			ValidateXAuthToken: func(ctx context.Context, token string) bool {
+				s, err := sessionRepo.GetByID(ctx, token)
+				return err == nil && s != nil
+			},
 		}),
 	}
 	router := api.NewRouter(h, authMW, adminMW, hub, routerCfg)

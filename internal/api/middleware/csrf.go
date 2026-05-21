@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -14,6 +15,11 @@ type CSRFConfig struct {
 	Secret []byte
 	// Secure sets the Secure flag on the CSRF cookie (true for production).
 	Secure bool
+	// ValidateXAuthToken, when non-nil, is called to confirm an X-Auth-Token
+	// value resolves to a live session before granting the CSRF exemption.
+	// If nil, any non-empty X-Auth-Token is accepted (preserves existing
+	// behaviour when not wired up).
+	ValidateXAuthToken func(ctx context.Context, token string) bool
 }
 
 // CSRF returns middleware that applies CSRF protection to cookie-authenticated
@@ -54,12 +60,22 @@ func CSRF(cfg CSRFConfig) func(http.Handler) http.Handler {
 		csrfProtected := protect(tokenInjector)
 
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Bearer token / X-Auth-Token requests are exempt from CSRF; they
-			// originate from non-cookie auth flows (API clients or PWA
-			// localStorage fallbacks) and are not subject to CSRF attacks.
-			if isBearerTokenRequest(r) || r.Header.Get("X-Auth-Token") != "" {
+			// Bearer token requests are always CSRF-exempt — they originate
+			// from API clients that use token-based auth, not cookie auth.
+			if isBearerTokenRequest(r) {
 				next.ServeHTTP(w, r)
 				return
+			}
+
+			// X-Auth-Token is a localStorage/IDB-backed session ID used by
+			// iOS/Firefox-iOS PWA contexts where the cookie gets evicted.
+			// Validate the token against a live session before exempting CSRF;
+			// an empty or invalid token falls through to gorilla/csrf.
+			if xat := r.Header.Get("X-Auth-Token"); xat != "" {
+				if cfg.ValidateXAuthToken == nil || cfg.ValidateXAuthToken(r.Context(), xat) {
+					next.ServeHTTP(w, r)
+					return
+				}
 			}
 
 			// When the CSRF cookie is not Secure (i.e. development over

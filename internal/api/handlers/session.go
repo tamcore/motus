@@ -40,11 +40,12 @@ type SessionHandler struct {
 	sessions repository.SessionRepo
 	apiKeys  repository.ApiKeyRepo
 	audit    *audit.Logger
+	limiter  *loginLimiter
 }
 
 // NewSessionHandler creates a new session handler.
 func NewSessionHandler(users repository.UserRepo, sessions repository.SessionRepo, apiKeys repository.ApiKeyRepo) *SessionHandler {
-	return &SessionHandler{users: users, sessions: sessions, apiKeys: apiKeys}
+	return &SessionHandler{users: users, sessions: sessions, apiKeys: apiKeys, limiter: newLoginLimiter()}
 }
 
 // SetAuditLogger configures audit logging for session events.
@@ -94,8 +95,14 @@ func (h *SessionHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if h.limiter.isLocked(email) {
+		api.RespondError(w, http.StatusTooManyRequests, "account temporarily locked due to too many failed login attempts")
+		return
+	}
+
 	user, err := h.users.GetByEmail(r.Context(), email)
 	if err != nil {
+		h.limiter.recordFailure(email)
 		// Log failed login attempt for unknown email.
 		if h.audit != nil {
 			h.audit.LogFromRequest(r, nil, audit.ActionSessionLoginFailed, audit.ResourceSession, nil,
@@ -106,6 +113,7 @@ func (h *SessionHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
+		h.limiter.recordFailure(email)
 		// Log failed login attempt for wrong password.
 		if h.audit != nil {
 			h.audit.LogFromRequest(r, &user.ID, audit.ActionSessionLoginFailed, audit.ResourceSession, nil,
@@ -114,6 +122,8 @@ func (h *SessionHandler) Login(w http.ResponseWriter, r *http.Request) {
 		api.RespondError(w, http.StatusUnauthorized, "invalid credentials")
 		return
 	}
+
+	h.limiter.reset(email)
 
 	// Create session with appropriate expiry.
 	var expiresAt time.Time

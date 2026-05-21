@@ -3,6 +3,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { useLeaflet } from '$lib/composables/useLeaflet';
 	import { useUserLocation } from '$lib/composables/useUserLocation';
+	import { buildPopupElement } from '$lib/utils/popup';
 	import type { Device } from '$lib/types/api';
 
 	const API_BASE = '/api';
@@ -334,12 +335,17 @@
 		});
 	}
 
-	function getPopupContent(): string {
+	function getPopupContent(): HTMLElement | string {
 		if (!position || !device) return '';
 		const speed = formatSpeed(position.speed);
 		const course = position.course != null ? `${Math.round(position.course)}deg ${getCardinalDirection(position.course)}` : 'N/A';
 		const time = position.fixTime ? new Date(position.fixTime).toLocaleString() : 'Unknown';
-		return `<strong>${device.name}</strong><br>Speed: ${speed}<br>Course: ${course}<br>Time: ${time}`;
+		return buildPopupElement([
+			{ type: 'heading', text: device.name },
+			{ type: 'text', text: `Speed: ${speed}` },
+			{ type: 'text', text: `Course: ${course}` },
+			{ type: 'text', text: `Time: ${time}` }
+		]);
 	}
 
 	function updateMarker(pos: SharedPosition) {

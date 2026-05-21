@@ -8,6 +8,7 @@
 	import { refreshHandler } from '$lib/stores/refresh';
 	import { useLeaflet } from '$lib/composables/useLeaflet';
 	import { getOverlayById } from '$lib/utils/map-overlays';
+	import { buildPopupElement, type PopupRow } from '$lib/utils/popup';
 	import type { Device, Position } from '$lib/types/api';
 	import StatusIndicator from '$lib/components/StatusIndicator.svelte';
 	import MapLayerControl from '$lib/components/MapLayerControl.svelte';
@@ -329,10 +330,14 @@
 		});
 	}
 
-	function getPopupContent(device: Device, pos: Position): string {
+	function getPopupContent(device: Device, pos: Position): HTMLElement {
 		const speed = pos.speed != null ? formatSpeed(pos.speed) : 'N/A';
 		const time = pos.fixTime ? new Date(pos.fixTime).toLocaleString() : 'Unknown';
-		return `<strong>${device.name}</strong><br>Speed: ${speed}<br>Time: ${time}`;
+		return buildPopupElement([
+			{ type: 'heading', text: device.name },
+			{ type: 'text', text: `Speed: ${speed}` },
+			{ type: 'text', text: `Time: ${time}` }
+		]);
 	}
 
 	function addMarker(pos: Position) {
@@ -525,7 +530,9 @@
 				try {
 					const geometry = JSON.parse(gf.geometry);
 					const layer = L.geoJSON(geometry, { style: () => GEOFENCE_STYLE });
-					layer.bindPopup(`<strong>${gf.name}</strong>${gf.description ? '<br>' + gf.description : ''}`);
+					const popupRows: PopupRow[] = [{ type: 'heading', text: gf.name }];
+					if (gf.description) popupRows.push({ type: 'text', text: gf.description });
+					layer.bindPopup(buildPopupElement(popupRows));
 					layer.addTo(geofenceLayer);
 				} catch {
 					console.error('Failed to parse geofence geometry for', gf.name);

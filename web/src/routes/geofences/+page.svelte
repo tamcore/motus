@@ -4,6 +4,7 @@
 	import { currentUser } from '$lib/stores/auth';
 	import { refreshHandler } from '$lib/stores/refresh';
 	import { useUserLocation } from '$lib/composables/useUserLocation';
+	import { buildPopupElement, type PopupRow } from '$lib/utils/popup';
 	import Button from '$lib/components/Button.svelte';
 	import Input from '$lib/components/Input.svelte';
 	import Modal from '$lib/components/Modal.svelte';
@@ -130,8 +131,10 @@
 		const geometry = JSON.parse(gf.geometry || '{}');
 		const layer = L.geoJSON(geometry, { style: () => GEOFENCE_STYLE });
 		const calName = getCalendarName(gf.calendarId);
-		const calHtml = calName ? `<br><small style="color: var(--text-tertiary)">Schedule: ${calName}</small>` : '';
-		layer.bindPopup(`<strong>${gf.name}</strong>${gf.description ? '<br>' + gf.description : ''}${calHtml}`);
+		const rows: PopupRow[] = [{ type: 'heading', text: gf.name }];
+		if (gf.description) rows.push({ type: 'text', text: gf.description });
+		if (calName) rows.push({ type: 'note', text: `Schedule: ${calName}`, className: 'text-tertiary' });
+		layer.bindPopup(buildPopupElement(rows));
 		layer.addTo(map);
 		return layer;
 	}

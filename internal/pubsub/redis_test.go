@@ -79,6 +79,45 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
+func TestNewRedisClient_InvalidURL(t *testing.T) {
+	_, err := pubsub.NewRedisClient("not-a-valid-url")
+	if err == nil {
+		t.Fatal("expected error for invalid Redis URL")
+	}
+}
+
+func TestNewRedisClient_UnreachableRedis(t *testing.T) {
+	_, err := pubsub.NewRedisClient("redis://127.0.0.1:59999")
+	if err == nil {
+		t.Fatal("expected error for unreachable Redis")
+	}
+}
+
+func TestNewRedisClient_Success(t *testing.T) {
+	url := setupRedis(t)
+
+	client, err := pubsub.NewRedisClient(url)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer func() { _ = client.Close() }()
+}
+
+func TestNewRedisPubSubFromClient_Success(t *testing.T) {
+	url := setupRedis(t)
+
+	client, err := pubsub.NewRedisClient(url)
+	if err != nil {
+		t.Fatalf("create redis client: %v", err)
+	}
+
+	ps, err := pubsub.NewRedisPubSubFromClient(client, "test-from-client")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer func() { _ = ps.Close() }()
+}
+
 func TestNewRedisPubSub_InvalidURL(t *testing.T) {
 	_, err := pubsub.NewRedisPubSub("not-a-valid-url", "test-channel")
 	if err == nil {

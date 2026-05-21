@@ -11,15 +11,15 @@ import (
 
 // RedisPubSub implements PubSub using Redis pub/sub for cross-pod broadcasting.
 type RedisPubSub struct {
-	client  *redis.Client
-	sub     *redis.PubSub
-	channel string
+	client     *redis.Client
+	sub        *redis.PubSub
+	channel    string
+	ownsClient bool // true when this instance created the client and must close it
 }
 
-// NewRedisPubSub creates a new Redis pub/sub client. The redisURL should be a
-// valid Redis connection string (e.g. "redis://localhost:6379"). The channel
-// parameter is the Redis pub/sub channel name used for broadcasting messages.
-func NewRedisPubSub(redisURL, channel string) (*RedisPubSub, error) {
+// NewRedisClient creates and verifies a Redis client from a connection URL.
+// The caller is responsible for closing the returned client.
+func NewRedisClient(redisURL string) (*redis.Client, error) {
 	opts, err := redis.ParseURL(redisURL)
 	if err != nil {
 		return nil, fmt.Errorf("parse redis URL: %w", err)
@@ -27,15 +27,37 @@ func NewRedisPubSub(redisURL, channel string) (*RedisPubSub, error) {
 
 	client := redis.NewClient(opts)
 
-	// Verify the connection is usable.
 	if err := client.Ping(context.Background()).Err(); err != nil {
 		_ = client.Close()
 		return nil, fmt.Errorf("redis ping: %w", err)
 	}
 
+	return client, nil
+}
+
+// NewRedisPubSub creates a new Redis pub/sub client from a connection URL.
+// The channel parameter is the Redis pub/sub channel name used for broadcasting.
+func NewRedisPubSub(redisURL, channel string) (*RedisPubSub, error) {
+	client, err := NewRedisClient(redisURL)
+	if err != nil {
+		return nil, err
+	}
+
 	return &RedisPubSub{
-		client:  client,
-		channel: channel,
+		client:     client,
+		channel:    channel,
+		ownsClient: true,
+	}, nil
+}
+
+// NewRedisPubSubFromClient creates a Redis pub/sub instance from an existing
+// client. The caller retains ownership of the client; Close on the returned
+// RedisPubSub will only tear down the subscription, not the client.
+func NewRedisPubSubFromClient(client *redis.Client, channel string) (*RedisPubSub, error) {
+	return &RedisPubSub{
+		client:     client,
+		channel:    channel,
+		ownsClient: false,
 	}, nil
 }
 
@@ -87,12 +109,16 @@ func (r *RedisPubSub) Subscribe(ctx context.Context, handler func([]byte)) error
 	return nil
 }
 
-// Close tears down the Redis subscription and client connection.
+// Close tears down the Redis subscription and, if this instance owns the
+// client (created via NewRedisPubSub), the client connection as well.
 func (r *RedisPubSub) Close() error {
 	if r.sub != nil {
 		if err := r.sub.Close(); err != nil {
 			slog.Warn("redis pubsub close error", slog.Any("error", err))
 		}
 	}
-	return r.client.Close()
+	if r.ownsClient {
+		return r.client.Close()
+	}
+	return nil
 }

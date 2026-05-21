@@ -14,6 +14,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	redislib "github.com/redis/go-redis/v9"
 	"github.com/tamcore/motus/internal/api"
 	"github.com/tamcore/motus/internal/api/handlers"
 	"github.com/tamcore/motus/internal/api/middleware"
@@ -189,17 +190,29 @@ func Run() {
 		)
 	}
 
-	// Redis pub/sub for cross-pod WebSocket broadcasting (optional).
-	var redisPubSub pubsub.PubSub
+	// Redis client (shared across pub/sub and rate limiting when enabled).
+	var redisClient *redislib.Client
 	if cfg.Redis.Enabled && cfg.Redis.URL != "" {
-		ps, err := pubsub.NewRedisPubSub(cfg.Redis.URL, "motus:updates")
+		rc, err := pubsub.NewRedisClient(cfg.Redis.URL)
 		if err != nil {
-			slog.Warn("Redis unavailable, continuing without cross-pod broadcasting",
+			slog.Warn("Redis unavailable, continuing without cross-pod features",
 				slog.Any("error", err),
 			)
 		} else {
+			redisClient = rc
+			defer func() { _ = rc.Close() }()
+			slog.Info("Redis connected")
+		}
+	}
+
+	// Redis pub/sub for cross-pod WebSocket broadcasting (optional).
+	var redisPubSub pubsub.PubSub
+	if redisClient != nil {
+		ps, err := pubsub.NewRedisPubSubFromClient(redisClient, "motus:updates")
+		if err != nil {
+			slog.Warn("Redis pub/sub setup failed", slog.Any("error", err))
+		} else {
 			redisPubSub = ps
-			defer func() { _ = ps.Close() }()
 			slog.Info("Redis pub/sub enabled for cross-pod broadcasting")
 		}
 	}

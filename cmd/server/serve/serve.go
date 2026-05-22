@@ -217,6 +217,18 @@ func Run() {
 		}
 	}
 
+	// Redis pub/sub for cross-pod device-access cache invalidation (optional).
+	var redisInvalidationPubSub pubsub.PubSub
+	if redisClient != nil {
+		ps, err := pubsub.NewRedisPubSubFromClient(redisClient, cfg.Redis.InvalidationChannel)
+		if err != nil {
+			slog.Warn("Redis cache-invalidation pub/sub setup failed", slog.Any("error", err))
+		} else {
+			redisInvalidationPubSub = ps
+			slog.Info("Redis pub/sub enabled for cross-pod cache invalidation")
+		}
+	}
+
 	// WebSocket hub with origin validation and per-user filtering.
 	// Since /api/socket is outside auth middleware, we must parse session cookie manually.
 	hub := websocket.NewHub(cfg.WebSocket.AllowedOrigins, deviceRepo, func(r *http.Request) int64 {
@@ -241,6 +253,9 @@ func Run() {
 	})
 	if redisPubSub != nil {
 		hub.SetPubSub(redisPubSub)
+	}
+	if redisInvalidationPubSub != nil {
+		hub.SetInvalidationPubSub(redisInvalidationPubSub)
 	}
 	hub.SetShareTokenValidator(&shareTokenAdapter{shares: shareRepo})
 	hub.SetAdminChecker(func(ctx context.Context, userID int64) bool {
@@ -446,6 +461,9 @@ func Run() {
 
 	// Start Redis subscriber to relay messages from other pods to local clients.
 	go hub.StartSubscriber(gpsCtx)
+	// Start Redis subscriber to invalidate local device-access cache entries on
+	// assignment changes made by other pods.
+	go hub.StartInvalidationSubscriber(gpsCtx)
 
 	// Start geocoding cache cleanup (if enabled).
 	if cachedGeocoder != nil {

@@ -78,19 +78,20 @@ type redisEnvelope struct {
 
 // Hub manages WebSocket client connections and broadcasts.
 type Hub struct {
-	mu             sync.RWMutex
-	clients        map[*Client]bool
-	allowedOrigins []string
-	isDevelopment  bool
-	upgrader       websocket.Upgrader
-	accessChecker  DeviceAccessChecker
-	adminChecker   AdminChecker
-	extractUserID  UserIDExtractor
-	shareValidator ShareTokenValidator
-	pubsub         pubsub.PubSub
-	podID          string // unique identifier for this pod instance
-	accessCache    *deviceAccessCache
-	logger         *slog.Logger
+	mu                 sync.RWMutex
+	clients            map[*Client]bool
+	allowedOrigins     []string
+	isDevelopment      bool
+	upgrader           websocket.Upgrader
+	accessChecker      DeviceAccessChecker
+	adminChecker       AdminChecker
+	extractUserID      UserIDExtractor
+	shareValidator     ShareTokenValidator
+	pubsub             pubsub.PubSub
+	invalidationPubSub pubsub.PubSub
+	podID              string // unique identifier for this pod instance
+	accessCache        *deviceAccessCache
+	logger             *slog.Logger
 }
 
 // NewHub creates a new WebSocket hub with origin validation and per-user filtering.
@@ -150,6 +151,49 @@ func (h *Hub) log() *slog.Logger {
 // their local WebSocket clients. If pubsub is nil, broadcasting is local-only.
 func (h *Hub) SetPubSub(ps pubsub.PubSub) {
 	h.pubsub = ps
+}
+
+// SetInvalidationPubSub configures cross-pod cache invalidation via a dedicated
+// Redis pub/sub channel. When set, InvalidateDevice publishes an invalidation
+// event so that all other pods evict the same cache entry immediately rather
+// than waiting for TTL expiry.
+func (h *Hub) SetInvalidationPubSub(ps pubsub.PubSub) {
+	h.invalidationPubSub = ps
+}
+
+// StartInvalidationSubscriber listens for cache-invalidation events from other
+// pods and evicts the named device from the local access cache on receipt.
+// It blocks until ctx is cancelled. Call this in a goroutine after
+// SetInvalidationPubSub. If no invalidation PubSub is configured, this is a
+// no-op that blocks until the context is done.
+func (h *Hub) StartInvalidationSubscriber(ctx context.Context) {
+	if h.invalidationPubSub == nil {
+		<-ctx.Done()
+		return
+	}
+
+	h.log().Info("starting cache-invalidation subscriber", slog.String("podID", h.podID))
+
+	err := h.invalidationPubSub.Subscribe(ctx, func(data []byte) {
+		var env invalidationEnvelope
+		if err := json.Unmarshal(data, &env); err != nil {
+			h.log().Error("invalidation unmarshal error", slog.Any("error", err))
+			return
+		}
+		if env.OriginPodID == h.podID {
+			return
+		}
+		h.log().Debug("cache invalidation from remote pod",
+			slog.Int64("deviceID", env.DeviceID),
+			slog.String("fromPod", env.OriginPodID),
+		)
+		h.accessCache.invalidate(env.DeviceID)
+	})
+	if err != nil {
+		h.log().Error("cache-invalidation subscribe error", slog.Any("error", err))
+	}
+
+	<-ctx.Done()
 }
 
 // SetShareTokenValidator configures share token validation for the hub.
@@ -566,13 +610,21 @@ func (h *Hub) getAllowedUserIDs(deviceID int64) []int64 {
 	return userIDs
 }
 
-// InvalidateDevice removes the cached user-device access entry for a device.
-// Call this when user-device assignments change (assign or unassign) to ensure
-// the next broadcast queries the database for fresh data. This only affects the
-// local pod's cache; in a multi-pod deployment each pod's cache expires
-// independently via TTL.
+// InvalidateDevice removes the cached user-device access entry for a device
+// and, when a cross-pod invalidation pub/sub is configured, publishes an event
+// so that all other pods evict the same entry immediately. The local eviction
+// always happens regardless of whether the publish succeeds.
 func (h *Hub) InvalidateDevice(deviceID int64) {
 	h.accessCache.invalidate(deviceID)
+	if h.invalidationPubSub != nil {
+		env := invalidationEnvelope{OriginPodID: h.podID, DeviceID: deviceID}
+		if err := h.invalidationPubSub.Publish(context.Background(), env); err != nil {
+			h.log().Error("cache invalidation publish error",
+				slog.Int64("deviceID", deviceID),
+				slog.Any("error", err),
+			)
+		}
+	}
 }
 
 // InvalidateAllDevices removes all cached user-device access entries.

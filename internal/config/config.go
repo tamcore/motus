@@ -166,6 +166,10 @@ type RedisConfig struct {
 	// Enabled controls whether Redis pub/sub is used for cross-pod WebSocket
 	// broadcasting. Loaded from MOTUS_REDIS_ENABLED.
 	Enabled bool
+	// InvalidationChannel is the Redis pub/sub channel used for cross-pod
+	// device-access cache invalidation. Loaded from MOTUS_REDIS_INVALIDATION_CHANNEL.
+	// Default: "motus:cache:invalidate".
+	InvalidationChannel string
 }
 
 // WebSocketConfig holds WebSocket-related settings.
@@ -299,8 +303,9 @@ func LoadFromEnv() (*Config, error) {
 			AllowedOrigins: getEnvSlice("MOTUS_WS_ALLOWED_ORIGINS"),
 		},
 		Redis: RedisConfig{
-			URL:     getEnv("MOTUS_REDIS_URL", ""),
-			Enabled: getEnvBool("MOTUS_REDIS_ENABLED", false),
+			URL:                 getEnv("MOTUS_REDIS_URL", ""),
+			Enabled:             getEnvBool("MOTUS_REDIS_ENABLED", false),
+			InvalidationChannel: getEnv("MOTUS_REDIS_INVALIDATION_CHANNEL", "motus:cache:invalidate"),
 		},
 		Demo: DemoConfig{
 			Enabled:               getEnvBool("MOTUS_DEMO_ENABLED", false),

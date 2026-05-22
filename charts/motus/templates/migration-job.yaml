@@ -25,6 +25,8 @@ spec:
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         command: ["/motus", "wait-for-db"]
         env:
+        - name: MOTUS_ENV
+          value: "development"
         {{- if .Values.postgresUriSecret.enabled }}
         - name: POSTGRES_URI
           valueFrom:
@@ -51,6 +53,8 @@ spec:
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         command: ["/motus", "db-migrate"]
         env:
+        - name: MOTUS_ENV
+          value: "development"
         {{- if .Values.postgresUriSecret.enabled }}
         - name: POSTGRES_URI
           valueFrom:

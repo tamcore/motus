@@ -21,6 +21,8 @@ spec:
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         command: ["/motus", "wait-for-db"]
         env:
+        - name: MOTUS_ENV
+          value: "development"
         {{- if .Values.postgresUriSecret.enabled }}
         - name: POSTGRES_URI
           valueFrom:
@@ -46,6 +48,8 @@ spec:
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         command: ["/motus", "reset-demo"]
         env:
+        - name: MOTUS_ENV
+          value: "development"
         {{- if .Values.postgresUriSecret.enabled }}
         - name: POSTGRES_URI
           valueFrom:
@@ -91,6 +95,8 @@ spec:
         - name: MOTUS_DATABASE_SSLMODE
           value: {{ include "motus.database.sslmode" . | quote }}
         {{- end }}
+        - name: MOTUS_ENV
+          value: "development"
         - name: MOTUS_SERVER_PORT
           value: "18080"  # Different port to avoid conflict
         - name: MOTUS_GPS_H02_PORT

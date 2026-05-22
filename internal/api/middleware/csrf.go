@@ -30,10 +30,10 @@ type CSRFConfig struct {
 // Safe HTTP methods (GET, HEAD, OPTIONS, TRACE) are always exempt per the
 // gorilla/csrf library behavior.
 func CSRF(cfg CSRFConfig) func(http.Handler) http.Handler {
-	// GO-2025-3884: gorilla/csrf v1.7.3 has an improper TrustedOrigins validation
-	// vulnerability. TrustedOrigins is not configured here, limiting exploitability.
+	// GO-2025-3884 / CVE-2025-47909: gorilla/csrf v1.7.3 has an improper TrustedOrigins
+	// validation vulnerability. TrustedOrigins is not configured here, limiting exploitability.
 	// SameSite=Lax session cookies provide residual protection in the interim.
-	// Monitor upstream for a patch; do NOT add TrustedOrigins until the CVE is resolved.
+	// No upstream fix exists yet; do NOT add TrustedOrigins until the CVE is resolved.
 	protect := gorillacsrf.Protect(
 		cfg.Secret,
 		gorillacsrf.Secure(cfg.Secure),

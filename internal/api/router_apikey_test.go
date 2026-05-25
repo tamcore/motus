@@ -71,28 +71,18 @@ func TestRouter_ReadonlyApiKey_BlocksDelete(t *testing.T) {
 		t.Fatalf("create full api key: %v", err)
 	}
 
-	// Setup handlers.
-	deviceHandler := handlers.NewDeviceHandler(deviceRepo, "")
-
-	// Setup middleware.
-	authMW := middleware.Auth(userRepo, sessionRepo, apiKeyRepo)
-	writeAccessMW := middleware.RequireWriteAccess
-
-	// Create router config with write access enforcement.
 	routerCfg := api.RouterConfig{
-		WriteAccess: writeAccessMW,
+		Auth:        middleware.Auth(userRepo, sessionRepo, apiKeyRepo),
+		WriteAccess: middleware.RequireWriteAccess,
 	}
-
-	// Build router with full middleware chain.
-	h := api.Handlers{
-		ListDevices:  deviceHandler.List,
-		GetDevice:    deviceHandler.Get,
-		CreateDevice: deviceHandler.Create,
-		UpdateDevice: deviceHandler.Update,
-		DeleteDevice: deviceHandler.Delete,
-	}
-	adminMW := middleware.RequireAdmin
-	router := api.NewRouter(h, authMW, adminMW, nil, routerCfg)
+	handler := handlers.NewHandler(handlers.HandlerConfig{
+		Users:    userRepo,
+		Sessions: sessionRepo,
+		Devices:  deviceRepo,
+		ApiKeys:  apiKeyRepo,
+	})
+	secHandler := handlers.NewSecurityHandler(sessionRepo, apiKeyRepo, userRepo)
+	router := api.NewRouter(handler, secHandler, nil, routerCfg)
 
 	t.Run("readonly_key_can_GET_devices", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/devices", nil)
@@ -259,28 +249,19 @@ func TestRouter_ReadonlyApiKey_BlocksAllWriteEndpoints(t *testing.T) {
 		t.Fatalf("create readonly api key: %v", err)
 	}
 
-	// Setup handlers.
-	deviceHandler := handlers.NewDeviceHandler(deviceRepo, "")
-	geofenceHandler := handlers.NewGeofenceHandler(geofenceRepo)
-
-	// Setup middleware.
-	authMW := middleware.Auth(userRepo, sessionRepo, apiKeyRepo)
-	writeAccessMW := middleware.RequireWriteAccess
-
-	// Create router.
 	routerCfg := api.RouterConfig{
-		WriteAccess: writeAccessMW,
+		Auth:        middleware.Auth(userRepo, sessionRepo, apiKeyRepo),
+		WriteAccess: middleware.RequireWriteAccess,
 	}
-	h := api.Handlers{
-		CreateDevice:   deviceHandler.Create,
-		UpdateDevice:   deviceHandler.Update,
-		DeleteDevice:   deviceHandler.Delete,
-		CreateGeofence: geofenceHandler.Create,
-		UpdateGeofence: geofenceHandler.Update,
-		DeleteGeofence: geofenceHandler.Delete,
-	}
-	adminMW := middleware.RequireAdmin
-	router := api.NewRouter(h, authMW, adminMW, nil, routerCfg)
+	handler := handlers.NewHandler(handlers.HandlerConfig{
+		Users:     userRepo,
+		Sessions:  sessionRepo,
+		Devices:   deviceRepo,
+		ApiKeys:   apiKeyRepo,
+		Geofences: geofenceRepo,
+	})
+	secHandler := handlers.NewSecurityHandler(sessionRepo, apiKeyRepo, userRepo)
+	router := api.NewRouter(handler, secHandler, nil, routerCfg)
 
 	// Test cases for various write endpoints.
 	testCases := []struct {

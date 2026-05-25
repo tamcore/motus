@@ -11,17 +11,51 @@ maps, geofences, notifications, reports, and device management.
 ```
 cmd/motus/          — CLI entrypoints (cobra): serve, db-migrate, user, device, import, etc.
 internal/
-  api/              — HTTP handlers, middleware (auth, CSRF, rate limiting)
+  api/              — HTTP router, middleware (auth, CSRF, rate limiting), context helpers
+    handlers/       — Unified ogen Handler + SecurityHandler implementations
+    middleware/     — chi middleware (auth, CSRF, rate limit, write-access, headers)
+    oas/            — Generated ogen code (DO NOT edit manually — see make generate)
   config/           — Config loading from env vars, validation
   protocol/         — GPS protocol servers (H02, Watch)
   model/            — Domain types
-  store/            — PostgreSQL data access (pgx)
+  storage/
+    repository/     — PostgreSQL data access (pgx); testutil/ for integration test helpers
 migrations/         — Goose SQL migrations (embedded via //go:embed)
+docs/
+  openapi.yaml      — OpenAPI 3.0 spec (source of truth for the HTTP API)
 web/
   src/              — SvelteKit app (routes, lib/components, lib/stores)
   tests/            — Playwright E2E tests
 charts/motus/       — Helm chart (deployment, migration job, postgres, redis)
 ```
+
+### API Layer (ogen)
+
+The HTTP API is spec-first using [ogen](https://github.com/ogen-go/ogen). `docs/openapi.yaml`
+is the source of truth; `internal/api/oas/` contains the generated Go server code.
+
+**Never edit `internal/api/oas/` by hand.** Regenerate with:
+
+```bash
+make generate
+```
+
+This runs `go generate ./internal/api/...` which invokes ogen. Always import the package as:
+
+```go
+oas "github.com/tamcore/motus/internal/api/oas"
+```
+
+The generated `oas.Handler` interface is implemented by `handlers.Handler`
+(`internal/api/handlers/handler.go`). `handlers.NewHandler(HandlerConfig{...})` is the
+single constructor — pass all repos via `HandlerConfig`. The `SecurityHandler`
+(`handlers.NewSecurityHandler`) validates credentials per-operation using the same repos.
+
+**`RouterConfig.Auth` must use `middleware.LoadAuthContext`, not `middleware.Auth`.**
+`LoadAuthContext` populates user/API-key context from credentials but passes through
+unauthenticated requests unchanged — allowing public endpoints like `GET /api/health` to
+respond without a 401. The ogen `SecurityHandler` enforces per-operation auth requirements.
+`middleware.Auth` (returns 401 for all unauthenticated requests) is only for non-ogen routes.
 
 ## Key Gotchas
 
@@ -55,11 +89,16 @@ Migrations are a separate step: `motus db-migrate` (uses goose). In docker-compo
 runs as a oneshot init container before the main service starts.
 
 ### Pre-commit hooks run Go tests (short mode)
-`.pre-commit-config.yaml` runs `go test -short`, `go vet`, `go fmt`, `golangci-lint`.
-The `-short` flag skips integration tests that need Docker (PostGIS via testcontainers,
-Redis via testcontainers). The skip is implemented in `testutil.SetupTestDB(t)` and
-`setupRedis(t)` via `testing.Short()`. Full integration tests run in CI where Docker is
-available.
+`.pre-commit-config.yaml` runs `go test -short`, `go vet`, `go fmt`, `golangci-lint`, and
+a `generate-check` hook. The `-short` flag skips integration tests that need Docker
+(PostGIS via testcontainers, Redis via testcontainers). The skip is implemented in
+`testutil.SetupTestDB(t)` and `setupRedis(t)` via `testing.Short()`. Full integration
+tests run in CI where Docker is available.
+
+The `generate-check` hook triggers only when `docs/openapi.yaml` is staged. It runs
+`make generate` then `git diff --exit-code internal/api/oas/` — the commit is blocked if
+the generated code is out of sync with the spec. The same check runs in CI as
+`generate-check` job in `.github/workflows/test.yaml`.
 
 ### Frontend is embedded in the binary
 The SvelteKit build output is embedded via `//go:embed all:build` in `web/embed.go`.
@@ -201,6 +240,7 @@ make lint                     # All linters
 | Target | Description |
 |--------|-------------|
 | `build` | Build motus binary |
+| `generate` | Regenerate `internal/api/oas/` from `docs/openapi.yaml` (ogen) |
 | `lint` | Run all linters (go vet, golangci-lint, frontend check) |
 | `test` | Run all tests (includes lint) |
 | `dev-deploy-k8s` | Build dev image, push, deploy to K8s |

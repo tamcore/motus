@@ -129,4 +129,16 @@ clean: ## Clean build artifacts
 	@rm -rf bin/ dist/ motus
 	@echo "Cleaned"
 
+.PHONY: generate
+generate: ## Regenerate ogen code from docs/openapi.yaml
+	cp docs/openapi.yaml internal/api/docs/openapi.yaml
+	cp docs/scalar.html internal/api/docs/scalar.html
+	cp docs/scalar.js internal/api/docs/scalar.js
+	go generate ./internal/api/...
+
+.PHONY: update-scalar
+update-scalar: ## Download the latest self-hosted Scalar bundle
+	curl -fsSL https://cdn.jsdelivr.net/npm/@scalar/api-reference/dist/browser/standalone.js \
+	     -o docs/scalar.js
+
 .DEFAULT_GOAL := help

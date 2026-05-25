@@ -37,3 +37,10 @@ repos:
         language: system
         types: [go]
         pass_filenames: false
+
+      - id: generate-check
+        name: Check generated OAS code is up to date
+        entry: bash -c 'make generate && git diff --exit-code internal/api/oas/'
+        language: system
+        files: ^docs/openapi\.yaml$
+        pass_filenames: false

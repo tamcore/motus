@@ -3196,7 +3196,7 @@ type DeviceInput struct {
 	Contact    OptString     `json:"contact"`
 	Category   OptString     `json:"category"`
 	Protocol   OptString     `json:"protocol"`
-	CalendarId OptInt64      `json:"calendarId"`
+	CalendarId OptNilInt64   `json:"calendarId"`
 	SpeedLimit OptFloat64    `json:"speedLimit"`
 	Disabled   OptBool       `json:"disabled"`
 	Attributes OptAttributes `json:"attributes"`
@@ -3238,7 +3238,7 @@ func (s *DeviceInput) GetProtocol() OptString {
 }
 
 // GetCalendarId returns the value of CalendarId.
-func (s *DeviceInput) GetCalendarId() OptInt64 {
+func (s *DeviceInput) GetCalendarId() OptNilInt64 {
 	return s.CalendarId
 }
 
@@ -3293,7 +3293,7 @@ func (s *DeviceInput) SetProtocol(val OptString) {
 }
 
 // SetCalendarId sets the value of CalendarId.
-func (s *DeviceInput) SetCalendarId(val OptInt64) {
+func (s *DeviceInput) SetCalendarId(val OptNilInt64) {
 	s.CalendarId = val
 }
 
@@ -4005,7 +4005,7 @@ type GeofenceInput struct {
 	Description OptString     `json:"description"`
 	Area        string        `json:"area"`
 	Geometry    OptString     `json:"geometry"`
-	CalendarId  OptInt64      `json:"calendarId"`
+	CalendarId  OptNilInt64   `json:"calendarId"`
 	Attributes  OptAttributes `json:"attributes"`
 }
 
@@ -4030,7 +4030,7 @@ func (s *GeofenceInput) GetGeometry() OptString {
 }
 
 // GetCalendarId returns the value of CalendarId.
-func (s *GeofenceInput) GetCalendarId() OptInt64 {
+func (s *GeofenceInput) GetCalendarId() OptNilInt64 {
 	return s.CalendarId
 }
 
@@ -4060,12 +4060,82 @@ func (s *GeofenceInput) SetGeometry(val OptString) {
 }
 
 // SetCalendarId sets the value of CalendarId.
-func (s *GeofenceInput) SetCalendarId(val OptInt64) {
+func (s *GeofenceInput) SetCalendarId(val OptNilInt64) {
 	s.CalendarId = val
 }
 
 // SetAttributes sets the value of Attributes.
 func (s *GeofenceInput) SetAttributes(val OptAttributes) {
+	s.Attributes = val
+}
+
+// Ref: #/components/schemas/GeofenceUpdateInput
+type GeofenceUpdateInput struct {
+	Name        OptString     `json:"name"`
+	Description OptString     `json:"description"`
+	Area        OptString     `json:"area"`
+	Geometry    OptString     `json:"geometry"`
+	CalendarId  OptNilInt64   `json:"calendarId"`
+	Attributes  OptAttributes `json:"attributes"`
+}
+
+// GetName returns the value of Name.
+func (s *GeofenceUpdateInput) GetName() OptString {
+	return s.Name
+}
+
+// GetDescription returns the value of Description.
+func (s *GeofenceUpdateInput) GetDescription() OptString {
+	return s.Description
+}
+
+// GetArea returns the value of Area.
+func (s *GeofenceUpdateInput) GetArea() OptString {
+	return s.Area
+}
+
+// GetGeometry returns the value of Geometry.
+func (s *GeofenceUpdateInput) GetGeometry() OptString {
+	return s.Geometry
+}
+
+// GetCalendarId returns the value of CalendarId.
+func (s *GeofenceUpdateInput) GetCalendarId() OptNilInt64 {
+	return s.CalendarId
+}
+
+// GetAttributes returns the value of Attributes.
+func (s *GeofenceUpdateInput) GetAttributes() OptAttributes {
+	return s.Attributes
+}
+
+// SetName sets the value of Name.
+func (s *GeofenceUpdateInput) SetName(val OptString) {
+	s.Name = val
+}
+
+// SetDescription sets the value of Description.
+func (s *GeofenceUpdateInput) SetDescription(val OptString) {
+	s.Description = val
+}
+
+// SetArea sets the value of Area.
+func (s *GeofenceUpdateInput) SetArea(val OptString) {
+	s.Area = val
+}
+
+// SetGeometry sets the value of Geometry.
+func (s *GeofenceUpdateInput) SetGeometry(val OptString) {
+	s.Geometry = val
+}
+
+// SetCalendarId sets the value of CalendarId.
+func (s *GeofenceUpdateInput) SetCalendarId(val OptNilInt64) {
+	s.CalendarId = val
+}
+
+// SetAttributes sets the value of Attributes.
+func (s *GeofenceUpdateInput) SetAttributes(val OptAttributes) {
 	s.Attributes = val
 }
 

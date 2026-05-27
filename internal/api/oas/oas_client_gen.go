@@ -435,7 +435,7 @@ type Invoker interface {
 	// Update a geofence.
 	//
 	// PUT /api/geofences/{id}
-	UpdateGeofence(ctx context.Context, request *GeofenceInput, params UpdateGeofenceParams) (UpdateGeofenceRes, error)
+	UpdateGeofence(ctx context.Context, request *GeofenceUpdateInput, params UpdateGeofenceParams) (UpdateGeofenceRes, error)
 	// UpdateNotification invokes updateNotification operation.
 	//
 	// Update a notification rule.
@@ -9757,12 +9757,12 @@ func (c *Client) sendUpdateDevice(ctx context.Context, request *DeviceInput, par
 // Update a geofence.
 //
 // PUT /api/geofences/{id}
-func (c *Client) UpdateGeofence(ctx context.Context, request *GeofenceInput, params UpdateGeofenceParams) (UpdateGeofenceRes, error) {
+func (c *Client) UpdateGeofence(ctx context.Context, request *GeofenceUpdateInput, params UpdateGeofenceParams) (UpdateGeofenceRes, error) {
 	res, err := c.sendUpdateGeofence(ctx, request, params)
 	return res, err
 }
 
-func (c *Client) sendUpdateGeofence(ctx context.Context, request *GeofenceInput, params UpdateGeofenceParams) (res UpdateGeofenceRes, err error) {
+func (c *Client) sendUpdateGeofence(ctx context.Context, request *GeofenceUpdateInput, params UpdateGeofenceParams) (res UpdateGeofenceRes, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("updateGeofence"),
 		semconv.HTTPRequestMethodKey.String("PUT"),

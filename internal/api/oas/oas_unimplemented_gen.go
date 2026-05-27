@@ -621,7 +621,7 @@ func (UnimplementedHandler) UpdateDevice(ctx context.Context, req *DeviceInput, 
 // Update a geofence.
 //
 // PUT /api/geofences/{id}
-func (UnimplementedHandler) UpdateGeofence(ctx context.Context, req *GeofenceInput, params UpdateGeofenceParams) (r UpdateGeofenceRes, _ error) {
+func (UnimplementedHandler) UpdateGeofence(ctx context.Context, req *GeofenceUpdateInput, params UpdateGeofenceParams) (r UpdateGeofenceRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

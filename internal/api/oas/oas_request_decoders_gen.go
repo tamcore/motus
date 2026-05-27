@@ -1093,7 +1093,7 @@ func (s *Server) decodeUpdateDeviceRequest(r *http.Request) (
 }
 
 func (s *Server) decodeUpdateGeofenceRequest(r *http.Request) (
-	req *GeofenceInput,
+	req *GeofenceUpdateInput,
 	rawBody []byte,
 	close func() error,
 	rerr error,
@@ -1140,7 +1140,7 @@ func (s *Server) decodeUpdateGeofenceRequest(r *http.Request) (
 		rawBody = append(rawBody, buf...)
 		d := jx.DecodeBytes(buf)
 
-		var request GeofenceInput
+		var request GeofenceUpdateInput
 		if err := func() error {
 			if err := request.Decode(d); err != nil {
 				return err

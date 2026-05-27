@@ -468,7 +468,7 @@ components:
         contact: { type: string }
         category: { type: string }
         protocol: { type: string }
-        calendarId: { type: integer, format: int64 }
+        calendarId: { type: integer, format: int64, nullable: true }
         speedLimit: { type: number, format: double }
         disabled: { type: boolean }
         attributes:
@@ -619,7 +619,18 @@ components:
         description: { type: string }
         area: { type: string }
         geometry: { type: string }
-        calendarId: { type: integer, format: int64 }
+        calendarId: { type: integer, format: int64, nullable: true }
+        attributes:
+          $ref: '#/components/schemas/Attributes'
+
+    GeofenceUpdateInput:
+      type: object
+      properties:
+        name: { type: string }
+        description: { type: string }
+        area: { type: string }
+        geometry: { type: string }
+        calendarId: { type: integer, format: int64, nullable: true }
         attributes:
           $ref: '#/components/schemas/Attributes'
 
@@ -1507,7 +1518,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/GeofenceInput'
+              $ref: '#/components/schemas/GeofenceUpdateInput'
       responses:
         "200":
           description: Updated geofence

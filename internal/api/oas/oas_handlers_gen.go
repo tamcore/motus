@@ -15258,7 +15258,7 @@ func (s *Server) handleUpdateGeofenceRequest(args [1]string, argsEscaped bool, w
 		}
 
 		type (
-			Request  = *GeofenceInput
+			Request  = *GeofenceUpdateInput
 			Params   = UpdateGeofenceParams
 			Response = UpdateGeofenceRes
 		)

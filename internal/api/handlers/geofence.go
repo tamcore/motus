@@ -333,7 +333,7 @@ func (h *Handler) CreateGeofence(ctx context.Context, req *oas.GeofenceInput) (o
 }
 
 // UpdateGeofence modifies an existing geofence.
-func (h *Handler) UpdateGeofence(ctx context.Context, req *oas.GeofenceInput, params oas.UpdateGeofenceParams) (oas.UpdateGeofenceRes, error) {
+func (h *Handler) UpdateGeofence(ctx context.Context, req *oas.GeofenceUpdateInput, params oas.UpdateGeofenceParams) (oas.UpdateGeofenceRes, error) {
 	user := api.UserFromContext(ctx)
 	if user == nil {
 		return &oas.UpdateGeofenceUnauthorized{Error: "unauthorized"}, nil
@@ -347,22 +347,24 @@ func (h *Handler) UpdateGeofence(ctx context.Context, req *oas.GeofenceInput, pa
 	}
 
 	updated := *existing
-	if req.Name != "" {
-		if err := ValidateDisplayName(req.Name); err != nil {
+	if n, ok := req.Name.Get(); ok && n != "" {
+		if err := ValidateDisplayName(n); err != nil {
 			return &oas.UpdateGeofenceBadRequest{Error: err.Error()}, nil
 		}
-		updated.Name = req.Name
+		updated.Name = n
 	}
-	desc, _ := req.Description.Get()
-	if err := ValidateDescription(desc); err != nil {
-		return &oas.UpdateGeofenceBadRequest{Error: err.Error()}, nil
+	if req.Description.Set {
+		desc, _ := req.Description.Get()
+		if err := ValidateDescription(desc); err != nil {
+			return &oas.UpdateGeofenceBadRequest{Error: err.Error()}, nil
+		}
+		updated.Description = desc
 	}
-	updated.Description = desc
 	if geom, ok := req.Geometry.Get(); ok && geom != "" {
 		updated.Geometry = geom
 	}
-	if req.Area != "" {
-		updated.Area = req.Area
+	if a, ok := req.Area.Get(); ok && a != "" {
+		updated.Area = a
 	}
 	if req.CalendarId.Set {
 		if v, ok := req.CalendarId.Get(); ok {

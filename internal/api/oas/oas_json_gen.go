@@ -11626,6 +11626,154 @@ func (s *GeofenceInput) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode implements json.Marshaler.
+func (s *GeofenceUpdateInput) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *GeofenceUpdateInput) encodeFields(e *jx.Encoder) {
+	{
+		if s.Name.Set {
+			e.FieldStart("name")
+			s.Name.Encode(e)
+		}
+	}
+	{
+		if s.Description.Set {
+			e.FieldStart("description")
+			s.Description.Encode(e)
+		}
+	}
+	{
+		if s.Area.Set {
+			e.FieldStart("area")
+			s.Area.Encode(e)
+		}
+	}
+	{
+		if s.Geometry.Set {
+			e.FieldStart("geometry")
+			s.Geometry.Encode(e)
+		}
+	}
+	{
+		if s.CalendarId.Set {
+			e.FieldStart("calendarId")
+			s.CalendarId.Encode(e)
+		}
+	}
+	{
+		if s.Attributes.Set {
+			e.FieldStart("attributes")
+			s.Attributes.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfGeofenceUpdateInput = [6]string{
+	0: "name",
+	1: "description",
+	2: "area",
+	3: "geometry",
+	4: "calendarId",
+	5: "attributes",
+}
+
+// Decode decodes GeofenceUpdateInput from json.
+func (s *GeofenceUpdateInput) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode GeofenceUpdateInput to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "name":
+			if err := func() error {
+				s.Name.Reset()
+				if err := s.Name.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		case "description":
+			if err := func() error {
+				s.Description.Reset()
+				if err := s.Description.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"description\"")
+			}
+		case "area":
+			if err := func() error {
+				s.Area.Reset()
+				if err := s.Area.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"area\"")
+			}
+		case "geometry":
+			if err := func() error {
+				s.Geometry.Reset()
+				if err := s.Geometry.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"geometry\"")
+			}
+		case "calendarId":
+			if err := func() error {
+				s.CalendarId.Reset()
+				if err := s.CalendarId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"calendarId\"")
+			}
+		case "attributes":
+			if err := func() error {
+				s.Attributes.Reset()
+				if err := s.Attributes.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"attributes\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode GeofenceUpdateInput")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *GeofenceUpdateInput) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *GeofenceUpdateInput) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes GetCommandTypesOKApplicationJSON as json.
 func (s GetCommandTypesOKApplicationJSON) Encode(e *jx.Encoder) {
 	unwrapped := []CommandType(s)

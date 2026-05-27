@@ -1,6 +1,71 @@
 import { test, expect } from '../fixtures/auth-fixture';
 import { GeofencesPage } from '../page-objects/GeofencesPage';
 
+const CIRCLE_AREA = 'CIRCLE (11.5820 48.1351, 1000)';
+
+test.describe('Geofence API — partial update and calendarId', () => {
+  let geofenceId: number;
+  let calendarId: number;
+
+  test.beforeAll(async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: '.auth/user.json' });
+    const page = await ctx.newPage();
+
+    const calRes = await page.request.post('/api/calendars', {
+      data: {
+        name: 'PW Test Calendar',
+        data: 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nEND:VCALENDAR',
+      },
+    });
+    expect(calRes.status()).toBe(201);
+    calendarId = (await calRes.json()).id;
+
+    const geoRes = await page.request.post('/api/geofences', {
+      data: { name: 'PW Calendar Test Fence', area: CIRCLE_AREA },
+    });
+    expect(geoRes.status()).toBe(201);
+    geofenceId = (await geoRes.json()).id;
+
+    await ctx.close();
+  });
+
+  test.afterAll(async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: '.auth/user.json' });
+    const page = await ctx.newPage();
+    await page.request.delete(`/api/geofences/${geofenceId}`);
+    await page.request.delete(`/api/calendars/${calendarId}`);
+    await ctx.close();
+  });
+
+  test('partial update with name only (no area) should succeed', async ({ authedPage }) => {
+    const res = await authedPage.request.put(`/api/geofences/${geofenceId}`, {
+      data: { name: 'PW Renamed Fence' },
+    });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body.name).toBe('PW Renamed Fence');
+    expect(body.area).toBe(CIRCLE_AREA);
+  });
+
+  test('update with calendarId integer should link the calendar', async ({ authedPage }) => {
+    const res = await authedPage.request.put(`/api/geofences/${geofenceId}`, {
+      data: { calendarId },
+    });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body.calendarId).toBe(calendarId);
+  });
+
+  test('update with calendarId null should clear the calendar', async ({ authedPage }) => {
+    const res = await authedPage.request.put(`/api/geofences/${geofenceId}`, {
+      data: { calendarId: null },
+    });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body.calendarId).toBeNull();
+  });
+});
+
 test.describe('Geofences Page', () => {
   let geofencesPage: GeofencesPage;
 

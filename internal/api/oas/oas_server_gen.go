@@ -415,7 +415,7 @@ type Handler interface {
 	// Update a geofence.
 	//
 	// PUT /api/geofences/{id}
-	UpdateGeofence(ctx context.Context, req *GeofenceInput, params UpdateGeofenceParams) (UpdateGeofenceRes, error)
+	UpdateGeofence(ctx context.Context, req *GeofenceUpdateInput, params UpdateGeofenceParams) (UpdateGeofenceRes, error)
 	// UpdateNotification implements updateNotification operation.
 	//
 	// Update a notification rule.

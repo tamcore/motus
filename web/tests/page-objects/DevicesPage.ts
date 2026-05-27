@@ -65,7 +65,7 @@ export class DevicesPage {
   }
 
   get formProtocolInput() {
-    return this.page.locator('[role="dialog"] input[name="protocol"]');
+    return this.page.locator('[role="dialog"] select[name="protocol"]');
   }
 
   get formError() {
@@ -110,7 +110,7 @@ export class DevicesPage {
     if (data.phone) await this.formPhoneInput.fill(data.phone);
     if (data.model) await this.formModelInput.fill(data.model);
     if (data.category) await this.formCategoryInput.fill(data.category);
-    if (data.protocol !== undefined) await this.formProtocolInput.fill(data.protocol);
+    if (data.protocol !== undefined) await this.formProtocolInput.selectOption(data.protocol);
   }
 
   getEditButton(rowIndex: number) {

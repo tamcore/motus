@@ -92,8 +92,8 @@ test.describe('Devices Page', () => {
     await expect(devicesPage.modal).toBeVisible();
     await expect(devicesPage.formProtocolInput).toHaveValue('h02');
 
-    // Clear protocol and save
-    await devicesPage.formProtocolInput.fill('');
+    // Clear protocol by selecting blank option and save
+    await devicesPage.formProtocolInput.selectOption('');
     await devicesPage.saveChangesButton.click();
     await expect(devicesPage.modal).toHaveCount(0, { timeout: 10000 });
 

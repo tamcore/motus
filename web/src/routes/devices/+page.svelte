@@ -683,7 +683,14 @@
 		<Input name="phone" label="Phone" placeholder="+1234567890" bind:value={formPhone} />
 		<Input name="model" label="Model" placeholder="TK103" bind:value={formModel} />
 		<Input name="category" label="Category" placeholder="car" bind:value={formCategory} />
-		<Input name="protocol" label="Protocol" placeholder="h02" bind:value={formProtocol} />
+		<div class="input-group">
+			<label for="protocol" class="input-label">Protocol</label>
+			<select id="protocol" name="protocol" class="cmd-select" bind:value={formProtocol}>
+				<option value="">— none —</option>
+				<option value="h02">H02</option>
+				<option value="watch">Watch</option>
+			</select>
+		</div>
 		<Input
 			name="mileage"
 			label="Mileage ({$settings.units === 'imperial' ? 'mi' : 'km'})"
@@ -1228,6 +1235,18 @@
 		font-size: var(--text-sm);
 		font-weight: var(--font-semibold);
 		color: var(--text-secondary);
+	}
+
+	.input-group {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+	}
+
+	.input-label {
+		font-size: var(--text-sm);
+		font-weight: var(--font-medium);
+		color: var(--text-primary);
 	}
 
 	.cmd-select {

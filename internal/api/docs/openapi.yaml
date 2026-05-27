@@ -119,6 +119,216 @@ components:
         satellites: { type: integer }
       additionalProperties: true
 
+    AuditMetadata:
+      oneOf:
+        - $ref: '#/components/schemas/AuditMetaEmpty'
+        - $ref: '#/components/schemas/AuditMetaSessionLogin'
+        - $ref: '#/components/schemas/AuditMetaSessionLoginFailed'
+        - $ref: '#/components/schemas/AuditMetaSessionSudo'
+        - $ref: '#/components/schemas/AuditMetaSessionRevoke'
+        - $ref: '#/components/schemas/AuditMetaUserCreate'
+        - $ref: '#/components/schemas/AuditMetaUserUpdate'
+        - $ref: '#/components/schemas/AuditMetaDeviceCreate'
+        - $ref: '#/components/schemas/AuditMetaDeviceUpdate'
+        - $ref: '#/components/schemas/AuditMetaDeviceAssign'
+        - $ref: '#/components/schemas/AuditMetaDeviceGpxImport'
+        - $ref: '#/components/schemas/AuditMetaNamedResource'
+        - $ref: '#/components/schemas/AuditMetaNotificationRule'
+        - $ref: '#/components/schemas/AuditMetaNotifDelivery'
+        - $ref: '#/components/schemas/AuditMetaApiKeyCreate'
+        - $ref: '#/components/schemas/AuditMetaApiKeyDelete'
+        - $ref: '#/components/schemas/AuditMetaShare'
+        - $ref: '#/components/schemas/AuditMetaCommandSend'
+      discriminator:
+        propertyName: action
+        mapping:
+          session.logout:       '#/components/schemas/AuditMetaEmpty'
+          device.delete:        '#/components/schemas/AuditMetaEmpty'
+          device.online:        '#/components/schemas/AuditMetaEmpty'
+          device.offline:       '#/components/schemas/AuditMetaEmpty'
+          notification.delete:  '#/components/schemas/AuditMetaEmpty'
+          calendar.delete:      '#/components/schemas/AuditMetaEmpty'
+          geofence.delete:      '#/components/schemas/AuditMetaEmpty'
+          user.delete:          '#/components/schemas/AuditMetaEmpty'
+          session.login:        '#/components/schemas/AuditMetaSessionLogin'
+          session.login_failed: '#/components/schemas/AuditMetaSessionLoginFailed'
+          session.sudo:         '#/components/schemas/AuditMetaSessionSudo'
+          session.sudo_end:     '#/components/schemas/AuditMetaSessionSudo'
+          session.revoke:       '#/components/schemas/AuditMetaSessionRevoke'
+          user.create:          '#/components/schemas/AuditMetaUserCreate'
+          user.update:          '#/components/schemas/AuditMetaUserUpdate'
+          device.create:        '#/components/schemas/AuditMetaDeviceCreate'
+          device.update:        '#/components/schemas/AuditMetaDeviceUpdate'
+          device.assign:        '#/components/schemas/AuditMetaDeviceAssign'
+          device.unassign:      '#/components/schemas/AuditMetaDeviceAssign'
+          device.gpx_import:    '#/components/schemas/AuditMetaDeviceGpxImport'
+          geofence.create:      '#/components/schemas/AuditMetaNamedResource'
+          geofence.update:      '#/components/schemas/AuditMetaNamedResource'
+          calendar.create:      '#/components/schemas/AuditMetaNamedResource'
+          calendar.update:      '#/components/schemas/AuditMetaNamedResource'
+          notification.create:  '#/components/schemas/AuditMetaNotificationRule'
+          notification.update:  '#/components/schemas/AuditMetaNotificationRule'
+          notification.sent:    '#/components/schemas/AuditMetaNotifDelivery'
+          notification.failed:  '#/components/schemas/AuditMetaNotifDelivery'
+          apikey.create:        '#/components/schemas/AuditMetaApiKeyCreate'
+          apikey.delete:        '#/components/schemas/AuditMetaApiKeyDelete'
+          share.create:         '#/components/schemas/AuditMetaShare'
+          share.delete:         '#/components/schemas/AuditMetaShare'
+          command.send:         '#/components/schemas/AuditMetaCommandSend'
+
+    AuditMetaEmpty:
+      type: object
+      required: [action]
+      properties:
+        action: { type: string }
+
+    AuditMetaSessionLogin:
+      type: object
+      required: [action, email]
+      properties:
+        action: { type: string }
+        email: { type: string }
+
+    AuditMetaSessionLoginFailed:
+      type: object
+      required: [action, email, reason]
+      properties:
+        action: { type: string }
+        email: { type: string }
+        reason: { type: string }
+
+    AuditMetaSessionSudo:
+      type: object
+      required: [action, adminEmail, targetEmail]
+      properties:
+        action: { type: string }
+        adminEmail: { type: string }
+        targetEmail: { type: string }
+
+    AuditMetaSessionRevoke:
+      type: object
+      required: [action]
+      properties:
+        action: { type: string }
+        scope: { type: string }
+        revokedSessionId: { type: string }
+        sessionOwnerUserId: { type: integer, format: int64 }
+
+    AuditMetaUserCreate:
+      type: object
+      required: [action, email, role]
+      properties:
+        action: { type: string }
+        email: { type: string }
+        role: { type: string }
+
+    AuditMetaUserUpdate:
+      type: object
+      required: [action, email]
+      properties:
+        action: { type: string }
+        email: { type: string }
+        oldEmail: { type: string }
+        newEmail: { type: string }
+        oldName: { type: string }
+        newName: { type: string }
+        oldRole: { type: string }
+        newRole: { type: string }
+        disabled: { type: boolean }
+        readonly: { type: boolean }
+
+    AuditMetaDeviceCreate:
+      type: object
+      required: [action, name, uniqueId]
+      properties:
+        action: { type: string }
+        name: { type: string }
+        uniqueId: { type: string }
+
+    AuditMetaDeviceUpdate:
+      type: object
+      required: [action, name]
+      properties:
+        action: { type: string }
+        name: { type: string }
+
+    AuditMetaDeviceAssign:
+      type: object
+      required: [action, userId]
+      properties:
+        action: { type: string }
+        userId: { type: integer, format: int64 }
+
+    AuditMetaDeviceGpxImport:
+      type: object
+      required: [action, deviceId, positions]
+      properties:
+        action: { type: string }
+        deviceId: { type: integer, format: int64 }
+        positions: { type: integer }
+
+    AuditMetaNamedResource:
+      type: object
+      required: [action, name]
+      properties:
+        action: { type: string }
+        name: { type: string }
+
+    AuditMetaNotificationRule:
+      type: object
+      required: [action, name, channel]
+      properties:
+        action: { type: string }
+        name: { type: string }
+        eventTypes:
+          type: array
+          items: { type: string }
+        channel: { type: string }
+
+    AuditMetaNotifDelivery:
+      type: object
+      required: [action, ruleName, eventType, channel, deviceId]
+      properties:
+        action: { type: string }
+        ruleName: { type: string }
+        eventType: { type: string }
+        channel: { type: string }
+        deviceId: { type: integer, format: int64 }
+        responseCode: { type: integer }
+        error: { type: string }
+
+    AuditMetaApiKeyCreate:
+      type: object
+      required: [action, name, permissions]
+      properties:
+        action: { type: string }
+        name: { type: string }
+        permissions: { type: string }
+
+    AuditMetaApiKeyDelete:
+      type: object
+      required: [action, name, keyOwnerUserId]
+      properties:
+        action: { type: string }
+        name: { type: string }
+        keyOwnerUserId: { type: integer, format: int64 }
+
+    AuditMetaShare:
+      type: object
+      required: [action, deviceId]
+      properties:
+        action: { type: string }
+        deviceId: { type: integer, format: int64 }
+
+    AuditMetaCommandSend:
+      type: object
+      required: [action, commandType, commandStatus, deviceName]
+      properties:
+        action: { type: string }
+        commandType: { type: string }
+        commandStatus: { type: string }
+        deviceName: { type: string }
+
     EventAttributes:
       oneOf:
         - $ref: '#/components/schemas/EventAttrEmpty'
@@ -590,8 +800,7 @@ components:
         resourceType: { type: string }
         resourceId: { type: string }
         metadata:
-          type: object
-          additionalProperties: {}
+          $ref: '#/components/schemas/AuditMetadata'
         ipAddress: { type: string }
         createdAt: { type: string, format: date-time }
 

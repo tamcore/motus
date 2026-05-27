@@ -2915,59 +2915,3088 @@ func (s *AuditEntry) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
-func (s AuditEntryMetadata) Encode(e *jx.Encoder) {
+func (s *AuditMetaApiKeyCreate) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
 	e.ObjEnd()
 }
 
-// encodeFields implements json.Marshaler.
-func (s AuditEntryMetadata) encodeFields(e *jx.Encoder) {
-	for k, elem := range s {
-		e.FieldStart(k)
-
-		if len(elem) != 0 {
-			e.Raw(elem)
-		}
+// encodeFields encodes fields.
+func (s *AuditMetaApiKeyCreate) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("action")
+		e.Str(s.Action)
+	}
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
+	{
+		e.FieldStart("permissions")
+		e.Str(s.Permissions)
 	}
 }
 
-// Decode decodes AuditEntryMetadata from json.
-func (s *AuditEntryMetadata) Decode(d *jx.Decoder) error {
+var jsonFieldsNameOfAuditMetaApiKeyCreate = [3]string{
+	0: "action",
+	1: "name",
+	2: "permissions",
+}
+
+// Decode decodes AuditMetaApiKeyCreate from json.
+func (s *AuditMetaApiKeyCreate) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode AuditEntryMetadata to nil")
+		return errors.New("invalid: unable to decode AuditMetaApiKeyCreate to nil")
 	}
-	m := s.init()
+	var requiredBitSet [1]uint8
+
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
-		var elem jx.Raw
-		if err := func() error {
-			v, err := d.RawAppend(nil)
-			elem = jx.Raw(v)
-			if err != nil {
-				return err
+		switch string(k) {
+		case "action":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Action = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"action\"")
 			}
-			return nil
-		}(); err != nil {
-			return errors.Wrapf(err, "decode field %q", k)
+		case "name":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		case "permissions":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Permissions = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"permissions\"")
+			}
+		default:
+			return d.Skip()
 		}
-		m[string(k)] = elem
 		return nil
 	}); err != nil {
-		return errors.Wrap(err, "decode AuditEntryMetadata")
+		return errors.Wrap(err, "decode AuditMetaApiKeyCreate")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfAuditMetaApiKeyCreate) {
+					name = jsonFieldsNameOfAuditMetaApiKeyCreate[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
 	}
 
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s AuditEntryMetadata) MarshalJSON() ([]byte, error) {
+func (s *AuditMetaApiKeyCreate) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *AuditEntryMetadata) UnmarshalJSON(data []byte) error {
+func (s *AuditMetaApiKeyCreate) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *AuditMetaApiKeyDelete) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *AuditMetaApiKeyDelete) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("action")
+		e.Str(s.Action)
+	}
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
+	{
+		e.FieldStart("keyOwnerUserId")
+		e.Int64(s.KeyOwnerUserId)
+	}
+}
+
+var jsonFieldsNameOfAuditMetaApiKeyDelete = [3]string{
+	0: "action",
+	1: "name",
+	2: "keyOwnerUserId",
+}
+
+// Decode decodes AuditMetaApiKeyDelete from json.
+func (s *AuditMetaApiKeyDelete) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AuditMetaApiKeyDelete to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "action":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Action = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"action\"")
+			}
+		case "name":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		case "keyOwnerUserId":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Int64()
+				s.KeyOwnerUserId = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"keyOwnerUserId\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode AuditMetaApiKeyDelete")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfAuditMetaApiKeyDelete) {
+					name = jsonFieldsNameOfAuditMetaApiKeyDelete[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *AuditMetaApiKeyDelete) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AuditMetaApiKeyDelete) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *AuditMetaCommandSend) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *AuditMetaCommandSend) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("action")
+		e.Str(s.Action)
+	}
+	{
+		e.FieldStart("commandType")
+		e.Str(s.CommandType)
+	}
+	{
+		e.FieldStart("commandStatus")
+		e.Str(s.CommandStatus)
+	}
+	{
+		e.FieldStart("deviceName")
+		e.Str(s.DeviceName)
+	}
+}
+
+var jsonFieldsNameOfAuditMetaCommandSend = [4]string{
+	0: "action",
+	1: "commandType",
+	2: "commandStatus",
+	3: "deviceName",
+}
+
+// Decode decodes AuditMetaCommandSend from json.
+func (s *AuditMetaCommandSend) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AuditMetaCommandSend to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "action":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Action = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"action\"")
+			}
+		case "commandType":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.CommandType = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"commandType\"")
+			}
+		case "commandStatus":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.CommandStatus = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"commandStatus\"")
+			}
+		case "deviceName":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.DeviceName = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"deviceName\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode AuditMetaCommandSend")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00001111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfAuditMetaCommandSend) {
+					name = jsonFieldsNameOfAuditMetaCommandSend[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *AuditMetaCommandSend) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AuditMetaCommandSend) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *AuditMetaDeviceAssign) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *AuditMetaDeviceAssign) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("action")
+		e.Str(s.Action)
+	}
+	{
+		e.FieldStart("userId")
+		e.Int64(s.UserId)
+	}
+}
+
+var jsonFieldsNameOfAuditMetaDeviceAssign = [2]string{
+	0: "action",
+	1: "userId",
+}
+
+// Decode decodes AuditMetaDeviceAssign from json.
+func (s *AuditMetaDeviceAssign) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AuditMetaDeviceAssign to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "action":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Action = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"action\"")
+			}
+		case "userId":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int64()
+				s.UserId = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"userId\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode AuditMetaDeviceAssign")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfAuditMetaDeviceAssign) {
+					name = jsonFieldsNameOfAuditMetaDeviceAssign[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *AuditMetaDeviceAssign) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AuditMetaDeviceAssign) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *AuditMetaDeviceCreate) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *AuditMetaDeviceCreate) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("action")
+		e.Str(s.Action)
+	}
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
+	{
+		e.FieldStart("uniqueId")
+		e.Str(s.UniqueId)
+	}
+}
+
+var jsonFieldsNameOfAuditMetaDeviceCreate = [3]string{
+	0: "action",
+	1: "name",
+	2: "uniqueId",
+}
+
+// Decode decodes AuditMetaDeviceCreate from json.
+func (s *AuditMetaDeviceCreate) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AuditMetaDeviceCreate to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "action":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Action = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"action\"")
+			}
+		case "name":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		case "uniqueId":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.UniqueId = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"uniqueId\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode AuditMetaDeviceCreate")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfAuditMetaDeviceCreate) {
+					name = jsonFieldsNameOfAuditMetaDeviceCreate[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *AuditMetaDeviceCreate) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AuditMetaDeviceCreate) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *AuditMetaDeviceGpxImport) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *AuditMetaDeviceGpxImport) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("action")
+		e.Str(s.Action)
+	}
+	{
+		e.FieldStart("deviceId")
+		e.Int64(s.DeviceId)
+	}
+	{
+		e.FieldStart("positions")
+		e.Int(s.Positions)
+	}
+}
+
+var jsonFieldsNameOfAuditMetaDeviceGpxImport = [3]string{
+	0: "action",
+	1: "deviceId",
+	2: "positions",
+}
+
+// Decode decodes AuditMetaDeviceGpxImport from json.
+func (s *AuditMetaDeviceGpxImport) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AuditMetaDeviceGpxImport to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "action":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Action = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"action\"")
+			}
+		case "deviceId":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int64()
+				s.DeviceId = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"deviceId\"")
+			}
+		case "positions":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Int()
+				s.Positions = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"positions\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode AuditMetaDeviceGpxImport")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfAuditMetaDeviceGpxImport) {
+					name = jsonFieldsNameOfAuditMetaDeviceGpxImport[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *AuditMetaDeviceGpxImport) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AuditMetaDeviceGpxImport) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *AuditMetaDeviceUpdate) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *AuditMetaDeviceUpdate) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("action")
+		e.Str(s.Action)
+	}
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
+}
+
+var jsonFieldsNameOfAuditMetaDeviceUpdate = [2]string{
+	0: "action",
+	1: "name",
+}
+
+// Decode decodes AuditMetaDeviceUpdate from json.
+func (s *AuditMetaDeviceUpdate) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AuditMetaDeviceUpdate to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "action":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Action = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"action\"")
+			}
+		case "name":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode AuditMetaDeviceUpdate")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfAuditMetaDeviceUpdate) {
+					name = jsonFieldsNameOfAuditMetaDeviceUpdate[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *AuditMetaDeviceUpdate) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AuditMetaDeviceUpdate) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *AuditMetaEmpty) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *AuditMetaEmpty) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("action")
+		e.Str(s.Action)
+	}
+}
+
+var jsonFieldsNameOfAuditMetaEmpty = [1]string{
+	0: "action",
+}
+
+// Decode decodes AuditMetaEmpty from json.
+func (s *AuditMetaEmpty) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AuditMetaEmpty to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "action":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Action = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"action\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode AuditMetaEmpty")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfAuditMetaEmpty) {
+					name = jsonFieldsNameOfAuditMetaEmpty[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *AuditMetaEmpty) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AuditMetaEmpty) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *AuditMetaNamedResource) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *AuditMetaNamedResource) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("action")
+		e.Str(s.Action)
+	}
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
+}
+
+var jsonFieldsNameOfAuditMetaNamedResource = [2]string{
+	0: "action",
+	1: "name",
+}
+
+// Decode decodes AuditMetaNamedResource from json.
+func (s *AuditMetaNamedResource) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AuditMetaNamedResource to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "action":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Action = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"action\"")
+			}
+		case "name":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode AuditMetaNamedResource")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfAuditMetaNamedResource) {
+					name = jsonFieldsNameOfAuditMetaNamedResource[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *AuditMetaNamedResource) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AuditMetaNamedResource) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *AuditMetaNotifDelivery) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *AuditMetaNotifDelivery) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("action")
+		e.Str(s.Action)
+	}
+	{
+		e.FieldStart("ruleName")
+		e.Str(s.RuleName)
+	}
+	{
+		e.FieldStart("eventType")
+		e.Str(s.EventType)
+	}
+	{
+		e.FieldStart("channel")
+		e.Str(s.Channel)
+	}
+	{
+		e.FieldStart("deviceId")
+		e.Int64(s.DeviceId)
+	}
+	{
+		if s.ResponseCode.Set {
+			e.FieldStart("responseCode")
+			s.ResponseCode.Encode(e)
+		}
+	}
+	{
+		if s.Error.Set {
+			e.FieldStart("error")
+			s.Error.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfAuditMetaNotifDelivery = [7]string{
+	0: "action",
+	1: "ruleName",
+	2: "eventType",
+	3: "channel",
+	4: "deviceId",
+	5: "responseCode",
+	6: "error",
+}
+
+// Decode decodes AuditMetaNotifDelivery from json.
+func (s *AuditMetaNotifDelivery) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AuditMetaNotifDelivery to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "action":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Action = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"action\"")
+			}
+		case "ruleName":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.RuleName = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ruleName\"")
+			}
+		case "eventType":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.EventType = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"eventType\"")
+			}
+		case "channel":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Channel = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"channel\"")
+			}
+		case "deviceId":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Int64()
+				s.DeviceId = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"deviceId\"")
+			}
+		case "responseCode":
+			if err := func() error {
+				s.ResponseCode.Reset()
+				if err := s.ResponseCode.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"responseCode\"")
+			}
+		case "error":
+			if err := func() error {
+				s.Error.Reset()
+				if err := s.Error.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"error\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode AuditMetaNotifDelivery")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00011111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfAuditMetaNotifDelivery) {
+					name = jsonFieldsNameOfAuditMetaNotifDelivery[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *AuditMetaNotifDelivery) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AuditMetaNotifDelivery) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *AuditMetaNotificationRule) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *AuditMetaNotificationRule) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("action")
+		e.Str(s.Action)
+	}
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
+	{
+		if s.EventTypes != nil {
+			e.FieldStart("eventTypes")
+			e.ArrStart()
+			for _, elem := range s.EventTypes {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
+		e.FieldStart("channel")
+		e.Str(s.Channel)
+	}
+}
+
+var jsonFieldsNameOfAuditMetaNotificationRule = [4]string{
+	0: "action",
+	1: "name",
+	2: "eventTypes",
+	3: "channel",
+}
+
+// Decode decodes AuditMetaNotificationRule from json.
+func (s *AuditMetaNotificationRule) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AuditMetaNotificationRule to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "action":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Action = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"action\"")
+			}
+		case "name":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		case "eventTypes":
+			if err := func() error {
+				s.EventTypes = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.EventTypes = append(s.EventTypes, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"eventTypes\"")
+			}
+		case "channel":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Channel = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"channel\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode AuditMetaNotificationRule")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00001011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfAuditMetaNotificationRule) {
+					name = jsonFieldsNameOfAuditMetaNotificationRule[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *AuditMetaNotificationRule) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AuditMetaNotificationRule) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *AuditMetaSessionLogin) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *AuditMetaSessionLogin) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("action")
+		e.Str(s.Action)
+	}
+	{
+		e.FieldStart("email")
+		e.Str(s.Email)
+	}
+}
+
+var jsonFieldsNameOfAuditMetaSessionLogin = [2]string{
+	0: "action",
+	1: "email",
+}
+
+// Decode decodes AuditMetaSessionLogin from json.
+func (s *AuditMetaSessionLogin) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AuditMetaSessionLogin to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "action":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Action = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"action\"")
+			}
+		case "email":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Email = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"email\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode AuditMetaSessionLogin")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfAuditMetaSessionLogin) {
+					name = jsonFieldsNameOfAuditMetaSessionLogin[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *AuditMetaSessionLogin) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AuditMetaSessionLogin) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *AuditMetaSessionLoginFailed) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *AuditMetaSessionLoginFailed) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("action")
+		e.Str(s.Action)
+	}
+	{
+		e.FieldStart("email")
+		e.Str(s.Email)
+	}
+	{
+		e.FieldStart("reason")
+		e.Str(s.Reason)
+	}
+}
+
+var jsonFieldsNameOfAuditMetaSessionLoginFailed = [3]string{
+	0: "action",
+	1: "email",
+	2: "reason",
+}
+
+// Decode decodes AuditMetaSessionLoginFailed from json.
+func (s *AuditMetaSessionLoginFailed) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AuditMetaSessionLoginFailed to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "action":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Action = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"action\"")
+			}
+		case "email":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Email = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"email\"")
+			}
+		case "reason":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Reason = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reason\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode AuditMetaSessionLoginFailed")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfAuditMetaSessionLoginFailed) {
+					name = jsonFieldsNameOfAuditMetaSessionLoginFailed[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *AuditMetaSessionLoginFailed) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AuditMetaSessionLoginFailed) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *AuditMetaSessionRevoke) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *AuditMetaSessionRevoke) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("action")
+		e.Str(s.Action)
+	}
+	{
+		if s.Scope.Set {
+			e.FieldStart("scope")
+			s.Scope.Encode(e)
+		}
+	}
+	{
+		if s.RevokedSessionId.Set {
+			e.FieldStart("revokedSessionId")
+			s.RevokedSessionId.Encode(e)
+		}
+	}
+	{
+		if s.SessionOwnerUserId.Set {
+			e.FieldStart("sessionOwnerUserId")
+			s.SessionOwnerUserId.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfAuditMetaSessionRevoke = [4]string{
+	0: "action",
+	1: "scope",
+	2: "revokedSessionId",
+	3: "sessionOwnerUserId",
+}
+
+// Decode decodes AuditMetaSessionRevoke from json.
+func (s *AuditMetaSessionRevoke) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AuditMetaSessionRevoke to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "action":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Action = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"action\"")
+			}
+		case "scope":
+			if err := func() error {
+				s.Scope.Reset()
+				if err := s.Scope.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"scope\"")
+			}
+		case "revokedSessionId":
+			if err := func() error {
+				s.RevokedSessionId.Reset()
+				if err := s.RevokedSessionId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"revokedSessionId\"")
+			}
+		case "sessionOwnerUserId":
+			if err := func() error {
+				s.SessionOwnerUserId.Reset()
+				if err := s.SessionOwnerUserId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"sessionOwnerUserId\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode AuditMetaSessionRevoke")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfAuditMetaSessionRevoke) {
+					name = jsonFieldsNameOfAuditMetaSessionRevoke[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *AuditMetaSessionRevoke) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AuditMetaSessionRevoke) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *AuditMetaSessionSudo) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *AuditMetaSessionSudo) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("action")
+		e.Str(s.Action)
+	}
+	{
+		e.FieldStart("adminEmail")
+		e.Str(s.AdminEmail)
+	}
+	{
+		e.FieldStart("targetEmail")
+		e.Str(s.TargetEmail)
+	}
+}
+
+var jsonFieldsNameOfAuditMetaSessionSudo = [3]string{
+	0: "action",
+	1: "adminEmail",
+	2: "targetEmail",
+}
+
+// Decode decodes AuditMetaSessionSudo from json.
+func (s *AuditMetaSessionSudo) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AuditMetaSessionSudo to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "action":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Action = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"action\"")
+			}
+		case "adminEmail":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.AdminEmail = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"adminEmail\"")
+			}
+		case "targetEmail":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.TargetEmail = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"targetEmail\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode AuditMetaSessionSudo")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfAuditMetaSessionSudo) {
+					name = jsonFieldsNameOfAuditMetaSessionSudo[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *AuditMetaSessionSudo) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AuditMetaSessionSudo) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *AuditMetaShare) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *AuditMetaShare) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("action")
+		e.Str(s.Action)
+	}
+	{
+		e.FieldStart("deviceId")
+		e.Int64(s.DeviceId)
+	}
+}
+
+var jsonFieldsNameOfAuditMetaShare = [2]string{
+	0: "action",
+	1: "deviceId",
+}
+
+// Decode decodes AuditMetaShare from json.
+func (s *AuditMetaShare) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AuditMetaShare to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "action":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Action = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"action\"")
+			}
+		case "deviceId":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int64()
+				s.DeviceId = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"deviceId\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode AuditMetaShare")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfAuditMetaShare) {
+					name = jsonFieldsNameOfAuditMetaShare[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *AuditMetaShare) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AuditMetaShare) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *AuditMetaUserCreate) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *AuditMetaUserCreate) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("action")
+		e.Str(s.Action)
+	}
+	{
+		e.FieldStart("email")
+		e.Str(s.Email)
+	}
+	{
+		e.FieldStart("role")
+		e.Str(s.Role)
+	}
+}
+
+var jsonFieldsNameOfAuditMetaUserCreate = [3]string{
+	0: "action",
+	1: "email",
+	2: "role",
+}
+
+// Decode decodes AuditMetaUserCreate from json.
+func (s *AuditMetaUserCreate) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AuditMetaUserCreate to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "action":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Action = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"action\"")
+			}
+		case "email":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Email = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"email\"")
+			}
+		case "role":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Role = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"role\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode AuditMetaUserCreate")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfAuditMetaUserCreate) {
+					name = jsonFieldsNameOfAuditMetaUserCreate[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *AuditMetaUserCreate) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AuditMetaUserCreate) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *AuditMetaUserUpdate) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *AuditMetaUserUpdate) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("action")
+		e.Str(s.Action)
+	}
+	{
+		e.FieldStart("email")
+		e.Str(s.Email)
+	}
+	{
+		if s.OldEmail.Set {
+			e.FieldStart("oldEmail")
+			s.OldEmail.Encode(e)
+		}
+	}
+	{
+		if s.NewEmail.Set {
+			e.FieldStart("newEmail")
+			s.NewEmail.Encode(e)
+		}
+	}
+	{
+		if s.OldName.Set {
+			e.FieldStart("oldName")
+			s.OldName.Encode(e)
+		}
+	}
+	{
+		if s.NewName.Set {
+			e.FieldStart("newName")
+			s.NewName.Encode(e)
+		}
+	}
+	{
+		if s.OldRole.Set {
+			e.FieldStart("oldRole")
+			s.OldRole.Encode(e)
+		}
+	}
+	{
+		if s.NewRole.Set {
+			e.FieldStart("newRole")
+			s.NewRole.Encode(e)
+		}
+	}
+	{
+		if s.Disabled.Set {
+			e.FieldStart("disabled")
+			s.Disabled.Encode(e)
+		}
+	}
+	{
+		if s.Readonly.Set {
+			e.FieldStart("readonly")
+			s.Readonly.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfAuditMetaUserUpdate = [10]string{
+	0: "action",
+	1: "email",
+	2: "oldEmail",
+	3: "newEmail",
+	4: "oldName",
+	5: "newName",
+	6: "oldRole",
+	7: "newRole",
+	8: "disabled",
+	9: "readonly",
+}
+
+// Decode decodes AuditMetaUserUpdate from json.
+func (s *AuditMetaUserUpdate) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AuditMetaUserUpdate to nil")
+	}
+	var requiredBitSet [2]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "action":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Action = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"action\"")
+			}
+		case "email":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Email = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"email\"")
+			}
+		case "oldEmail":
+			if err := func() error {
+				s.OldEmail.Reset()
+				if err := s.OldEmail.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"oldEmail\"")
+			}
+		case "newEmail":
+			if err := func() error {
+				s.NewEmail.Reset()
+				if err := s.NewEmail.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"newEmail\"")
+			}
+		case "oldName":
+			if err := func() error {
+				s.OldName.Reset()
+				if err := s.OldName.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"oldName\"")
+			}
+		case "newName":
+			if err := func() error {
+				s.NewName.Reset()
+				if err := s.NewName.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"newName\"")
+			}
+		case "oldRole":
+			if err := func() error {
+				s.OldRole.Reset()
+				if err := s.OldRole.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"oldRole\"")
+			}
+		case "newRole":
+			if err := func() error {
+				s.NewRole.Reset()
+				if err := s.NewRole.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"newRole\"")
+			}
+		case "disabled":
+			if err := func() error {
+				s.Disabled.Reset()
+				if err := s.Disabled.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"disabled\"")
+			}
+		case "readonly":
+			if err := func() error {
+				s.Readonly.Reset()
+				if err := s.Readonly.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"readonly\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode AuditMetaUserUpdate")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [2]uint8{
+		0b00000011,
+		0b00000000,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfAuditMetaUserUpdate) {
+					name = jsonFieldsNameOfAuditMetaUserUpdate[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *AuditMetaUserUpdate) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AuditMetaUserUpdate) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes AuditMetadata as json.
+func (s AuditMetadata) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+func (s AuditMetadata) encodeFields(e *jx.Encoder) {
+	switch s.Type {
+	case AuditMetadataCalendarDeleteAuditMetadata, AuditMetadataDeviceDeleteAuditMetadata, AuditMetadataDeviceOfflineAuditMetadata, AuditMetadataDeviceOnlineAuditMetadata, AuditMetadataGeofenceDeleteAuditMetadata, AuditMetadataNotificationDeleteAuditMetadata, AuditMetadataSessionLogoutAuditMetadata, AuditMetadataUserDeleteAuditMetadata:
+		switch s.Type {
+		case AuditMetadataCalendarDeleteAuditMetadata:
+			e.FieldStart("action")
+			e.Str("calendar.delete")
+		case AuditMetadataDeviceDeleteAuditMetadata:
+			e.FieldStart("action")
+			e.Str("device.delete")
+		case AuditMetadataDeviceOfflineAuditMetadata:
+			e.FieldStart("action")
+			e.Str("device.offline")
+		case AuditMetadataDeviceOnlineAuditMetadata:
+			e.FieldStart("action")
+			e.Str("device.online")
+		case AuditMetadataGeofenceDeleteAuditMetadata:
+			e.FieldStart("action")
+			e.Str("geofence.delete")
+		case AuditMetadataNotificationDeleteAuditMetadata:
+			e.FieldStart("action")
+			e.Str("notification.delete")
+		case AuditMetadataSessionLogoutAuditMetadata:
+			e.FieldStart("action")
+			e.Str("session.logout")
+		case AuditMetadataUserDeleteAuditMetadata:
+			e.FieldStart("action")
+			e.Str("user.delete")
+		}
+	case AuditMetaSessionLoginAuditMetadata:
+		e.FieldStart("action")
+		e.Str("session.login")
+		{
+			s := s.AuditMetaSessionLogin
+			{
+				e.FieldStart("email")
+				e.Str(s.Email)
+			}
+		}
+	case AuditMetaSessionLoginFailedAuditMetadata:
+		e.FieldStart("action")
+		e.Str("session.login_failed")
+		{
+			s := s.AuditMetaSessionLoginFailed
+			{
+				e.FieldStart("email")
+				e.Str(s.Email)
+			}
+			{
+				e.FieldStart("reason")
+				e.Str(s.Reason)
+			}
+		}
+	case AuditMetadataSessionSudoAuditMetadata, AuditMetadataSessionSudoEndAuditMetadata:
+		switch s.Type {
+		case AuditMetadataSessionSudoAuditMetadata:
+			e.FieldStart("action")
+			e.Str("session.sudo")
+		case AuditMetadataSessionSudoEndAuditMetadata:
+			e.FieldStart("action")
+			e.Str("session.sudo_end")
+		}
+		{
+			s := s.AuditMetaSessionSudo
+			{
+				e.FieldStart("adminEmail")
+				e.Str(s.AdminEmail)
+			}
+			{
+				e.FieldStart("targetEmail")
+				e.Str(s.TargetEmail)
+			}
+		}
+	case AuditMetaSessionRevokeAuditMetadata:
+		e.FieldStart("action")
+		e.Str("session.revoke")
+		{
+			s := s.AuditMetaSessionRevoke
+			{
+				if s.Scope.Set {
+					e.FieldStart("scope")
+					s.Scope.Encode(e)
+				}
+			}
+			{
+				if s.RevokedSessionId.Set {
+					e.FieldStart("revokedSessionId")
+					s.RevokedSessionId.Encode(e)
+				}
+			}
+			{
+				if s.SessionOwnerUserId.Set {
+					e.FieldStart("sessionOwnerUserId")
+					s.SessionOwnerUserId.Encode(e)
+				}
+			}
+		}
+	case AuditMetaUserCreateAuditMetadata:
+		e.FieldStart("action")
+		e.Str("user.create")
+		{
+			s := s.AuditMetaUserCreate
+			{
+				e.FieldStart("email")
+				e.Str(s.Email)
+			}
+			{
+				e.FieldStart("role")
+				e.Str(s.Role)
+			}
+		}
+	case AuditMetaUserUpdateAuditMetadata:
+		e.FieldStart("action")
+		e.Str("user.update")
+		{
+			s := s.AuditMetaUserUpdate
+			{
+				e.FieldStart("email")
+				e.Str(s.Email)
+			}
+			{
+				if s.OldEmail.Set {
+					e.FieldStart("oldEmail")
+					s.OldEmail.Encode(e)
+				}
+			}
+			{
+				if s.NewEmail.Set {
+					e.FieldStart("newEmail")
+					s.NewEmail.Encode(e)
+				}
+			}
+			{
+				if s.OldName.Set {
+					e.FieldStart("oldName")
+					s.OldName.Encode(e)
+				}
+			}
+			{
+				if s.NewName.Set {
+					e.FieldStart("newName")
+					s.NewName.Encode(e)
+				}
+			}
+			{
+				if s.OldRole.Set {
+					e.FieldStart("oldRole")
+					s.OldRole.Encode(e)
+				}
+			}
+			{
+				if s.NewRole.Set {
+					e.FieldStart("newRole")
+					s.NewRole.Encode(e)
+				}
+			}
+			{
+				if s.Disabled.Set {
+					e.FieldStart("disabled")
+					s.Disabled.Encode(e)
+				}
+			}
+			{
+				if s.Readonly.Set {
+					e.FieldStart("readonly")
+					s.Readonly.Encode(e)
+				}
+			}
+		}
+	case AuditMetaDeviceCreateAuditMetadata:
+		e.FieldStart("action")
+		e.Str("device.create")
+		{
+			s := s.AuditMetaDeviceCreate
+			{
+				e.FieldStart("name")
+				e.Str(s.Name)
+			}
+			{
+				e.FieldStart("uniqueId")
+				e.Str(s.UniqueId)
+			}
+		}
+	case AuditMetaDeviceUpdateAuditMetadata:
+		e.FieldStart("action")
+		e.Str("device.update")
+		{
+			s := s.AuditMetaDeviceUpdate
+			{
+				e.FieldStart("name")
+				e.Str(s.Name)
+			}
+		}
+	case AuditMetadataDeviceAssignAuditMetadata, AuditMetadataDeviceUnassignAuditMetadata:
+		switch s.Type {
+		case AuditMetadataDeviceAssignAuditMetadata:
+			e.FieldStart("action")
+			e.Str("device.assign")
+		case AuditMetadataDeviceUnassignAuditMetadata:
+			e.FieldStart("action")
+			e.Str("device.unassign")
+		}
+		{
+			s := s.AuditMetaDeviceAssign
+			{
+				e.FieldStart("userId")
+				e.Int64(s.UserId)
+			}
+		}
+	case AuditMetaDeviceGpxImportAuditMetadata:
+		e.FieldStart("action")
+		e.Str("device.gpx_import")
+		{
+			s := s.AuditMetaDeviceGpxImport
+			{
+				e.FieldStart("deviceId")
+				e.Int64(s.DeviceId)
+			}
+			{
+				e.FieldStart("positions")
+				e.Int(s.Positions)
+			}
+		}
+	case AuditMetadataCalendarCreateAuditMetadata, AuditMetadataCalendarUpdateAuditMetadata, AuditMetadataGeofenceCreateAuditMetadata, AuditMetadataGeofenceUpdateAuditMetadata:
+		switch s.Type {
+		case AuditMetadataCalendarCreateAuditMetadata:
+			e.FieldStart("action")
+			e.Str("calendar.create")
+		case AuditMetadataCalendarUpdateAuditMetadata:
+			e.FieldStart("action")
+			e.Str("calendar.update")
+		case AuditMetadataGeofenceCreateAuditMetadata:
+			e.FieldStart("action")
+			e.Str("geofence.create")
+		case AuditMetadataGeofenceUpdateAuditMetadata:
+			e.FieldStart("action")
+			e.Str("geofence.update")
+		}
+		{
+			s := s.AuditMetaNamedResource
+			{
+				e.FieldStart("name")
+				e.Str(s.Name)
+			}
+		}
+	case AuditMetadataNotificationCreateAuditMetadata, AuditMetadataNotificationUpdateAuditMetadata:
+		switch s.Type {
+		case AuditMetadataNotificationCreateAuditMetadata:
+			e.FieldStart("action")
+			e.Str("notification.create")
+		case AuditMetadataNotificationUpdateAuditMetadata:
+			e.FieldStart("action")
+			e.Str("notification.update")
+		}
+		{
+			s := s.AuditMetaNotificationRule
+			{
+				e.FieldStart("name")
+				e.Str(s.Name)
+			}
+			{
+				if s.EventTypes != nil {
+					e.FieldStart("eventTypes")
+					e.ArrStart()
+					for _, elem := range s.EventTypes {
+						e.Str(elem)
+					}
+					e.ArrEnd()
+				}
+			}
+			{
+				e.FieldStart("channel")
+				e.Str(s.Channel)
+			}
+		}
+	case AuditMetadataNotificationFailedAuditMetadata, AuditMetadataNotificationSentAuditMetadata:
+		switch s.Type {
+		case AuditMetadataNotificationFailedAuditMetadata:
+			e.FieldStart("action")
+			e.Str("notification.failed")
+		case AuditMetadataNotificationSentAuditMetadata:
+			e.FieldStart("action")
+			e.Str("notification.sent")
+		}
+		{
+			s := s.AuditMetaNotifDelivery
+			{
+				e.FieldStart("ruleName")
+				e.Str(s.RuleName)
+			}
+			{
+				e.FieldStart("eventType")
+				e.Str(s.EventType)
+			}
+			{
+				e.FieldStart("channel")
+				e.Str(s.Channel)
+			}
+			{
+				e.FieldStart("deviceId")
+				e.Int64(s.DeviceId)
+			}
+			{
+				if s.ResponseCode.Set {
+					e.FieldStart("responseCode")
+					s.ResponseCode.Encode(e)
+				}
+			}
+			{
+				if s.Error.Set {
+					e.FieldStart("error")
+					s.Error.Encode(e)
+				}
+			}
+		}
+	case AuditMetaApiKeyCreateAuditMetadata:
+		e.FieldStart("action")
+		e.Str("apikey.create")
+		{
+			s := s.AuditMetaApiKeyCreate
+			{
+				e.FieldStart("name")
+				e.Str(s.Name)
+			}
+			{
+				e.FieldStart("permissions")
+				e.Str(s.Permissions)
+			}
+		}
+	case AuditMetaApiKeyDeleteAuditMetadata:
+		e.FieldStart("action")
+		e.Str("apikey.delete")
+		{
+			s := s.AuditMetaApiKeyDelete
+			{
+				e.FieldStart("name")
+				e.Str(s.Name)
+			}
+			{
+				e.FieldStart("keyOwnerUserId")
+				e.Int64(s.KeyOwnerUserId)
+			}
+		}
+	case AuditMetadataShareCreateAuditMetadata, AuditMetadataShareDeleteAuditMetadata:
+		switch s.Type {
+		case AuditMetadataShareCreateAuditMetadata:
+			e.FieldStart("action")
+			e.Str("share.create")
+		case AuditMetadataShareDeleteAuditMetadata:
+			e.FieldStart("action")
+			e.Str("share.delete")
+		}
+		{
+			s := s.AuditMetaShare
+			{
+				e.FieldStart("deviceId")
+				e.Int64(s.DeviceId)
+			}
+		}
+	case AuditMetaCommandSendAuditMetadata:
+		e.FieldStart("action")
+		e.Str("command.send")
+		{
+			s := s.AuditMetaCommandSend
+			{
+				e.FieldStart("commandType")
+				e.Str(s.CommandType)
+			}
+			{
+				e.FieldStart("commandStatus")
+				e.Str(s.CommandStatus)
+			}
+			{
+				e.FieldStart("deviceName")
+				e.Str(s.DeviceName)
+			}
+		}
+	}
+}
+
+// Decode decodes AuditMetadata from json.
+func (s *AuditMetadata) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AuditMetadata to nil")
+	}
+	// Sum type discriminator.
+	if typ := d.Next(); typ != jx.Object {
+		return errors.Errorf("unexpected json type %q", typ)
+	}
+
+	var found bool
+	if err := d.Capture(func(d *jx.Decoder) error {
+		return d.ObjBytes(func(d *jx.Decoder, key []byte) error {
+			if found {
+				return d.Skip()
+			}
+			switch string(key) {
+			case "action":
+				typ, err := d.Str()
+				if err != nil {
+					return err
+				}
+				switch typ {
+				case "calendar.delete":
+					s.Type = AuditMetadataCalendarDeleteAuditMetadata
+					found = true
+				case "device.delete":
+					s.Type = AuditMetadataDeviceDeleteAuditMetadata
+					found = true
+				case "device.offline":
+					s.Type = AuditMetadataDeviceOfflineAuditMetadata
+					found = true
+				case "device.online":
+					s.Type = AuditMetadataDeviceOnlineAuditMetadata
+					found = true
+				case "geofence.delete":
+					s.Type = AuditMetadataGeofenceDeleteAuditMetadata
+					found = true
+				case "notification.delete":
+					s.Type = AuditMetadataNotificationDeleteAuditMetadata
+					found = true
+				case "session.logout":
+					s.Type = AuditMetadataSessionLogoutAuditMetadata
+					found = true
+				case "user.delete":
+					s.Type = AuditMetadataUserDeleteAuditMetadata
+					found = true
+				case "session.login":
+					s.Type = AuditMetaSessionLoginAuditMetadata
+					found = true
+				case "session.login_failed":
+					s.Type = AuditMetaSessionLoginFailedAuditMetadata
+					found = true
+				case "session.sudo":
+					s.Type = AuditMetadataSessionSudoAuditMetadata
+					found = true
+				case "session.sudo_end":
+					s.Type = AuditMetadataSessionSudoEndAuditMetadata
+					found = true
+				case "session.revoke":
+					s.Type = AuditMetaSessionRevokeAuditMetadata
+					found = true
+				case "user.create":
+					s.Type = AuditMetaUserCreateAuditMetadata
+					found = true
+				case "user.update":
+					s.Type = AuditMetaUserUpdateAuditMetadata
+					found = true
+				case "device.create":
+					s.Type = AuditMetaDeviceCreateAuditMetadata
+					found = true
+				case "device.update":
+					s.Type = AuditMetaDeviceUpdateAuditMetadata
+					found = true
+				case "device.assign":
+					s.Type = AuditMetadataDeviceAssignAuditMetadata
+					found = true
+				case "device.unassign":
+					s.Type = AuditMetadataDeviceUnassignAuditMetadata
+					found = true
+				case "device.gpx_import":
+					s.Type = AuditMetaDeviceGpxImportAuditMetadata
+					found = true
+				case "calendar.create":
+					s.Type = AuditMetadataCalendarCreateAuditMetadata
+					found = true
+				case "calendar.update":
+					s.Type = AuditMetadataCalendarUpdateAuditMetadata
+					found = true
+				case "geofence.create":
+					s.Type = AuditMetadataGeofenceCreateAuditMetadata
+					found = true
+				case "geofence.update":
+					s.Type = AuditMetadataGeofenceUpdateAuditMetadata
+					found = true
+				case "notification.create":
+					s.Type = AuditMetadataNotificationCreateAuditMetadata
+					found = true
+				case "notification.update":
+					s.Type = AuditMetadataNotificationUpdateAuditMetadata
+					found = true
+				case "notification.failed":
+					s.Type = AuditMetadataNotificationFailedAuditMetadata
+					found = true
+				case "notification.sent":
+					s.Type = AuditMetadataNotificationSentAuditMetadata
+					found = true
+				case "apikey.create":
+					s.Type = AuditMetaApiKeyCreateAuditMetadata
+					found = true
+				case "apikey.delete":
+					s.Type = AuditMetaApiKeyDeleteAuditMetadata
+					found = true
+				case "share.create":
+					s.Type = AuditMetadataShareCreateAuditMetadata
+					found = true
+				case "share.delete":
+					s.Type = AuditMetadataShareDeleteAuditMetadata
+					found = true
+				case "command.send":
+					s.Type = AuditMetaCommandSendAuditMetadata
+					found = true
+				default:
+					return errors.Errorf("unknown type %s", typ)
+				}
+				return nil
+			}
+			return d.Skip()
+		})
+	}); err != nil {
+		return errors.Wrap(err, "capture")
+	}
+	if !found {
+		return errors.New("unable to detect sum type variant")
+	}
+	switch s.Type {
+	case AuditMetadataCalendarDeleteAuditMetadata, AuditMetadataDeviceDeleteAuditMetadata, AuditMetadataDeviceOfflineAuditMetadata, AuditMetadataDeviceOnlineAuditMetadata, AuditMetadataGeofenceDeleteAuditMetadata, AuditMetadataNotificationDeleteAuditMetadata, AuditMetadataSessionLogoutAuditMetadata, AuditMetadataUserDeleteAuditMetadata:
+		if err := s.AuditMetaEmpty.Decode(d); err != nil {
+			return err
+		}
+	case AuditMetaSessionLoginAuditMetadata:
+		if err := s.AuditMetaSessionLogin.Decode(d); err != nil {
+			return err
+		}
+	case AuditMetaSessionLoginFailedAuditMetadata:
+		if err := s.AuditMetaSessionLoginFailed.Decode(d); err != nil {
+			return err
+		}
+	case AuditMetadataSessionSudoAuditMetadata, AuditMetadataSessionSudoEndAuditMetadata:
+		if err := s.AuditMetaSessionSudo.Decode(d); err != nil {
+			return err
+		}
+	case AuditMetaSessionRevokeAuditMetadata:
+		if err := s.AuditMetaSessionRevoke.Decode(d); err != nil {
+			return err
+		}
+	case AuditMetaUserCreateAuditMetadata:
+		if err := s.AuditMetaUserCreate.Decode(d); err != nil {
+			return err
+		}
+	case AuditMetaUserUpdateAuditMetadata:
+		if err := s.AuditMetaUserUpdate.Decode(d); err != nil {
+			return err
+		}
+	case AuditMetaDeviceCreateAuditMetadata:
+		if err := s.AuditMetaDeviceCreate.Decode(d); err != nil {
+			return err
+		}
+	case AuditMetaDeviceUpdateAuditMetadata:
+		if err := s.AuditMetaDeviceUpdate.Decode(d); err != nil {
+			return err
+		}
+	case AuditMetadataDeviceAssignAuditMetadata, AuditMetadataDeviceUnassignAuditMetadata:
+		if err := s.AuditMetaDeviceAssign.Decode(d); err != nil {
+			return err
+		}
+	case AuditMetaDeviceGpxImportAuditMetadata:
+		if err := s.AuditMetaDeviceGpxImport.Decode(d); err != nil {
+			return err
+		}
+	case AuditMetadataCalendarCreateAuditMetadata, AuditMetadataCalendarUpdateAuditMetadata, AuditMetadataGeofenceCreateAuditMetadata, AuditMetadataGeofenceUpdateAuditMetadata:
+		if err := s.AuditMetaNamedResource.Decode(d); err != nil {
+			return err
+		}
+	case AuditMetadataNotificationCreateAuditMetadata, AuditMetadataNotificationUpdateAuditMetadata:
+		if err := s.AuditMetaNotificationRule.Decode(d); err != nil {
+			return err
+		}
+	case AuditMetadataNotificationFailedAuditMetadata, AuditMetadataNotificationSentAuditMetadata:
+		if err := s.AuditMetaNotifDelivery.Decode(d); err != nil {
+			return err
+		}
+	case AuditMetaApiKeyCreateAuditMetadata:
+		if err := s.AuditMetaApiKeyCreate.Decode(d); err != nil {
+			return err
+		}
+	case AuditMetaApiKeyDeleteAuditMetadata:
+		if err := s.AuditMetaApiKeyDelete.Decode(d); err != nil {
+			return err
+		}
+	case AuditMetadataShareCreateAuditMetadata, AuditMetadataShareDeleteAuditMetadata:
+		if err := s.AuditMetaShare.Decode(d); err != nil {
+			return err
+		}
+	case AuditMetaCommandSendAuditMetadata:
+		if err := s.AuditMetaCommandSend.Decode(d); err != nil {
+			return err
+		}
+	default:
+		return errors.Errorf("inferred invalid type: %s", s.Type)
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s AuditMetadata) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AuditMetadata) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -11253,21 +14282,20 @@ func (s *OptAttributes) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
-// Encode encodes AuditEntryMetadata as json.
-func (o OptAuditEntryMetadata) Encode(e *jx.Encoder) {
+// Encode encodes AuditMetadata as json.
+func (o OptAuditMetadata) Encode(e *jx.Encoder) {
 	if !o.Set {
 		return
 	}
 	o.Value.Encode(e)
 }
 
-// Decode decodes AuditEntryMetadata from json.
-func (o *OptAuditEntryMetadata) Decode(d *jx.Decoder) error {
+// Decode decodes AuditMetadata from json.
+func (o *OptAuditMetadata) Decode(d *jx.Decoder) error {
 	if o == nil {
-		return errors.New("invalid: unable to decode OptAuditEntryMetadata to nil")
+		return errors.New("invalid: unable to decode OptAuditMetadata to nil")
 	}
 	o.Set = true
-	o.Value = make(AuditEntryMetadata)
 	if err := o.Value.Decode(d); err != nil {
 		return err
 	}
@@ -11275,14 +14303,14 @@ func (o *OptAuditEntryMetadata) Decode(d *jx.Decoder) error {
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s OptAuditEntryMetadata) MarshalJSON() ([]byte, error) {
+func (s OptAuditMetadata) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *OptAuditEntryMetadata) UnmarshalJSON(data []byte) error {
+func (s *OptAuditMetadata) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

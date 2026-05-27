@@ -495,13 +495,245 @@ func deviceShareToOAS(s *model.DeviceShare) oas.DeviceShare {
 	}
 }
 
+// detailStr extracts a string value from an audit details map.
+func detailStr(details map[string]interface{}, key string) string {
+	if details == nil {
+		return ""
+	}
+	v, _ := details[key].(string)
+	return v
+}
+
+// detailInt64 extracts an int64 value from an audit details map.
+// JSON numbers unmarshal as float64, so both numeric types are handled.
+func detailInt64(details map[string]interface{}, key string) int64 {
+	if details == nil {
+		return 0
+	}
+	switch n := details[key].(type) {
+	case float64:
+		return int64(n)
+	case int64:
+		return n
+	case int:
+		return int64(n)
+	}
+	return 0
+}
+
+// detailStringSlice extracts a []string from an audit details map.
+// JSON arrays unmarshal as []interface{}, so each element is type-asserted.
+func detailStringSlice(details map[string]interface{}, key string) []string {
+	if details == nil {
+		return nil
+	}
+	raw, ok := details[key]
+	if !ok {
+		return nil
+	}
+	if ss, ok := raw.([]string); ok {
+		return ss
+	}
+	if si, ok := raw.([]interface{}); ok {
+		out := make([]string, 0, len(si))
+		for _, v := range si {
+			if s, ok := v.(string); ok {
+				out = append(out, s)
+			}
+		}
+		return out
+	}
+	return nil
+}
+
+// buildAuditMetadata converts an action string + details map to a typed oas.OptAuditMetadata.
+// Returns an unset optional for unknown actions.
+func buildAuditMetadata(action string, details map[string]interface{}) oas.OptAuditMetadata {
+	var am oas.AuditMetadata
+	switch action {
+	// Empty variants (no payload beyond the action field).
+	case "session.logout":
+		am.SetAuditMetaEmpty(oas.AuditMetadataSessionLogoutAuditMetadata, oas.AuditMetaEmpty{Action: action})
+	case "device.delete":
+		am.SetAuditMetaEmpty(oas.AuditMetadataDeviceDeleteAuditMetadata, oas.AuditMetaEmpty{Action: action})
+	case "geofence.delete":
+		am.SetAuditMetaEmpty(oas.AuditMetadataGeofenceDeleteAuditMetadata, oas.AuditMetaEmpty{Action: action})
+	case "calendar.delete":
+		am.SetAuditMetaEmpty(oas.AuditMetadataCalendarDeleteAuditMetadata, oas.AuditMetaEmpty{Action: action})
+	case "notification.delete":
+		am.SetAuditMetaEmpty(oas.AuditMetadataNotificationDeleteAuditMetadata, oas.AuditMetaEmpty{Action: action})
+	case "user.delete":
+		am.SetAuditMetaEmpty(oas.AuditMetadataUserDeleteAuditMetadata, oas.AuditMetaEmpty{Action: action})
+	case "device.online":
+		am.SetAuditMetaEmpty(oas.AuditMetadataDeviceOnlineAuditMetadata, oas.AuditMetaEmpty{Action: action})
+	case "device.offline":
+		am.SetAuditMetaEmpty(oas.AuditMetadataDeviceOfflineAuditMetadata, oas.AuditMetaEmpty{Action: action})
+	case "session.login":
+		am.SetAuditMetaSessionLogin(oas.AuditMetaSessionLogin{Action: action, Email: detailStr(details, "email")})
+	case "session.login_failed":
+		am.SetAuditMetaSessionLoginFailed(oas.AuditMetaSessionLoginFailed{
+			Action: action,
+			Email:  detailStr(details, "email"),
+			Reason: detailStr(details, "reason"),
+		})
+	case "session.sudo":
+		am.SetAuditMetaSessionSudo(oas.AuditMetadataSessionSudoAuditMetadata, oas.AuditMetaSessionSudo{
+			Action:      action,
+			AdminEmail:  detailStr(details, "adminEmail"),
+			TargetEmail: detailStr(details, "targetEmail"),
+		})
+	case "session.sudo_end":
+		am.SetAuditMetaSessionSudo(oas.AuditMetadataSessionSudoEndAuditMetadata, oas.AuditMetaSessionSudo{
+			Action:      action,
+			AdminEmail:  detailStr(details, "adminEmail"),
+			TargetEmail: detailStr(details, "targetEmail"),
+		})
+	case "session.revoke":
+		rev := oas.AuditMetaSessionRevoke{Action: action}
+		if s := detailStr(details, "scope"); s != "" {
+			rev.Scope = oas.OptString{Value: s, Set: true}
+		}
+		if s := detailStr(details, "revokedSessionId"); s != "" {
+			rev.RevokedSessionId = oas.OptString{Value: s, Set: true}
+		}
+		if uid := detailInt64(details, "sessionOwnerUserId"); uid != 0 {
+			rev.SessionOwnerUserId = oas.OptInt64{Value: uid, Set: true}
+		}
+		am.SetAuditMetaSessionRevoke(rev)
+	case "user.create":
+		am.SetAuditMetaUserCreate(oas.AuditMetaUserCreate{
+			Action: action,
+			Email:  detailStr(details, "email"),
+			Role:   detailStr(details, "role"),
+		})
+	case "user.update":
+		upd := oas.AuditMetaUserUpdate{Action: action, Email: detailStr(details, "email")}
+		upd.OldEmail = attrString(details, "oldEmail")
+		upd.NewEmail = attrString(details, "newEmail")
+		upd.OldName = attrString(details, "oldName")
+		upd.NewName = attrString(details, "newName")
+		upd.OldRole = attrString(details, "oldRole")
+		upd.NewRole = attrString(details, "newRole")
+		upd.Disabled = attrBool(details, "disabled")
+		upd.Readonly = attrBool(details, "readonly")
+		am.SetAuditMetaUserUpdate(upd)
+	case "device.create":
+		am.SetAuditMetaDeviceCreate(oas.AuditMetaDeviceCreate{
+			Action:   action,
+			Name:     detailStr(details, "name"),
+			UniqueId: detailStr(details, "uniqueId"),
+		})
+	case "device.update":
+		am.SetAuditMetaDeviceUpdate(oas.AuditMetaDeviceUpdate{
+			Action: action,
+			Name:   detailStr(details, "name"),
+		})
+	case "device.assign":
+		userID := detailInt64(details, "userId")
+		if userID == 0 {
+			userID = detailInt64(details, "targetUserId")
+		}
+		am.SetAuditMetaDeviceAssign(oas.AuditMetadataDeviceAssignAuditMetadata, oas.AuditMetaDeviceAssign{
+			Action: action, UserId: userID,
+		})
+	case "device.unassign":
+		userID := detailInt64(details, "userId")
+		if userID == 0 {
+			userID = detailInt64(details, "targetUserId")
+		}
+		am.SetAuditMetaDeviceAssign(oas.AuditMetadataDeviceUnassignAuditMetadata, oas.AuditMetaDeviceAssign{
+			Action: action, UserId: userID,
+		})
+	case "device.gpx_import":
+		am.SetAuditMetaDeviceGpxImport(oas.AuditMetaDeviceGpxImport{
+			Action:    action,
+			DeviceId:  detailInt64(details, "deviceId"),
+			Positions: int(detailInt64(details, "positions")),
+		})
+	case "geofence.create":
+		am.SetAuditMetaNamedResource(oas.AuditMetadataGeofenceCreateAuditMetadata, oas.AuditMetaNamedResource{Action: action, Name: detailStr(details, "name")})
+	case "geofence.update":
+		am.SetAuditMetaNamedResource(oas.AuditMetadataGeofenceUpdateAuditMetadata, oas.AuditMetaNamedResource{Action: action, Name: detailStr(details, "name")})
+	case "calendar.create":
+		am.SetAuditMetaNamedResource(oas.AuditMetadataCalendarCreateAuditMetadata, oas.AuditMetaNamedResource{Action: action, Name: detailStr(details, "name")})
+	case "calendar.update":
+		am.SetAuditMetaNamedResource(oas.AuditMetadataCalendarUpdateAuditMetadata, oas.AuditMetaNamedResource{Action: action, Name: detailStr(details, "name")})
+	case "notification.create":
+		am.SetAuditMetaNotificationRule(oas.AuditMetadataNotificationCreateAuditMetadata, oas.AuditMetaNotificationRule{
+			Action:     action,
+			Name:       detailStr(details, "name"),
+			EventTypes: detailStringSlice(details, "eventTypes"),
+			Channel:    detailStr(details, "channel"),
+		})
+	case "notification.update":
+		am.SetAuditMetaNotificationRule(oas.AuditMetadataNotificationUpdateAuditMetadata, oas.AuditMetaNotificationRule{
+			Action:     action,
+			Name:       detailStr(details, "name"),
+			EventTypes: detailStringSlice(details, "eventTypes"),
+			Channel:    detailStr(details, "channel"),
+		})
+	case "notification.sent":
+		d := oas.AuditMetaNotifDelivery{
+			Action:    action,
+			RuleName:  detailStr(details, "ruleName"),
+			EventType: detailStr(details, "eventType"),
+			Channel:   detailStr(details, "channel"),
+			DeviceId:  detailInt64(details, "deviceId"),
+		}
+		if rc := attrInt(details, "responseCode"); rc.Set {
+			d.ResponseCode = oas.OptInt{Value: rc.Value, Set: true}
+		}
+		am.SetAuditMetaNotifDelivery(oas.AuditMetadataNotificationSentAuditMetadata, d)
+	case "notification.failed":
+		d := oas.AuditMetaNotifDelivery{
+			Action:    action,
+			RuleName:  detailStr(details, "ruleName"),
+			EventType: detailStr(details, "eventType"),
+			Channel:   detailStr(details, "channel"),
+			DeviceId:  detailInt64(details, "deviceId"),
+		}
+		if rc := attrInt(details, "responseCode"); rc.Set {
+			d.ResponseCode = oas.OptInt{Value: rc.Value, Set: true}
+		}
+		if errStr := detailStr(details, "error"); errStr != "" {
+			d.Error = oas.OptString{Value: errStr, Set: true}
+		}
+		am.SetAuditMetaNotifDelivery(oas.AuditMetadataNotificationFailedAuditMetadata, d)
+	case "apikey.create":
+		am.SetAuditMetaApiKeyCreate(oas.AuditMetaApiKeyCreate{
+			Action:      action,
+			Name:        detailStr(details, "name"),
+			Permissions: detailStr(details, "permissions"),
+		})
+	case "apikey.delete":
+		am.SetAuditMetaApiKeyDelete(oas.AuditMetaApiKeyDelete{
+			Action:         action,
+			Name:           detailStr(details, "name"),
+			KeyOwnerUserId: detailInt64(details, "keyOwnerUserId"),
+		})
+	case "share.create":
+		am.SetAuditMetaShare(oas.AuditMetadataShareCreateAuditMetadata, oas.AuditMetaShare{Action: action, DeviceId: detailInt64(details, "deviceId")})
+	case "share.delete":
+		am.SetAuditMetaShare(oas.AuditMetadataShareDeleteAuditMetadata, oas.AuditMetaShare{Action: action, DeviceId: detailInt64(details, "deviceId")})
+	case "command.send":
+		am.SetAuditMetaCommandSend(oas.AuditMetaCommandSend{
+			Action:        action,
+			CommandType:   detailStr(details, "commandType"),
+			CommandStatus: detailStr(details, "commandStatus"),
+			DeviceName:    detailStr(details, "deviceName"),
+		})
+	default:
+		return oas.OptAuditMetadata{}
+	}
+	return oas.OptAuditMetadata{Value: am, Set: true}
+}
+
 // auditEntryToOAS converts an audit.Entry to oas.AuditEntry.
 func auditEntryToOAS(e audit.Entry) oas.AuditEntry {
 	var (
 		userID       int64
 		resourceType oas.OptString
 		resourceID   oas.OptString
-		metadata     oas.OptAuditEntryMetadata
 		ipAddress    oas.OptString
 	)
 	if e.UserID != nil {
@@ -516,16 +748,13 @@ func auditEntryToOAS(e audit.Entry) oas.AuditEntry {
 	if e.IPAddress != nil {
 		ipAddress = oas.OptString{Value: *e.IPAddress, Set: true}
 	}
-	if e.Details != nil {
-		metadata = oas.OptAuditEntryMetadata{Value: oas.AuditEntryMetadata(attrsToRaw(e.Details)), Set: true}
-	}
 	return oas.AuditEntry{
 		ID:           e.ID,
 		Action:       e.Action,
 		UserId:       userID,
 		ResourceType: resourceType,
 		ResourceId:   resourceID,
-		Metadata:     metadata,
+		Metadata:     buildAuditMetadata(e.Action, e.Details),
 		IpAddress:    ipAddress,
 		CreatedAt:    e.Timestamp,
 	}

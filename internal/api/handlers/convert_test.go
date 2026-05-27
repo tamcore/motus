@@ -560,3 +560,321 @@ func TestOasNotificationConfigToModel_Invalid(t *testing.T) {
 		t.Error("expected error for zero-value config")
 	}
 }
+
+// --- Stage 6: buildAuditMetadata tests ---
+
+func TestBuildAuditMetadata_Empty(t *testing.T) {
+	for _, action := range []string{
+		"session.logout", "device.delete", "geofence.delete",
+		"calendar.delete", "notification.delete", "user.delete",
+		"device.online", "device.offline",
+	} {
+		got := buildAuditMetadata(action, nil)
+		if !got.Set {
+			t.Errorf("action %s: expected Set=true", action)
+			continue
+		}
+		if !got.Value.IsAuditMetaEmpty() {
+			t.Errorf("action %s: expected IsAuditMetaEmpty", action)
+			continue
+		}
+		v, _ := got.Value.GetAuditMetaEmpty()
+		if v.Action != action {
+			t.Errorf("action %s: Action field = %s", action, v.Action)
+		}
+	}
+}
+
+func TestBuildAuditMetadata_Unknown(t *testing.T) {
+	got := buildAuditMetadata("not.a.real.action", nil)
+	if got.Set {
+		t.Error("expected Set=false for unknown action")
+	}
+}
+
+func TestBuildAuditMetadata_SessionLogin(t *testing.T) {
+	got := buildAuditMetadata("session.login", map[string]interface{}{"email": "user@example.com"})
+	if !got.Set || !got.Value.IsAuditMetaSessionLogin() {
+		t.Fatal("expected AuditMetaSessionLogin variant")
+	}
+	v, _ := got.Value.GetAuditMetaSessionLogin()
+	if v.Email != "user@example.com" {
+		t.Errorf("Email = %s, want user@example.com", v.Email)
+	}
+}
+
+func TestBuildAuditMetadata_SessionLoginFailed(t *testing.T) {
+	got := buildAuditMetadata("session.login_failed", map[string]interface{}{
+		"email": "bad@example.com", "reason": "wrong_password",
+	})
+	if !got.Set || !got.Value.IsAuditMetaSessionLoginFailed() {
+		t.Fatal("expected AuditMetaSessionLoginFailed variant")
+	}
+	v, _ := got.Value.GetAuditMetaSessionLoginFailed()
+	if v.Email != "bad@example.com" || v.Reason != "wrong_password" {
+		t.Errorf("got Email=%s Reason=%s, want bad@example.com/wrong_password", v.Email, v.Reason)
+	}
+}
+
+func TestBuildAuditMetadata_SessionSudo(t *testing.T) {
+	for _, action := range []string{"session.sudo", "session.sudo_end"} {
+		got := buildAuditMetadata(action, map[string]interface{}{
+			"adminEmail": "admin@example.com", "targetEmail": "target@example.com",
+		})
+		if !got.Set || !got.Value.IsAuditMetaSessionSudo() {
+			t.Fatalf("action %s: expected AuditMetaSessionSudo variant", action)
+		}
+		v, _ := got.Value.GetAuditMetaSessionSudo()
+		if v.AdminEmail != "admin@example.com" || v.TargetEmail != "target@example.com" {
+			t.Errorf("action %s: got AdminEmail=%s TargetEmail=%s", action, v.AdminEmail, v.TargetEmail)
+		}
+	}
+}
+
+func TestBuildAuditMetadata_SessionRevoke_Bulk(t *testing.T) {
+	got := buildAuditMetadata("session.revoke", map[string]interface{}{"scope": "all_other_sessions"})
+	if !got.Set || !got.Value.IsAuditMetaSessionRevoke() {
+		t.Fatal("expected AuditMetaSessionRevoke variant")
+	}
+	v, _ := got.Value.GetAuditMetaSessionRevoke()
+	if !v.Scope.Set || v.Scope.Value != "all_other_sessions" {
+		t.Errorf("Scope = %v, want all_other_sessions", v.Scope)
+	}
+	if v.RevokedSessionId.Set {
+		t.Error("RevokedSessionId should not be set for bulk revoke")
+	}
+}
+
+func TestBuildAuditMetadata_SessionRevoke_Specific(t *testing.T) {
+	got := buildAuditMetadata("session.revoke", map[string]interface{}{
+		"revokedSessionId": "abc123", "sessionOwnerUserId": float64(42),
+	})
+	if !got.Set || !got.Value.IsAuditMetaSessionRevoke() {
+		t.Fatal("expected AuditMetaSessionRevoke variant")
+	}
+	v, _ := got.Value.GetAuditMetaSessionRevoke()
+	if !v.RevokedSessionId.Set || v.RevokedSessionId.Value != "abc123" {
+		t.Errorf("RevokedSessionId = %v, want abc123", v.RevokedSessionId)
+	}
+	if !v.SessionOwnerUserId.Set || v.SessionOwnerUserId.Value != 42 {
+		t.Errorf("SessionOwnerUserId = %v, want 42", v.SessionOwnerUserId)
+	}
+}
+
+func TestBuildAuditMetadata_UserCreate(t *testing.T) {
+	got := buildAuditMetadata("user.create", map[string]interface{}{"email": "new@example.com", "role": "user"})
+	if !got.Set || !got.Value.IsAuditMetaUserCreate() {
+		t.Fatal("expected AuditMetaUserCreate variant")
+	}
+	v, _ := got.Value.GetAuditMetaUserCreate()
+	if v.Email != "new@example.com" || v.Role != "user" {
+		t.Errorf("got Email=%s Role=%s", v.Email, v.Role)
+	}
+}
+
+func TestBuildAuditMetadata_UserUpdate(t *testing.T) {
+	got := buildAuditMetadata("user.update", map[string]interface{}{
+		"email": "user@example.com", "oldEmail": "old@example.com", "newEmail": "new@example.com",
+		"oldRole": "user", "newRole": "admin",
+	})
+	if !got.Set || !got.Value.IsAuditMetaUserUpdate() {
+		t.Fatal("expected AuditMetaUserUpdate variant")
+	}
+	v, _ := got.Value.GetAuditMetaUserUpdate()
+	if v.Email != "user@example.com" {
+		t.Errorf("Email = %s", v.Email)
+	}
+	if !v.OldEmail.Set || v.OldEmail.Value != "old@example.com" {
+		t.Errorf("OldEmail = %v", v.OldEmail)
+	}
+	if !v.NewRole.Set || v.NewRole.Value != "admin" {
+		t.Errorf("NewRole = %v", v.NewRole)
+	}
+}
+
+func TestBuildAuditMetadata_DeviceCreate(t *testing.T) {
+	got := buildAuditMetadata("device.create", map[string]interface{}{"name": "Truck 1", "uniqueId": "IMEI123"})
+	if !got.Set || !got.Value.IsAuditMetaDeviceCreate() {
+		t.Fatal("expected AuditMetaDeviceCreate variant")
+	}
+	v, _ := got.Value.GetAuditMetaDeviceCreate()
+	if v.Name != "Truck 1" || v.UniqueId != "IMEI123" {
+		t.Errorf("got Name=%s UniqueId=%s", v.Name, v.UniqueId)
+	}
+}
+
+func TestBuildAuditMetadata_DeviceAssign_UserId(t *testing.T) {
+	got := buildAuditMetadata("device.assign", map[string]interface{}{"userId": float64(7)})
+	if !got.Set || !got.Value.IsAuditMetaDeviceAssign() {
+		t.Fatal("expected AuditMetaDeviceAssign variant")
+	}
+	v, _ := got.Value.GetAuditMetaDeviceAssign()
+	if v.UserId != 7 {
+		t.Errorf("UserId = %d, want 7", v.UserId)
+	}
+}
+
+func TestBuildAuditMetadata_DeviceUnassign_TargetUserId(t *testing.T) {
+	// Fallback key "targetUserId" used by the old handler.
+	got := buildAuditMetadata("device.unassign", map[string]interface{}{"targetUserId": float64(9)})
+	if !got.Set || !got.Value.IsAuditMetaDeviceAssign() {
+		t.Fatal("expected AuditMetaDeviceAssign variant")
+	}
+	v, _ := got.Value.GetAuditMetaDeviceAssign()
+	if v.UserId != 9 {
+		t.Errorf("UserId = %d (via targetUserId fallback), want 9", v.UserId)
+	}
+}
+
+func TestBuildAuditMetadata_GpxImport(t *testing.T) {
+	got := buildAuditMetadata("device.gpx_import", map[string]interface{}{"deviceId": float64(3), "positions": float64(150)})
+	if !got.Set || !got.Value.IsAuditMetaDeviceGpxImport() {
+		t.Fatal("expected AuditMetaDeviceGpxImport variant")
+	}
+	v, _ := got.Value.GetAuditMetaDeviceGpxImport()
+	if v.DeviceId != 3 || v.Positions != 150 {
+		t.Errorf("got DeviceId=%d Positions=%d", v.DeviceId, v.Positions)
+	}
+}
+
+func TestBuildAuditMetadata_NamedResource(t *testing.T) {
+	for _, action := range []string{"geofence.create", "geofence.update", "calendar.create", "calendar.update"} {
+		got := buildAuditMetadata(action, map[string]interface{}{"name": "Home Zone"})
+		if !got.Set || !got.Value.IsAuditMetaNamedResource() {
+			t.Errorf("action %s: expected AuditMetaNamedResource variant", action)
+			continue
+		}
+		v, _ := got.Value.GetAuditMetaNamedResource()
+		if v.Name != "Home Zone" {
+			t.Errorf("action %s: Name = %s", action, v.Name)
+		}
+	}
+}
+
+func TestBuildAuditMetadata_NotificationRule(t *testing.T) {
+	details := map[string]interface{}{
+		"name": "Speed Alert", "eventTypes": []interface{}{"geofenceEnter", "alarm"}, "channel": "webhook",
+	}
+	got := buildAuditMetadata("notification.create", details)
+	if !got.Set || !got.Value.IsAuditMetaNotificationRule() {
+		t.Fatal("expected AuditMetaNotificationRule variant")
+	}
+	v, _ := got.Value.GetAuditMetaNotificationRule()
+	if v.Name != "Speed Alert" || v.Channel != "webhook" {
+		t.Errorf("got Name=%s Channel=%s", v.Name, v.Channel)
+	}
+	if len(v.EventTypes) != 2 || v.EventTypes[0] != "geofenceEnter" {
+		t.Errorf("EventTypes = %v", v.EventTypes)
+	}
+}
+
+func TestBuildAuditMetadata_NotifDelivery_Sent(t *testing.T) {
+	details := map[string]interface{}{
+		"ruleName": "Speed Alert", "eventType": "alarm", "channel": "webhook",
+		"deviceId": float64(5), "responseCode": float64(200),
+	}
+	got := buildAuditMetadata("notification.sent", details)
+	if !got.Set || !got.Value.IsAuditMetaNotifDelivery() {
+		t.Fatal("expected AuditMetaNotifDelivery variant")
+	}
+	v, _ := got.Value.GetAuditMetaNotifDelivery()
+	if v.RuleName != "Speed Alert" || v.DeviceId != 5 {
+		t.Errorf("got RuleName=%s DeviceId=%d", v.RuleName, v.DeviceId)
+	}
+	if !v.ResponseCode.Set || v.ResponseCode.Value != 200 {
+		t.Errorf("ResponseCode = %v, want 200", v.ResponseCode)
+	}
+}
+
+func TestBuildAuditMetadata_NotifDelivery_Failed(t *testing.T) {
+	details := map[string]interface{}{
+		"ruleName": "Speed Alert", "eventType": "alarm", "channel": "webhook",
+		"deviceId": float64(5), "error": "connection refused",
+	}
+	got := buildAuditMetadata("notification.failed", details)
+	if !got.Set || !got.Value.IsAuditMetaNotifDelivery() {
+		t.Fatal("expected AuditMetaNotifDelivery variant")
+	}
+	v, _ := got.Value.GetAuditMetaNotifDelivery()
+	if !v.Error.Set || v.Error.Value != "connection refused" {
+		t.Errorf("Error = %v, want 'connection refused'", v.Error)
+	}
+}
+
+func TestBuildAuditMetadata_ApiKeyCreate(t *testing.T) {
+	got := buildAuditMetadata("apikey.create", map[string]interface{}{"name": "CI Key", "permissions": "read"})
+	if !got.Set || !got.Value.IsAuditMetaApiKeyCreate() {
+		t.Fatal("expected AuditMetaApiKeyCreate variant")
+	}
+	v, _ := got.Value.GetAuditMetaApiKeyCreate()
+	if v.Name != "CI Key" || v.Permissions != "read" {
+		t.Errorf("got Name=%s Permissions=%s", v.Name, v.Permissions)
+	}
+}
+
+func TestBuildAuditMetadata_ApiKeyDelete(t *testing.T) {
+	got := buildAuditMetadata("apikey.delete", map[string]interface{}{"name": "Old Key", "keyOwnerUserId": float64(11)})
+	if !got.Set || !got.Value.IsAuditMetaApiKeyDelete() {
+		t.Fatal("expected AuditMetaApiKeyDelete variant")
+	}
+	v, _ := got.Value.GetAuditMetaApiKeyDelete()
+	if v.Name != "Old Key" || v.KeyOwnerUserId != 11 {
+		t.Errorf("got Name=%s KeyOwnerUserId=%d", v.Name, v.KeyOwnerUserId)
+	}
+}
+
+func TestBuildAuditMetadata_Share(t *testing.T) {
+	for _, action := range []string{"share.create", "share.delete"} {
+		got := buildAuditMetadata(action, map[string]interface{}{"deviceId": float64(8)})
+		if !got.Set || !got.Value.IsAuditMetaShare() {
+			t.Errorf("action %s: expected AuditMetaShare variant", action)
+			continue
+		}
+		v, _ := got.Value.GetAuditMetaShare()
+		if v.DeviceId != 8 {
+			t.Errorf("action %s: DeviceId = %d", action, v.DeviceId)
+		}
+	}
+}
+
+func TestBuildAuditMetadata_CommandSend(t *testing.T) {
+	got := buildAuditMetadata("command.send", map[string]interface{}{
+		"commandType": "custom", "commandStatus": "sent", "deviceName": "Truck 1",
+	})
+	if !got.Set || !got.Value.IsAuditMetaCommandSend() {
+		t.Fatal("expected AuditMetaCommandSend variant")
+	}
+	v, _ := got.Value.GetAuditMetaCommandSend()
+	if v.CommandType != "custom" || v.CommandStatus != "sent" || v.DeviceName != "Truck 1" {
+		t.Errorf("got CommandType=%s CommandStatus=%s DeviceName=%s", v.CommandType, v.CommandStatus, v.DeviceName)
+	}
+}
+
+func TestBuildAuditMetadata_AuditEntryToOAS(t *testing.T) {
+	uid := int64(1)
+	resType := "session"
+	resID := int64(99)
+	ip := "10.0.0.1"
+	now := time.Now().Truncate(time.Second)
+	e := audit.Entry{
+		ID:           42,
+		UserID:       &uid,
+		Action:       "session.login",
+		ResourceType: &resType,
+		ResourceID:   &resID,
+		Details:      map[string]interface{}{"email": "user@example.com"},
+		IPAddress:    &ip,
+		Timestamp:    now,
+	}
+	got := auditEntryToOAS(e)
+	if got.ID != 42 || got.UserId != 1 {
+		t.Errorf("ID=%d UserId=%d", got.ID, got.UserId)
+	}
+	if !got.Metadata.Set || !got.Metadata.Value.IsAuditMetaSessionLogin() {
+		t.Error("expected AuditMetaSessionLogin in Metadata")
+	}
+	v, _ := got.Metadata.Value.GetAuditMetaSessionLogin()
+	if v.Email != "user@example.com" {
+		t.Errorf("Email = %s", v.Email)
+	}
+}

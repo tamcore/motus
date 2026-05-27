@@ -491,15 +491,15 @@ func (s *Attributes) init() Attributes {
 
 // Ref: #/components/schemas/AuditEntry
 type AuditEntry struct {
-	ID           int64                 `json:"id"`
-	Action       string                `json:"action"`
-	UserId       int64                 `json:"userId"`
-	UserEmail    OptString             `json:"userEmail"`
-	ResourceType OptString             `json:"resourceType"`
-	ResourceId   OptString             `json:"resourceId"`
-	Metadata     OptAuditEntryMetadata `json:"metadata"`
-	IpAddress    OptString             `json:"ipAddress"`
-	CreatedAt    time.Time             `json:"createdAt"`
+	ID           int64            `json:"id"`
+	Action       string           `json:"action"`
+	UserId       int64            `json:"userId"`
+	UserEmail    OptString        `json:"userEmail"`
+	ResourceType OptString        `json:"resourceType"`
+	ResourceId   OptString        `json:"resourceId"`
+	Metadata     OptAuditMetadata `json:"metadata"`
+	IpAddress    OptString        `json:"ipAddress"`
+	CreatedAt    time.Time        `json:"createdAt"`
 }
 
 // GetID returns the value of ID.
@@ -533,7 +533,7 @@ func (s *AuditEntry) GetResourceId() OptString {
 }
 
 // GetMetadata returns the value of Metadata.
-func (s *AuditEntry) GetMetadata() OptAuditEntryMetadata {
+func (s *AuditEntry) GetMetadata() OptAuditMetadata {
 	return s.Metadata
 }
 
@@ -578,7 +578,7 @@ func (s *AuditEntry) SetResourceId(val OptString) {
 }
 
 // SetMetadata sets the value of Metadata.
-func (s *AuditEntry) SetMetadata(val OptAuditEntryMetadata) {
+func (s *AuditEntry) SetMetadata(val OptAuditMetadata) {
 	s.Metadata = val
 }
 
@@ -592,15 +592,1447 @@ func (s *AuditEntry) SetCreatedAt(val time.Time) {
 	s.CreatedAt = val
 }
 
-type AuditEntryMetadata map[string]jx.Raw
+// Ref: #/components/schemas/AuditMetaApiKeyCreate
+type AuditMetaApiKeyCreate struct {
+	Action      string `json:"action"`
+	Name        string `json:"name"`
+	Permissions string `json:"permissions"`
+}
 
-func (s *AuditEntryMetadata) init() AuditEntryMetadata {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
+// GetAction returns the value of Action.
+func (s *AuditMetaApiKeyCreate) GetAction() string {
+	return s.Action
+}
+
+// GetName returns the value of Name.
+func (s *AuditMetaApiKeyCreate) GetName() string {
+	return s.Name
+}
+
+// GetPermissions returns the value of Permissions.
+func (s *AuditMetaApiKeyCreate) GetPermissions() string {
+	return s.Permissions
+}
+
+// SetAction sets the value of Action.
+func (s *AuditMetaApiKeyCreate) SetAction(val string) {
+	s.Action = val
+}
+
+// SetName sets the value of Name.
+func (s *AuditMetaApiKeyCreate) SetName(val string) {
+	s.Name = val
+}
+
+// SetPermissions sets the value of Permissions.
+func (s *AuditMetaApiKeyCreate) SetPermissions(val string) {
+	s.Permissions = val
+}
+
+// Ref: #/components/schemas/AuditMetaApiKeyDelete
+type AuditMetaApiKeyDelete struct {
+	Action         string `json:"action"`
+	Name           string `json:"name"`
+	KeyOwnerUserId int64  `json:"keyOwnerUserId"`
+}
+
+// GetAction returns the value of Action.
+func (s *AuditMetaApiKeyDelete) GetAction() string {
+	return s.Action
+}
+
+// GetName returns the value of Name.
+func (s *AuditMetaApiKeyDelete) GetName() string {
+	return s.Name
+}
+
+// GetKeyOwnerUserId returns the value of KeyOwnerUserId.
+func (s *AuditMetaApiKeyDelete) GetKeyOwnerUserId() int64 {
+	return s.KeyOwnerUserId
+}
+
+// SetAction sets the value of Action.
+func (s *AuditMetaApiKeyDelete) SetAction(val string) {
+	s.Action = val
+}
+
+// SetName sets the value of Name.
+func (s *AuditMetaApiKeyDelete) SetName(val string) {
+	s.Name = val
+}
+
+// SetKeyOwnerUserId sets the value of KeyOwnerUserId.
+func (s *AuditMetaApiKeyDelete) SetKeyOwnerUserId(val int64) {
+	s.KeyOwnerUserId = val
+}
+
+// Ref: #/components/schemas/AuditMetaCommandSend
+type AuditMetaCommandSend struct {
+	Action        string `json:"action"`
+	CommandType   string `json:"commandType"`
+	CommandStatus string `json:"commandStatus"`
+	DeviceName    string `json:"deviceName"`
+}
+
+// GetAction returns the value of Action.
+func (s *AuditMetaCommandSend) GetAction() string {
+	return s.Action
+}
+
+// GetCommandType returns the value of CommandType.
+func (s *AuditMetaCommandSend) GetCommandType() string {
+	return s.CommandType
+}
+
+// GetCommandStatus returns the value of CommandStatus.
+func (s *AuditMetaCommandSend) GetCommandStatus() string {
+	return s.CommandStatus
+}
+
+// GetDeviceName returns the value of DeviceName.
+func (s *AuditMetaCommandSend) GetDeviceName() string {
+	return s.DeviceName
+}
+
+// SetAction sets the value of Action.
+func (s *AuditMetaCommandSend) SetAction(val string) {
+	s.Action = val
+}
+
+// SetCommandType sets the value of CommandType.
+func (s *AuditMetaCommandSend) SetCommandType(val string) {
+	s.CommandType = val
+}
+
+// SetCommandStatus sets the value of CommandStatus.
+func (s *AuditMetaCommandSend) SetCommandStatus(val string) {
+	s.CommandStatus = val
+}
+
+// SetDeviceName sets the value of DeviceName.
+func (s *AuditMetaCommandSend) SetDeviceName(val string) {
+	s.DeviceName = val
+}
+
+// Ref: #/components/schemas/AuditMetaDeviceAssign
+type AuditMetaDeviceAssign struct {
+	Action string `json:"action"`
+	UserId int64  `json:"userId"`
+}
+
+// GetAction returns the value of Action.
+func (s *AuditMetaDeviceAssign) GetAction() string {
+	return s.Action
+}
+
+// GetUserId returns the value of UserId.
+func (s *AuditMetaDeviceAssign) GetUserId() int64 {
+	return s.UserId
+}
+
+// SetAction sets the value of Action.
+func (s *AuditMetaDeviceAssign) SetAction(val string) {
+	s.Action = val
+}
+
+// SetUserId sets the value of UserId.
+func (s *AuditMetaDeviceAssign) SetUserId(val int64) {
+	s.UserId = val
+}
+
+// Ref: #/components/schemas/AuditMetaDeviceCreate
+type AuditMetaDeviceCreate struct {
+	Action   string `json:"action"`
+	Name     string `json:"name"`
+	UniqueId string `json:"uniqueId"`
+}
+
+// GetAction returns the value of Action.
+func (s *AuditMetaDeviceCreate) GetAction() string {
+	return s.Action
+}
+
+// GetName returns the value of Name.
+func (s *AuditMetaDeviceCreate) GetName() string {
+	return s.Name
+}
+
+// GetUniqueId returns the value of UniqueId.
+func (s *AuditMetaDeviceCreate) GetUniqueId() string {
+	return s.UniqueId
+}
+
+// SetAction sets the value of Action.
+func (s *AuditMetaDeviceCreate) SetAction(val string) {
+	s.Action = val
+}
+
+// SetName sets the value of Name.
+func (s *AuditMetaDeviceCreate) SetName(val string) {
+	s.Name = val
+}
+
+// SetUniqueId sets the value of UniqueId.
+func (s *AuditMetaDeviceCreate) SetUniqueId(val string) {
+	s.UniqueId = val
+}
+
+// Ref: #/components/schemas/AuditMetaDeviceGpxImport
+type AuditMetaDeviceGpxImport struct {
+	Action    string `json:"action"`
+	DeviceId  int64  `json:"deviceId"`
+	Positions int    `json:"positions"`
+}
+
+// GetAction returns the value of Action.
+func (s *AuditMetaDeviceGpxImport) GetAction() string {
+	return s.Action
+}
+
+// GetDeviceId returns the value of DeviceId.
+func (s *AuditMetaDeviceGpxImport) GetDeviceId() int64 {
+	return s.DeviceId
+}
+
+// GetPositions returns the value of Positions.
+func (s *AuditMetaDeviceGpxImport) GetPositions() int {
+	return s.Positions
+}
+
+// SetAction sets the value of Action.
+func (s *AuditMetaDeviceGpxImport) SetAction(val string) {
+	s.Action = val
+}
+
+// SetDeviceId sets the value of DeviceId.
+func (s *AuditMetaDeviceGpxImport) SetDeviceId(val int64) {
+	s.DeviceId = val
+}
+
+// SetPositions sets the value of Positions.
+func (s *AuditMetaDeviceGpxImport) SetPositions(val int) {
+	s.Positions = val
+}
+
+// Ref: #/components/schemas/AuditMetaDeviceUpdate
+type AuditMetaDeviceUpdate struct {
+	Action string `json:"action"`
+	Name   string `json:"name"`
+}
+
+// GetAction returns the value of Action.
+func (s *AuditMetaDeviceUpdate) GetAction() string {
+	return s.Action
+}
+
+// GetName returns the value of Name.
+func (s *AuditMetaDeviceUpdate) GetName() string {
+	return s.Name
+}
+
+// SetAction sets the value of Action.
+func (s *AuditMetaDeviceUpdate) SetAction(val string) {
+	s.Action = val
+}
+
+// SetName sets the value of Name.
+func (s *AuditMetaDeviceUpdate) SetName(val string) {
+	s.Name = val
+}
+
+// Ref: #/components/schemas/AuditMetaEmpty
+type AuditMetaEmpty struct {
+	Action string `json:"action"`
+}
+
+// GetAction returns the value of Action.
+func (s *AuditMetaEmpty) GetAction() string {
+	return s.Action
+}
+
+// SetAction sets the value of Action.
+func (s *AuditMetaEmpty) SetAction(val string) {
+	s.Action = val
+}
+
+// Ref: #/components/schemas/AuditMetaNamedResource
+type AuditMetaNamedResource struct {
+	Action string `json:"action"`
+	Name   string `json:"name"`
+}
+
+// GetAction returns the value of Action.
+func (s *AuditMetaNamedResource) GetAction() string {
+	return s.Action
+}
+
+// GetName returns the value of Name.
+func (s *AuditMetaNamedResource) GetName() string {
+	return s.Name
+}
+
+// SetAction sets the value of Action.
+func (s *AuditMetaNamedResource) SetAction(val string) {
+	s.Action = val
+}
+
+// SetName sets the value of Name.
+func (s *AuditMetaNamedResource) SetName(val string) {
+	s.Name = val
+}
+
+// Ref: #/components/schemas/AuditMetaNotifDelivery
+type AuditMetaNotifDelivery struct {
+	Action       string    `json:"action"`
+	RuleName     string    `json:"ruleName"`
+	EventType    string    `json:"eventType"`
+	Channel      string    `json:"channel"`
+	DeviceId     int64     `json:"deviceId"`
+	ResponseCode OptInt    `json:"responseCode"`
+	Error        OptString `json:"error"`
+}
+
+// GetAction returns the value of Action.
+func (s *AuditMetaNotifDelivery) GetAction() string {
+	return s.Action
+}
+
+// GetRuleName returns the value of RuleName.
+func (s *AuditMetaNotifDelivery) GetRuleName() string {
+	return s.RuleName
+}
+
+// GetEventType returns the value of EventType.
+func (s *AuditMetaNotifDelivery) GetEventType() string {
+	return s.EventType
+}
+
+// GetChannel returns the value of Channel.
+func (s *AuditMetaNotifDelivery) GetChannel() string {
+	return s.Channel
+}
+
+// GetDeviceId returns the value of DeviceId.
+func (s *AuditMetaNotifDelivery) GetDeviceId() int64 {
+	return s.DeviceId
+}
+
+// GetResponseCode returns the value of ResponseCode.
+func (s *AuditMetaNotifDelivery) GetResponseCode() OptInt {
+	return s.ResponseCode
+}
+
+// GetError returns the value of Error.
+func (s *AuditMetaNotifDelivery) GetError() OptString {
+	return s.Error
+}
+
+// SetAction sets the value of Action.
+func (s *AuditMetaNotifDelivery) SetAction(val string) {
+	s.Action = val
+}
+
+// SetRuleName sets the value of RuleName.
+func (s *AuditMetaNotifDelivery) SetRuleName(val string) {
+	s.RuleName = val
+}
+
+// SetEventType sets the value of EventType.
+func (s *AuditMetaNotifDelivery) SetEventType(val string) {
+	s.EventType = val
+}
+
+// SetChannel sets the value of Channel.
+func (s *AuditMetaNotifDelivery) SetChannel(val string) {
+	s.Channel = val
+}
+
+// SetDeviceId sets the value of DeviceId.
+func (s *AuditMetaNotifDelivery) SetDeviceId(val int64) {
+	s.DeviceId = val
+}
+
+// SetResponseCode sets the value of ResponseCode.
+func (s *AuditMetaNotifDelivery) SetResponseCode(val OptInt) {
+	s.ResponseCode = val
+}
+
+// SetError sets the value of Error.
+func (s *AuditMetaNotifDelivery) SetError(val OptString) {
+	s.Error = val
+}
+
+// Ref: #/components/schemas/AuditMetaNotificationRule
+type AuditMetaNotificationRule struct {
+	Action     string   `json:"action"`
+	Name       string   `json:"name"`
+	EventTypes []string `json:"eventTypes"`
+	Channel    string   `json:"channel"`
+}
+
+// GetAction returns the value of Action.
+func (s *AuditMetaNotificationRule) GetAction() string {
+	return s.Action
+}
+
+// GetName returns the value of Name.
+func (s *AuditMetaNotificationRule) GetName() string {
+	return s.Name
+}
+
+// GetEventTypes returns the value of EventTypes.
+func (s *AuditMetaNotificationRule) GetEventTypes() []string {
+	return s.EventTypes
+}
+
+// GetChannel returns the value of Channel.
+func (s *AuditMetaNotificationRule) GetChannel() string {
+	return s.Channel
+}
+
+// SetAction sets the value of Action.
+func (s *AuditMetaNotificationRule) SetAction(val string) {
+	s.Action = val
+}
+
+// SetName sets the value of Name.
+func (s *AuditMetaNotificationRule) SetName(val string) {
+	s.Name = val
+}
+
+// SetEventTypes sets the value of EventTypes.
+func (s *AuditMetaNotificationRule) SetEventTypes(val []string) {
+	s.EventTypes = val
+}
+
+// SetChannel sets the value of Channel.
+func (s *AuditMetaNotificationRule) SetChannel(val string) {
+	s.Channel = val
+}
+
+// Ref: #/components/schemas/AuditMetaSessionLogin
+type AuditMetaSessionLogin struct {
+	Action string `json:"action"`
+	Email  string `json:"email"`
+}
+
+// GetAction returns the value of Action.
+func (s *AuditMetaSessionLogin) GetAction() string {
+	return s.Action
+}
+
+// GetEmail returns the value of Email.
+func (s *AuditMetaSessionLogin) GetEmail() string {
+	return s.Email
+}
+
+// SetAction sets the value of Action.
+func (s *AuditMetaSessionLogin) SetAction(val string) {
+	s.Action = val
+}
+
+// SetEmail sets the value of Email.
+func (s *AuditMetaSessionLogin) SetEmail(val string) {
+	s.Email = val
+}
+
+// Ref: #/components/schemas/AuditMetaSessionLoginFailed
+type AuditMetaSessionLoginFailed struct {
+	Action string `json:"action"`
+	Email  string `json:"email"`
+	Reason string `json:"reason"`
+}
+
+// GetAction returns the value of Action.
+func (s *AuditMetaSessionLoginFailed) GetAction() string {
+	return s.Action
+}
+
+// GetEmail returns the value of Email.
+func (s *AuditMetaSessionLoginFailed) GetEmail() string {
+	return s.Email
+}
+
+// GetReason returns the value of Reason.
+func (s *AuditMetaSessionLoginFailed) GetReason() string {
+	return s.Reason
+}
+
+// SetAction sets the value of Action.
+func (s *AuditMetaSessionLoginFailed) SetAction(val string) {
+	s.Action = val
+}
+
+// SetEmail sets the value of Email.
+func (s *AuditMetaSessionLoginFailed) SetEmail(val string) {
+	s.Email = val
+}
+
+// SetReason sets the value of Reason.
+func (s *AuditMetaSessionLoginFailed) SetReason(val string) {
+	s.Reason = val
+}
+
+// Ref: #/components/schemas/AuditMetaSessionRevoke
+type AuditMetaSessionRevoke struct {
+	Action             string    `json:"action"`
+	Scope              OptString `json:"scope"`
+	RevokedSessionId   OptString `json:"revokedSessionId"`
+	SessionOwnerUserId OptInt64  `json:"sessionOwnerUserId"`
+}
+
+// GetAction returns the value of Action.
+func (s *AuditMetaSessionRevoke) GetAction() string {
+	return s.Action
+}
+
+// GetScope returns the value of Scope.
+func (s *AuditMetaSessionRevoke) GetScope() OptString {
+	return s.Scope
+}
+
+// GetRevokedSessionId returns the value of RevokedSessionId.
+func (s *AuditMetaSessionRevoke) GetRevokedSessionId() OptString {
+	return s.RevokedSessionId
+}
+
+// GetSessionOwnerUserId returns the value of SessionOwnerUserId.
+func (s *AuditMetaSessionRevoke) GetSessionOwnerUserId() OptInt64 {
+	return s.SessionOwnerUserId
+}
+
+// SetAction sets the value of Action.
+func (s *AuditMetaSessionRevoke) SetAction(val string) {
+	s.Action = val
+}
+
+// SetScope sets the value of Scope.
+func (s *AuditMetaSessionRevoke) SetScope(val OptString) {
+	s.Scope = val
+}
+
+// SetRevokedSessionId sets the value of RevokedSessionId.
+func (s *AuditMetaSessionRevoke) SetRevokedSessionId(val OptString) {
+	s.RevokedSessionId = val
+}
+
+// SetSessionOwnerUserId sets the value of SessionOwnerUserId.
+func (s *AuditMetaSessionRevoke) SetSessionOwnerUserId(val OptInt64) {
+	s.SessionOwnerUserId = val
+}
+
+// Ref: #/components/schemas/AuditMetaSessionSudo
+type AuditMetaSessionSudo struct {
+	Action      string `json:"action"`
+	AdminEmail  string `json:"adminEmail"`
+	TargetEmail string `json:"targetEmail"`
+}
+
+// GetAction returns the value of Action.
+func (s *AuditMetaSessionSudo) GetAction() string {
+	return s.Action
+}
+
+// GetAdminEmail returns the value of AdminEmail.
+func (s *AuditMetaSessionSudo) GetAdminEmail() string {
+	return s.AdminEmail
+}
+
+// GetTargetEmail returns the value of TargetEmail.
+func (s *AuditMetaSessionSudo) GetTargetEmail() string {
+	return s.TargetEmail
+}
+
+// SetAction sets the value of Action.
+func (s *AuditMetaSessionSudo) SetAction(val string) {
+	s.Action = val
+}
+
+// SetAdminEmail sets the value of AdminEmail.
+func (s *AuditMetaSessionSudo) SetAdminEmail(val string) {
+	s.AdminEmail = val
+}
+
+// SetTargetEmail sets the value of TargetEmail.
+func (s *AuditMetaSessionSudo) SetTargetEmail(val string) {
+	s.TargetEmail = val
+}
+
+// Ref: #/components/schemas/AuditMetaShare
+type AuditMetaShare struct {
+	Action   string `json:"action"`
+	DeviceId int64  `json:"deviceId"`
+}
+
+// GetAction returns the value of Action.
+func (s *AuditMetaShare) GetAction() string {
+	return s.Action
+}
+
+// GetDeviceId returns the value of DeviceId.
+func (s *AuditMetaShare) GetDeviceId() int64 {
+	return s.DeviceId
+}
+
+// SetAction sets the value of Action.
+func (s *AuditMetaShare) SetAction(val string) {
+	s.Action = val
+}
+
+// SetDeviceId sets the value of DeviceId.
+func (s *AuditMetaShare) SetDeviceId(val int64) {
+	s.DeviceId = val
+}
+
+// Ref: #/components/schemas/AuditMetaUserCreate
+type AuditMetaUserCreate struct {
+	Action string `json:"action"`
+	Email  string `json:"email"`
+	Role   string `json:"role"`
+}
+
+// GetAction returns the value of Action.
+func (s *AuditMetaUserCreate) GetAction() string {
+	return s.Action
+}
+
+// GetEmail returns the value of Email.
+func (s *AuditMetaUserCreate) GetEmail() string {
+	return s.Email
+}
+
+// GetRole returns the value of Role.
+func (s *AuditMetaUserCreate) GetRole() string {
+	return s.Role
+}
+
+// SetAction sets the value of Action.
+func (s *AuditMetaUserCreate) SetAction(val string) {
+	s.Action = val
+}
+
+// SetEmail sets the value of Email.
+func (s *AuditMetaUserCreate) SetEmail(val string) {
+	s.Email = val
+}
+
+// SetRole sets the value of Role.
+func (s *AuditMetaUserCreate) SetRole(val string) {
+	s.Role = val
+}
+
+// Ref: #/components/schemas/AuditMetaUserUpdate
+type AuditMetaUserUpdate struct {
+	Action   string    `json:"action"`
+	Email    string    `json:"email"`
+	OldEmail OptString `json:"oldEmail"`
+	NewEmail OptString `json:"newEmail"`
+	OldName  OptString `json:"oldName"`
+	NewName  OptString `json:"newName"`
+	OldRole  OptString `json:"oldRole"`
+	NewRole  OptString `json:"newRole"`
+	Disabled OptBool   `json:"disabled"`
+	Readonly OptBool   `json:"readonly"`
+}
+
+// GetAction returns the value of Action.
+func (s *AuditMetaUserUpdate) GetAction() string {
+	return s.Action
+}
+
+// GetEmail returns the value of Email.
+func (s *AuditMetaUserUpdate) GetEmail() string {
+	return s.Email
+}
+
+// GetOldEmail returns the value of OldEmail.
+func (s *AuditMetaUserUpdate) GetOldEmail() OptString {
+	return s.OldEmail
+}
+
+// GetNewEmail returns the value of NewEmail.
+func (s *AuditMetaUserUpdate) GetNewEmail() OptString {
+	return s.NewEmail
+}
+
+// GetOldName returns the value of OldName.
+func (s *AuditMetaUserUpdate) GetOldName() OptString {
+	return s.OldName
+}
+
+// GetNewName returns the value of NewName.
+func (s *AuditMetaUserUpdate) GetNewName() OptString {
+	return s.NewName
+}
+
+// GetOldRole returns the value of OldRole.
+func (s *AuditMetaUserUpdate) GetOldRole() OptString {
+	return s.OldRole
+}
+
+// GetNewRole returns the value of NewRole.
+func (s *AuditMetaUserUpdate) GetNewRole() OptString {
+	return s.NewRole
+}
+
+// GetDisabled returns the value of Disabled.
+func (s *AuditMetaUserUpdate) GetDisabled() OptBool {
+	return s.Disabled
+}
+
+// GetReadonly returns the value of Readonly.
+func (s *AuditMetaUserUpdate) GetReadonly() OptBool {
+	return s.Readonly
+}
+
+// SetAction sets the value of Action.
+func (s *AuditMetaUserUpdate) SetAction(val string) {
+	s.Action = val
+}
+
+// SetEmail sets the value of Email.
+func (s *AuditMetaUserUpdate) SetEmail(val string) {
+	s.Email = val
+}
+
+// SetOldEmail sets the value of OldEmail.
+func (s *AuditMetaUserUpdate) SetOldEmail(val OptString) {
+	s.OldEmail = val
+}
+
+// SetNewEmail sets the value of NewEmail.
+func (s *AuditMetaUserUpdate) SetNewEmail(val OptString) {
+	s.NewEmail = val
+}
+
+// SetOldName sets the value of OldName.
+func (s *AuditMetaUserUpdate) SetOldName(val OptString) {
+	s.OldName = val
+}
+
+// SetNewName sets the value of NewName.
+func (s *AuditMetaUserUpdate) SetNewName(val OptString) {
+	s.NewName = val
+}
+
+// SetOldRole sets the value of OldRole.
+func (s *AuditMetaUserUpdate) SetOldRole(val OptString) {
+	s.OldRole = val
+}
+
+// SetNewRole sets the value of NewRole.
+func (s *AuditMetaUserUpdate) SetNewRole(val OptString) {
+	s.NewRole = val
+}
+
+// SetDisabled sets the value of Disabled.
+func (s *AuditMetaUserUpdate) SetDisabled(val OptBool) {
+	s.Disabled = val
+}
+
+// SetReadonly sets the value of Readonly.
+func (s *AuditMetaUserUpdate) SetReadonly(val OptBool) {
+	s.Readonly = val
+}
+
+// Ref: #/components/schemas/AuditMetadata
+// AuditMetadata represents sum type.
+type AuditMetadata struct {
+	Type                        AuditMetadataType // switch on this field
+	AuditMetaEmpty              AuditMetaEmpty
+	AuditMetaSessionLogin       AuditMetaSessionLogin
+	AuditMetaSessionLoginFailed AuditMetaSessionLoginFailed
+	AuditMetaSessionSudo        AuditMetaSessionSudo
+	AuditMetaSessionRevoke      AuditMetaSessionRevoke
+	AuditMetaUserCreate         AuditMetaUserCreate
+	AuditMetaUserUpdate         AuditMetaUserUpdate
+	AuditMetaDeviceCreate       AuditMetaDeviceCreate
+	AuditMetaDeviceUpdate       AuditMetaDeviceUpdate
+	AuditMetaDeviceAssign       AuditMetaDeviceAssign
+	AuditMetaDeviceGpxImport    AuditMetaDeviceGpxImport
+	AuditMetaNamedResource      AuditMetaNamedResource
+	AuditMetaNotificationRule   AuditMetaNotificationRule
+	AuditMetaNotifDelivery      AuditMetaNotifDelivery
+	AuditMetaApiKeyCreate       AuditMetaApiKeyCreate
+	AuditMetaApiKeyDelete       AuditMetaApiKeyDelete
+	AuditMetaShare              AuditMetaShare
+	AuditMetaCommandSend        AuditMetaCommandSend
+}
+
+// AuditMetadataType is oneOf type of AuditMetadata.
+type AuditMetadataType string
+
+// Possible values for AuditMetadataType.
+const (
+	AuditMetadataCalendarDeleteAuditMetadata     AuditMetadataType = "calendar.delete"
+	AuditMetadataDeviceDeleteAuditMetadata       AuditMetadataType = "device.delete"
+	AuditMetadataDeviceOfflineAuditMetadata      AuditMetadataType = "device.offline"
+	AuditMetadataDeviceOnlineAuditMetadata       AuditMetadataType = "device.online"
+	AuditMetadataGeofenceDeleteAuditMetadata     AuditMetadataType = "geofence.delete"
+	AuditMetadataNotificationDeleteAuditMetadata AuditMetadataType = "notification.delete"
+	AuditMetadataSessionLogoutAuditMetadata      AuditMetadataType = "session.logout"
+	AuditMetadataUserDeleteAuditMetadata         AuditMetadataType = "user.delete"
+	AuditMetaSessionLoginAuditMetadata           AuditMetadataType = "session.login"
+	AuditMetaSessionLoginFailedAuditMetadata     AuditMetadataType = "session.login_failed"
+	AuditMetadataSessionSudoAuditMetadata        AuditMetadataType = "session.sudo"
+	AuditMetadataSessionSudoEndAuditMetadata     AuditMetadataType = "session.sudo_end"
+	AuditMetaSessionRevokeAuditMetadata          AuditMetadataType = "session.revoke"
+	AuditMetaUserCreateAuditMetadata             AuditMetadataType = "user.create"
+	AuditMetaUserUpdateAuditMetadata             AuditMetadataType = "user.update"
+	AuditMetaDeviceCreateAuditMetadata           AuditMetadataType = "device.create"
+	AuditMetaDeviceUpdateAuditMetadata           AuditMetadataType = "device.update"
+	AuditMetadataDeviceAssignAuditMetadata       AuditMetadataType = "device.assign"
+	AuditMetadataDeviceUnassignAuditMetadata     AuditMetadataType = "device.unassign"
+	AuditMetaDeviceGpxImportAuditMetadata        AuditMetadataType = "device.gpx_import"
+	AuditMetadataCalendarCreateAuditMetadata     AuditMetadataType = "calendar.create"
+	AuditMetadataCalendarUpdateAuditMetadata     AuditMetadataType = "calendar.update"
+	AuditMetadataGeofenceCreateAuditMetadata     AuditMetadataType = "geofence.create"
+	AuditMetadataGeofenceUpdateAuditMetadata     AuditMetadataType = "geofence.update"
+	AuditMetadataNotificationCreateAuditMetadata AuditMetadataType = "notification.create"
+	AuditMetadataNotificationUpdateAuditMetadata AuditMetadataType = "notification.update"
+	AuditMetadataNotificationFailedAuditMetadata AuditMetadataType = "notification.failed"
+	AuditMetadataNotificationSentAuditMetadata   AuditMetadataType = "notification.sent"
+	AuditMetaApiKeyCreateAuditMetadata           AuditMetadataType = "apikey.create"
+	AuditMetaApiKeyDeleteAuditMetadata           AuditMetadataType = "apikey.delete"
+	AuditMetadataShareCreateAuditMetadata        AuditMetadataType = "share.create"
+	AuditMetadataShareDeleteAuditMetadata        AuditMetadataType = "share.delete"
+	AuditMetaCommandSendAuditMetadata            AuditMetadataType = "command.send"
+)
+
+// IsAuditMetaEmpty reports whether AuditMetadata is AuditMetaEmpty.
+func (s AuditMetadata) IsAuditMetaEmpty() bool {
+	switch s.Type {
+	case AuditMetadataCalendarDeleteAuditMetadata, AuditMetadataDeviceDeleteAuditMetadata, AuditMetadataDeviceOfflineAuditMetadata, AuditMetadataDeviceOnlineAuditMetadata, AuditMetadataGeofenceDeleteAuditMetadata, AuditMetadataNotificationDeleteAuditMetadata, AuditMetadataSessionLogoutAuditMetadata, AuditMetadataUserDeleteAuditMetadata:
+		return true
+	default:
+		return false
 	}
-	return m
+}
+
+// IsAuditMetaSessionLogin reports whether AuditMetadata is AuditMetaSessionLogin.
+func (s AuditMetadata) IsAuditMetaSessionLogin() bool {
+	return s.Type == AuditMetaSessionLoginAuditMetadata
+}
+
+// IsAuditMetaSessionLoginFailed reports whether AuditMetadata is AuditMetaSessionLoginFailed.
+func (s AuditMetadata) IsAuditMetaSessionLoginFailed() bool {
+	return s.Type == AuditMetaSessionLoginFailedAuditMetadata
+}
+
+// IsAuditMetaSessionSudo reports whether AuditMetadata is AuditMetaSessionSudo.
+func (s AuditMetadata) IsAuditMetaSessionSudo() bool {
+	switch s.Type {
+	case AuditMetadataSessionSudoAuditMetadata, AuditMetadataSessionSudoEndAuditMetadata:
+		return true
+	default:
+		return false
+	}
+}
+
+// IsAuditMetaSessionRevoke reports whether AuditMetadata is AuditMetaSessionRevoke.
+func (s AuditMetadata) IsAuditMetaSessionRevoke() bool {
+	return s.Type == AuditMetaSessionRevokeAuditMetadata
+}
+
+// IsAuditMetaUserCreate reports whether AuditMetadata is AuditMetaUserCreate.
+func (s AuditMetadata) IsAuditMetaUserCreate() bool {
+	return s.Type == AuditMetaUserCreateAuditMetadata
+}
+
+// IsAuditMetaUserUpdate reports whether AuditMetadata is AuditMetaUserUpdate.
+func (s AuditMetadata) IsAuditMetaUserUpdate() bool {
+	return s.Type == AuditMetaUserUpdateAuditMetadata
+}
+
+// IsAuditMetaDeviceCreate reports whether AuditMetadata is AuditMetaDeviceCreate.
+func (s AuditMetadata) IsAuditMetaDeviceCreate() bool {
+	return s.Type == AuditMetaDeviceCreateAuditMetadata
+}
+
+// IsAuditMetaDeviceUpdate reports whether AuditMetadata is AuditMetaDeviceUpdate.
+func (s AuditMetadata) IsAuditMetaDeviceUpdate() bool {
+	return s.Type == AuditMetaDeviceUpdateAuditMetadata
+}
+
+// IsAuditMetaDeviceAssign reports whether AuditMetadata is AuditMetaDeviceAssign.
+func (s AuditMetadata) IsAuditMetaDeviceAssign() bool {
+	switch s.Type {
+	case AuditMetadataDeviceAssignAuditMetadata, AuditMetadataDeviceUnassignAuditMetadata:
+		return true
+	default:
+		return false
+	}
+}
+
+// IsAuditMetaDeviceGpxImport reports whether AuditMetadata is AuditMetaDeviceGpxImport.
+func (s AuditMetadata) IsAuditMetaDeviceGpxImport() bool {
+	return s.Type == AuditMetaDeviceGpxImportAuditMetadata
+}
+
+// IsAuditMetaNamedResource reports whether AuditMetadata is AuditMetaNamedResource.
+func (s AuditMetadata) IsAuditMetaNamedResource() bool {
+	switch s.Type {
+	case AuditMetadataCalendarCreateAuditMetadata, AuditMetadataCalendarUpdateAuditMetadata, AuditMetadataGeofenceCreateAuditMetadata, AuditMetadataGeofenceUpdateAuditMetadata:
+		return true
+	default:
+		return false
+	}
+}
+
+// IsAuditMetaNotificationRule reports whether AuditMetadata is AuditMetaNotificationRule.
+func (s AuditMetadata) IsAuditMetaNotificationRule() bool {
+	switch s.Type {
+	case AuditMetadataNotificationCreateAuditMetadata, AuditMetadataNotificationUpdateAuditMetadata:
+		return true
+	default:
+		return false
+	}
+}
+
+// IsAuditMetaNotifDelivery reports whether AuditMetadata is AuditMetaNotifDelivery.
+func (s AuditMetadata) IsAuditMetaNotifDelivery() bool {
+	switch s.Type {
+	case AuditMetadataNotificationFailedAuditMetadata, AuditMetadataNotificationSentAuditMetadata:
+		return true
+	default:
+		return false
+	}
+}
+
+// IsAuditMetaApiKeyCreate reports whether AuditMetadata is AuditMetaApiKeyCreate.
+func (s AuditMetadata) IsAuditMetaApiKeyCreate() bool {
+	return s.Type == AuditMetaApiKeyCreateAuditMetadata
+}
+
+// IsAuditMetaApiKeyDelete reports whether AuditMetadata is AuditMetaApiKeyDelete.
+func (s AuditMetadata) IsAuditMetaApiKeyDelete() bool {
+	return s.Type == AuditMetaApiKeyDeleteAuditMetadata
+}
+
+// IsAuditMetaShare reports whether AuditMetadata is AuditMetaShare.
+func (s AuditMetadata) IsAuditMetaShare() bool {
+	switch s.Type {
+	case AuditMetadataShareCreateAuditMetadata, AuditMetadataShareDeleteAuditMetadata:
+		return true
+	default:
+		return false
+	}
+}
+
+// IsAuditMetaCommandSend reports whether AuditMetadata is AuditMetaCommandSend.
+func (s AuditMetadata) IsAuditMetaCommandSend() bool {
+	return s.Type == AuditMetaCommandSendAuditMetadata
+}
+
+// SetAuditMetaEmpty sets AuditMetadata to AuditMetaEmpty.
+// panics if `t` is not associated with AuditMetaEmpty
+func (s *AuditMetadata) SetAuditMetaEmpty(t AuditMetadataType, v AuditMetaEmpty) {
+	s.Type = t
+	s.AuditMetaEmpty = v
+	if !s.IsAuditMetaEmpty() {
+		panic(fmt.Errorf("invariant: %v is not AuditMetaEmpty", t))
+	}
+}
+
+// GetAuditMetaEmpty returns AuditMetaEmpty and true boolean if AuditMetadata is AuditMetaEmpty.
+func (s AuditMetadata) GetAuditMetaEmpty() (v AuditMetaEmpty, ok bool) {
+	if !s.IsAuditMetaEmpty() {
+		return v, false
+	}
+	return s.AuditMetaEmpty, true
+}
+
+// NewAuditMetadataCalendarDeleteAuditMetadata returns new AuditMetadata from AuditMetaEmpty.
+func NewAuditMetadataCalendarDeleteAuditMetadata(v AuditMetaEmpty) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaEmpty(AuditMetadataCalendarDeleteAuditMetadata, v)
+	return s
+}
+
+// NewAuditMetadataDeviceDeleteAuditMetadata returns new AuditMetadata from AuditMetaEmpty.
+func NewAuditMetadataDeviceDeleteAuditMetadata(v AuditMetaEmpty) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaEmpty(AuditMetadataDeviceDeleteAuditMetadata, v)
+	return s
+}
+
+// NewAuditMetadataDeviceOfflineAuditMetadata returns new AuditMetadata from AuditMetaEmpty.
+func NewAuditMetadataDeviceOfflineAuditMetadata(v AuditMetaEmpty) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaEmpty(AuditMetadataDeviceOfflineAuditMetadata, v)
+	return s
+}
+
+// NewAuditMetadataDeviceOnlineAuditMetadata returns new AuditMetadata from AuditMetaEmpty.
+func NewAuditMetadataDeviceOnlineAuditMetadata(v AuditMetaEmpty) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaEmpty(AuditMetadataDeviceOnlineAuditMetadata, v)
+	return s
+}
+
+// NewAuditMetadataGeofenceDeleteAuditMetadata returns new AuditMetadata from AuditMetaEmpty.
+func NewAuditMetadataGeofenceDeleteAuditMetadata(v AuditMetaEmpty) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaEmpty(AuditMetadataGeofenceDeleteAuditMetadata, v)
+	return s
+}
+
+// NewAuditMetadataNotificationDeleteAuditMetadata returns new AuditMetadata from AuditMetaEmpty.
+func NewAuditMetadataNotificationDeleteAuditMetadata(v AuditMetaEmpty) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaEmpty(AuditMetadataNotificationDeleteAuditMetadata, v)
+	return s
+}
+
+// NewAuditMetadataSessionLogoutAuditMetadata returns new AuditMetadata from AuditMetaEmpty.
+func NewAuditMetadataSessionLogoutAuditMetadata(v AuditMetaEmpty) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaEmpty(AuditMetadataSessionLogoutAuditMetadata, v)
+	return s
+}
+
+// NewAuditMetadataUserDeleteAuditMetadata returns new AuditMetadata from AuditMetaEmpty.
+func NewAuditMetadataUserDeleteAuditMetadata(v AuditMetaEmpty) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaEmpty(AuditMetadataUserDeleteAuditMetadata, v)
+	return s
+}
+
+// SetAuditMetaSessionLogin sets AuditMetadata to AuditMetaSessionLogin.
+func (s *AuditMetadata) SetAuditMetaSessionLogin(v AuditMetaSessionLogin) {
+	s.Type = AuditMetaSessionLoginAuditMetadata
+	s.AuditMetaSessionLogin = v
+}
+
+// GetAuditMetaSessionLogin returns AuditMetaSessionLogin and true boolean if AuditMetadata is AuditMetaSessionLogin.
+func (s AuditMetadata) GetAuditMetaSessionLogin() (v AuditMetaSessionLogin, ok bool) {
+	if !s.IsAuditMetaSessionLogin() {
+		return v, false
+	}
+	return s.AuditMetaSessionLogin, true
+}
+
+// NewAuditMetaSessionLoginAuditMetadata returns new AuditMetadata from AuditMetaSessionLogin.
+func NewAuditMetaSessionLoginAuditMetadata(v AuditMetaSessionLogin) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaSessionLogin(v)
+	return s
+}
+
+// SetAuditMetaSessionLoginFailed sets AuditMetadata to AuditMetaSessionLoginFailed.
+func (s *AuditMetadata) SetAuditMetaSessionLoginFailed(v AuditMetaSessionLoginFailed) {
+	s.Type = AuditMetaSessionLoginFailedAuditMetadata
+	s.AuditMetaSessionLoginFailed = v
+}
+
+// GetAuditMetaSessionLoginFailed returns AuditMetaSessionLoginFailed and true boolean if AuditMetadata is AuditMetaSessionLoginFailed.
+func (s AuditMetadata) GetAuditMetaSessionLoginFailed() (v AuditMetaSessionLoginFailed, ok bool) {
+	if !s.IsAuditMetaSessionLoginFailed() {
+		return v, false
+	}
+	return s.AuditMetaSessionLoginFailed, true
+}
+
+// NewAuditMetaSessionLoginFailedAuditMetadata returns new AuditMetadata from AuditMetaSessionLoginFailed.
+func NewAuditMetaSessionLoginFailedAuditMetadata(v AuditMetaSessionLoginFailed) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaSessionLoginFailed(v)
+	return s
+}
+
+// SetAuditMetaSessionSudo sets AuditMetadata to AuditMetaSessionSudo.
+// panics if `t` is not associated with AuditMetaSessionSudo
+func (s *AuditMetadata) SetAuditMetaSessionSudo(t AuditMetadataType, v AuditMetaSessionSudo) {
+	s.Type = t
+	s.AuditMetaSessionSudo = v
+	if !s.IsAuditMetaSessionSudo() {
+		panic(fmt.Errorf("invariant: %v is not AuditMetaSessionSudo", t))
+	}
+}
+
+// GetAuditMetaSessionSudo returns AuditMetaSessionSudo and true boolean if AuditMetadata is AuditMetaSessionSudo.
+func (s AuditMetadata) GetAuditMetaSessionSudo() (v AuditMetaSessionSudo, ok bool) {
+	if !s.IsAuditMetaSessionSudo() {
+		return v, false
+	}
+	return s.AuditMetaSessionSudo, true
+}
+
+// NewAuditMetadataSessionSudoAuditMetadata returns new AuditMetadata from AuditMetaSessionSudo.
+func NewAuditMetadataSessionSudoAuditMetadata(v AuditMetaSessionSudo) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaSessionSudo(AuditMetadataSessionSudoAuditMetadata, v)
+	return s
+}
+
+// NewAuditMetadataSessionSudoEndAuditMetadata returns new AuditMetadata from AuditMetaSessionSudo.
+func NewAuditMetadataSessionSudoEndAuditMetadata(v AuditMetaSessionSudo) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaSessionSudo(AuditMetadataSessionSudoEndAuditMetadata, v)
+	return s
+}
+
+// SetAuditMetaSessionRevoke sets AuditMetadata to AuditMetaSessionRevoke.
+func (s *AuditMetadata) SetAuditMetaSessionRevoke(v AuditMetaSessionRevoke) {
+	s.Type = AuditMetaSessionRevokeAuditMetadata
+	s.AuditMetaSessionRevoke = v
+}
+
+// GetAuditMetaSessionRevoke returns AuditMetaSessionRevoke and true boolean if AuditMetadata is AuditMetaSessionRevoke.
+func (s AuditMetadata) GetAuditMetaSessionRevoke() (v AuditMetaSessionRevoke, ok bool) {
+	if !s.IsAuditMetaSessionRevoke() {
+		return v, false
+	}
+	return s.AuditMetaSessionRevoke, true
+}
+
+// NewAuditMetaSessionRevokeAuditMetadata returns new AuditMetadata from AuditMetaSessionRevoke.
+func NewAuditMetaSessionRevokeAuditMetadata(v AuditMetaSessionRevoke) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaSessionRevoke(v)
+	return s
+}
+
+// SetAuditMetaUserCreate sets AuditMetadata to AuditMetaUserCreate.
+func (s *AuditMetadata) SetAuditMetaUserCreate(v AuditMetaUserCreate) {
+	s.Type = AuditMetaUserCreateAuditMetadata
+	s.AuditMetaUserCreate = v
+}
+
+// GetAuditMetaUserCreate returns AuditMetaUserCreate and true boolean if AuditMetadata is AuditMetaUserCreate.
+func (s AuditMetadata) GetAuditMetaUserCreate() (v AuditMetaUserCreate, ok bool) {
+	if !s.IsAuditMetaUserCreate() {
+		return v, false
+	}
+	return s.AuditMetaUserCreate, true
+}
+
+// NewAuditMetaUserCreateAuditMetadata returns new AuditMetadata from AuditMetaUserCreate.
+func NewAuditMetaUserCreateAuditMetadata(v AuditMetaUserCreate) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaUserCreate(v)
+	return s
+}
+
+// SetAuditMetaUserUpdate sets AuditMetadata to AuditMetaUserUpdate.
+func (s *AuditMetadata) SetAuditMetaUserUpdate(v AuditMetaUserUpdate) {
+	s.Type = AuditMetaUserUpdateAuditMetadata
+	s.AuditMetaUserUpdate = v
+}
+
+// GetAuditMetaUserUpdate returns AuditMetaUserUpdate and true boolean if AuditMetadata is AuditMetaUserUpdate.
+func (s AuditMetadata) GetAuditMetaUserUpdate() (v AuditMetaUserUpdate, ok bool) {
+	if !s.IsAuditMetaUserUpdate() {
+		return v, false
+	}
+	return s.AuditMetaUserUpdate, true
+}
+
+// NewAuditMetaUserUpdateAuditMetadata returns new AuditMetadata from AuditMetaUserUpdate.
+func NewAuditMetaUserUpdateAuditMetadata(v AuditMetaUserUpdate) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaUserUpdate(v)
+	return s
+}
+
+// SetAuditMetaDeviceCreate sets AuditMetadata to AuditMetaDeviceCreate.
+func (s *AuditMetadata) SetAuditMetaDeviceCreate(v AuditMetaDeviceCreate) {
+	s.Type = AuditMetaDeviceCreateAuditMetadata
+	s.AuditMetaDeviceCreate = v
+}
+
+// GetAuditMetaDeviceCreate returns AuditMetaDeviceCreate and true boolean if AuditMetadata is AuditMetaDeviceCreate.
+func (s AuditMetadata) GetAuditMetaDeviceCreate() (v AuditMetaDeviceCreate, ok bool) {
+	if !s.IsAuditMetaDeviceCreate() {
+		return v, false
+	}
+	return s.AuditMetaDeviceCreate, true
+}
+
+// NewAuditMetaDeviceCreateAuditMetadata returns new AuditMetadata from AuditMetaDeviceCreate.
+func NewAuditMetaDeviceCreateAuditMetadata(v AuditMetaDeviceCreate) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaDeviceCreate(v)
+	return s
+}
+
+// SetAuditMetaDeviceUpdate sets AuditMetadata to AuditMetaDeviceUpdate.
+func (s *AuditMetadata) SetAuditMetaDeviceUpdate(v AuditMetaDeviceUpdate) {
+	s.Type = AuditMetaDeviceUpdateAuditMetadata
+	s.AuditMetaDeviceUpdate = v
+}
+
+// GetAuditMetaDeviceUpdate returns AuditMetaDeviceUpdate and true boolean if AuditMetadata is AuditMetaDeviceUpdate.
+func (s AuditMetadata) GetAuditMetaDeviceUpdate() (v AuditMetaDeviceUpdate, ok bool) {
+	if !s.IsAuditMetaDeviceUpdate() {
+		return v, false
+	}
+	return s.AuditMetaDeviceUpdate, true
+}
+
+// NewAuditMetaDeviceUpdateAuditMetadata returns new AuditMetadata from AuditMetaDeviceUpdate.
+func NewAuditMetaDeviceUpdateAuditMetadata(v AuditMetaDeviceUpdate) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaDeviceUpdate(v)
+	return s
+}
+
+// SetAuditMetaDeviceAssign sets AuditMetadata to AuditMetaDeviceAssign.
+// panics if `t` is not associated with AuditMetaDeviceAssign
+func (s *AuditMetadata) SetAuditMetaDeviceAssign(t AuditMetadataType, v AuditMetaDeviceAssign) {
+	s.Type = t
+	s.AuditMetaDeviceAssign = v
+	if !s.IsAuditMetaDeviceAssign() {
+		panic(fmt.Errorf("invariant: %v is not AuditMetaDeviceAssign", t))
+	}
+}
+
+// GetAuditMetaDeviceAssign returns AuditMetaDeviceAssign and true boolean if AuditMetadata is AuditMetaDeviceAssign.
+func (s AuditMetadata) GetAuditMetaDeviceAssign() (v AuditMetaDeviceAssign, ok bool) {
+	if !s.IsAuditMetaDeviceAssign() {
+		return v, false
+	}
+	return s.AuditMetaDeviceAssign, true
+}
+
+// NewAuditMetadataDeviceAssignAuditMetadata returns new AuditMetadata from AuditMetaDeviceAssign.
+func NewAuditMetadataDeviceAssignAuditMetadata(v AuditMetaDeviceAssign) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaDeviceAssign(AuditMetadataDeviceAssignAuditMetadata, v)
+	return s
+}
+
+// NewAuditMetadataDeviceUnassignAuditMetadata returns new AuditMetadata from AuditMetaDeviceAssign.
+func NewAuditMetadataDeviceUnassignAuditMetadata(v AuditMetaDeviceAssign) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaDeviceAssign(AuditMetadataDeviceUnassignAuditMetadata, v)
+	return s
+}
+
+// SetAuditMetaDeviceGpxImport sets AuditMetadata to AuditMetaDeviceGpxImport.
+func (s *AuditMetadata) SetAuditMetaDeviceGpxImport(v AuditMetaDeviceGpxImport) {
+	s.Type = AuditMetaDeviceGpxImportAuditMetadata
+	s.AuditMetaDeviceGpxImport = v
+}
+
+// GetAuditMetaDeviceGpxImport returns AuditMetaDeviceGpxImport and true boolean if AuditMetadata is AuditMetaDeviceGpxImport.
+func (s AuditMetadata) GetAuditMetaDeviceGpxImport() (v AuditMetaDeviceGpxImport, ok bool) {
+	if !s.IsAuditMetaDeviceGpxImport() {
+		return v, false
+	}
+	return s.AuditMetaDeviceGpxImport, true
+}
+
+// NewAuditMetaDeviceGpxImportAuditMetadata returns new AuditMetadata from AuditMetaDeviceGpxImport.
+func NewAuditMetaDeviceGpxImportAuditMetadata(v AuditMetaDeviceGpxImport) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaDeviceGpxImport(v)
+	return s
+}
+
+// SetAuditMetaNamedResource sets AuditMetadata to AuditMetaNamedResource.
+// panics if `t` is not associated with AuditMetaNamedResource
+func (s *AuditMetadata) SetAuditMetaNamedResource(t AuditMetadataType, v AuditMetaNamedResource) {
+	s.Type = t
+	s.AuditMetaNamedResource = v
+	if !s.IsAuditMetaNamedResource() {
+		panic(fmt.Errorf("invariant: %v is not AuditMetaNamedResource", t))
+	}
+}
+
+// GetAuditMetaNamedResource returns AuditMetaNamedResource and true boolean if AuditMetadata is AuditMetaNamedResource.
+func (s AuditMetadata) GetAuditMetaNamedResource() (v AuditMetaNamedResource, ok bool) {
+	if !s.IsAuditMetaNamedResource() {
+		return v, false
+	}
+	return s.AuditMetaNamedResource, true
+}
+
+// NewAuditMetadataCalendarCreateAuditMetadata returns new AuditMetadata from AuditMetaNamedResource.
+func NewAuditMetadataCalendarCreateAuditMetadata(v AuditMetaNamedResource) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaNamedResource(AuditMetadataCalendarCreateAuditMetadata, v)
+	return s
+}
+
+// NewAuditMetadataCalendarUpdateAuditMetadata returns new AuditMetadata from AuditMetaNamedResource.
+func NewAuditMetadataCalendarUpdateAuditMetadata(v AuditMetaNamedResource) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaNamedResource(AuditMetadataCalendarUpdateAuditMetadata, v)
+	return s
+}
+
+// NewAuditMetadataGeofenceCreateAuditMetadata returns new AuditMetadata from AuditMetaNamedResource.
+func NewAuditMetadataGeofenceCreateAuditMetadata(v AuditMetaNamedResource) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaNamedResource(AuditMetadataGeofenceCreateAuditMetadata, v)
+	return s
+}
+
+// NewAuditMetadataGeofenceUpdateAuditMetadata returns new AuditMetadata from AuditMetaNamedResource.
+func NewAuditMetadataGeofenceUpdateAuditMetadata(v AuditMetaNamedResource) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaNamedResource(AuditMetadataGeofenceUpdateAuditMetadata, v)
+	return s
+}
+
+// SetAuditMetaNotificationRule sets AuditMetadata to AuditMetaNotificationRule.
+// panics if `t` is not associated with AuditMetaNotificationRule
+func (s *AuditMetadata) SetAuditMetaNotificationRule(t AuditMetadataType, v AuditMetaNotificationRule) {
+	s.Type = t
+	s.AuditMetaNotificationRule = v
+	if !s.IsAuditMetaNotificationRule() {
+		panic(fmt.Errorf("invariant: %v is not AuditMetaNotificationRule", t))
+	}
+}
+
+// GetAuditMetaNotificationRule returns AuditMetaNotificationRule and true boolean if AuditMetadata is AuditMetaNotificationRule.
+func (s AuditMetadata) GetAuditMetaNotificationRule() (v AuditMetaNotificationRule, ok bool) {
+	if !s.IsAuditMetaNotificationRule() {
+		return v, false
+	}
+	return s.AuditMetaNotificationRule, true
+}
+
+// NewAuditMetadataNotificationCreateAuditMetadata returns new AuditMetadata from AuditMetaNotificationRule.
+func NewAuditMetadataNotificationCreateAuditMetadata(v AuditMetaNotificationRule) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaNotificationRule(AuditMetadataNotificationCreateAuditMetadata, v)
+	return s
+}
+
+// NewAuditMetadataNotificationUpdateAuditMetadata returns new AuditMetadata from AuditMetaNotificationRule.
+func NewAuditMetadataNotificationUpdateAuditMetadata(v AuditMetaNotificationRule) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaNotificationRule(AuditMetadataNotificationUpdateAuditMetadata, v)
+	return s
+}
+
+// SetAuditMetaNotifDelivery sets AuditMetadata to AuditMetaNotifDelivery.
+// panics if `t` is not associated with AuditMetaNotifDelivery
+func (s *AuditMetadata) SetAuditMetaNotifDelivery(t AuditMetadataType, v AuditMetaNotifDelivery) {
+	s.Type = t
+	s.AuditMetaNotifDelivery = v
+	if !s.IsAuditMetaNotifDelivery() {
+		panic(fmt.Errorf("invariant: %v is not AuditMetaNotifDelivery", t))
+	}
+}
+
+// GetAuditMetaNotifDelivery returns AuditMetaNotifDelivery and true boolean if AuditMetadata is AuditMetaNotifDelivery.
+func (s AuditMetadata) GetAuditMetaNotifDelivery() (v AuditMetaNotifDelivery, ok bool) {
+	if !s.IsAuditMetaNotifDelivery() {
+		return v, false
+	}
+	return s.AuditMetaNotifDelivery, true
+}
+
+// NewAuditMetadataNotificationFailedAuditMetadata returns new AuditMetadata from AuditMetaNotifDelivery.
+func NewAuditMetadataNotificationFailedAuditMetadata(v AuditMetaNotifDelivery) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaNotifDelivery(AuditMetadataNotificationFailedAuditMetadata, v)
+	return s
+}
+
+// NewAuditMetadataNotificationSentAuditMetadata returns new AuditMetadata from AuditMetaNotifDelivery.
+func NewAuditMetadataNotificationSentAuditMetadata(v AuditMetaNotifDelivery) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaNotifDelivery(AuditMetadataNotificationSentAuditMetadata, v)
+	return s
+}
+
+// SetAuditMetaApiKeyCreate sets AuditMetadata to AuditMetaApiKeyCreate.
+func (s *AuditMetadata) SetAuditMetaApiKeyCreate(v AuditMetaApiKeyCreate) {
+	s.Type = AuditMetaApiKeyCreateAuditMetadata
+	s.AuditMetaApiKeyCreate = v
+}
+
+// GetAuditMetaApiKeyCreate returns AuditMetaApiKeyCreate and true boolean if AuditMetadata is AuditMetaApiKeyCreate.
+func (s AuditMetadata) GetAuditMetaApiKeyCreate() (v AuditMetaApiKeyCreate, ok bool) {
+	if !s.IsAuditMetaApiKeyCreate() {
+		return v, false
+	}
+	return s.AuditMetaApiKeyCreate, true
+}
+
+// NewAuditMetaApiKeyCreateAuditMetadata returns new AuditMetadata from AuditMetaApiKeyCreate.
+func NewAuditMetaApiKeyCreateAuditMetadata(v AuditMetaApiKeyCreate) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaApiKeyCreate(v)
+	return s
+}
+
+// SetAuditMetaApiKeyDelete sets AuditMetadata to AuditMetaApiKeyDelete.
+func (s *AuditMetadata) SetAuditMetaApiKeyDelete(v AuditMetaApiKeyDelete) {
+	s.Type = AuditMetaApiKeyDeleteAuditMetadata
+	s.AuditMetaApiKeyDelete = v
+}
+
+// GetAuditMetaApiKeyDelete returns AuditMetaApiKeyDelete and true boolean if AuditMetadata is AuditMetaApiKeyDelete.
+func (s AuditMetadata) GetAuditMetaApiKeyDelete() (v AuditMetaApiKeyDelete, ok bool) {
+	if !s.IsAuditMetaApiKeyDelete() {
+		return v, false
+	}
+	return s.AuditMetaApiKeyDelete, true
+}
+
+// NewAuditMetaApiKeyDeleteAuditMetadata returns new AuditMetadata from AuditMetaApiKeyDelete.
+func NewAuditMetaApiKeyDeleteAuditMetadata(v AuditMetaApiKeyDelete) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaApiKeyDelete(v)
+	return s
+}
+
+// SetAuditMetaShare sets AuditMetadata to AuditMetaShare.
+// panics if `t` is not associated with AuditMetaShare
+func (s *AuditMetadata) SetAuditMetaShare(t AuditMetadataType, v AuditMetaShare) {
+	s.Type = t
+	s.AuditMetaShare = v
+	if !s.IsAuditMetaShare() {
+		panic(fmt.Errorf("invariant: %v is not AuditMetaShare", t))
+	}
+}
+
+// GetAuditMetaShare returns AuditMetaShare and true boolean if AuditMetadata is AuditMetaShare.
+func (s AuditMetadata) GetAuditMetaShare() (v AuditMetaShare, ok bool) {
+	if !s.IsAuditMetaShare() {
+		return v, false
+	}
+	return s.AuditMetaShare, true
+}
+
+// NewAuditMetadataShareCreateAuditMetadata returns new AuditMetadata from AuditMetaShare.
+func NewAuditMetadataShareCreateAuditMetadata(v AuditMetaShare) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaShare(AuditMetadataShareCreateAuditMetadata, v)
+	return s
+}
+
+// NewAuditMetadataShareDeleteAuditMetadata returns new AuditMetadata from AuditMetaShare.
+func NewAuditMetadataShareDeleteAuditMetadata(v AuditMetaShare) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaShare(AuditMetadataShareDeleteAuditMetadata, v)
+	return s
+}
+
+// SetAuditMetaCommandSend sets AuditMetadata to AuditMetaCommandSend.
+func (s *AuditMetadata) SetAuditMetaCommandSend(v AuditMetaCommandSend) {
+	s.Type = AuditMetaCommandSendAuditMetadata
+	s.AuditMetaCommandSend = v
+}
+
+// GetAuditMetaCommandSend returns AuditMetaCommandSend and true boolean if AuditMetadata is AuditMetaCommandSend.
+func (s AuditMetadata) GetAuditMetaCommandSend() (v AuditMetaCommandSend, ok bool) {
+	if !s.IsAuditMetaCommandSend() {
+		return v, false
+	}
+	return s.AuditMetaCommandSend, true
+}
+
+// NewAuditMetaCommandSendAuditMetadata returns new AuditMetadata from AuditMetaCommandSend.
+func NewAuditMetaCommandSendAuditMetadata(v AuditMetaCommandSend) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaCommandSend(v)
+	return s
 }
 
 // Ref: #/components/schemas/AuditPage
@@ -3386,38 +4818,38 @@ func (o OptAttributes) Or(d Attributes) Attributes {
 	return d
 }
 
-// NewOptAuditEntryMetadata returns new OptAuditEntryMetadata with value set to v.
-func NewOptAuditEntryMetadata(v AuditEntryMetadata) OptAuditEntryMetadata {
-	return OptAuditEntryMetadata{
+// NewOptAuditMetadata returns new OptAuditMetadata with value set to v.
+func NewOptAuditMetadata(v AuditMetadata) OptAuditMetadata {
+	return OptAuditMetadata{
 		Value: v,
 		Set:   true,
 	}
 }
 
-// OptAuditEntryMetadata is optional AuditEntryMetadata.
-type OptAuditEntryMetadata struct {
-	Value AuditEntryMetadata
+// OptAuditMetadata is optional AuditMetadata.
+type OptAuditMetadata struct {
+	Value AuditMetadata
 	Set   bool
 }
 
-// IsSet returns true if OptAuditEntryMetadata was set.
-func (o OptAuditEntryMetadata) IsSet() bool { return o.Set }
+// IsSet returns true if OptAuditMetadata was set.
+func (o OptAuditMetadata) IsSet() bool { return o.Set }
 
 // Reset unsets value.
-func (o *OptAuditEntryMetadata) Reset() {
-	var v AuditEntryMetadata
+func (o *OptAuditMetadata) Reset() {
+	var v AuditMetadata
 	o.Value = v
 	o.Set = false
 }
 
 // SetTo sets value to v.
-func (o *OptAuditEntryMetadata) SetTo(v AuditEntryMetadata) {
+func (o *OptAuditMetadata) SetTo(v AuditMetadata) {
 	o.Set = true
 	o.Value = v
 }
 
 // Get returns value and boolean that denotes whether value was set.
-func (o OptAuditEntryMetadata) Get() (v AuditEntryMetadata, ok bool) {
+func (o OptAuditMetadata) Get() (v AuditMetadata, ok bool) {
 	if !o.Set {
 		return v, false
 	}
@@ -3425,7 +4857,7 @@ func (o OptAuditEntryMetadata) Get() (v AuditEntryMetadata, ok bool) {
 }
 
 // Or returns value if set, or given parameter if does not.
-func (o OptAuditEntryMetadata) Or(d AuditEntryMetadata) AuditEntryMetadata {
+func (o OptAuditMetadata) Or(d AuditMetadata) AuditMetadata {
 	if v, ok := o.Get(); ok {
 		return v
 	}

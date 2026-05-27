@@ -22,6 +22,7 @@
 		phone?: string;
 		model?: string;
 		category?: string;
+		protocol?: string;
 		disabled?: boolean;
 		lastUpdate?: string;
 		ownerName?: string;
@@ -167,6 +168,7 @@
 	let formPhone = '';
 	let formModel = '';
 	let formCategory = '';
+	let formProtocol = '';
 	let formMileage = '';
 
 	$: filtered = devices.filter(
@@ -218,6 +220,7 @@
 		formPhone = '';
 		formModel = '';
 		formCategory = '';
+		formProtocol = '';
 		formMileage = '';
 		error = '';
 		showModal = true;
@@ -230,6 +233,7 @@
 		formPhone = device.phone || '';
 		formModel = device.model || '';
 		formCategory = device.category || '';
+		formProtocol = device.protocol || '';
 		formMileage = device.mileage != null ? Math.round(mileageToDisplay(device.mileage)).toString() : '';
 		error = '';
 		showModal = true;
@@ -293,6 +297,7 @@
 				phone: formPhone.trim() || undefined,
 				model: formModel.trim() || undefined,
 				category: formCategory.trim() || undefined,
+				protocol: formProtocol.trim() || undefined,
 				mileage: mileageKm !== undefined ? mileageKm : (editingDevice ? undefined : undefined)
 			};
 
@@ -678,6 +683,7 @@
 		<Input name="phone" label="Phone" placeholder="+1234567890" bind:value={formPhone} />
 		<Input name="model" label="Model" placeholder="TK103" bind:value={formModel} />
 		<Input name="category" label="Category" placeholder="car" bind:value={formCategory} />
+		<Input name="protocol" label="Protocol" placeholder="h02" bind:value={formProtocol} />
 		<Input
 			name="mileage"
 			label="Mileage ({$settings.units === 'imperial' ? 'mi' : 'km'})"

@@ -114,6 +114,10 @@ func (m *mockDeviceRepo) UpdateIgnitionState(_ context.Context, _ int64, _ bool,
 	return nil
 }
 
+func (m *mockDeviceRepo) UpdateProtocol(_ context.Context, _ int64, _ string) error {
+	return nil
+}
+
 // --- Mock-based unit tests ---
 // These tests run without a database and are significantly faster than
 // the integration tests in device_test.go.

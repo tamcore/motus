@@ -100,6 +100,9 @@ func (r *mileageMockDeviceRepo) Delete(_ context.Context, _ int64) error { retur
 func (r *mileageMockDeviceRepo) UpdateIgnitionState(_ context.Context, _ int64, _ bool, _ time.Time) error {
 	return nil
 }
+func (r *mileageMockDeviceRepo) UpdateProtocol(_ context.Context, _ int64, _ string) error {
+	return nil
+}
 
 type mileageMockEventRepo struct {
 	created []*model.Event

@@ -86,6 +86,7 @@ func (m *mockDeviceRepo) Delete(_ context.Context, _ int64) error               
 func (m *mockDeviceRepo) UpdateIgnitionState(_ context.Context, _ int64, _ bool, _ time.Time) error {
 	return nil
 }
+func (m *mockDeviceRepo) UpdateProtocol(_ context.Context, _ int64, _ string) error { return nil }
 
 // --- tests ---
 

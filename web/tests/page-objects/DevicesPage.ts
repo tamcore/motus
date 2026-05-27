@@ -64,6 +64,10 @@ export class DevicesPage {
     return this.page.locator('[role="dialog"] input[name="category"]');
   }
 
+  get formProtocolInput() {
+    return this.page.locator('[role="dialog"] input[name="protocol"]');
+  }
+
   get formError() {
     return this.page.locator('.form-error');
   }
@@ -99,12 +103,14 @@ export class DevicesPage {
     phone?: string;
     model?: string;
     category?: string;
+    protocol?: string;
   }) {
     if (data.name) await this.formNameInput.fill(data.name);
     if (data.uniqueId) await this.formUniqueIdInput.fill(data.uniqueId);
     if (data.phone) await this.formPhoneInput.fill(data.phone);
     if (data.model) await this.formModelInput.fill(data.model);
     if (data.category) await this.formCategoryInput.fill(data.category);
+    if (data.protocol !== undefined) await this.formProtocolInput.fill(data.protocol);
   }
 
   getEditButton(rowIndex: number) {

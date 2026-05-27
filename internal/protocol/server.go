@@ -162,6 +162,19 @@ func (s *Server) SetMaxConnections(max int64) {
 func (s *Server) resolveOrCreateDevice(ctx context.Context, uniqueID string) (*model.Device, error) {
 	device, err := s.devices.GetByUniqueID(ctx, uniqueID)
 	if err == nil {
+		if device.Protocol != s.name {
+			if upErr := s.devices.UpdateProtocol(ctx, device.ID, s.name); upErr != nil {
+				s.log().Warn("failed to resync device protocol",
+					slog.String("type", "gps"),
+					slog.String("protocol", s.name),
+					slog.String("uniqueID", uniqueID),
+					slog.String("oldProtocol", device.Protocol),
+					slog.Any("error", upErr),
+				)
+			} else {
+				device.Protocol = s.name
+			}
+		}
 		return device, nil
 	}
 

@@ -308,6 +308,20 @@ func (r *DeviceRepository) UpdateIgnitionState(ctx context.Context, id int64, on
 	return nil
 }
 
+// UpdateProtocol sets the protocol field on a device without touching other
+// columns. Used by the protocol server to resync the protocol when a known
+// device starts sending packets via a different protocol than what is stored.
+func (r *DeviceRepository) UpdateProtocol(ctx context.Context, id int64, protocol string) error {
+	_, err := r.pool.Exec(ctx,
+		`UPDATE devices SET protocol = $1, updated_at = NOW() WHERE id = $2`,
+		protocol, id,
+	)
+	if err != nil {
+		return fmt.Errorf("update device protocol: %w", err)
+	}
+	return nil
+}
+
 // Delete removes a device by ID. Cascades to positions and user_devices.
 func (r *DeviceRepository) Delete(ctx context.Context, id int64) error {
 	_, err := r.pool.Exec(ctx, `DELETE FROM devices WHERE id = $1`, id)

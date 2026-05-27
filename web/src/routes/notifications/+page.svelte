@@ -168,12 +168,8 @@
 		testingId = rule.id;
 		error = '';
 		try {
-			const result = await api.testNotification(rule.id);
-			if (result.status === 'sent') {
-				alert('Test notification sent successfully! Check your destination.');
-			} else {
-				alert('Test notification failed: ' + (result.error || 'Unknown error'));
-			}
+			await api.testNotification(rule.id);
+			alert('Test notification sent successfully! Check your destination.');
 		} catch (err: any) {
 			error = 'Failed to send test notification';
 			alert('Failed to send test notification: ' + (err.message || 'Unknown error'));

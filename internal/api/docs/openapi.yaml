@@ -1,0 +1,2166 @@
+openapi: "3.0.3"
+info:
+  title: Motus API
+  version: "0.1.0"
+  description: GPS tracking and fleet management API
+
+servers:
+  - url: /
+    description: This server
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: session_id
+      description: Session cookie set after login
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: API key token
+    xAuthToken:
+      type: apiKey
+      in: header
+      name: X-Auth-Token
+      description: iOS PWA fallback — pass session_id value here
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          example: "resource not found"
+
+    Device:
+      type: object
+      required: [id, uniqueId, name, status, disabled, attributes, createdAt, updatedAt]
+      properties:
+        id: { type: integer, format: int64 }
+        uniqueId: { type: string }
+        name: { type: string }
+        protocol: { type: string }
+        status: { type: string }
+        speedLimit: { type: number, format: double, nullable: true }
+        lastUpdate: { type: string, format: date-time, nullable: true }
+        positionId: { type: integer, format: int64, nullable: true }
+        groupId: { type: integer, format: int64, nullable: true }
+        phone: { type: string, nullable: true }
+        model: { type: string, nullable: true }
+        contact: { type: string, nullable: true }
+        category: { type: string, nullable: true }
+        calendarId: { type: integer, format: int64, nullable: true }
+        expirationTime: { type: string, format: date-time, nullable: true }
+        disabled: { type: boolean }
+        mileage: { type: number, format: double, nullable: true }
+        attributes:
+          type: object
+          additionalProperties: {}
+        ownerName: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    DeviceInput:
+      type: object
+      required: [name, uniqueId]
+      properties:
+        name: { type: string }
+        uniqueId: { type: string }
+        phone: { type: string }
+        model: { type: string }
+        contact: { type: string }
+        category: { type: string }
+        calendarId: { type: integer, format: int64 }
+        speedLimit: { type: number, format: double }
+        disabled: { type: boolean }
+        attributes:
+          type: object
+          additionalProperties: {}
+
+    Position:
+      type: object
+      required: [id, deviceId, serverTime, deviceTime, fixTime, valid, latitude, longitude, altitude, speed, course, accuracy, attributes, network]
+      properties:
+        id: { type: integer, format: int64 }
+        deviceId: { type: integer, format: int64 }
+        deviceName: { type: string }
+        type: { type: string }
+        protocol: { type: string }
+        serverTime: { type: string, format: date-time }
+        deviceTime: { type: string, format: date-time }
+        fixTime: { type: string, format: date-time }
+        outdated: { type: boolean }
+        valid: { type: boolean }
+        latitude: { type: number, format: double }
+        longitude: { type: number, format: double }
+        altitude: { type: number, format: double }
+        speed: { type: number, format: double }
+        course: { type: number, format: double }
+        accuracy: { type: number, format: double }
+        address: { type: string }
+        attributes:
+          type: object
+          additionalProperties: {}
+        network:
+          type: object
+          additionalProperties: {}
+
+    User:
+      type: object
+      required: [id, email, name, administrator, readonly, disabled, createdAt]
+      properties:
+        id: { type: integer, format: int64 }
+        email: { type: string }
+        name: { type: string }
+        administrator: { type: boolean }
+        readonly: { type: boolean }
+        disabled: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        attributes:
+          type: object
+          additionalProperties: {}
+
+    UserInput:
+      type: object
+      required: [name, email]
+      properties:
+        name: { type: string }
+        email: { type: string }
+        password: { type: string, format: password }
+        role:
+          type: string
+          enum: [admin, user, readonly]
+
+    Session:
+      type: object
+      required: [id, userId, rememberMe, createdAt, expiresAt]
+      properties:
+        id: { type: string, description: "Truncated session ID for display only; never the full cookie value" }
+        userId: { type: integer, format: int64 }
+        rememberMe: { type: boolean }
+        originalUserId: { type: integer, format: int64, nullable: true }
+        isSudo: { type: boolean }
+        apiKeyId: { type: integer, format: int64, nullable: true }
+        apiKeyName: { type: string, nullable: true }
+        isCurrent: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
+        lastSeenAt: { type: string, format: date-time, nullable: true }
+        lastSeenIp: { type: string, nullable: true }
+        lastSeenUserAgent: { type: string, nullable: true }
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, format: password }
+        remember: { type: boolean }
+
+    TokenResponse:
+      type: object
+      required: [token]
+      properties:
+        token: { type: string }
+
+    Command:
+      type: object
+      required: [id, deviceId, type, status, createdAt]
+      properties:
+        id: { type: integer, format: int64 }
+        deviceId: { type: integer, format: int64 }
+        type: { type: string }
+        status: { type: string }
+        result: { type: string, nullable: true }
+        executedAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+        attributes:
+          type: object
+          additionalProperties: {}
+
+    CommandInput:
+      type: object
+      required: [deviceId, type]
+      properties:
+        deviceId: { type: integer, format: int64 }
+        type: { type: string }
+        attributes:
+          type: object
+          additionalProperties: {}
+
+    SendCommandRequest:
+      type: object
+      required: [deviceId, type]
+      properties:
+        deviceId: { type: integer, format: int64 }
+        type: { type: string }
+        attributes:
+          type: object
+          additionalProperties: {}
+
+    CommandType:
+      type: object
+      required: [type]
+      properties:
+        type: { type: string }
+
+    Geofence:
+      type: object
+      required: [id, name, area, attributes, createdAt, updatedAt]
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string }
+        description: { type: string }
+        area: { type: string, description: "WKT geometry (Traccar-compatible)" }
+        geometry: { type: string, description: "GeoJSON geometry" }
+        calendarId: { type: integer, format: int64, nullable: true }
+        ownerName: { type: string }
+        attributes:
+          type: object
+          additionalProperties: {}
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    GeofenceInput:
+      type: object
+      required: [name, area]
+      properties:
+        name: { type: string }
+        description: { type: string }
+        area: { type: string }
+        geometry: { type: string }
+        calendarId: { type: integer, format: int64 }
+        attributes:
+          type: object
+          additionalProperties: {}
+
+    Calendar:
+      type: object
+      required: [id, name, data, createdAt, updatedAt]
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string }
+        data: { type: string, description: "iCalendar (RFC 5545) data" }
+        ownerName: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    CalendarInput:
+      type: object
+      required: [name, data]
+      properties:
+        name: { type: string }
+        data: { type: string }
+
+    CalendarCheckResult:
+      type: object
+      required: [active]
+      properties:
+        active: { type: boolean }
+        nextTrigger: { type: string, format: date-time, nullable: true }
+
+    Event:
+      type: object
+      required: [id, deviceId, type, eventTime]
+      properties:
+        id: { type: integer, format: int64 }
+        deviceId: { type: integer, format: int64 }
+        geofenceId: { type: integer, format: int64, nullable: true }
+        type: { type: string }
+        positionId: { type: integer, format: int64, nullable: true }
+        eventTime: { type: string, format: date-time }
+        attributes:
+          type: object
+          additionalProperties: {}
+
+    NotificationRule:
+      type: object
+      required: [id, userId, name, eventTypes, channel, config, template, enabled, createdAt, updatedAt]
+      properties:
+        id: { type: integer, format: int64 }
+        userId: { type: integer, format: int64 }
+        name: { type: string }
+        eventTypes:
+          type: array
+          items: { type: string }
+        channel: { type: string }
+        config:
+          type: object
+          additionalProperties: {}
+        template: { type: string }
+        enabled: { type: boolean }
+        ownerName: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    NotificationRuleInput:
+      type: object
+      required: [name, eventTypes, channel, config]
+      properties:
+        name: { type: string }
+        eventTypes:
+          type: array
+          items: { type: string }
+        channel: { type: string }
+        config:
+          type: object
+          additionalProperties: {}
+        template: { type: string }
+        enabled: { type: boolean }
+
+    NotificationLog:
+      type: object
+      required: [id, ruleId, status]
+      properties:
+        id: { type: integer, format: int64 }
+        ruleId: { type: integer, format: int64 }
+        eventId: { type: integer, format: int64, nullable: true }
+        status: { type: string }
+        sentAt: { type: string, format: date-time, nullable: true }
+        error: { type: string }
+        responseCode: { type: integer }
+
+    DeviceShare:
+      type: object
+      required: [id, deviceId, token, createdBy, createdAt]
+      properties:
+        id: { type: integer, format: int64 }
+        deviceId: { type: integer, format: int64 }
+        token: { type: string }
+        createdBy: { type: integer, format: int64 }
+        expiresAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+
+    CreateShareRequest:
+      type: object
+      properties:
+        expiresAt: { type: string, format: date-time }
+
+    ApiKey:
+      type: object
+      required: [id, userId, name, permissions, createdAt]
+      properties:
+        id: { type: integer, format: int64 }
+        userId: { type: integer, format: int64 }
+        token: { type: string, description: "Only present on creation response" }
+        name: { type: string }
+        permissions:
+          type: string
+          enum: [full, readonly]
+        expiresAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+        lastUsedAt: { type: string, format: date-time, nullable: true }
+
+    ApiKeyInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        permissions:
+          type: string
+          enum: [full, readonly]
+          default: full
+        expiresAt: { type: string, format: date-time }
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        name: { type: string }
+        email: { type: string, format: email }
+        password: { type: string, format: password }
+
+    SudoStatus:
+      type: object
+      required: [active]
+      properties:
+        active: { type: boolean }
+        originalUserId: { type: integer, format: int64, nullable: true }
+        targetUserId: { type: integer, format: int64, nullable: true }
+
+    PlatformStats:
+      type: object
+      required: [totalUsers, totalDevices, totalPositions, totalEvents, notificationsSent, devicesByStatus, positionsToday, activeUsers]
+      properties:
+        totalUsers: { type: integer, format: int64 }
+        totalDevices: { type: integer, format: int64 }
+        totalPositions: { type: integer, format: int64 }
+        totalEvents: { type: integer, format: int64 }
+        notificationsSent: { type: integer, format: int64 }
+        devicesByStatus:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int64
+        positionsToday: { type: integer, format: int64 }
+        activeUsers: { type: integer, format: int64 }
+
+    UserStats:
+      type: object
+      required: [userId, devicesOwned, totalPositions, eventsTriggered, geofencesOwned]
+      properties:
+        userId: { type: integer, format: int64 }
+        devicesOwned: { type: integer, format: int64 }
+        totalPositions: { type: integer, format: int64 }
+        lastLogin: { type: string, format: date-time, nullable: true }
+        eventsTriggered: { type: integer, format: int64 }
+        geofencesOwned: { type: integer, format: int64 }
+
+    AuditEntry:
+      type: object
+      required: [id, action, userId, createdAt]
+      properties:
+        id: { type: integer, format: int64 }
+        action: { type: string }
+        userId: { type: integer, format: int64 }
+        userEmail: { type: string }
+        resourceType: { type: string }
+        resourceId: { type: string }
+        metadata:
+          type: object
+          additionalProperties: {}
+        ipAddress: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    AuditPage:
+      type: object
+      required: [entries, total]
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditEntry'
+        total: { type: integer, format: int64 }
+
+    OIDCConfig:
+      type: object
+      required: [enabled]
+      properties:
+        enabled: { type: boolean }
+        issuer: { type: string }
+
+    ServerInfo:
+      type: object
+      required: [id, registration, readonly, deviceReadonly, limitCommands, version]
+      properties:
+        id: { type: integer }
+        registration: { type: boolean }
+        readonly: { type: boolean }
+        deviceReadonly: { type: boolean }
+        limitCommands: { type: boolean }
+        version: { type: string }
+        map: { type: string }
+        latitude: { type: number, format: double }
+        longitude: { type: number, format: double }
+        zoom: { type: integer }
+        openIdEnabled: { type: boolean }
+        openIdForce: { type: boolean }
+        attributes:
+          type: object
+          additionalProperties: {}
+
+    VersionInfo:
+      type: object
+      required: [version]
+      properties:
+        version: { type: string }
+        commit: { type: string }
+        buildTime: { type: string }
+
+paths:
+  /api/health:
+    get:
+      operationId: getHealth
+      summary: Health check
+      tags: [system]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { type: string }
+
+  /api/version:
+    get:
+      operationId: getVersion
+      summary: Version info
+      tags: [system]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionInfo'
+
+  /api/server:
+    get:
+      operationId: getServer
+      summary: Traccar-compatible server info
+      tags: [system]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerInfo'
+
+  /api/session:
+    get:
+      operationId: getSession
+      summary: Get current session / validate credentials
+      tags: [auth]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      responses:
+        "200":
+          description: Authenticated user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      operationId: login
+      summary: Login with email + password
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        "200":
+          description: Logged in; sets session_id cookie and X-CSRF-Token header
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        "429":
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      operationId: logout
+      summary: Logout (delete current session)
+      tags: [auth]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      responses:
+        "204":
+          description: Logged out
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/session/token:
+    post:
+      operationId: generateToken
+      summary: Generate a long-lived API token for the current session
+      tags: [auth]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      responses:
+        "200":
+          description: Token generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/devices:
+    get:
+      operationId: listDevices
+      summary: List devices for the authenticated user
+      tags: [devices]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      responses:
+        "200":
+          description: Device list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Device'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      operationId: createDevice
+      summary: Create a device
+      tags: [devices]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceInput'
+      responses:
+        "201":
+          description: Device created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+        "400":
+          $ref: '#/components/responses/BadRequest'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/devices/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    get:
+      operationId: getDevice
+      summary: Get a device by ID
+      tags: [devices]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      responses:
+        "200":
+          description: Device
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "403":
+          $ref: '#/components/responses/Forbidden'
+        "404":
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: updateDevice
+      summary: Update a device
+      tags: [devices]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceInput'
+      responses:
+        "200":
+          description: Updated device
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+        "400":
+          $ref: '#/components/responses/BadRequest'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "403":
+          $ref: '#/components/responses/Forbidden'
+        "404":
+          $ref: '#/components/responses/NotFound'
+    delete:
+      operationId: deleteDevice
+      summary: Delete a device
+      tags: [devices]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "403":
+          $ref: '#/components/responses/Forbidden'
+        "404":
+          $ref: '#/components/responses/NotFound'
+
+  /api/devices/{id}/gpx:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    post:
+      operationId: importGPX
+      summary: Import GPX track for a device
+      tags: [devices]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      requestBody:
+        required: true
+        content:
+          application/gpx+xml:
+            schema: { type: string, format: binary }
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        "200":
+          description: Import result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  imported: { type: integer }
+        "400":
+          $ref: '#/components/responses/BadRequest'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "403":
+          $ref: '#/components/responses/Forbidden'
+
+  /api/devices/{id}/share:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    post:
+      operationId: createShare
+      summary: Create a public share link for a device
+      tags: [sharing]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateShareRequest'
+      responses:
+        "201":
+          description: Share created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceShare'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "403":
+          $ref: '#/components/responses/Forbidden'
+
+  /api/devices/{id}/shares:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    get:
+      operationId: listShares
+      summary: List share links for a device
+      tags: [sharing]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      responses:
+        "200":
+          description: Share list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeviceShare'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "403":
+          $ref: '#/components/responses/Forbidden'
+
+  /api/shares/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    delete:
+      operationId: deleteShare
+      summary: Delete a share link
+      tags: [sharing]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "403":
+          $ref: '#/components/responses/Forbidden'
+        "404":
+          $ref: '#/components/responses/NotFound'
+
+  /api/share/{token}:
+    parameters:
+      - name: token
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      operationId: getSharedDevice
+      summary: Get device info via public share token
+      tags: [sharing]
+      responses:
+        "200":
+          description: Shared device with last position
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+        "404":
+          $ref: '#/components/responses/NotFound'
+
+  /api/positions:
+    get:
+      operationId: getPositions
+      summary: Get positions for devices
+      tags: [positions]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      parameters:
+        - name: deviceId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: from
+          in: query
+          schema: { type: string, format: date-time }
+        - name: to
+          in: query
+          schema: { type: string, format: date-time }
+      responses:
+        "200":
+          description: Position list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Position'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/commands:
+    get:
+      operationId: listCommands
+      summary: List saved commands
+      tags: [commands]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      parameters:
+        - name: deviceId
+          in: query
+          schema: { type: integer, format: int64 }
+      responses:
+        "200":
+          description: Command list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Command'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      operationId: createCommand
+      summary: Save a command (not yet sent)
+      tags: [commands]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommandInput'
+      responses:
+        "201":
+          description: Command created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Command'
+        "400":
+          $ref: '#/components/responses/BadRequest'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/commands/send:
+    post:
+      operationId: sendCommand
+      summary: Send a command to a device immediately
+      tags: [commands]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendCommandRequest'
+      responses:
+        "200":
+          description: Command sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Command'
+        "400":
+          $ref: '#/components/responses/BadRequest'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "404":
+          $ref: '#/components/responses/NotFound'
+
+  /api/commands/types:
+    get:
+      operationId: getCommandTypes
+      summary: List supported command types
+      tags: [commands]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      responses:
+        "200":
+          description: Command type list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CommandType'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/geofences:
+    get:
+      operationId: listGeofences
+      summary: List geofences for the authenticated user
+      tags: [geofences]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      responses:
+        "200":
+          description: Geofence list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Geofence'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      operationId: createGeofence
+      summary: Create a geofence
+      tags: [geofences]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeofenceInput'
+      responses:
+        "201":
+          description: Geofence created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Geofence'
+        "400":
+          $ref: '#/components/responses/BadRequest'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/geofences/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    get:
+      operationId: getGeofence
+      summary: Get a geofence by ID
+      tags: [geofences]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      responses:
+        "200":
+          description: Geofence
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Geofence'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "403":
+          $ref: '#/components/responses/Forbidden'
+        "404":
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: updateGeofence
+      summary: Update a geofence
+      tags: [geofences]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeofenceInput'
+      responses:
+        "200":
+          description: Updated geofence
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Geofence'
+        "400":
+          $ref: '#/components/responses/BadRequest'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "403":
+          $ref: '#/components/responses/Forbidden'
+        "404":
+          $ref: '#/components/responses/NotFound'
+    delete:
+      operationId: deleteGeofence
+      summary: Delete a geofence
+      tags: [geofences]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "403":
+          $ref: '#/components/responses/Forbidden'
+        "404":
+          $ref: '#/components/responses/NotFound'
+
+  /api/calendars:
+    get:
+      operationId: listCalendars
+      summary: List calendars for the authenticated user
+      tags: [calendars]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      responses:
+        "200":
+          description: Calendar list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Calendar'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      operationId: createCalendar
+      summary: Create a calendar
+      tags: [calendars]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalendarInput'
+      responses:
+        "201":
+          description: Calendar created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Calendar'
+        "400":
+          $ref: '#/components/responses/BadRequest'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/calendars/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    put:
+      operationId: updateCalendar
+      summary: Update a calendar
+      tags: [calendars]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalendarInput'
+      responses:
+        "200":
+          description: Updated calendar
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Calendar'
+        "400":
+          $ref: '#/components/responses/BadRequest'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "404":
+          $ref: '#/components/responses/NotFound'
+    delete:
+      operationId: deleteCalendar
+      summary: Delete a calendar
+      tags: [calendars]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "404":
+          $ref: '#/components/responses/NotFound'
+
+  /api/calendars/{id}/check:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    get:
+      operationId: checkCalendar
+      summary: Check if a calendar is currently active
+      tags: [calendars]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      responses:
+        "200":
+          description: Calendar active status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarCheckResult'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "404":
+          $ref: '#/components/responses/NotFound'
+
+  /api/events:
+    get:
+      operationId: listEvents
+      summary: List events for the authenticated user's devices
+      tags: [events]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      parameters:
+        - name: deviceId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: type
+          in: query
+          schema: { type: string }
+        - name: from
+          in: query
+          schema: { type: string, format: date-time }
+        - name: to
+          in: query
+          schema: { type: string, format: date-time }
+      responses:
+        "200":
+          description: Event list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Event'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/reports/events:
+    get:
+      operationId: reportEvents
+      summary: Report events in a time range (same as listEvents, Traccar-compatible path)
+      tags: [reports]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      parameters:
+        - name: deviceId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: type
+          in: query
+          schema: { type: string }
+        - name: from
+          in: query
+          schema: { type: string, format: date-time }
+        - name: to
+          in: query
+          schema: { type: string, format: date-time }
+      responses:
+        "200":
+          description: Event report
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Event'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/notifications:
+    get:
+      operationId: listNotifications
+      summary: List notification rules for the authenticated user
+      tags: [notifications]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      responses:
+        "200":
+          description: Notification rule list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NotificationRule'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      operationId: createNotification
+      summary: Create a notification rule
+      tags: [notifications]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationRuleInput'
+      responses:
+        "201":
+          description: Notification rule created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationRule'
+        "400":
+          $ref: '#/components/responses/BadRequest'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/notifications/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    put:
+      operationId: updateNotification
+      summary: Update a notification rule
+      tags: [notifications]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationRuleInput'
+      responses:
+        "200":
+          description: Updated notification rule
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationRule'
+        "400":
+          $ref: '#/components/responses/BadRequest'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "403":
+          $ref: '#/components/responses/Forbidden'
+        "404":
+          $ref: '#/components/responses/NotFound'
+    delete:
+      operationId: deleteNotification
+      summary: Delete a notification rule
+      tags: [notifications]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "403":
+          $ref: '#/components/responses/Forbidden'
+        "404":
+          $ref: '#/components/responses/NotFound'
+
+  /api/notifications/{id}/test:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    post:
+      operationId: testNotification
+      summary: Send a test notification
+      tags: [notifications]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      responses:
+        "204":
+          description: Test notification sent
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "403":
+          $ref: '#/components/responses/Forbidden'
+        "404":
+          $ref: '#/components/responses/NotFound'
+
+  /api/notifications/{id}/logs:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    get:
+      operationId: notificationLogs
+      summary: Get delivery logs for a notification rule
+      tags: [notifications]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      responses:
+        "200":
+          description: Notification logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NotificationLog'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "403":
+          $ref: '#/components/responses/Forbidden'
+        "404":
+          $ref: '#/components/responses/NotFound'
+
+  /api/keys:
+    get:
+      operationId: listApiKeys
+      summary: List API keys for the authenticated user
+      tags: [apikeys]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      responses:
+        "200":
+          description: API key list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ApiKey'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      operationId: createApiKey
+      summary: Create an API key
+      tags: [apikeys]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiKeyInput'
+      responses:
+        "201":
+          description: API key created (token only returned once)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKey'
+        "400":
+          $ref: '#/components/responses/BadRequest'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/keys/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    delete:
+      operationId: deleteApiKey
+      summary: Delete an API key
+      tags: [apikeys]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "403":
+          $ref: '#/components/responses/Forbidden'
+        "404":
+          $ref: '#/components/responses/NotFound'
+
+  /api/sessions:
+    get:
+      operationId: listSessions
+      summary: List active sessions for the authenticated user
+      tags: [sessions]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      responses:
+        "200":
+          description: Session list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Session'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+    delete:
+      operationId: logoutAll
+      summary: Revoke all sessions for the authenticated user
+      tags: [sessions]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      responses:
+        "204":
+          description: All sessions revoked
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/sessions/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    delete:
+      operationId: deleteSession
+      summary: Revoke a specific session
+      tags: [sessions]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      responses:
+        "204":
+          description: Session revoked
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "403":
+          $ref: '#/components/responses/Forbidden'
+        "404":
+          $ref: '#/components/responses/NotFound'
+
+  /api/profile:
+    put:
+      operationId: updateProfile
+      summary: Update the authenticated user's own profile
+      tags: [profile]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        "400":
+          $ref: '#/components/responses/BadRequest'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/admin/sudo:
+    get:
+      operationId: getSudoStatus
+      summary: Get current sudo/impersonation status
+      tags: [sudo]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      responses:
+        "200":
+          description: Sudo status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SudoStatus'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+    delete:
+      operationId: endSudo
+      summary: End sudo/impersonation session
+      tags: [sudo]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      responses:
+        "204":
+          description: Sudo ended
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/admin/sudo/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    post:
+      operationId: adminStartSudo
+      summary: Admin — start impersonating a user
+      tags: [sudo]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      responses:
+        "204":
+          description: Sudo started
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "403":
+          $ref: '#/components/responses/Forbidden'
+        "404":
+          $ref: '#/components/responses/NotFound'
+
+  /api/users:
+    get:
+      operationId: adminListUsers
+      summary: Admin — list all users
+      tags: [admin]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      responses:
+        "200":
+          description: User list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "403":
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: adminCreateUser
+      summary: Admin — create a user
+      tags: [admin]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserInput'
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        "400":
+          $ref: '#/components/responses/BadRequest'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "403":
+          $ref: '#/components/responses/Forbidden'
+
+  /api/users/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    put:
+      operationId: adminUpdateUser
+      summary: Admin — update a user
+      tags: [admin]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserInput'
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        "400":
+          $ref: '#/components/responses/BadRequest'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "403":
+          $ref: '#/components/responses/Forbidden'
+        "404":
+          $ref: '#/components/responses/NotFound'
+    delete:
+      operationId: adminDeleteUser
+      summary: Admin — delete a user
+      tags: [admin]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "403":
+          $ref: '#/components/responses/Forbidden'
+        "404":
+          $ref: '#/components/responses/NotFound'
+
+  /api/users/{id}/devices:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    get:
+      operationId: adminListUserDevices
+      summary: Admin — list all devices for a user
+      tags: [admin]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      responses:
+        "200":
+          description: Device list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Device'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "403":
+          $ref: '#/components/responses/Forbidden'
+        "404":
+          $ref: '#/components/responses/NotFound'
+
+  /api/users/{id}/devices/{deviceId}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+      - name: deviceId
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    post:
+      operationId: adminAssignDevice
+      summary: Admin — assign a device to a user
+      tags: [admin]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      responses:
+        "204":
+          description: Device assigned
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "403":
+          $ref: '#/components/responses/Forbidden'
+        "404":
+          $ref: '#/components/responses/NotFound'
+    delete:
+      operationId: adminUnassignDevice
+      summary: Admin — unassign a device from a user
+      tags: [admin]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      responses:
+        "204":
+          description: Device unassigned
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "403":
+          $ref: '#/components/responses/Forbidden'
+        "404":
+          $ref: '#/components/responses/NotFound'
+
+  /api/users/{id}/keys:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    get:
+      operationId: adminListUserKeys
+      summary: Admin — list API keys for a user
+      tags: [admin]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      responses:
+        "200":
+          description: API key list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ApiKey'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "403":
+          $ref: '#/components/responses/Forbidden'
+        "404":
+          $ref: '#/components/responses/NotFound'
+
+  /api/users/{id}/sessions/{sessionId}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+      - name: sessionId
+        in: path
+        required: true
+        schema: { type: string }
+    delete:
+      operationId: adminDeleteUserSession
+      summary: Admin — revoke a specific session for a user
+      tags: [admin]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      responses:
+        "204":
+          description: Session revoked
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "403":
+          $ref: '#/components/responses/Forbidden'
+        "404":
+          $ref: '#/components/responses/NotFound'
+
+  /api/admin/devices:
+    get:
+      operationId: adminListDevices
+      summary: Admin — list all devices across all users
+      tags: [admin]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      responses:
+        "200":
+          description: All devices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Device'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "403":
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/geofences:
+    get:
+      operationId: adminListGeofences
+      summary: Admin — list all geofences across all users
+      tags: [admin]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      responses:
+        "200":
+          description: All geofences
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Geofence'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "403":
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/calendars:
+    get:
+      operationId: adminListCalendars
+      summary: Admin — list all calendars across all users
+      tags: [admin]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      responses:
+        "200":
+          description: All calendars
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Calendar'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "403":
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/notifications:
+    get:
+      operationId: adminListNotifications
+      summary: Admin — list all notification rules across all users
+      tags: [admin]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      responses:
+        "200":
+          description: All notification rules
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NotificationRule'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "403":
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/positions:
+    get:
+      operationId: adminListPositions
+      summary: Admin — list all latest positions across all devices
+      tags: [admin]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      responses:
+        "200":
+          description: All positions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Position'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "403":
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/statistics:
+    get:
+      operationId: adminGetStatistics
+      summary: Admin — platform-wide statistics
+      tags: [admin]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      responses:
+        "200":
+          description: Platform statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformStats'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "403":
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/statistics/users/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    get:
+      operationId: adminGetUserStatistics
+      summary: Admin — statistics for a specific user
+      tags: [admin]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      responses:
+        "200":
+          description: User statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserStats'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "403":
+          $ref: '#/components/responses/Forbidden'
+        "404":
+          $ref: '#/components/responses/NotFound'
+
+  /api/admin/audit:
+    get:
+      operationId: adminGetAuditLog
+      summary: Admin — paginated audit log
+      tags: [admin]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      parameters:
+        - name: action
+          in: query
+          schema: { type: string }
+        - name: userId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: resourceType
+          in: query
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 50 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+      responses:
+        "200":
+          description: Audit log page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditPage'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "403":
+          $ref: '#/components/responses/Forbidden'
+
+  /api/auth/oidc/config:
+    get:
+      operationId: getOIDCConfig
+      summary: Get OIDC configuration (enabled/disabled)
+      tags: [auth]
+      responses:
+        "200":
+          description: OIDC config
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OIDCConfig'
+
+  /api/auth/oidc/login:
+    get:
+      operationId: oidcLogin
+      summary: Initiate OIDC login flow (redirects to provider)
+      tags: [auth]
+      responses:
+        "302":
+          description: Redirect to OIDC provider
+
+  /api/auth/oidc/callback:
+    get:
+      operationId: oidcCallback
+      summary: OIDC callback after provider authentication
+      tags: [auth]
+      parameters:
+        - name: code
+          in: query
+          schema: { type: string }
+        - name: state
+          in: query
+          schema: { type: string }
+      responses:
+        "302":
+          description: Redirect to app after successful login
+        "400":
+          $ref: '#/components/responses/BadRequest'

@@ -139,51 +139,10 @@ func Run() {
 	// Audit logger.
 	auditLogger := audit.NewLogger(pool)
 
-	// Handlers.
-	serverHandler := handlers.NewServerHandler()
-	sessionHandler := handlers.NewSessionHandler(userRepo, sessionRepo, apiKeyRepo)
-	deviceHandler := handlers.NewDeviceHandler(deviceRepo, cfg.Device.UniqueIDPrefix)
-	positionHandler := handlers.NewPositionHandler(positionRepo, deviceRepo)
+	// Device registry (used by protocol servers below).
 	deviceRegistry := protocol.NewDeviceRegistry()
-	commandHandler := handlers.NewCommandHandler(commandRepo, deviceRepo, deviceRegistry, protocol.NewEncoderRegistry())
-	commandHandler.SetAuditLogger(auditLogger)
-	geofenceHandler := handlers.NewGeofenceHandler(geofenceRepo)
-	eventHandler := handlers.NewEventHandler(eventRepo, deviceRepo)
-	reportsHandler := handlers.NewReportsHandler(eventRepo, deviceRepo)
-	notificationHandler := handlers.NewNotificationHandler(notificationRepo, notificationService)
-	userHandler := handlers.NewUserHandler(userRepo, deviceRepo, cfg.Device.UniqueIDPrefix)
-	gpxHandler := handlers.NewGPXImportHandler(deviceRepo, positionRepo, auditLogger)
-	shareHandler := handlers.NewShareHandler(shareRepo, deviceRepo, positionRepo, cfg.Device.UniqueIDPrefix)
-	sudoHandler := handlers.NewSudoHandler(userRepo, sessionRepo)
-	sudoHandler.SetAuditLogger(auditLogger)
-	sessionHandler.SetAuditLogger(auditLogger)
-	deviceHandler.SetAuditLogger(auditLogger)
-	geofenceHandler.SetAuditLogger(auditLogger)
-	notificationHandler.SetAuditLogger(auditLogger)
-	userHandler.SetAuditLogger(auditLogger)
-	shareHandler.SetAuditLogger(auditLogger)
-	statisticsHandler := handlers.NewStatisticsHandler(statsRepo)
-	auditHandler := handlers.NewAuditHandler(auditLogger)
-	calendarHandler := handlers.NewCalendarHandler(calendarRepo)
-	apiKeyHandler := handlers.NewApiKeyHandler(apiKeyRepo)
-	calendarHandler.SetAuditLogger(auditLogger)
-	apiKeyHandler.SetAuditLogger(auditLogger)
 
-	// OIDC authentication (optional).
-	oidcConfigFn := func(w http.ResponseWriter, r *http.Request) {
-		api.RespondJSON(w, http.StatusOK, map[string]bool{"enabled": false})
-	}
-	var oidcLoginFn, oidcCallbackFn http.HandlerFunc
 	if cfg.OIDC.Enabled {
-		oidcHandler, err := handlers.NewOIDCHandler(context.Background(), cfg.OIDC, userRepo, sessionRepo, oidcStateRepo)
-		if err != nil {
-			slog.Error("failed to initialize OIDC provider", slog.Any("error", err))
-			os.Exit(1)
-		}
-		oidcHandler.SetAuditLogger(auditLogger)
-		oidcConfigFn = oidcHandler.GetConfig
-		oidcLoginFn = oidcHandler.Login
-		oidcCallbackFn = oidcHandler.Callback
 		slog.Info("OIDC authentication enabled",
 			slog.String("issuer", cfg.OIDC.Issuer),
 			slog.Bool("signupEnabled", cfg.OIDC.SignupEnabled),
@@ -268,8 +227,6 @@ func Run() {
 	if cfg.Security.Env == "development" {
 		hub.SetDevelopmentMode(true)
 	}
-	userHandler.SetCacheInvalidator(hub)
-
 	// Inject structured logger into components that produce high-value logs.
 	wsLogger := appLogger.With(slog.String("component", "websocket"))
 	hub.SetLogger(wsLogger)
@@ -277,94 +234,30 @@ func Run() {
 	protoLogger := appLogger.With(slog.String("component", "protocol"))
 	svcLogger := appLogger.With(slog.String("component", "services"))
 
-	// Auth middleware.
-	authMW := middleware.Auth(userRepo, sessionRepo, apiKeyRepo)
-
-	// Router.
-	h := api.Handlers{
-		GetServer:         serverHandler.GetServer,
-		Login:             sessionHandler.Login,
-		GetCurrentSession: sessionHandler.GetCurrentSession,
-		GenerateToken:     sessionHandler.GenerateToken,
-		Logout:            sessionHandler.Logout,
-		ListDevices:       deviceHandler.List,
-		GetDevice:         deviceHandler.Get,
-		CreateDevice:      deviceHandler.Create,
-		UpdateDevice:      deviceHandler.Update,
-		DeleteDevice:      deviceHandler.Delete,
-		GetPositions:      positionHandler.GetPositions,
-		CreateCommand:     commandHandler.Create,
-		SendCommand:       commandHandler.Send,
-		GetCmdTypes:       commandHandler.GetTypes,
-		ListCommands:      commandHandler.List,
-		ListGeofences:     geofenceHandler.List,
-		GetGeofence:       geofenceHandler.Get,
-		CreateGeofence:    geofenceHandler.Create,
-		UpdateGeofence:    geofenceHandler.Update,
-		DeleteGeofence:    geofenceHandler.Delete,
-		ListEvents:        eventHandler.List,
-		ReportEvents:      reportsHandler.GetEvents,
-
-		ListNotifications:  notificationHandler.List,
-		CreateNotification: notificationHandler.Create,
-		UpdateNotification: notificationHandler.Update,
-		DeleteNotification: notificationHandler.Delete,
-		TestNotification:   notificationHandler.Test,
-		NotificationLogs:   notificationHandler.Logs,
-
-		ImportGPX: gpxHandler.Import,
-
-		CreateShare:     shareHandler.CreateShare,
-		ListShares:      shareHandler.ListShares,
-		DeleteShare:     shareHandler.DeleteShare,
-		GetSharedDevice: shareHandler.GetSharedDevice,
-
-		UpdateProfile: userHandler.UpdateProfile,
-
-		ListUsers:           userHandler.List,
-		CreateUser:          userHandler.Create,
-		UpdateUser:          userHandler.Update,
-		DeleteUser:          userHandler.Delete,
-		ListUserDevs:        userHandler.ListDevices,
-		AdminListAllDevices: userHandler.AdminListAllDevices,
-		AssignDevice:        userHandler.AssignDevice,
-		UnassignDevice:      userHandler.UnassignDevice,
-
-		AdminListAllGeofences:     geofenceHandler.AdminListAll,
-		AdminListAllCalendars:     calendarHandler.AdminListAll,
-		AdminListAllNotifications: notificationHandler.AdminListAll,
-		AdminGetAllPositions:      positionHandler.AdminGetAllPositions,
-
-		StartSudo:     sudoHandler.StartSudo,
-		EndSudo:       sudoHandler.EndSudo,
-		GetSudoStatus: sudoHandler.GetSudoStatus,
-
-		GetPlatformStats: statisticsHandler.GetPlatformStats,
-		GetUserStats:     statisticsHandler.GetUserStats,
-
-		GetAuditLog: auditHandler.GetAuditLog,
-
-		ListCalendars:  calendarHandler.List,
-		CreateCalendar: calendarHandler.Create,
-		UpdateCalendar: calendarHandler.Update,
-		DeleteCalendar: calendarHandler.Delete,
-		CheckCalendar:  calendarHandler.Check,
-
-		CreateApiKey:      apiKeyHandler.Create,
-		ListApiKeys:       apiKeyHandler.List,
-		DeleteApiKey:      apiKeyHandler.Delete,
-		AdminListUserKeys: apiKeyHandler.AdminListUserKeys,
-
-		ListSessions:       sessionHandler.ListSessions,
-		DeleteSession:      sessionHandler.DeleteSession,
-		LogoutAll:          sessionHandler.LogoutAll,
-		AdminDeleteSession: sessionHandler.AdminDeleteSession,
-
-		OIDCConfig:   oidcConfigFn,
-		OIDCLogin:    oidcLoginFn,
-		OIDCCallback: oidcCallbackFn,
-	}
-	adminMW := middleware.RequireAdmin
+	// Unified API handler.
+	handler := handlers.NewHandler(handlers.HandlerConfig{
+		Users:               userRepo,
+		Sessions:            sessionRepo,
+		Devices:             deviceRepo,
+		Positions:           positionRepo,
+		Commands:            commandRepo,
+		Geofences:           geofenceRepo,
+		Events:              eventRepo,
+		Notifications:       notificationRepo,
+		Shares:              shareRepo,
+		ApiKeys:             apiKeyRepo,
+		Calendars:           calendarRepo,
+		Stats:               statsRepo,
+		OIDCStateRepo:       oidcStateRepo,
+		NotificationService: notificationService,
+		DeviceRegistry:      deviceRegistry,
+		EncoderRegistry:     protocol.NewEncoderRegistry(),
+		Hub:                 hub,
+		AuditLogger:         auditLogger,
+		UniqueIDPrefix:      cfg.Device.UniqueIDPrefix,
+		OIDCConfig:          cfg.OIDC,
+	})
+	secHandler := handlers.NewSecurityHandler(sessionRepo, apiKeyRepo, userRepo)
 
 	// CSRF protection: load or generate the 32-byte secret key.
 	csrfSecret := loadCSRFSecret(cfg.Security.CSRFSecret, cfg.Security.Env)
@@ -383,6 +276,7 @@ func Run() {
 		LoginRateLimit:  loginRateLimit,
 		APIRateLimit:    middleware.APIRateLimit(),
 		SecurityHeaders: middleware.SecurityHeaders,
+		Auth:            middleware.LoadAuthContext(userRepo, sessionRepo, apiKeyRepo),
 		WriteAccess:     middleware.RequireWriteAccess,
 		Logger:          middleware.Logger,
 		CSRFProtect: middleware.CSRF(middleware.CSRFConfig{
@@ -394,7 +288,7 @@ func Run() {
 			},
 		}),
 	}
-	router := api.NewRouter(h, authMW, adminMW, hub, routerCfg)
+	router := api.NewRouter(handler, secHandler, hub, routerCfg)
 
 	// Geofence event detection service.
 	geofenceEventService := services.NewGeofenceEventService(geofenceRepo, eventRepo, positionRepo, hub, notificationService)

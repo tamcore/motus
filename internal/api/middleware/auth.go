@@ -13,18 +13,29 @@ import (
 
 // Auth returns middleware that authenticates requests via bearer token
 // (API key), legacy user token, X-Auth-Token header, or session cookie.
+// Unauthenticated requests receive a 401 response.
 //
-// Bearer tokens are checked first against the api_keys table for multi-key
-// support with permissions. If no match is found, the legacy users.token
-// column is checked for backward compatibility. The X-Auth-Token header is
-// then consulted as a localStorage/IndexedDB fallback for iOS PWA contexts
-// where the session cookie gets evicted. Session cookies are the final
-// fallback for browser clients.
-//
-// When authentication succeeds via an API key, both the user and the API key
-// are stored in the request context. The API key context value is used by
-// the RequireWriteAccess middleware to enforce read-only restrictions.
+// Use LoadAuthContext when wrapping an ogen server — ogen's SecurityHandler
+// handles per-operation auth enforcement, so the chi-level middleware only
+// needs to populate context (not block).
 func Auth(users repository.UserRepo, sessions repository.SessionRepo, apiKeys repository.ApiKeyRepo) func(http.Handler) http.Handler {
+	return buildAuthMiddleware(users, sessions, apiKeys, true)
+}
+
+// LoadAuthContext returns middleware that loads auth context from the request
+// when credentials are present but always passes through unauthenticated
+// requests unchanged.
+//
+// Use this as RouterConfig.Auth so WriteAccess can inspect API key permissions
+// before the ogen SecurityHandler runs. The SecurityHandler enforces auth
+// requirements per-operation (e.g. /api/health needs no auth, /api/devices does).
+func LoadAuthContext(users repository.UserRepo, sessions repository.SessionRepo, apiKeys repository.ApiKeyRepo) func(http.Handler) http.Handler {
+	return buildAuthMiddleware(users, sessions, apiKeys, false)
+}
+
+// buildAuthMiddleware is the shared implementation. requireAuth=true returns 401
+// for unauthenticated requests; requireAuth=false passes them through unchanged.
+func buildAuthMiddleware(users repository.UserRepo, sessions repository.SessionRepo, apiKeys repository.ApiKeyRepo, requireAuth bool) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Try bearer token first (Home Assistant, Traccar Manager, API clients).
@@ -131,7 +142,11 @@ func Auth(users repository.UserRepo, sessions repository.SessionRepo, apiKeys re
 				}
 			}
 
-			api.RespondError(w, http.StatusUnauthorized, "authentication required")
+			if requireAuth {
+				api.RespondError(w, http.StatusUnauthorized, "authentication required")
+				return
+			}
+			next.ServeHTTP(w, r)
 		})
 	}
 }

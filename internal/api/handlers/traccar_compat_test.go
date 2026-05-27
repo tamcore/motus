@@ -1236,166 +1236,17 @@ func TestTraccarCompat_FullRouterDevicesEndpoint(t *testing.T) {
 		t.Fatalf("create api key: %v", err)
 	}
 
-	// Build handlers.
-	deviceHandler := handlers.NewDeviceHandler(deviceRepo, "")
-	positionHandler := handlers.NewPositionHandler(positionRepo, deviceRepo)
-	geofenceHandler := handlers.NewGeofenceHandler(geofenceRepo)
-	sessionHandler := handlers.NewSessionHandler(userRepo, sessionRepo, apiKeyRepo)
-	serverHandler := handlers.NewServerHandler()
-
-	// Build the router with real auth middleware.
-	authMW := middleware.Auth(userRepo, sessionRepo, apiKeyRepo)
-	adminMW := func(next http.Handler) http.Handler { return next } // no-op for this test
 	hub := websocket.NewHub(nil, nil, nil)
-
-	h := api.Handlers{
-		GetServer:         serverHandler.GetServer,
-		Login:             sessionHandler.Login,
-		GetCurrentSession: sessionHandler.GetCurrentSession,
-		GenerateToken:     sessionHandler.GenerateToken,
-		Logout:            sessionHandler.Logout,
-		ListDevices:       deviceHandler.List,
-		GetDevice:         deviceHandler.Get,
-		CreateDevice:      deviceHandler.Create,
-		UpdateDevice:      deviceHandler.Update,
-		DeleteDevice:      deviceHandler.Delete,
-		GetPositions:      positionHandler.GetPositions,
-		ListGeofences:     geofenceHandler.List,
-		GetGeofence:       geofenceHandler.Get,
-		CreateGeofence:    geofenceHandler.Create,
-		UpdateGeofence:    geofenceHandler.Update,
-		DeleteGeofence:    geofenceHandler.Delete,
-	}
-
-	// Fill remaining handlers with no-ops to avoid nil panics.
-	noop := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotImplemented)
+	handler := handlers.NewHandler(handlers.HandlerConfig{
+		Users:     userRepo,
+		Sessions:  sessionRepo,
+		Devices:   deviceRepo,
+		Positions: positionRepo,
+		Geofences: geofenceRepo,
+		ApiKeys:   apiKeyRepo,
 	})
-	if h.CreateCommand == nil {
-		h.CreateCommand = noop
-	}
-	if h.SendCommand == nil {
-		h.SendCommand = noop
-	}
-	if h.GetCmdTypes == nil {
-		h.GetCmdTypes = noop
-	}
-	if h.ListEvents == nil {
-		h.ListEvents = noop
-	}
-	if h.ReportEvents == nil {
-		h.ReportEvents = noop
-	}
-	if h.ListNotifications == nil {
-		h.ListNotifications = noop
-	}
-	if h.CreateNotification == nil {
-		h.CreateNotification = noop
-	}
-	if h.UpdateNotification == nil {
-		h.UpdateNotification = noop
-	}
-	if h.DeleteNotification == nil {
-		h.DeleteNotification = noop
-	}
-	if h.TestNotification == nil {
-		h.TestNotification = noop
-	}
-	if h.NotificationLogs == nil {
-		h.NotificationLogs = noop
-	}
-	if h.CreateShare == nil {
-		h.CreateShare = noop
-	}
-	if h.ListShares == nil {
-		h.ListShares = noop
-	}
-	if h.DeleteShare == nil {
-		h.DeleteShare = noop
-	}
-	if h.GetSharedDevice == nil {
-		h.GetSharedDevice = noop
-	}
-	if h.ListUsers == nil {
-		h.ListUsers = noop
-	}
-	if h.CreateUser == nil {
-		h.CreateUser = noop
-	}
-	if h.UpdateUser == nil {
-		h.UpdateUser = noop
-	}
-	if h.DeleteUser == nil {
-		h.DeleteUser = noop
-	}
-	if h.ListUserDevs == nil {
-		h.ListUserDevs = noop
-	}
-	if h.AssignDevice == nil {
-		h.AssignDevice = noop
-	}
-	if h.UnassignDevice == nil {
-		h.UnassignDevice = noop
-	}
-	if h.StartSudo == nil {
-		h.StartSudo = noop
-	}
-	if h.EndSudo == nil {
-		h.EndSudo = noop
-	}
-	if h.GetSudoStatus == nil {
-		h.GetSudoStatus = noop
-	}
-	if h.GetPlatformStats == nil {
-		h.GetPlatformStats = noop
-	}
-	if h.GetUserStats == nil {
-		h.GetUserStats = noop
-	}
-	if h.GetAuditLog == nil {
-		h.GetAuditLog = noop
-	}
-	if h.ListCalendars == nil {
-		h.ListCalendars = noop
-	}
-	if h.CreateCalendar == nil {
-		h.CreateCalendar = noop
-	}
-	if h.UpdateCalendar == nil {
-		h.UpdateCalendar = noop
-	}
-	if h.DeleteCalendar == nil {
-		h.DeleteCalendar = noop
-	}
-	if h.CheckCalendar == nil {
-		h.CheckCalendar = noop
-	}
-	if h.CreateApiKey == nil {
-		h.CreateApiKey = noop
-	}
-	if h.ListApiKeys == nil {
-		h.ListApiKeys = noop
-	}
-	if h.DeleteApiKey == nil {
-		h.DeleteApiKey = noop
-	}
-	if h.AdminListUserKeys == nil {
-		h.AdminListUserKeys = noop
-	}
-	if h.AdminListAllGeofences == nil {
-		h.AdminListAllGeofences = noop
-	}
-	if h.AdminListAllCalendars == nil {
-		h.AdminListAllCalendars = noop
-	}
-	if h.AdminListAllNotifications == nil {
-		h.AdminListAllNotifications = noop
-	}
-	if h.AdminGetAllPositions == nil {
-		h.AdminGetAllPositions = noop
-	}
-
-	router := api.NewRouter(h, authMW, adminMW, hub)
+	secHandler := handlers.NewSecurityHandler(sessionRepo, apiKeyRepo, userRepo)
+	router := api.NewRouter(handler, secHandler, hub)
 	ts := httptest.NewServer(router)
 	defer ts.Close()
 

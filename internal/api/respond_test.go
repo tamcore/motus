@@ -120,3 +120,19 @@ func TestUserFromContext_WrongType(t *testing.T) {
 		t.Error("expected nil for wrong type in context")
 	}
 }
+
+func TestContextWithSession(t *testing.T) {
+	sess := &model.Session{UserID: 42}
+	ctx := ContextWithSession(context.Background(), sess)
+	got := SessionFromContext(ctx)
+	if got == nil || got.UserID != 42 {
+		t.Fatalf("expected session userID 42, got %v", got)
+	}
+}
+
+func TestSessionFromContext_nil(t *testing.T) {
+	got := SessionFromContext(context.Background())
+	if got != nil {
+		t.Fatalf("expected nil, got %v", got)
+	}
+}

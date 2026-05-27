@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/xml"
 	"io"
 	"math"
@@ -8,6 +9,7 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
+	oas "github.com/tamcore/motus/internal/api/oas"
 	"github.com/tamcore/motus/internal/api"
 	"github.com/tamcore/motus/internal/audit"
 	"github.com/tamcore/motus/internal/demo"
@@ -172,4 +174,78 @@ func gpxBearing(lat1, lon1, lat2, lon2 float64) float64 {
 	y := math.Sin(dLon) * math.Cos(lat2R)
 	x := math.Cos(lat1R)*math.Sin(lat2R) - math.Sin(lat1R)*math.Cos(lat2R)*math.Cos(dLon)
 	return math.Mod(math.Atan2(y, x)*180.0/math.Pi+360, 360)
+}
+
+// --- ogen Handler methods ---
+
+// ImportGPX handles the ogen ImportGPX endpoint.
+// Supports both multipart/form-data and application/gpx+xml content types.
+func (h *Handler) ImportGPX(ctx context.Context, req oas.ImportGPXReq, params oas.ImportGPXParams) (oas.ImportGPXRes, error) {
+	user := api.UserFromContext(ctx)
+	if user == nil {
+		return &oas.ImportGPXUnauthorized{Error: "unauthorized"}, nil
+	}
+
+	if !h.cfg.Devices.UserHasAccess(ctx, user, params.ID) {
+		return &oas.ImportGPXForbidden{Error: "access denied"}, nil
+	}
+
+	var gpxData []byte
+	switch v := req.(type) {
+	case *oas.ImportGPXReqMultipartFormData:
+		if !v.File.Set {
+			return &oas.ImportGPXBadRequest{Error: "missing file field"}, nil
+		}
+		var err error
+		gpxData, err = io.ReadAll(v.File.Value.File)
+		if err != nil {
+			return &oas.ImportGPXBadRequest{Error: "failed to read file"}, nil
+		}
+	case *oas.ImportGPXReqApplicationGpxXML:
+		var err error
+		gpxData, err = io.ReadAll(v.Data)
+		if err != nil {
+			return &oas.ImportGPXBadRequest{Error: "failed to read body"}, nil
+		}
+	default:
+		return &oas.ImportGPXBadRequest{Error: "unsupported content type"}, nil
+	}
+
+	var gpxFile demo.GPXFile
+	if err := xml.Unmarshal(gpxData, &gpxFile); err != nil {
+		return &oas.ImportGPXBadRequest{Error: "invalid GPX file"}, nil
+	}
+
+	gpxHandler := &GPXImportHandler{
+		devices:   h.cfg.Devices,
+		positions: h.cfg.Positions,
+		audit:     h.cfg.AuditLogger,
+	}
+	// processPoints requires an *http.Request for audit logging; pass a minimal one.
+	r, _ := http.NewRequestWithContext(ctx, http.MethodPost, "/", nil)
+	imported, _, lastPos := gpxHandler.processPoints(r, params.ID, &gpxFile)
+	if imported == 0 {
+		return &oas.ImportGPXBadRequest{Error: "no timed positions found in GPX file"}, nil
+	}
+
+	if lastPos != nil {
+		if device, err := h.cfg.Devices.GetByID(ctx, params.ID); err == nil {
+			if device.LastUpdate == nil || lastPos.Timestamp.After(*device.LastUpdate) {
+				device.LastUpdate = &lastPos.Timestamp
+				device.PositionID = &lastPos.ID
+				_ = h.cfg.Devices.Update(ctx, device)
+			}
+		}
+	}
+
+	if h.cfg.AuditLogger != nil {
+		id := params.ID
+		h.cfg.AuditLogger.Log(ctx, &user.ID,
+			audit.ActionGPXImport, audit.ResourceDevice, &id,
+			map[string]interface{}{"deviceId": params.ID, "positions": imported}, "", "")
+	}
+
+	return &oas.ImportGPXOK{
+		Imported: oas.OptInt{Value: imported, Set: true},
+	}, nil
 }

@@ -313,12 +313,59 @@ func calendarToOAS(c *model.Calendar) oas.Calendar {
 	}
 }
 
+// buildCommandAttributes converts a model command type+attrs map to a typed oas.OptCommandAttributes.
+func buildCommandAttributes(cmdType string, modelAttrs map[string]interface{}) oas.OptCommandAttributes {
+	if modelAttrs == nil {
+		return oas.OptCommandAttributes{}
+	}
+	var ca oas.CommandAttributes
+	switch cmdType {
+	case "custom":
+		text, _ := modelAttrs["text"].(string)
+		ca.SetCommandAttrCustom(oas.CommandAttrCustom{Type: oas.CommandAttrCustomTypeCustom, Text: text})
+	case "positionPeriodic":
+		ca.SetCommandAttrPositionPeriodic(oas.CommandAttrPositionPeriodic{
+			Type:      oas.CommandAttrPositionPeriodicTypePositionPeriodic,
+			Frequency: attrInt(modelAttrs, "frequency").Value,
+		})
+	case "sosNumber":
+		phone, _ := modelAttrs["phoneNumber"].(string)
+		ca.SetCommandAttrSosNumber(oas.CommandAttrSosNumber{
+			Type:        oas.CommandAttrSosNumberTypeSosNumber,
+			PhoneNumber: phone,
+		})
+	case "setSpeedAlarm":
+		speed, _ := modelAttrs["speed"].(float64)
+		ca.SetCommandAttrSetSpeedAlarm(oas.CommandAttrSetSpeedAlarm{
+			Type:  oas.CommandAttrSetSpeedAlarmTypeSetSpeedAlarm,
+			Speed: speed,
+		})
+	default:
+		return oas.OptCommandAttributes{}
+	}
+	return oas.OptCommandAttributes{Value: ca, Set: true}
+}
+
+// oasCommandAttrsToModel converts a typed oas.OptCommandAttributes to a model attribute map.
+func oasCommandAttrsToModel(attrs oas.OptCommandAttributes) map[string]interface{} {
+	if !attrs.Set {
+		return nil
+	}
+	switch {
+	case attrs.Value.IsCommandAttrCustom():
+		return map[string]interface{}{"text": attrs.Value.CommandAttrCustom.Text}
+	case attrs.Value.IsCommandAttrPositionPeriodic():
+		return map[string]interface{}{"frequency": attrs.Value.CommandAttrPositionPeriodic.Frequency}
+	case attrs.Value.IsCommandAttrSosNumber():
+		return map[string]interface{}{"phoneNumber": attrs.Value.CommandAttrSosNumber.PhoneNumber}
+	case attrs.Value.IsCommandAttrSetSpeedAlarm():
+		return map[string]interface{}{"speed": attrs.Value.CommandAttrSetSpeedAlarm.Speed}
+	}
+	return nil
+}
+
 // commandToOAS converts a model.Command to oas.Command.
 func commandToOAS(c *model.Command) oas.Command {
-	var attrs oas.OptCommandAttributes
-	if c.Attributes != nil {
-		attrs = oas.OptCommandAttributes{Value: oas.CommandAttributes(attrsToRaw(c.Attributes)), Set: true}
-	}
 	return oas.Command{
 		ID:         c.ID,
 		DeviceId:   c.DeviceID,
@@ -327,7 +374,7 @@ func commandToOAS(c *model.Command) oas.Command {
 		Result:     ptrToOptStr(c.Result),
 		ExecutedAt: ptrToOptTime(c.ExecutedAt),
 		CreatedAt:  c.CreatedAt,
-		Attributes: attrs,
+		Attributes: buildCommandAttributes(c.Type, c.Attributes),
 	}
 }
 

@@ -119,6 +119,48 @@ components:
         satellites: { type: integer }
       additionalProperties: true
 
+    CommandAttributes:
+      oneOf:
+        - $ref: '#/components/schemas/CommandAttrCustom'
+        - $ref: '#/components/schemas/CommandAttrPositionPeriodic'
+        - $ref: '#/components/schemas/CommandAttrSosNumber'
+        - $ref: '#/components/schemas/CommandAttrSetSpeedAlarm'
+      discriminator:
+        propertyName: type
+        mapping:
+          custom:           '#/components/schemas/CommandAttrCustom'
+          positionPeriodic: '#/components/schemas/CommandAttrPositionPeriodic'
+          sosNumber:        '#/components/schemas/CommandAttrSosNumber'
+          setSpeedAlarm:    '#/components/schemas/CommandAttrSetSpeedAlarm'
+
+    CommandAttrCustom:
+      type: object
+      required: [type, text]
+      properties:
+        type: { type: string, enum: [custom] }
+        text: { type: string }
+
+    CommandAttrPositionPeriodic:
+      type: object
+      required: [type, frequency]
+      properties:
+        type: { type: string, enum: [positionPeriodic] }
+        frequency: { type: integer }
+
+    CommandAttrSosNumber:
+      type: object
+      required: [type, phoneNumber]
+      properties:
+        type: { type: string, enum: [sosNumber] }
+        phoneNumber: { type: string }
+
+    CommandAttrSetSpeedAlarm:
+      type: object
+      required: [type, speed]
+      properties:
+        type: { type: string, enum: [setSpeedAlarm] }
+        speed: { type: number, format: double }
+
     NotificationRuleConfig:
       oneOf:
         - $ref: '#/components/schemas/NotificationConfigWebhook'
@@ -252,8 +294,7 @@ components:
         executedAt: { type: string, format: date-time, nullable: true }
         createdAt: { type: string, format: date-time }
         attributes:
-          type: object
-          additionalProperties: {}
+          $ref: '#/components/schemas/CommandAttributes'
 
     CommandInput:
       type: object
@@ -262,8 +303,7 @@ components:
         deviceId: { type: integer, format: int64 }
         type: { type: string }
         attributes:
-          type: object
-          additionalProperties: {}
+          $ref: '#/components/schemas/CommandAttributes'
 
     SendCommandRequest:
       type: object
@@ -272,8 +312,7 @@ components:
         deviceId: { type: integer, format: int64 }
         type: { type: string }
         attributes:
-          type: object
-          additionalProperties: {}
+          $ref: '#/components/schemas/CommandAttributes'
 
     CommandType:
       type: object

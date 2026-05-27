@@ -887,22 +887,376 @@ func (s *Command) SetAttributes(val OptCommandAttributes) {
 func (*Command) createCommandRes() {}
 func (*Command) sendCommandRes()   {}
 
-type CommandAttributes map[string]jx.Raw
+// Ref: #/components/schemas/CommandAttrCustom
+type CommandAttrCustom struct {
+	Type CommandAttrCustomType `json:"type"`
+	Text string                `json:"text"`
+}
 
-func (s *CommandAttributes) init() CommandAttributes {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
+// GetType returns the value of Type.
+func (s *CommandAttrCustom) GetType() CommandAttrCustomType {
+	return s.Type
+}
+
+// GetText returns the value of Text.
+func (s *CommandAttrCustom) GetText() string {
+	return s.Text
+}
+
+// SetType sets the value of Type.
+func (s *CommandAttrCustom) SetType(val CommandAttrCustomType) {
+	s.Type = val
+}
+
+// SetText sets the value of Text.
+func (s *CommandAttrCustom) SetText(val string) {
+	s.Text = val
+}
+
+type CommandAttrCustomType string
+
+const (
+	CommandAttrCustomTypeCustom CommandAttrCustomType = "custom"
+)
+
+// AllValues returns all CommandAttrCustomType values.
+func (CommandAttrCustomType) AllValues() []CommandAttrCustomType {
+	return []CommandAttrCustomType{
+		CommandAttrCustomTypeCustom,
 	}
-	return m
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CommandAttrCustomType) MarshalText() ([]byte, error) {
+	switch s {
+	case CommandAttrCustomTypeCustom:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CommandAttrCustomType) UnmarshalText(data []byte) error {
+	switch CommandAttrCustomType(data) {
+	case CommandAttrCustomTypeCustom:
+		*s = CommandAttrCustomTypeCustom
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/CommandAttrPositionPeriodic
+type CommandAttrPositionPeriodic struct {
+	Type      CommandAttrPositionPeriodicType `json:"type"`
+	Frequency int                             `json:"frequency"`
+}
+
+// GetType returns the value of Type.
+func (s *CommandAttrPositionPeriodic) GetType() CommandAttrPositionPeriodicType {
+	return s.Type
+}
+
+// GetFrequency returns the value of Frequency.
+func (s *CommandAttrPositionPeriodic) GetFrequency() int {
+	return s.Frequency
+}
+
+// SetType sets the value of Type.
+func (s *CommandAttrPositionPeriodic) SetType(val CommandAttrPositionPeriodicType) {
+	s.Type = val
+}
+
+// SetFrequency sets the value of Frequency.
+func (s *CommandAttrPositionPeriodic) SetFrequency(val int) {
+	s.Frequency = val
+}
+
+type CommandAttrPositionPeriodicType string
+
+const (
+	CommandAttrPositionPeriodicTypePositionPeriodic CommandAttrPositionPeriodicType = "positionPeriodic"
+)
+
+// AllValues returns all CommandAttrPositionPeriodicType values.
+func (CommandAttrPositionPeriodicType) AllValues() []CommandAttrPositionPeriodicType {
+	return []CommandAttrPositionPeriodicType{
+		CommandAttrPositionPeriodicTypePositionPeriodic,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CommandAttrPositionPeriodicType) MarshalText() ([]byte, error) {
+	switch s {
+	case CommandAttrPositionPeriodicTypePositionPeriodic:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CommandAttrPositionPeriodicType) UnmarshalText(data []byte) error {
+	switch CommandAttrPositionPeriodicType(data) {
+	case CommandAttrPositionPeriodicTypePositionPeriodic:
+		*s = CommandAttrPositionPeriodicTypePositionPeriodic
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/CommandAttrSetSpeedAlarm
+type CommandAttrSetSpeedAlarm struct {
+	Type  CommandAttrSetSpeedAlarmType `json:"type"`
+	Speed float64                      `json:"speed"`
+}
+
+// GetType returns the value of Type.
+func (s *CommandAttrSetSpeedAlarm) GetType() CommandAttrSetSpeedAlarmType {
+	return s.Type
+}
+
+// GetSpeed returns the value of Speed.
+func (s *CommandAttrSetSpeedAlarm) GetSpeed() float64 {
+	return s.Speed
+}
+
+// SetType sets the value of Type.
+func (s *CommandAttrSetSpeedAlarm) SetType(val CommandAttrSetSpeedAlarmType) {
+	s.Type = val
+}
+
+// SetSpeed sets the value of Speed.
+func (s *CommandAttrSetSpeedAlarm) SetSpeed(val float64) {
+	s.Speed = val
+}
+
+type CommandAttrSetSpeedAlarmType string
+
+const (
+	CommandAttrSetSpeedAlarmTypeSetSpeedAlarm CommandAttrSetSpeedAlarmType = "setSpeedAlarm"
+)
+
+// AllValues returns all CommandAttrSetSpeedAlarmType values.
+func (CommandAttrSetSpeedAlarmType) AllValues() []CommandAttrSetSpeedAlarmType {
+	return []CommandAttrSetSpeedAlarmType{
+		CommandAttrSetSpeedAlarmTypeSetSpeedAlarm,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CommandAttrSetSpeedAlarmType) MarshalText() ([]byte, error) {
+	switch s {
+	case CommandAttrSetSpeedAlarmTypeSetSpeedAlarm:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CommandAttrSetSpeedAlarmType) UnmarshalText(data []byte) error {
+	switch CommandAttrSetSpeedAlarmType(data) {
+	case CommandAttrSetSpeedAlarmTypeSetSpeedAlarm:
+		*s = CommandAttrSetSpeedAlarmTypeSetSpeedAlarm
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/CommandAttrSosNumber
+type CommandAttrSosNumber struct {
+	Type        CommandAttrSosNumberType `json:"type"`
+	PhoneNumber string                   `json:"phoneNumber"`
+}
+
+// GetType returns the value of Type.
+func (s *CommandAttrSosNumber) GetType() CommandAttrSosNumberType {
+	return s.Type
+}
+
+// GetPhoneNumber returns the value of PhoneNumber.
+func (s *CommandAttrSosNumber) GetPhoneNumber() string {
+	return s.PhoneNumber
+}
+
+// SetType sets the value of Type.
+func (s *CommandAttrSosNumber) SetType(val CommandAttrSosNumberType) {
+	s.Type = val
+}
+
+// SetPhoneNumber sets the value of PhoneNumber.
+func (s *CommandAttrSosNumber) SetPhoneNumber(val string) {
+	s.PhoneNumber = val
+}
+
+type CommandAttrSosNumberType string
+
+const (
+	CommandAttrSosNumberTypeSosNumber CommandAttrSosNumberType = "sosNumber"
+)
+
+// AllValues returns all CommandAttrSosNumberType values.
+func (CommandAttrSosNumberType) AllValues() []CommandAttrSosNumberType {
+	return []CommandAttrSosNumberType{
+		CommandAttrSosNumberTypeSosNumber,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CommandAttrSosNumberType) MarshalText() ([]byte, error) {
+	switch s {
+	case CommandAttrSosNumberTypeSosNumber:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CommandAttrSosNumberType) UnmarshalText(data []byte) error {
+	switch CommandAttrSosNumberType(data) {
+	case CommandAttrSosNumberTypeSosNumber:
+		*s = CommandAttrSosNumberTypeSosNumber
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/CommandAttributes
+// CommandAttributes represents sum type.
+type CommandAttributes struct {
+	Type                        CommandAttributesType // switch on this field
+	CommandAttrCustom           CommandAttrCustom
+	CommandAttrPositionPeriodic CommandAttrPositionPeriodic
+	CommandAttrSosNumber        CommandAttrSosNumber
+	CommandAttrSetSpeedAlarm    CommandAttrSetSpeedAlarm
+}
+
+// CommandAttributesType is oneOf type of CommandAttributes.
+type CommandAttributesType string
+
+// Possible values for CommandAttributesType.
+const (
+	CommandAttrCustomCommandAttributes           CommandAttributesType = "custom"
+	CommandAttrPositionPeriodicCommandAttributes CommandAttributesType = "positionPeriodic"
+	CommandAttrSosNumberCommandAttributes        CommandAttributesType = "sosNumber"
+	CommandAttrSetSpeedAlarmCommandAttributes    CommandAttributesType = "setSpeedAlarm"
+)
+
+// IsCommandAttrCustom reports whether CommandAttributes is CommandAttrCustom.
+func (s CommandAttributes) IsCommandAttrCustom() bool {
+	return s.Type == CommandAttrCustomCommandAttributes
+}
+
+// IsCommandAttrPositionPeriodic reports whether CommandAttributes is CommandAttrPositionPeriodic.
+func (s CommandAttributes) IsCommandAttrPositionPeriodic() bool {
+	return s.Type == CommandAttrPositionPeriodicCommandAttributes
+}
+
+// IsCommandAttrSosNumber reports whether CommandAttributes is CommandAttrSosNumber.
+func (s CommandAttributes) IsCommandAttrSosNumber() bool {
+	return s.Type == CommandAttrSosNumberCommandAttributes
+}
+
+// IsCommandAttrSetSpeedAlarm reports whether CommandAttributes is CommandAttrSetSpeedAlarm.
+func (s CommandAttributes) IsCommandAttrSetSpeedAlarm() bool {
+	return s.Type == CommandAttrSetSpeedAlarmCommandAttributes
+}
+
+// SetCommandAttrCustom sets CommandAttributes to CommandAttrCustom.
+func (s *CommandAttributes) SetCommandAttrCustom(v CommandAttrCustom) {
+	s.Type = CommandAttrCustomCommandAttributes
+	s.CommandAttrCustom = v
+}
+
+// GetCommandAttrCustom returns CommandAttrCustom and true boolean if CommandAttributes is CommandAttrCustom.
+func (s CommandAttributes) GetCommandAttrCustom() (v CommandAttrCustom, ok bool) {
+	if !s.IsCommandAttrCustom() {
+		return v, false
+	}
+	return s.CommandAttrCustom, true
+}
+
+// NewCommandAttrCustomCommandAttributes returns new CommandAttributes from CommandAttrCustom.
+func NewCommandAttrCustomCommandAttributes(v CommandAttrCustom) CommandAttributes {
+	var s CommandAttributes
+	s.SetCommandAttrCustom(v)
+	return s
+}
+
+// SetCommandAttrPositionPeriodic sets CommandAttributes to CommandAttrPositionPeriodic.
+func (s *CommandAttributes) SetCommandAttrPositionPeriodic(v CommandAttrPositionPeriodic) {
+	s.Type = CommandAttrPositionPeriodicCommandAttributes
+	s.CommandAttrPositionPeriodic = v
+}
+
+// GetCommandAttrPositionPeriodic returns CommandAttrPositionPeriodic and true boolean if CommandAttributes is CommandAttrPositionPeriodic.
+func (s CommandAttributes) GetCommandAttrPositionPeriodic() (v CommandAttrPositionPeriodic, ok bool) {
+	if !s.IsCommandAttrPositionPeriodic() {
+		return v, false
+	}
+	return s.CommandAttrPositionPeriodic, true
+}
+
+// NewCommandAttrPositionPeriodicCommandAttributes returns new CommandAttributes from CommandAttrPositionPeriodic.
+func NewCommandAttrPositionPeriodicCommandAttributes(v CommandAttrPositionPeriodic) CommandAttributes {
+	var s CommandAttributes
+	s.SetCommandAttrPositionPeriodic(v)
+	return s
+}
+
+// SetCommandAttrSosNumber sets CommandAttributes to CommandAttrSosNumber.
+func (s *CommandAttributes) SetCommandAttrSosNumber(v CommandAttrSosNumber) {
+	s.Type = CommandAttrSosNumberCommandAttributes
+	s.CommandAttrSosNumber = v
+}
+
+// GetCommandAttrSosNumber returns CommandAttrSosNumber and true boolean if CommandAttributes is CommandAttrSosNumber.
+func (s CommandAttributes) GetCommandAttrSosNumber() (v CommandAttrSosNumber, ok bool) {
+	if !s.IsCommandAttrSosNumber() {
+		return v, false
+	}
+	return s.CommandAttrSosNumber, true
+}
+
+// NewCommandAttrSosNumberCommandAttributes returns new CommandAttributes from CommandAttrSosNumber.
+func NewCommandAttrSosNumberCommandAttributes(v CommandAttrSosNumber) CommandAttributes {
+	var s CommandAttributes
+	s.SetCommandAttrSosNumber(v)
+	return s
+}
+
+// SetCommandAttrSetSpeedAlarm sets CommandAttributes to CommandAttrSetSpeedAlarm.
+func (s *CommandAttributes) SetCommandAttrSetSpeedAlarm(v CommandAttrSetSpeedAlarm) {
+	s.Type = CommandAttrSetSpeedAlarmCommandAttributes
+	s.CommandAttrSetSpeedAlarm = v
+}
+
+// GetCommandAttrSetSpeedAlarm returns CommandAttrSetSpeedAlarm and true boolean if CommandAttributes is CommandAttrSetSpeedAlarm.
+func (s CommandAttributes) GetCommandAttrSetSpeedAlarm() (v CommandAttrSetSpeedAlarm, ok bool) {
+	if !s.IsCommandAttrSetSpeedAlarm() {
+		return v, false
+	}
+	return s.CommandAttrSetSpeedAlarm, true
+}
+
+// NewCommandAttrSetSpeedAlarmCommandAttributes returns new CommandAttributes from CommandAttrSetSpeedAlarm.
+func NewCommandAttrSetSpeedAlarmCommandAttributes(v CommandAttrSetSpeedAlarm) CommandAttributes {
+	var s CommandAttributes
+	s.SetCommandAttrSetSpeedAlarm(v)
+	return s
 }
 
 // Ref: #/components/schemas/CommandInput
 type CommandInput struct {
-	DeviceId   int64                     `json:"deviceId"`
-	Type       string                    `json:"type"`
-	Attributes OptCommandInputAttributes `json:"attributes"`
+	DeviceId   int64                `json:"deviceId"`
+	Type       string               `json:"type"`
+	Attributes OptCommandAttributes `json:"attributes"`
 }
 
 // GetDeviceId returns the value of DeviceId.
@@ -916,7 +1270,7 @@ func (s *CommandInput) GetType() string {
 }
 
 // GetAttributes returns the value of Attributes.
-func (s *CommandInput) GetAttributes() OptCommandInputAttributes {
+func (s *CommandInput) GetAttributes() OptCommandAttributes {
 	return s.Attributes
 }
 
@@ -931,19 +1285,8 @@ func (s *CommandInput) SetType(val string) {
 }
 
 // SetAttributes sets the value of Attributes.
-func (s *CommandInput) SetAttributes(val OptCommandInputAttributes) {
+func (s *CommandInput) SetAttributes(val OptCommandAttributes) {
 	s.Attributes = val
-}
-
-type CommandInputAttributes map[string]jx.Raw
-
-func (s *CommandInputAttributes) init() CommandInputAttributes {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
 }
 
 // Ref: #/components/schemas/CommandType
@@ -2818,52 +3161,6 @@ func (o OptCommandAttributes) Or(d CommandAttributes) CommandAttributes {
 	return d
 }
 
-// NewOptCommandInputAttributes returns new OptCommandInputAttributes with value set to v.
-func NewOptCommandInputAttributes(v CommandInputAttributes) OptCommandInputAttributes {
-	return OptCommandInputAttributes{
-		Value: v,
-		Set:   true,
-	}
-}
-
-// OptCommandInputAttributes is optional CommandInputAttributes.
-type OptCommandInputAttributes struct {
-	Value CommandInputAttributes
-	Set   bool
-}
-
-// IsSet returns true if OptCommandInputAttributes was set.
-func (o OptCommandInputAttributes) IsSet() bool { return o.Set }
-
-// Reset unsets value.
-func (o *OptCommandInputAttributes) Reset() {
-	var v CommandInputAttributes
-	o.Value = v
-	o.Set = false
-}
-
-// SetTo sets value to v.
-func (o *OptCommandInputAttributes) SetTo(v CommandInputAttributes) {
-	o.Set = true
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o OptCommandInputAttributes) Get() (v CommandInputAttributes, ok bool) {
-	if !o.Set {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o OptCommandInputAttributes) Or(d CommandInputAttributes) CommandInputAttributes {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
 // NewOptCreateShareRequest returns new OptCreateShareRequest with value set to v.
 func NewOptCreateShareRequest(v CreateShareRequest) OptCreateShareRequest {
 	return OptCreateShareRequest{
@@ -3484,52 +3781,6 @@ func (o OptNotificationConfigWebhookHeaders) Or(d NotificationConfigWebhookHeade
 	return d
 }
 
-// NewOptSendCommandRequestAttributes returns new OptSendCommandRequestAttributes with value set to v.
-func NewOptSendCommandRequestAttributes(v SendCommandRequestAttributes) OptSendCommandRequestAttributes {
-	return OptSendCommandRequestAttributes{
-		Value: v,
-		Set:   true,
-	}
-}
-
-// OptSendCommandRequestAttributes is optional SendCommandRequestAttributes.
-type OptSendCommandRequestAttributes struct {
-	Value SendCommandRequestAttributes
-	Set   bool
-}
-
-// IsSet returns true if OptSendCommandRequestAttributes was set.
-func (o OptSendCommandRequestAttributes) IsSet() bool { return o.Set }
-
-// Reset unsets value.
-func (o *OptSendCommandRequestAttributes) Reset() {
-	var v SendCommandRequestAttributes
-	o.Value = v
-	o.Set = false
-}
-
-// SetTo sets value to v.
-func (o *OptSendCommandRequestAttributes) SetTo(v SendCommandRequestAttributes) {
-	o.Set = true
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o OptSendCommandRequestAttributes) Get() (v SendCommandRequestAttributes, ok bool) {
-	if !o.Set {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o OptSendCommandRequestAttributes) Or(d SendCommandRequestAttributes) SendCommandRequestAttributes {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
 // NewOptString returns new OptString with value set to v.
 func NewOptString(v string) OptString {
 	return OptString{
@@ -4084,9 +4335,9 @@ func (*SendCommandNotFound) sendCommandRes() {}
 
 // Ref: #/components/schemas/SendCommandRequest
 type SendCommandRequest struct {
-	DeviceId   int64                           `json:"deviceId"`
-	Type       string                          `json:"type"`
-	Attributes OptSendCommandRequestAttributes `json:"attributes"`
+	DeviceId   int64                `json:"deviceId"`
+	Type       string               `json:"type"`
+	Attributes OptCommandAttributes `json:"attributes"`
 }
 
 // GetDeviceId returns the value of DeviceId.
@@ -4100,7 +4351,7 @@ func (s *SendCommandRequest) GetType() string {
 }
 
 // GetAttributes returns the value of Attributes.
-func (s *SendCommandRequest) GetAttributes() OptSendCommandRequestAttributes {
+func (s *SendCommandRequest) GetAttributes() OptCommandAttributes {
 	return s.Attributes
 }
 
@@ -4115,19 +4366,8 @@ func (s *SendCommandRequest) SetType(val string) {
 }
 
 // SetAttributes sets the value of Attributes.
-func (s *SendCommandRequest) SetAttributes(val OptSendCommandRequestAttributes) {
+func (s *SendCommandRequest) SetAttributes(val OptCommandAttributes) {
 	s.Attributes = val
-}
-
-type SendCommandRequestAttributes map[string]jx.Raw
-
-func (s *SendCommandRequestAttributes) init() SendCommandRequestAttributes {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
 }
 
 type SendCommandUnauthorized Error

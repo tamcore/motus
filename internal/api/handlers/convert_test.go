@@ -318,17 +318,38 @@ func TestCommandToOAS(t *testing.T) {
 	c := &model.Command{
 		ID:         1,
 		DeviceID:   5,
-		Type:       "rebootDevice",
+		Type:       "custom",
 		Status:     "pending",
 		CreatedAt:  now,
-		Attributes: map[string]interface{}{"param": "val"},
+		Attributes: map[string]interface{}{"text": "AT+GPSON"},
 	}
 	got := commandToOAS(c)
-	if got.Type != "rebootDevice" {
+	if got.Type != "custom" {
 		t.Errorf("Type = %s", got.Type)
 	}
 	if !got.Attributes.Set {
-		t.Error("Attributes should be set")
+		t.Error("Attributes should be set for custom command")
+	}
+	if !got.Attributes.Value.IsCommandAttrCustom() {
+		t.Error("Attributes variant should be CommandAttrCustom")
+	}
+	if got.Attributes.Value.CommandAttrCustom.Text != "AT+GPSON" {
+		t.Errorf("Text = %q, want AT+GPSON", got.Attributes.Value.CommandAttrCustom.Text)
+	}
+}
+
+func TestCommandToOAS_NoAttributes(t *testing.T) {
+	now := time.Now().UTC().Truncate(time.Second)
+	c := &model.Command{
+		ID:        2,
+		DeviceID:  5,
+		Type:      "rebootDevice",
+		Status:    "pending",
+		CreatedAt: now,
+	}
+	got := commandToOAS(c)
+	if got.Attributes.Set {
+		t.Error("Attributes should not be set for type with no attrs")
 	}
 }
 

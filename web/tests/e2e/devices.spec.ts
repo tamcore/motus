@@ -74,6 +74,35 @@ test.describe('Devices Page', () => {
     await expect(authedPage.locator('.device-table').locator(`text=${uniqueId}`)).toBeVisible({ timeout: 5000 });
   });
 
+  test('should save and display protocol field', async ({ authedPage }) => {
+    const uniqueId = `pw-proto-${Date.now()}`;
+
+    // Create a device with protocol set
+    await devicesPage.openCreateModal();
+    await devicesPage.fillDeviceForm({ name: 'PW Protocol Device', uniqueId, protocol: 'h02' });
+    await devicesPage.saveButton.click();
+    await expect(devicesPage.modal).toHaveCount(0, { timeout: 10000 });
+
+    // Find the newly created device row
+    const row = authedPage.locator('.device-table').locator(`tr:has-text("${uniqueId}")`);
+    await expect(row).toBeVisible({ timeout: 5000 });
+
+    // Open edit modal and verify protocol is hydrated correctly
+    await row.locator('button:has-text("Edit")').click();
+    await expect(devicesPage.modal).toBeVisible();
+    await expect(devicesPage.formProtocolInput).toHaveValue('h02');
+
+    // Clear protocol by selecting blank option and save
+    await devicesPage.formProtocolInput.selectOption('');
+    await devicesPage.saveChangesButton.click();
+    await expect(devicesPage.modal).toHaveCount(0, { timeout: 10000 });
+
+    // Reopen edit and confirm protocol is now empty
+    await row.locator('button:has-text("Edit")').click();
+    await expect(devicesPage.formProtocolInput).toHaveValue('');
+    await devicesPage.cancelButton.click();
+  });
+
   test('should search devices by name', async ({ authedPage }) => {
     // Get initial count
     const initialCount = await devicesPage.tableRows.count();

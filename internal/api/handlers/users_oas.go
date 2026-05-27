@@ -3,11 +3,11 @@ package handlers
 import (
 	"context"
 
+	oas "github.com/tamcore/motus/internal/api/oas"
 	"github.com/tamcore/motus/internal/audit"
 	"github.com/tamcore/motus/internal/demo"
 	"github.com/tamcore/motus/internal/model"
 	"github.com/tamcore/motus/internal/validation"
-	oas "github.com/tamcore/motus/internal/api/oas"
 	"golang.org/x/crypto/bcrypt"
 )
 

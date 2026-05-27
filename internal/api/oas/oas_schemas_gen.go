@@ -1412,6 +1412,7 @@ type DeviceInput struct {
 	Model      OptString                `json:"model"`
 	Contact    OptString                `json:"contact"`
 	Category   OptString                `json:"category"`
+	Protocol   OptString                `json:"protocol"`
 	CalendarId OptInt64                 `json:"calendarId"`
 	SpeedLimit OptFloat64               `json:"speedLimit"`
 	Disabled   OptBool                  `json:"disabled"`
@@ -1446,6 +1447,11 @@ func (s *DeviceInput) GetContact() OptString {
 // GetCategory returns the value of Category.
 func (s *DeviceInput) GetCategory() OptString {
 	return s.Category
+}
+
+// GetProtocol returns the value of Protocol.
+func (s *DeviceInput) GetProtocol() OptString {
+	return s.Protocol
 }
 
 // GetCalendarId returns the value of CalendarId.
@@ -1496,6 +1502,11 @@ func (s *DeviceInput) SetContact(val OptString) {
 // SetCategory sets the value of Category.
 func (s *DeviceInput) SetCategory(val OptString) {
 	s.Category = val
+}
+
+// SetProtocol sets the value of Protocol.
+func (s *DeviceInput) SetProtocol(val OptString) {
+	s.Protocol = val
 }
 
 // SetCalendarId sets the value of CalendarId.

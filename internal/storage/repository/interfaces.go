@@ -22,6 +22,7 @@ type DeviceRepo interface {
 	Create(ctx context.Context, d *model.Device, userID int64) error
 	Update(ctx context.Context, d *model.Device) error
 	UpdateIgnitionState(ctx context.Context, id int64, on bool, ts time.Time) error
+	UpdateProtocol(ctx context.Context, id int64, protocol string) error
 	Delete(ctx context.Context, id int64) error
 }
 

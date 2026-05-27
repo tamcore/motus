@@ -82,6 +82,9 @@ func (r *ignitionMockDeviceRepo) Create(_ context.Context, _ *model.Device, _ in
 }
 func (r *ignitionMockDeviceRepo) Update(_ context.Context, _ *model.Device) error { return nil }
 func (r *ignitionMockDeviceRepo) Delete(_ context.Context, _ int64) error         { return nil }
+func (r *ignitionMockDeviceRepo) UpdateProtocol(_ context.Context, _ int64, _ string) error {
+	return nil
+}
 
 type ignitionMockEventRepo struct {
 	created []*model.Event

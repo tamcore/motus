@@ -8,11 +8,11 @@ import (
 
 	"github.com/go-faster/jx"
 	"github.com/tamcore/motus/internal/api"
+	oas "github.com/tamcore/motus/internal/api/oas"
 	"github.com/tamcore/motus/internal/audit"
 	"github.com/tamcore/motus/internal/model"
 	"github.com/tamcore/motus/internal/protocol"
 	"github.com/tamcore/motus/internal/storage/repository"
-	oas "github.com/tamcore/motus/internal/api/oas"
 )
 
 // CommandHandler handles command API endpoints.

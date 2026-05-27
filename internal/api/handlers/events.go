@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/tamcore/motus/internal/api"
+	oas "github.com/tamcore/motus/internal/api/oas"
 	"github.com/tamcore/motus/internal/model"
 	"github.com/tamcore/motus/internal/storage/repository"
-	oas "github.com/tamcore/motus/internal/api/oas"
 )
 
 // EventHandler handles event query endpoints.

@@ -294,3 +294,62 @@ func TestDeviceRepository_Delete(t *testing.T) {
 		t.Error("expected error after deletion, got nil")
 	}
 }
+
+func TestDeviceRepository_UpdateProtocol(t *testing.T) {
+	pool := testutil.SetupTestDB(t)
+	testutil.CleanTables(t, pool)
+	deviceRepo := repository.NewDeviceRepository(pool)
+	userRepo := repository.NewUserRepository(pool)
+	ctx := context.Background()
+
+	user := createTestUser(t, userRepo)
+	device := &model.Device{UniqueID: "proto-dev", Name: "Proto Device", Protocol: "watch", Status: "unknown"}
+	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	if err := deviceRepo.UpdateProtocol(ctx, device.ID, "h02"); err != nil {
+		t.Fatalf("UpdateProtocol failed: %v", err)
+	}
+
+	found, err := deviceRepo.GetByID(ctx, device.ID)
+	if err != nil {
+		t.Fatalf("GetByID failed: %v", err)
+	}
+	if found.Protocol != "h02" {
+		t.Errorf("Protocol: got %q, want %q", found.Protocol, "h02")
+	}
+	// Verify other fields are untouched.
+	if found.Name != "Proto Device" {
+		t.Errorf("Name changed unexpectedly: got %q", found.Name)
+	}
+	if found.Status != "unknown" {
+		t.Errorf("Status changed unexpectedly: got %q", found.Status)
+	}
+}
+
+func TestDeviceRepository_UpdateProtocol_Clear(t *testing.T) {
+	pool := testutil.SetupTestDB(t)
+	testutil.CleanTables(t, pool)
+	deviceRepo := repository.NewDeviceRepository(pool)
+	userRepo := repository.NewUserRepository(pool)
+	ctx := context.Background()
+
+	user := createTestUser(t, userRepo)
+	device := &model.Device{UniqueID: "proto-clear-dev", Name: "Clear Proto", Protocol: "h02", Status: "unknown"}
+	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	if err := deviceRepo.UpdateProtocol(ctx, device.ID, ""); err != nil {
+		t.Fatalf("UpdateProtocol to empty failed: %v", err)
+	}
+
+	found, err := deviceRepo.GetByID(ctx, device.ID)
+	if err != nil {
+		t.Fatalf("GetByID failed: %v", err)
+	}
+	if found.Protocol != "" {
+		t.Errorf("Protocol: got %q, want empty", found.Protocol)
+	}
+}

@@ -69,4 +69,3 @@ func (s *SecurityHandler) HandleXAuthToken(ctx context.Context, op oas.Operation
 	ctx = api.ContextWithSession(ctx, session)
 	return ctx, nil
 }
-

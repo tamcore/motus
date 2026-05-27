@@ -98,6 +98,7 @@ components:
         model: { type: string }
         contact: { type: string }
         category: { type: string }
+        protocol: { type: string }
         calendarId: { type: integer, format: int64 }
         speedLimit: { type: number, format: double }
         disabled: { type: boolean }

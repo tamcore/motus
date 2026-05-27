@@ -5968,6 +5968,12 @@ func (s *DeviceInput) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.Protocol.Set {
+			e.FieldStart("protocol")
+			s.Protocol.Encode(e)
+		}
+	}
+	{
 		if s.CalendarId.Set {
 			e.FieldStart("calendarId")
 			s.CalendarId.Encode(e)
@@ -5993,17 +5999,18 @@ func (s *DeviceInput) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfDeviceInput = [10]string{
-	0: "name",
-	1: "uniqueId",
-	2: "phone",
-	3: "model",
-	4: "contact",
-	5: "category",
-	6: "calendarId",
-	7: "speedLimit",
-	8: "disabled",
-	9: "attributes",
+var jsonFieldsNameOfDeviceInput = [11]string{
+	0:  "name",
+	1:  "uniqueId",
+	2:  "phone",
+	3:  "model",
+	4:  "contact",
+	5:  "category",
+	6:  "protocol",
+	7:  "calendarId",
+	8:  "speedLimit",
+	9:  "disabled",
+	10: "attributes",
 }
 
 // Decode decodes DeviceInput from json.
@@ -6078,6 +6085,16 @@ func (s *DeviceInput) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"category\"")
+			}
+		case "protocol":
+			if err := func() error {
+				s.Protocol.Reset()
+				if err := s.Protocol.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"protocol\"")
 			}
 		case "calendarId":
 			if err := func() error {

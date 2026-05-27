@@ -788,3 +788,112 @@ func TestDeviceAutoCreate_DefaultDisabled(t *testing.T) {
 		t.Errorf("deviceID: got %q, want %q", devID, "0000099999")
 	}
 }
+
+// TestResolveOrCreateDevice_FillsEmptyProtocol verifies that when an existing
+// device has an empty protocol field, resolveOrCreateDevice updates it to match
+// the protocol server's name.
+func TestResolveOrCreateDevice_FillsEmptyProtocol(t *testing.T) {
+	pool := testutil.SetupTestDB(t)
+	testutil.CleanTables(t, pool)
+
+	deviceRepo := repository.NewDeviceRepository(pool)
+	userRepo := repository.NewUserRepository(pool)
+	ctx := context.Background()
+
+	adminUser := &model.User{Email: "admin@motus.local", PasswordHash: "hash", Name: "Admin", Role: model.RoleAdmin}
+	if err := userRepo.Create(ctx, adminUser); err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+	device := &model.Device{UniqueID: "resync-empty-proto", Name: "Test", Protocol: "", Status: "unknown"}
+	if err := deviceRepo.Create(ctx, device, adminUser.ID); err != nil {
+		t.Fatalf("create device: %v", err)
+	}
+
+	srv := &Server{name: "h02", devices: deviceRepo}
+
+	returned, err := srv.resolveOrCreateDevice(ctx, "resync-empty-proto")
+	if err != nil {
+		t.Fatalf("resolveOrCreateDevice: %v", err)
+	}
+	if returned.Protocol != "h02" {
+		t.Errorf("returned.Protocol: got %q, want %q", returned.Protocol, "h02")
+	}
+
+	stored, err := deviceRepo.GetByID(ctx, device.ID)
+	if err != nil {
+		t.Fatalf("GetByID: %v", err)
+	}
+	if stored.Protocol != "h02" {
+		t.Errorf("stored.Protocol: got %q, want %q", stored.Protocol, "h02")
+	}
+}
+
+// TestResolveOrCreateDevice_OverwritesMismatchedProtocol verifies that when an
+// existing device has a stale protocol (e.g. "watch") but the server speaks
+// "h02", resolveOrCreateDevice resyncs the protocol to "h02".
+func TestResolveOrCreateDevice_OverwritesMismatchedProtocol(t *testing.T) {
+	pool := testutil.SetupTestDB(t)
+	testutil.CleanTables(t, pool)
+
+	deviceRepo := repository.NewDeviceRepository(pool)
+	userRepo := repository.NewUserRepository(pool)
+	ctx := context.Background()
+
+	adminUser := &model.User{Email: "admin@motus.local", PasswordHash: "hash", Name: "Admin", Role: model.RoleAdmin}
+	if err := userRepo.Create(ctx, adminUser); err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+	device := &model.Device{UniqueID: "resync-mismatch-proto", Name: "Test", Protocol: "watch", Status: "unknown"}
+	if err := deviceRepo.Create(ctx, device, adminUser.ID); err != nil {
+		t.Fatalf("create device: %v", err)
+	}
+
+	srv := &Server{name: "h02", devices: deviceRepo}
+
+	returned, err := srv.resolveOrCreateDevice(ctx, "resync-mismatch-proto")
+	if err != nil {
+		t.Fatalf("resolveOrCreateDevice: %v", err)
+	}
+	if returned.Protocol != "h02" {
+		t.Errorf("returned.Protocol: got %q, want %q", returned.Protocol, "h02")
+	}
+
+	stored, err := deviceRepo.GetByID(ctx, device.ID)
+	if err != nil {
+		t.Fatalf("GetByID: %v", err)
+	}
+	if stored.Protocol != "h02" {
+		t.Errorf("stored.Protocol: got %q, want %q", stored.Protocol, "h02")
+	}
+}
+
+// TestResolveOrCreateDevice_NoUpdateWhenProtocolMatches verifies that when the
+// stored protocol already matches the server's protocol, the device is returned
+// without error and the protocol is preserved.
+func TestResolveOrCreateDevice_NoUpdateWhenProtocolMatches(t *testing.T) {
+	pool := testutil.SetupTestDB(t)
+	testutil.CleanTables(t, pool)
+
+	deviceRepo := repository.NewDeviceRepository(pool)
+	userRepo := repository.NewUserRepository(pool)
+	ctx := context.Background()
+
+	adminUser := &model.User{Email: "admin@motus.local", PasswordHash: "hash", Name: "Admin", Role: model.RoleAdmin}
+	if err := userRepo.Create(ctx, adminUser); err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+	device := &model.Device{UniqueID: "resync-match-proto", Name: "Test", Protocol: "h02", Status: "unknown"}
+	if err := deviceRepo.Create(ctx, device, adminUser.ID); err != nil {
+		t.Fatalf("create device: %v", err)
+	}
+
+	srv := &Server{name: "h02", devices: deviceRepo}
+
+	returned, err := srv.resolveOrCreateDevice(ctx, "resync-match-proto")
+	if err != nil {
+		t.Fatalf("resolveOrCreateDevice: %v", err)
+	}
+	if returned.Protocol != "h02" {
+		t.Errorf("returned.Protocol: got %q, want %q", returned.Protocol, "h02")
+	}
+}

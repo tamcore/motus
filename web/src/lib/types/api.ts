@@ -97,6 +97,7 @@ export interface CreateDevicePayload {
   model?: string;
   contact?: string;
   category?: string;
+  protocol?: string;
   disabled?: boolean;
   mileage?: number | null;
   attributes?: Record<string, unknown>;
@@ -110,6 +111,7 @@ export interface UpdateDevicePayload {
   model?: string;
   contact?: string;
   category?: string;
+  protocol?: string;
   disabled?: boolean;
   speedLimit?: number | null;
   mileage?: number | null;

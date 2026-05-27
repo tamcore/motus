@@ -9,11 +9,11 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-faster/jx"
 	"github.com/tamcore/motus/internal/api"
+	oas "github.com/tamcore/motus/internal/api/oas"
 	"github.com/tamcore/motus/internal/audit"
 	"github.com/tamcore/motus/internal/model"
 	"github.com/tamcore/motus/internal/storage/repository"
 	"github.com/tamcore/motus/internal/validation"
-	oas "github.com/tamcore/motus/internal/api/oas"
 )
 
 // DeviceHandler handles device CRUD endpoints.
@@ -84,7 +84,7 @@ func (h *DeviceHandler) Get(w http.ResponseWriter, r *http.Request) {
 type createDeviceRequest struct {
 	UniqueID   string   `json:"uniqueId"`
 	Name       string   `json:"name"`
-	Protocol   string   `json:"protocol"`
+	Protocol   *string  `json:"protocol,omitempty"`
 	SpeedLimit *float64 `json:"speedLimit,omitempty"`
 	Phone      *string  `json:"phone,omitempty"`
 	Model      *string  `json:"model,omitempty"`
@@ -110,10 +110,14 @@ func (h *DeviceHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var reqProtocol string
+	if req.Protocol != nil {
+		reqProtocol = *req.Protocol
+	}
 	device := &model.Device{
 		UniqueID:   req.UniqueID,
 		Name:       req.Name,
-		Protocol:   req.Protocol,
+		Protocol:   reqProtocol,
 		SpeedLimit: req.SpeedLimit,
 		Phone:      req.Phone,
 		Model:      req.Model,
@@ -178,8 +182,8 @@ func (h *DeviceHandler) Update(w http.ResponseWriter, r *http.Request) {
 		}
 		device.Name = req.Name
 	}
-	if req.Protocol != "" {
-		device.Protocol = req.Protocol
+	if req.Protocol != nil {
+		device.Protocol = *req.Protocol
 	}
 	if req.SpeedLimit != nil {
 		device.SpeedLimit = req.SpeedLimit
@@ -493,6 +497,9 @@ func applyDeviceInputFields(d *model.Device, req *oas.DeviceInput) *model.Device
 	}
 	if v, ok := req.Category.Get(); ok {
 		clone.Category = &v
+	}
+	if v, ok := req.Protocol.Get(); ok {
+		clone.Protocol = v
 	}
 	if v, ok := req.CalendarId.Get(); ok {
 		clone.CalendarID = &v

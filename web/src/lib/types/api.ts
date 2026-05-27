@@ -157,6 +157,7 @@ export interface Position {
   geofenceIds?: number[];
   outdated: boolean;
   attributes?: PositionAttributes;
+  network?: Record<string, unknown>;
 }
 
 // ---------------------------------------------------------------------------

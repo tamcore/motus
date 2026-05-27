@@ -8,10 +8,16 @@ import (
 	"github.com/tamcore/motus/internal/version"
 )
 
-// NewError maps a handler error to the default UnexpectedError response.
+// NewError maps a handler error to an HTTP error response.
+// Uses the error's Code() method when available (e.g. 401 for SecurityError, 400 for DecodeRequestError).
 func (h *Handler) NewError(_ context.Context, err error) *oas.UnexpectedErrorStatusCode {
+	code := http.StatusInternalServerError
+	type coder interface{ Code() int }
+	if c, ok := err.(coder); ok {
+		code = c.Code()
+	}
 	return &oas.UnexpectedErrorStatusCode{
-		StatusCode: http.StatusInternalServerError,
+		StatusCode: code,
 		Response:   oas.Error{Error: err.Error()},
 	}
 }
@@ -38,6 +44,7 @@ func (h *Handler) GetServer(ctx context.Context) (*oas.ServerInfo, error) {
 		Zoom:           oas.OptInt{Value: 13, Set: true},
 		OpenIdEnabled:  oas.OptBool{Value: false, Set: true},
 		OpenIdForce:    oas.OptBool{Value: false, Set: true},
+		Attributes:     oas.OptAttributes{Value: oas.Attributes{}, Set: true},
 	}, nil
 }
 

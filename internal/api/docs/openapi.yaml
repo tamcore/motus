@@ -476,7 +476,7 @@ components:
 
     Position:
       type: object
-      required: [id, deviceId, serverTime, deviceTime, fixTime, valid, latitude, longitude, altitude, speed, course, accuracy, attributes]
+      required: [id, deviceId, serverTime, deviceTime, fixTime, valid, latitude, longitude, altitude, speed, course, accuracy, attributes, network]
       properties:
         id: { type: integer, format: int64 }
         deviceId: { type: integer, format: int64 }
@@ -497,6 +497,8 @@ components:
         address: { type: string }
         attributes:
           $ref: '#/components/schemas/PositionAttributes'
+        network:
+          $ref: '#/components/schemas/Attributes'
 
     User:
       type: object
@@ -837,6 +839,8 @@ components:
         zoom: { type: integer }
         openIdEnabled: { type: boolean }
         openIdForce: { type: boolean }
+        attributes:
+          $ref: '#/components/schemas/Attributes'
 
     VersionInfo:
       type: object

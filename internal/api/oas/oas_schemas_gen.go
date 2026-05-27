@@ -5793,6 +5793,7 @@ type Position struct {
 	Accuracy   float64            `json:"accuracy"`
 	Address    OptString          `json:"address"`
 	Attributes PositionAttributes `json:"attributes"`
+	Network    Attributes         `json:"network"`
 }
 
 // GetID returns the value of ID.
@@ -5885,6 +5886,11 @@ func (s *Position) GetAttributes() PositionAttributes {
 	return s.Attributes
 }
 
+// GetNetwork returns the value of Network.
+func (s *Position) GetNetwork() Attributes {
+	return s.Network
+}
+
 // SetID sets the value of ID.
 func (s *Position) SetID(val int64) {
 	s.ID = val
@@ -5973,6 +5979,11 @@ func (s *Position) SetAddress(val OptString) {
 // SetAttributes sets the value of Attributes.
 func (s *Position) SetAttributes(val PositionAttributes) {
 	s.Attributes = val
+}
+
+// SetNetwork sets the value of Network.
+func (s *Position) SetNetwork(val Attributes) {
+	s.Network = val
 }
 
 // Protocol-emitted position metadata. Known keys per protocol:
@@ -6171,18 +6182,19 @@ func (*SendCommandUnauthorized) sendCommandRes() {}
 
 // Ref: #/components/schemas/ServerInfo
 type ServerInfo struct {
-	ID             int        `json:"id"`
-	Registration   bool       `json:"registration"`
-	Readonly       bool       `json:"readonly"`
-	DeviceReadonly bool       `json:"deviceReadonly"`
-	LimitCommands  bool       `json:"limitCommands"`
-	Version        string     `json:"version"`
-	Map            OptString  `json:"map"`
-	Latitude       OptFloat64 `json:"latitude"`
-	Longitude      OptFloat64 `json:"longitude"`
-	Zoom           OptInt     `json:"zoom"`
-	OpenIdEnabled  OptBool    `json:"openIdEnabled"`
-	OpenIdForce    OptBool    `json:"openIdForce"`
+	ID             int           `json:"id"`
+	Registration   bool          `json:"registration"`
+	Readonly       bool          `json:"readonly"`
+	DeviceReadonly bool          `json:"deviceReadonly"`
+	LimitCommands  bool          `json:"limitCommands"`
+	Version        string        `json:"version"`
+	Map            OptString     `json:"map"`
+	Latitude       OptFloat64    `json:"latitude"`
+	Longitude      OptFloat64    `json:"longitude"`
+	Zoom           OptInt        `json:"zoom"`
+	OpenIdEnabled  OptBool       `json:"openIdEnabled"`
+	OpenIdForce    OptBool       `json:"openIdForce"`
+	Attributes     OptAttributes `json:"attributes"`
 }
 
 // GetID returns the value of ID.
@@ -6245,6 +6257,11 @@ func (s *ServerInfo) GetOpenIdForce() OptBool {
 	return s.OpenIdForce
 }
 
+// GetAttributes returns the value of Attributes.
+func (s *ServerInfo) GetAttributes() OptAttributes {
+	return s.Attributes
+}
+
 // SetID sets the value of ID.
 func (s *ServerInfo) SetID(val int) {
 	s.ID = val
@@ -6303,6 +6320,11 @@ func (s *ServerInfo) SetOpenIdEnabled(val OptBool) {
 // SetOpenIdForce sets the value of OpenIdForce.
 func (s *ServerInfo) SetOpenIdForce(val OptBool) {
 	s.OpenIdForce = val
+}
+
+// SetAttributes sets the value of Attributes.
+func (s *ServerInfo) SetAttributes(val OptAttributes) {
+	s.Attributes = val
 }
 
 // Ref: #/components/schemas/Session

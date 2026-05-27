@@ -15255,9 +15255,13 @@ func (s *Position) encodeFields(e *jx.Encoder) {
 		e.FieldStart("attributes")
 		s.Attributes.Encode(e)
 	}
+	{
+		e.FieldStart("network")
+		s.Network.Encode(e)
+	}
 }
 
-var jsonFieldsNameOfPosition = [18]string{
+var jsonFieldsNameOfPosition = [19]string{
 	0:  "id",
 	1:  "deviceId",
 	2:  "deviceName",
@@ -15276,6 +15280,7 @@ var jsonFieldsNameOfPosition = [18]string{
 	15: "accuracy",
 	16: "address",
 	17: "attributes",
+	18: "network",
 }
 
 // Decode decodes Position from json.
@@ -15491,6 +15496,16 @@ func (s *Position) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"attributes\"")
 			}
+		case "network":
+			requiredBitSet[2] |= 1 << 2
+			if err := func() error {
+				if err := s.Network.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"network\"")
+			}
 		default:
 			return d.Skip()
 		}
@@ -15503,7 +15518,7 @@ func (s *Position) Decode(d *jx.Decoder) error {
 	for i, mask := range [3]uint8{
 		0b11100011,
 		0b11111110,
-		0b00000010,
+		0b00000110,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -16205,9 +16220,15 @@ func (s *ServerInfo) encodeFields(e *jx.Encoder) {
 			s.OpenIdForce.Encode(e)
 		}
 	}
+	{
+		if s.Attributes.Set {
+			e.FieldStart("attributes")
+			s.Attributes.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfServerInfo = [12]string{
+var jsonFieldsNameOfServerInfo = [13]string{
 	0:  "id",
 	1:  "registration",
 	2:  "readonly",
@@ -16220,6 +16241,7 @@ var jsonFieldsNameOfServerInfo = [12]string{
 	9:  "zoom",
 	10: "openIdEnabled",
 	11: "openIdForce",
+	12: "attributes",
 }
 
 // Decode decodes ServerInfo from json.
@@ -16362,6 +16384,16 @@ func (s *ServerInfo) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"openIdForce\"")
+			}
+		case "attributes":
+			if err := func() error {
+				s.Attributes.Reset()
+				if err := s.Attributes.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"attributes\"")
 			}
 		default:
 			return d.Skip()

@@ -10919,14 +10919,249 @@ func (s *Position) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
-func (s PositionAttributes) Encode(e *jx.Encoder) {
+func (s *PositionAttributes) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *PositionAttributes) encodeFields(e *jx.Encoder) {
+	{
+		if s.Motion.Set {
+			e.FieldStart("motion")
+			s.Motion.Encode(e)
+		}
+	}
+	{
+		if s.Ignition.Set {
+			e.FieldStart("ignition")
+			s.Ignition.Encode(e)
+		}
+	}
+	{
+		if s.Flags.Set {
+			e.FieldStart("flags")
+			s.Flags.Encode(e)
+		}
+	}
+	{
+		if s.Alarm.Set {
+			e.FieldStart("alarm")
+			s.Alarm.Encode(e)
+		}
+	}
+	{
+		if s.Mcc.Set {
+			e.FieldStart("mcc")
+			s.Mcc.Encode(e)
+		}
+	}
+	{
+		if s.Mnc.Set {
+			e.FieldStart("mnc")
+			s.Mnc.Encode(e)
+		}
+	}
+	{
+		if s.Lac.Set {
+			e.FieldStart("lac")
+			s.Lac.Encode(e)
+		}
+	}
+	{
+		if s.CellId.Set {
+			e.FieldStart("cellId")
+			s.CellId.Encode(e)
+		}
+	}
+	{
+		if s.Iccid.Set {
+			e.FieldStart("iccid")
+			s.Iccid.Encode(e)
+		}
+	}
+	{
+		if s.Satellites.Set {
+			e.FieldStart("satellites")
+			s.Satellites.Encode(e)
+		}
+	}
+	for k, elem := range s.AdditionalProps {
+		e.FieldStart(k)
+
+		if len(elem) != 0 {
+			e.Raw(elem)
+		}
+	}
+}
+
+var jsonFieldsNameOfPositionAttributes = [10]string{
+	0: "motion",
+	1: "ignition",
+	2: "flags",
+	3: "alarm",
+	4: "mcc",
+	5: "mnc",
+	6: "lac",
+	7: "cellId",
+	8: "iccid",
+	9: "satellites",
+}
+
+// Decode decodes PositionAttributes from json.
+func (s *PositionAttributes) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode PositionAttributes to nil")
+	}
+	s.AdditionalProps = map[string]jx.Raw{}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "motion":
+			if err := func() error {
+				s.Motion.Reset()
+				if err := s.Motion.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"motion\"")
+			}
+		case "ignition":
+			if err := func() error {
+				s.Ignition.Reset()
+				if err := s.Ignition.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ignition\"")
+			}
+		case "flags":
+			if err := func() error {
+				s.Flags.Reset()
+				if err := s.Flags.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"flags\"")
+			}
+		case "alarm":
+			if err := func() error {
+				s.Alarm.Reset()
+				if err := s.Alarm.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"alarm\"")
+			}
+		case "mcc":
+			if err := func() error {
+				s.Mcc.Reset()
+				if err := s.Mcc.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"mcc\"")
+			}
+		case "mnc":
+			if err := func() error {
+				s.Mnc.Reset()
+				if err := s.Mnc.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"mnc\"")
+			}
+		case "lac":
+			if err := func() error {
+				s.Lac.Reset()
+				if err := s.Lac.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"lac\"")
+			}
+		case "cellId":
+			if err := func() error {
+				s.CellId.Reset()
+				if err := s.CellId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"cellId\"")
+			}
+		case "iccid":
+			if err := func() error {
+				s.Iccid.Reset()
+				if err := s.Iccid.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"iccid\"")
+			}
+		case "satellites":
+			if err := func() error {
+				s.Satellites.Reset()
+				if err := s.Satellites.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"satellites\"")
+			}
+		default:
+			var elem jx.Raw
+			if err := func() error {
+				v, err := d.RawAppend(nil)
+				elem = jx.Raw(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrapf(err, "decode field %q", k)
+			}
+			s.AdditionalProps[string(k)] = elem
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode PositionAttributes")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *PositionAttributes) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *PositionAttributes) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s PositionAttributesAdditional) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
 	e.ObjEnd()
 }
 
 // encodeFields implements json.Marshaler.
-func (s PositionAttributes) encodeFields(e *jx.Encoder) {
+func (s PositionAttributesAdditional) encodeFields(e *jx.Encoder) {
 	for k, elem := range s {
 		e.FieldStart(k)
 
@@ -10936,10 +11171,10 @@ func (s PositionAttributes) encodeFields(e *jx.Encoder) {
 	}
 }
 
-// Decode decodes PositionAttributes from json.
-func (s *PositionAttributes) Decode(d *jx.Decoder) error {
+// Decode decodes PositionAttributesAdditional from json.
+func (s *PositionAttributesAdditional) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode PositionAttributes to nil")
+		return errors.New("invalid: unable to decode PositionAttributesAdditional to nil")
 	}
 	m := s.init()
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
@@ -10957,21 +11192,21 @@ func (s *PositionAttributes) Decode(d *jx.Decoder) error {
 		m[string(k)] = elem
 		return nil
 	}); err != nil {
-		return errors.Wrap(err, "decode PositionAttributes")
+		return errors.Wrap(err, "decode PositionAttributesAdditional")
 	}
 
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s PositionAttributes) MarshalJSON() ([]byte, error) {
+func (s PositionAttributesAdditional) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *PositionAttributes) UnmarshalJSON(data []byte) error {
+func (s *PositionAttributesAdditional) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

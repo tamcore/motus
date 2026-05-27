@@ -3781,9 +3781,139 @@ func (s *Position) SetAttributes(val PositionAttributes) {
 	s.Attributes = val
 }
 
-type PositionAttributes map[string]jx.Raw
+// Protocol-emitted position metadata. Known keys per protocol:
+// - All: motion (bool)
+// - H02: ignition (bool), flags (string), alarm (string), mcc/mnc/lac/cellId (int), iccid (string)
+// - Watch: satellites (int)
+// Open for forward compatibility with additional protocols.
+// Ref: #/components/schemas/PositionAttributes
+type PositionAttributes struct {
+	Motion          OptBool   `json:"motion"`
+	Ignition        OptBool   `json:"ignition"`
+	Flags           OptString `json:"flags"`
+	Alarm           OptString `json:"alarm"`
+	Mcc             OptInt    `json:"mcc"`
+	Mnc             OptInt    `json:"mnc"`
+	Lac             OptInt    `json:"lac"`
+	CellId          OptInt    `json:"cellId"`
+	Iccid           OptString `json:"iccid"`
+	Satellites      OptInt    `json:"satellites"`
+	AdditionalProps PositionAttributesAdditional
+}
 
-func (s *PositionAttributes) init() PositionAttributes {
+// GetMotion returns the value of Motion.
+func (s *PositionAttributes) GetMotion() OptBool {
+	return s.Motion
+}
+
+// GetIgnition returns the value of Ignition.
+func (s *PositionAttributes) GetIgnition() OptBool {
+	return s.Ignition
+}
+
+// GetFlags returns the value of Flags.
+func (s *PositionAttributes) GetFlags() OptString {
+	return s.Flags
+}
+
+// GetAlarm returns the value of Alarm.
+func (s *PositionAttributes) GetAlarm() OptString {
+	return s.Alarm
+}
+
+// GetMcc returns the value of Mcc.
+func (s *PositionAttributes) GetMcc() OptInt {
+	return s.Mcc
+}
+
+// GetMnc returns the value of Mnc.
+func (s *PositionAttributes) GetMnc() OptInt {
+	return s.Mnc
+}
+
+// GetLac returns the value of Lac.
+func (s *PositionAttributes) GetLac() OptInt {
+	return s.Lac
+}
+
+// GetCellId returns the value of CellId.
+func (s *PositionAttributes) GetCellId() OptInt {
+	return s.CellId
+}
+
+// GetIccid returns the value of Iccid.
+func (s *PositionAttributes) GetIccid() OptString {
+	return s.Iccid
+}
+
+// GetSatellites returns the value of Satellites.
+func (s *PositionAttributes) GetSatellites() OptInt {
+	return s.Satellites
+}
+
+// GetAdditionalProps returns the value of AdditionalProps.
+func (s *PositionAttributes) GetAdditionalProps() PositionAttributesAdditional {
+	return s.AdditionalProps
+}
+
+// SetMotion sets the value of Motion.
+func (s *PositionAttributes) SetMotion(val OptBool) {
+	s.Motion = val
+}
+
+// SetIgnition sets the value of Ignition.
+func (s *PositionAttributes) SetIgnition(val OptBool) {
+	s.Ignition = val
+}
+
+// SetFlags sets the value of Flags.
+func (s *PositionAttributes) SetFlags(val OptString) {
+	s.Flags = val
+}
+
+// SetAlarm sets the value of Alarm.
+func (s *PositionAttributes) SetAlarm(val OptString) {
+	s.Alarm = val
+}
+
+// SetMcc sets the value of Mcc.
+func (s *PositionAttributes) SetMcc(val OptInt) {
+	s.Mcc = val
+}
+
+// SetMnc sets the value of Mnc.
+func (s *PositionAttributes) SetMnc(val OptInt) {
+	s.Mnc = val
+}
+
+// SetLac sets the value of Lac.
+func (s *PositionAttributes) SetLac(val OptInt) {
+	s.Lac = val
+}
+
+// SetCellId sets the value of CellId.
+func (s *PositionAttributes) SetCellId(val OptInt) {
+	s.CellId = val
+}
+
+// SetIccid sets the value of Iccid.
+func (s *PositionAttributes) SetIccid(val OptString) {
+	s.Iccid = val
+}
+
+// SetSatellites sets the value of Satellites.
+func (s *PositionAttributes) SetSatellites(val OptInt) {
+	s.Satellites = val
+}
+
+// SetAdditionalProps sets the value of AdditionalProps.
+func (s *PositionAttributes) SetAdditionalProps(val PositionAttributesAdditional) {
+	s.AdditionalProps = val
+}
+
+type PositionAttributesAdditional map[string]jx.Raw
+
+func (s *PositionAttributesAdditional) init() PositionAttributesAdditional {
 	m := *s
 	if m == nil {
 		m = map[string]jx.Raw{}

@@ -96,6 +96,85 @@ func derefFloat64(f *float64) float64 {
 	return *f
 }
 
+// attrBool extracts a bool value from an attribute map by key.
+func attrBool(attrs map[string]interface{}, key string) oas.OptBool {
+	v, ok := attrs[key]
+	if !ok {
+		return oas.OptBool{}
+	}
+	b, ok := v.(bool)
+	if !ok {
+		return oas.OptBool{}
+	}
+	return oas.OptBool{Value: b, Set: true}
+}
+
+// attrString extracts a string value from an attribute map by key.
+func attrString(attrs map[string]interface{}, key string) oas.OptString {
+	v, ok := attrs[key]
+	if !ok {
+		return oas.OptString{}
+	}
+	s, ok := v.(string)
+	if !ok {
+		return oas.OptString{}
+	}
+	return oas.OptString{Value: s, Set: true}
+}
+
+// attrInt extracts an integer value from an attribute map by key.
+// JSON numbers decode as float64, so both float64 and int are handled.
+func attrInt(attrs map[string]interface{}, key string) oas.OptInt {
+	v, ok := attrs[key]
+	if !ok {
+		return oas.OptInt{}
+	}
+	switch n := v.(type) {
+	case float64:
+		return oas.OptInt{Value: int(n), Set: true}
+	case int:
+		return oas.OptInt{Value: n, Set: true}
+	case int64:
+		return oas.OptInt{Value: int(n), Set: true}
+	default:
+		return oas.OptInt{}
+	}
+}
+
+var positionKnownKeys = map[string]struct{}{
+	"motion": {}, "ignition": {}, "flags": {}, "alarm": {},
+	"mcc": {}, "mnc": {}, "lac": {}, "cellId": {}, "iccid": {}, "satellites": {},
+}
+
+// positionAttrsToOAS converts a model attribute map to a typed oas.PositionAttributes.
+// The 10 known protocol keys are extracted into typed fields; remaining keys go into AdditionalProps.
+func positionAttrsToOAS(attrs map[string]interface{}) oas.PositionAttributes {
+	pa := oas.PositionAttributes{
+		Motion:     attrBool(attrs, "motion"),
+		Ignition:   attrBool(attrs, "ignition"),
+		Flags:      attrString(attrs, "flags"),
+		Alarm:      attrString(attrs, "alarm"),
+		Mcc:        attrInt(attrs, "mcc"),
+		Mnc:        attrInt(attrs, "mnc"),
+		Lac:        attrInt(attrs, "lac"),
+		CellId:     attrInt(attrs, "cellId"),
+		Iccid:      attrString(attrs, "iccid"),
+		Satellites: attrInt(attrs, "satellites"),
+	}
+	for k, v := range attrs {
+		if _, known := positionKnownKeys[k]; known {
+			continue
+		}
+		if pa.AdditionalProps == nil {
+			pa.AdditionalProps = make(oas.PositionAttributesAdditional)
+		}
+		if b, err := json.Marshal(v); err == nil {
+			pa.AdditionalProps[k] = jx.Raw(b)
+		}
+	}
+	return pa
+}
+
 // deviceToOAS converts a model.Device to oas.Device.
 func deviceToOAS(d *model.Device) oas.Device {
 	return oas.Device{
@@ -163,7 +242,7 @@ func positionToOAS(p *model.Position) oas.Position {
 		Course:     derefFloat64(p.Course),
 		Address:    optStr(addr),
 		Accuracy:   p.Accuracy,
-		Attributes: oas.PositionAttributes(attrsToRaw(p.Attributes)),
+		Attributes: positionAttrsToOAS(p.Attributes),
 	}
 }
 

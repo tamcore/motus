@@ -98,6 +98,27 @@ components:
       description: Free-form client attributes passed through unchanged (Traccar compat).
       additionalProperties: true
 
+    PositionAttributes:
+      type: object
+      description: |
+        Protocol-emitted position metadata. Known keys per protocol:
+        - All: motion (bool)
+        - H02: ignition (bool), flags (string), alarm (string), mcc/mnc/lac/cellId (int), iccid (string)
+        - Watch: satellites (int)
+        Open for forward compatibility with additional protocols.
+      properties:
+        motion:     { type: boolean }
+        ignition:   { type: boolean }
+        flags:      { type: string }
+        alarm:      { type: string }
+        mcc:        { type: integer }
+        mnc:        { type: integer }
+        lac:        { type: integer }
+        cellId:     { type: integer }
+        iccid:      { type: string }
+        satellites: { type: integer }
+      additionalProperties: true
+
     DeviceInput:
       type: object
       required: [name, uniqueId]
@@ -137,8 +158,7 @@ components:
         accuracy: { type: number, format: double }
         address: { type: string }
         attributes:
-          type: object
-          additionalProperties: {}
+          $ref: '#/components/schemas/PositionAttributes'
 
     User:
       type: object

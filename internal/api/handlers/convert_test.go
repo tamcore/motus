@@ -151,6 +151,57 @@ func TestUserToOAS(t *testing.T) {
 	}
 }
 
+func TestPositionAttrsToOAS(t *testing.T) {
+	attrs := map[string]interface{}{
+		"motion":     true,
+		"ignition":   false,
+		"flags":      "0x0001",
+		"alarm":      "sos",
+		"mcc":        float64(262),
+		"mnc":        float64(1),
+		"lac":        float64(100),
+		"cellId":     float64(5000),
+		"iccid":      "89490200000010001234",
+		"satellites": float64(8),
+		"custom":     "extra",
+	}
+	got := positionAttrsToOAS(attrs)
+	if !got.Motion.Set || !got.Motion.Value {
+		t.Errorf("Motion = %+v, want {Value:true Set:true}", got.Motion)
+	}
+	if !got.Ignition.Set || got.Ignition.Value {
+		t.Errorf("Ignition = %+v, want {Value:false Set:true}", got.Ignition)
+	}
+	if !got.Flags.Set || got.Flags.Value != "0x0001" {
+		t.Errorf("Flags = %+v, want 0x0001", got.Flags)
+	}
+	if !got.Alarm.Set || got.Alarm.Value != "sos" {
+		t.Errorf("Alarm = %+v, want sos", got.Alarm)
+	}
+	if !got.Mcc.Set || got.Mcc.Value != 262 {
+		t.Errorf("Mcc = %+v, want 262", got.Mcc)
+	}
+	if !got.Satellites.Set || got.Satellites.Value != 8 {
+		t.Errorf("Satellites = %+v, want 8", got.Satellites)
+	}
+	if !got.Iccid.Set || got.Iccid.Value != "89490200000010001234" {
+		t.Errorf("Iccid = %+v", got.Iccid)
+	}
+	if got.AdditionalProps["custom"] == nil {
+		t.Error("extra key should appear in AdditionalProps")
+	}
+}
+
+func TestPositionAttrsToOAS_Empty(t *testing.T) {
+	got := positionAttrsToOAS(map[string]interface{}{})
+	if got.Motion.Set || got.Ignition.Set || got.Satellites.Set {
+		t.Error("empty attrs should produce zero-value struct")
+	}
+	if len(got.AdditionalProps) != 0 {
+		t.Error("AdditionalProps should be empty")
+	}
+}
+
 func TestPositionToOAS(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Second)
 	p := &model.Position{

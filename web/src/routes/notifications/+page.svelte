@@ -16,6 +16,7 @@
 		DEFAULT_TEMPLATE
 	} from '$lib/stores/notifications';
 	import type { NotificationRule, NotificationLog } from '$lib/stores/notifications';
+	import type { NotificationConfigWebhook } from '$lib/types/api';
 
 	let loading = true;
 	let error = '';
@@ -94,16 +95,13 @@
 		showModal = true;
 	}
 
-	function buildConfig(): Record<string, any> {
-		const config: Record<string, any> = {};
-
-		config.webhookUrl = formWebhookUrl;
+	function buildConfig(): NotificationConfigWebhook {
+		const cfg: NotificationConfigWebhook = { channel: 'webhook', webhookUrl: formWebhookUrl };
 		const filteredHeaders = formHeaders.filter((h) => h.key.trim());
 		if (filteredHeaders.length > 0) {
-			config.headers = Object.fromEntries(filteredHeaders.map((h) => [h.key, h.value]));
+			cfg.headers = Object.fromEntries(filteredHeaders.map((h) => [h.key, h.value]));
 		}
-
-		return config;
+		return cfg;
 	}
 
 	async function handleSubmit() {

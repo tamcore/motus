@@ -1,4 +1,5 @@
 import { writable, derived } from "svelte/store";
+import type { NotificationConfig } from "$lib/types/api";
 
 export interface NotificationRule {
   id: number;
@@ -6,7 +7,7 @@ export interface NotificationRule {
   name: string;
   eventTypes: string[];
   channel: "webhook";
-  config: Record<string, any>;
+  config: NotificationConfig;
   template: string;
   enabled: boolean;
   createdAt: string;

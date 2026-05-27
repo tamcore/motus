@@ -9,11 +9,11 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-faster/jx"
 	"github.com/tamcore/motus/internal/api"
+	oas "github.com/tamcore/motus/internal/api/oas"
 	"github.com/tamcore/motus/internal/audit"
 	"github.com/tamcore/motus/internal/model"
 	"github.com/tamcore/motus/internal/storage/repository"
 	"github.com/tamcore/motus/internal/validation"
-	oas "github.com/tamcore/motus/internal/api/oas"
 )
 
 // DeviceHandler handles device CRUD endpoints.
@@ -497,6 +497,9 @@ func applyDeviceInputFields(d *model.Device, req *oas.DeviceInput) *model.Device
 	}
 	if v, ok := req.Category.Get(); ok {
 		clone.Category = &v
+	}
+	if v, ok := req.Protocol.Get(); ok {
+		clone.Protocol = v
 	}
 	if v, ok := req.CalendarId.Get(); ok {
 		clone.CalendarID = &v

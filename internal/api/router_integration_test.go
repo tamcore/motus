@@ -32,7 +32,6 @@ func (passthroughSecHandler) HandleXAuthToken(ctx context.Context, _ oas.Operati
 	return ctx, nil
 }
 
-
 func newTestHub() *websocket.Hub {
 	return websocket.NewHub(nil, nil, func(r *http.Request) int64 { return 0 })
 }

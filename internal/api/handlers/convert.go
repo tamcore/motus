@@ -371,6 +371,9 @@ func oasInputToDevice(req *oas.DeviceInput) *model.Device {
 	if v, ok := req.Category.Get(); ok {
 		d.Category = &v
 	}
+	if v, ok := req.Protocol.Get(); ok {
+		d.Protocol = v
+	}
 	if v, ok := req.CalendarId.Get(); ok {
 		d.CalendarID = &v
 	}

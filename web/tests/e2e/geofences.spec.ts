@@ -1,7 +1,13 @@
-import { test, expect } from '../fixtures/auth-fixture';
+import { test, expect, type APIRequestContext } from '@playwright/test';
+import { test as authTest } from '../fixtures/auth-fixture';
 import { GeofencesPage } from '../page-objects/GeofencesPage';
 
 const CIRCLE_AREA = 'CIRCLE (11.5820 48.1351, 1000)';
+
+async function getCSRF(request: APIRequestContext): Promise<string> {
+  const res = await request.get('/api/session');
+  return res.headers()['x-csrf-token'] ?? '';
+}
 
 test.describe('Geofence API — partial update and calendarId', () => {
   let geofenceId: number;
@@ -10,8 +16,10 @@ test.describe('Geofence API — partial update and calendarId', () => {
   test.beforeAll(async ({ browser }) => {
     const ctx = await browser.newContext({ storageState: '.auth/user.json' });
     const page = await ctx.newPage();
+    const csrf = await getCSRF(page.request);
 
     const calRes = await page.request.post('/api/calendars', {
+      headers: { 'X-CSRF-Token': csrf },
       data: {
         name: 'PW Test Calendar',
         data: 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nEND:VCALENDAR',
@@ -21,6 +29,7 @@ test.describe('Geofence API — partial update and calendarId', () => {
     calendarId = (await calRes.json()).id;
 
     const geoRes = await page.request.post('/api/geofences', {
+      headers: { 'X-CSRF-Token': csrf },
       data: { name: 'PW Calendar Test Fence', area: CIRCLE_AREA },
     });
     expect(geoRes.status()).toBe(201);
@@ -32,37 +41,53 @@ test.describe('Geofence API — partial update and calendarId', () => {
   test.afterAll(async ({ browser }) => {
     const ctx = await browser.newContext({ storageState: '.auth/user.json' });
     const page = await ctx.newPage();
-    await page.request.delete(`/api/geofences/${geofenceId}`);
-    await page.request.delete(`/api/calendars/${calendarId}`);
+    const csrf = await getCSRF(page.request);
+    await page.request.delete(`/api/geofences/${geofenceId}`, { headers: { 'X-CSRF-Token': csrf } });
+    await page.request.delete(`/api/calendars/${calendarId}`, { headers: { 'X-CSRF-Token': csrf } });
     await ctx.close();
   });
 
-  test('partial update with name only (no area) should succeed', async ({ authedPage }) => {
-    const res = await authedPage.request.put(`/api/geofences/${geofenceId}`, {
+  test('partial update with name only (no area) should succeed', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: '.auth/user.json' });
+    const page = await ctx.newPage();
+    const csrf = await getCSRF(page.request);
+    const res = await page.request.put(`/api/geofences/${geofenceId}`, {
+      headers: { 'X-CSRF-Token': csrf },
       data: { name: 'PW Renamed Fence' },
     });
     expect(res.status()).toBe(200);
     const body = await res.json();
     expect(body.name).toBe('PW Renamed Fence');
     expect(body.area).toBe(CIRCLE_AREA);
+    await ctx.close();
   });
 
-  test('update with calendarId integer should link the calendar', async ({ authedPage }) => {
-    const res = await authedPage.request.put(`/api/geofences/${geofenceId}`, {
+  test('update with calendarId integer should link the calendar', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: '.auth/user.json' });
+    const page = await ctx.newPage();
+    const csrf = await getCSRF(page.request);
+    const res = await page.request.put(`/api/geofences/${geofenceId}`, {
+      headers: { 'X-CSRF-Token': csrf },
       data: { calendarId },
     });
     expect(res.status()).toBe(200);
     const body = await res.json();
     expect(body.calendarId).toBe(calendarId);
+    await ctx.close();
   });
 
-  test('update with calendarId null should clear the calendar', async ({ authedPage }) => {
-    const res = await authedPage.request.put(`/api/geofences/${geofenceId}`, {
+  test('update with calendarId null should clear the calendar', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: '.auth/user.json' });
+    const page = await ctx.newPage();
+    const csrf = await getCSRF(page.request);
+    const res = await page.request.put(`/api/geofences/${geofenceId}`, {
+      headers: { 'X-CSRF-Token': csrf },
       data: { calendarId: null },
     });
     expect(res.status()).toBe(200);
     const body = await res.json();
     expect(body.calendarId).toBeNull();
+    await ctx.close();
   });
 });
 

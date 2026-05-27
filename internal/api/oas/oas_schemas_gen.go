@@ -3,6 +3,7 @@
 package api
 
 import (
+	"fmt"
 	"io"
 	"time"
 
@@ -10,6 +11,10 @@ import (
 	"github.com/go-faster/jx"
 	ht "github.com/ogen-go/ogen/http"
 )
+
+func (s *UnexpectedErrorStatusCode) Error() string {
+	return fmt.Sprintf("code %d: %+v", s.StatusCode, s.Response)
+}
 
 type AdminAssignDeviceForbidden Error
 
@@ -468,6 +473,19 @@ func (s *ApiKeyPermissions) UnmarshalText(data []byte) error {
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+// Free-form client attributes passed through unchanged (Traccar compat).
+// Ref: #/components/schemas/Attributes
+type Attributes map[string]jx.Raw
+
+func (s *Attributes) init() Attributes {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
 }
 
 // Ref: #/components/schemas/AuditEntry
@@ -1155,27 +1173,27 @@ func (*DeleteShareUnauthorized) deleteShareRes() {}
 
 // Ref: #/components/schemas/Device
 type Device struct {
-	ID             int64            `json:"id"`
-	UniqueId       string           `json:"uniqueId"`
-	Name           string           `json:"name"`
-	Protocol       OptString        `json:"protocol"`
-	Status         string           `json:"status"`
-	SpeedLimit     OptNilFloat64    `json:"speedLimit"`
-	LastUpdate     OptNilDateTime   `json:"lastUpdate"`
-	PositionId     OptNilInt64      `json:"positionId"`
-	GroupId        OptNilInt64      `json:"groupId"`
-	Phone          OptNilString     `json:"phone"`
-	Model          OptNilString     `json:"model"`
-	Contact        OptNilString     `json:"contact"`
-	Category       OptNilString     `json:"category"`
-	CalendarId     OptNilInt64      `json:"calendarId"`
-	ExpirationTime OptNilDateTime   `json:"expirationTime"`
-	Disabled       bool             `json:"disabled"`
-	Mileage        OptNilFloat64    `json:"mileage"`
-	Attributes     DeviceAttributes `json:"attributes"`
-	OwnerName      OptString        `json:"ownerName"`
-	CreatedAt      time.Time        `json:"createdAt"`
-	UpdatedAt      time.Time        `json:"updatedAt"`
+	ID             int64          `json:"id"`
+	UniqueId       string         `json:"uniqueId"`
+	Name           string         `json:"name"`
+	Protocol       OptString      `json:"protocol"`
+	Status         string         `json:"status"`
+	SpeedLimit     OptNilFloat64  `json:"speedLimit"`
+	LastUpdate     OptNilDateTime `json:"lastUpdate"`
+	PositionId     OptNilInt64    `json:"positionId"`
+	GroupId        OptNilInt64    `json:"groupId"`
+	Phone          OptNilString   `json:"phone"`
+	Model          OptNilString   `json:"model"`
+	Contact        OptNilString   `json:"contact"`
+	Category       OptNilString   `json:"category"`
+	CalendarId     OptNilInt64    `json:"calendarId"`
+	ExpirationTime OptNilDateTime `json:"expirationTime"`
+	Disabled       bool           `json:"disabled"`
+	Mileage        OptNilFloat64  `json:"mileage"`
+	Attributes     Attributes     `json:"attributes"`
+	OwnerName      OptString      `json:"ownerName"`
+	CreatedAt      time.Time      `json:"createdAt"`
+	UpdatedAt      time.Time      `json:"updatedAt"`
 }
 
 // GetID returns the value of ID.
@@ -1264,7 +1282,7 @@ func (s *Device) GetMileage() OptNilFloat64 {
 }
 
 // GetAttributes returns the value of Attributes.
-func (s *Device) GetAttributes() DeviceAttributes {
+func (s *Device) GetAttributes() Attributes {
 	return s.Attributes
 }
 
@@ -1369,7 +1387,7 @@ func (s *Device) SetMileage(val OptNilFloat64) {
 }
 
 // SetAttributes sets the value of Attributes.
-func (s *Device) SetAttributes(val DeviceAttributes) {
+func (s *Device) SetAttributes(val Attributes) {
 	s.Attributes = val
 }
 
@@ -1393,30 +1411,19 @@ func (*Device) getDeviceRes()       {}
 func (*Device) getSharedDeviceRes() {}
 func (*Device) updateDeviceRes()    {}
 
-type DeviceAttributes map[string]jx.Raw
-
-func (s *DeviceAttributes) init() DeviceAttributes {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
-}
-
 // Ref: #/components/schemas/DeviceInput
 type DeviceInput struct {
-	Name       string                   `json:"name"`
-	UniqueId   string                   `json:"uniqueId"`
-	Phone      OptString                `json:"phone"`
-	Model      OptString                `json:"model"`
-	Contact    OptString                `json:"contact"`
-	Category   OptString                `json:"category"`
-	Protocol   OptString                `json:"protocol"`
-	CalendarId OptInt64                 `json:"calendarId"`
-	SpeedLimit OptFloat64               `json:"speedLimit"`
-	Disabled   OptBool                  `json:"disabled"`
-	Attributes OptDeviceInputAttributes `json:"attributes"`
+	Name       string        `json:"name"`
+	UniqueId   string        `json:"uniqueId"`
+	Phone      OptString     `json:"phone"`
+	Model      OptString     `json:"model"`
+	Contact    OptString     `json:"contact"`
+	Category   OptString     `json:"category"`
+	Protocol   OptString     `json:"protocol"`
+	CalendarId OptInt64      `json:"calendarId"`
+	SpeedLimit OptFloat64    `json:"speedLimit"`
+	Disabled   OptBool       `json:"disabled"`
+	Attributes OptAttributes `json:"attributes"`
 }
 
 // GetName returns the value of Name.
@@ -1470,7 +1477,7 @@ func (s *DeviceInput) GetDisabled() OptBool {
 }
 
 // GetAttributes returns the value of Attributes.
-func (s *DeviceInput) GetAttributes() OptDeviceInputAttributes {
+func (s *DeviceInput) GetAttributes() OptAttributes {
 	return s.Attributes
 }
 
@@ -1525,19 +1532,8 @@ func (s *DeviceInput) SetDisabled(val OptBool) {
 }
 
 // SetAttributes sets the value of Attributes.
-func (s *DeviceInput) SetAttributes(val OptDeviceInputAttributes) {
+func (s *DeviceInput) SetAttributes(val OptAttributes) {
 	s.Attributes = val
-}
-
-type DeviceInputAttributes map[string]jx.Raw
-
-func (s *DeviceInputAttributes) init() DeviceInputAttributes {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
 }
 
 // Ref: #/components/schemas/DeviceShare
@@ -1752,12 +1748,12 @@ type Geofence struct {
 	// WKT geometry (Traccar-compatible).
 	Area string `json:"area"`
 	// GeoJSON geometry.
-	Geometry   OptString          `json:"geometry"`
-	CalendarId OptNilInt64        `json:"calendarId"`
-	OwnerName  OptString          `json:"ownerName"`
-	Attributes GeofenceAttributes `json:"attributes"`
-	CreatedAt  time.Time          `json:"createdAt"`
-	UpdatedAt  time.Time          `json:"updatedAt"`
+	Geometry   OptString   `json:"geometry"`
+	CalendarId OptNilInt64 `json:"calendarId"`
+	OwnerName  OptString   `json:"ownerName"`
+	Attributes Attributes  `json:"attributes"`
+	CreatedAt  time.Time   `json:"createdAt"`
+	UpdatedAt  time.Time   `json:"updatedAt"`
 }
 
 // GetID returns the value of ID.
@@ -1796,7 +1792,7 @@ func (s *Geofence) GetOwnerName() OptString {
 }
 
 // GetAttributes returns the value of Attributes.
-func (s *Geofence) GetAttributes() GeofenceAttributes {
+func (s *Geofence) GetAttributes() Attributes {
 	return s.Attributes
 }
 
@@ -1846,7 +1842,7 @@ func (s *Geofence) SetOwnerName(val OptString) {
 }
 
 // SetAttributes sets the value of Attributes.
-func (s *Geofence) SetAttributes(val GeofenceAttributes) {
+func (s *Geofence) SetAttributes(val Attributes) {
 	s.Attributes = val
 }
 
@@ -1864,25 +1860,14 @@ func (*Geofence) createGeofenceRes() {}
 func (*Geofence) getGeofenceRes()    {}
 func (*Geofence) updateGeofenceRes() {}
 
-type GeofenceAttributes map[string]jx.Raw
-
-func (s *GeofenceAttributes) init() GeofenceAttributes {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
-}
-
 // Ref: #/components/schemas/GeofenceInput
 type GeofenceInput struct {
-	Name        string                     `json:"name"`
-	Description OptString                  `json:"description"`
-	Area        string                     `json:"area"`
-	Geometry    OptString                  `json:"geometry"`
-	CalendarId  OptInt64                   `json:"calendarId"`
-	Attributes  OptGeofenceInputAttributes `json:"attributes"`
+	Name        string        `json:"name"`
+	Description OptString     `json:"description"`
+	Area        string        `json:"area"`
+	Geometry    OptString     `json:"geometry"`
+	CalendarId  OptInt64      `json:"calendarId"`
+	Attributes  OptAttributes `json:"attributes"`
 }
 
 // GetName returns the value of Name.
@@ -1911,7 +1896,7 @@ func (s *GeofenceInput) GetCalendarId() OptInt64 {
 }
 
 // GetAttributes returns the value of Attributes.
-func (s *GeofenceInput) GetAttributes() OptGeofenceInputAttributes {
+func (s *GeofenceInput) GetAttributes() OptAttributes {
 	return s.Attributes
 }
 
@@ -1941,19 +1926,8 @@ func (s *GeofenceInput) SetCalendarId(val OptInt64) {
 }
 
 // SetAttributes sets the value of Attributes.
-func (s *GeofenceInput) SetAttributes(val OptGeofenceInputAttributes) {
+func (s *GeofenceInput) SetAttributes(val OptAttributes) {
 	s.Attributes = val
-}
-
-type GeofenceInputAttributes map[string]jx.Raw
-
-func (s *GeofenceInputAttributes) init() GeofenceInputAttributes {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
 }
 
 type GetCommandTypesOKApplicationJSON []CommandType
@@ -2558,6 +2532,52 @@ func (o OptApiKeyInputPermissions) Or(d ApiKeyInputPermissions) ApiKeyInputPermi
 	return d
 }
 
+// NewOptAttributes returns new OptAttributes with value set to v.
+func NewOptAttributes(v Attributes) OptAttributes {
+	return OptAttributes{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptAttributes is optional Attributes.
+type OptAttributes struct {
+	Value Attributes
+	Set   bool
+}
+
+// IsSet returns true if OptAttributes was set.
+func (o OptAttributes) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptAttributes) Reset() {
+	var v Attributes
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptAttributes) SetTo(v Attributes) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptAttributes) Get() (v Attributes, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptAttributes) Or(d Attributes) Attributes {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptAuditEntryMetadata returns new OptAuditEntryMetadata with value set to v.
 func NewOptAuditEntryMetadata(v AuditEntryMetadata) OptAuditEntryMetadata {
 	return OptAuditEntryMetadata{
@@ -2834,52 +2854,6 @@ func (o OptDateTime) Or(d time.Time) time.Time {
 	return d
 }
 
-// NewOptDeviceInputAttributes returns new OptDeviceInputAttributes with value set to v.
-func NewOptDeviceInputAttributes(v DeviceInputAttributes) OptDeviceInputAttributes {
-	return OptDeviceInputAttributes{
-		Value: v,
-		Set:   true,
-	}
-}
-
-// OptDeviceInputAttributes is optional DeviceInputAttributes.
-type OptDeviceInputAttributes struct {
-	Value DeviceInputAttributes
-	Set   bool
-}
-
-// IsSet returns true if OptDeviceInputAttributes was set.
-func (o OptDeviceInputAttributes) IsSet() bool { return o.Set }
-
-// Reset unsets value.
-func (o *OptDeviceInputAttributes) Reset() {
-	var v DeviceInputAttributes
-	o.Value = v
-	o.Set = false
-}
-
-// SetTo sets value to v.
-func (o *OptDeviceInputAttributes) SetTo(v DeviceInputAttributes) {
-	o.Set = true
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o OptDeviceInputAttributes) Get() (v DeviceInputAttributes, ok bool) {
-	if !o.Set {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o OptDeviceInputAttributes) Or(d DeviceInputAttributes) DeviceInputAttributes {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
 // NewOptEventAttributes returns new OptEventAttributes with value set to v.
 func NewOptEventAttributes(v EventAttributes) OptEventAttributes {
 	return OptEventAttributes{
@@ -2966,52 +2940,6 @@ func (o OptFloat64) Get() (v float64, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptFloat64) Or(d float64) float64 {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewOptGeofenceInputAttributes returns new OptGeofenceInputAttributes with value set to v.
-func NewOptGeofenceInputAttributes(v GeofenceInputAttributes) OptGeofenceInputAttributes {
-	return OptGeofenceInputAttributes{
-		Value: v,
-		Set:   true,
-	}
-}
-
-// OptGeofenceInputAttributes is optional GeofenceInputAttributes.
-type OptGeofenceInputAttributes struct {
-	Value GeofenceInputAttributes
-	Set   bool
-}
-
-// IsSet returns true if OptGeofenceInputAttributes was set.
-func (o OptGeofenceInputAttributes) IsSet() bool { return o.Set }
-
-// Reset unsets value.
-func (o *OptGeofenceInputAttributes) Reset() {
-	var v GeofenceInputAttributes
-	o.Value = v
-	o.Set = false
-}
-
-// SetTo sets value to v.
-func (o *OptGeofenceInputAttributes) SetTo(v GeofenceInputAttributes) {
-	o.Set = true
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o OptGeofenceInputAttributes) Get() (v GeofenceInputAttributes, ok bool) {
-	if !o.Set {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o OptGeofenceInputAttributes) Or(d GeofenceInputAttributes) GeofenceInputAttributes {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -3454,52 +3382,6 @@ func (o OptSendCommandRequestAttributes) Or(d SendCommandRequestAttributes) Send
 	return d
 }
 
-// NewOptServerInfoAttributes returns new OptServerInfoAttributes with value set to v.
-func NewOptServerInfoAttributes(v ServerInfoAttributes) OptServerInfoAttributes {
-	return OptServerInfoAttributes{
-		Value: v,
-		Set:   true,
-	}
-}
-
-// OptServerInfoAttributes is optional ServerInfoAttributes.
-type OptServerInfoAttributes struct {
-	Value ServerInfoAttributes
-	Set   bool
-}
-
-// IsSet returns true if OptServerInfoAttributes was set.
-func (o OptServerInfoAttributes) IsSet() bool { return o.Set }
-
-// Reset unsets value.
-func (o *OptServerInfoAttributes) Reset() {
-	var v ServerInfoAttributes
-	o.Value = v
-	o.Set = false
-}
-
-// SetTo sets value to v.
-func (o *OptServerInfoAttributes) SetTo(v ServerInfoAttributes) {
-	o.Set = true
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o OptServerInfoAttributes) Get() (v ServerInfoAttributes, ok bool) {
-	if !o.Set {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o OptServerInfoAttributes) Or(d ServerInfoAttributes) ServerInfoAttributes {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
 // NewOptString returns new OptString with value set to v.
 func NewOptString(v string) OptString {
 	return OptString{
@@ -3540,52 +3422,6 @@ func (o OptString) Get() (v string, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptString) Or(d string) string {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewOptUserAttributes returns new OptUserAttributes with value set to v.
-func NewOptUserAttributes(v UserAttributes) OptUserAttributes {
-	return OptUserAttributes{
-		Value: v,
-		Set:   true,
-	}
-}
-
-// OptUserAttributes is optional UserAttributes.
-type OptUserAttributes struct {
-	Value UserAttributes
-	Set   bool
-}
-
-// IsSet returns true if OptUserAttributes was set.
-func (o OptUserAttributes) IsSet() bool { return o.Set }
-
-// Reset unsets value.
-func (o *OptUserAttributes) Reset() {
-	var v UserAttributes
-	o.Value = v
-	o.Set = false
-}
-
-// SetTo sets value to v.
-func (o *OptUserAttributes) SetTo(v UserAttributes) {
-	o.Set = true
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o OptUserAttributes) Get() (v UserAttributes, ok bool) {
-	if !o.Set {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o OptUserAttributes) Or(d UserAttributes) UserAttributes {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -3763,7 +3599,6 @@ type Position struct {
 	Accuracy   float64            `json:"accuracy"`
 	Address    OptString          `json:"address"`
 	Attributes PositionAttributes `json:"attributes"`
-	Network    PositionNetwork    `json:"network"`
 }
 
 // GetID returns the value of ID.
@@ -3856,11 +3691,6 @@ func (s *Position) GetAttributes() PositionAttributes {
 	return s.Attributes
 }
 
-// GetNetwork returns the value of Network.
-func (s *Position) GetNetwork() PositionNetwork {
-	return s.Network
-}
-
 // SetID sets the value of ID.
 func (s *Position) SetID(val int64) {
 	s.ID = val
@@ -3951,25 +3781,9 @@ func (s *Position) SetAttributes(val PositionAttributes) {
 	s.Attributes = val
 }
 
-// SetNetwork sets the value of Network.
-func (s *Position) SetNetwork(val PositionNetwork) {
-	s.Network = val
-}
-
 type PositionAttributes map[string]jx.Raw
 
 func (s *PositionAttributes) init() PositionAttributes {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
-}
-
-type PositionNetwork map[string]jx.Raw
-
-func (s *PositionNetwork) init() PositionNetwork {
 	m := *s
 	if m == nil {
 		m = map[string]jx.Raw{}
@@ -4044,19 +3858,18 @@ func (*SendCommandUnauthorized) sendCommandRes() {}
 
 // Ref: #/components/schemas/ServerInfo
 type ServerInfo struct {
-	ID             int                     `json:"id"`
-	Registration   bool                    `json:"registration"`
-	Readonly       bool                    `json:"readonly"`
-	DeviceReadonly bool                    `json:"deviceReadonly"`
-	LimitCommands  bool                    `json:"limitCommands"`
-	Version        string                  `json:"version"`
-	Map            OptString               `json:"map"`
-	Latitude       OptFloat64              `json:"latitude"`
-	Longitude      OptFloat64              `json:"longitude"`
-	Zoom           OptInt                  `json:"zoom"`
-	OpenIdEnabled  OptBool                 `json:"openIdEnabled"`
-	OpenIdForce    OptBool                 `json:"openIdForce"`
-	Attributes     OptServerInfoAttributes `json:"attributes"`
+	ID             int        `json:"id"`
+	Registration   bool       `json:"registration"`
+	Readonly       bool       `json:"readonly"`
+	DeviceReadonly bool       `json:"deviceReadonly"`
+	LimitCommands  bool       `json:"limitCommands"`
+	Version        string     `json:"version"`
+	Map            OptString  `json:"map"`
+	Latitude       OptFloat64 `json:"latitude"`
+	Longitude      OptFloat64 `json:"longitude"`
+	Zoom           OptInt     `json:"zoom"`
+	OpenIdEnabled  OptBool    `json:"openIdEnabled"`
+	OpenIdForce    OptBool    `json:"openIdForce"`
 }
 
 // GetID returns the value of ID.
@@ -4119,11 +3932,6 @@ func (s *ServerInfo) GetOpenIdForce() OptBool {
 	return s.OpenIdForce
 }
 
-// GetAttributes returns the value of Attributes.
-func (s *ServerInfo) GetAttributes() OptServerInfoAttributes {
-	return s.Attributes
-}
-
 // SetID sets the value of ID.
 func (s *ServerInfo) SetID(val int) {
 	s.ID = val
@@ -4182,22 +3990,6 @@ func (s *ServerInfo) SetOpenIdEnabled(val OptBool) {
 // SetOpenIdForce sets the value of OpenIdForce.
 func (s *ServerInfo) SetOpenIdForce(val OptBool) {
 	s.OpenIdForce = val
-}
-
-// SetAttributes sets the value of Attributes.
-func (s *ServerInfo) SetAttributes(val OptServerInfoAttributes) {
-	s.Attributes = val
-}
-
-type ServerInfoAttributes map[string]jx.Raw
-
-func (s *ServerInfoAttributes) init() ServerInfoAttributes {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
 }
 
 // Ref: #/components/schemas/Session
@@ -4421,6 +4213,32 @@ func (s *TokenResponse) SetToken(val string) {
 
 func (*TokenResponse) generateTokenRes() {}
 
+// UnexpectedErrorStatusCode wraps Error with StatusCode.
+type UnexpectedErrorStatusCode struct {
+	StatusCode int
+	Response   Error
+}
+
+// GetStatusCode returns the value of StatusCode.
+func (s *UnexpectedErrorStatusCode) GetStatusCode() int {
+	return s.StatusCode
+}
+
+// GetResponse returns the value of Response.
+func (s *UnexpectedErrorStatusCode) GetResponse() Error {
+	return s.Response
+}
+
+// SetStatusCode sets the value of StatusCode.
+func (s *UnexpectedErrorStatusCode) SetStatusCode(val int) {
+	s.StatusCode = val
+}
+
+// SetResponse sets the value of Response.
+func (s *UnexpectedErrorStatusCode) SetResponse(val Error) {
+	s.Response = val
+}
+
 type UpdateCalendarBadRequest Error
 
 func (*UpdateCalendarBadRequest) updateCalendarRes() {}
@@ -4528,14 +4346,14 @@ func (*UpdateProfileUnauthorized) updateProfileRes() {}
 
 // Ref: #/components/schemas/User
 type User struct {
-	ID            int64             `json:"id"`
-	Email         string            `json:"email"`
-	Name          string            `json:"name"`
-	Administrator bool              `json:"administrator"`
-	Readonly      bool              `json:"readonly"`
-	Disabled      bool              `json:"disabled"`
-	CreatedAt     time.Time         `json:"createdAt"`
-	Attributes    OptUserAttributes `json:"attributes"`
+	ID            int64         `json:"id"`
+	Email         string        `json:"email"`
+	Name          string        `json:"name"`
+	Administrator bool          `json:"administrator"`
+	Readonly      bool          `json:"readonly"`
+	Disabled      bool          `json:"disabled"`
+	CreatedAt     time.Time     `json:"createdAt"`
+	Attributes    OptAttributes `json:"attributes"`
 }
 
 // GetID returns the value of ID.
@@ -4574,7 +4392,7 @@ func (s *User) GetCreatedAt() time.Time {
 }
 
 // GetAttributes returns the value of Attributes.
-func (s *User) GetAttributes() OptUserAttributes {
+func (s *User) GetAttributes() OptAttributes {
 	return s.Attributes
 }
 
@@ -4614,7 +4432,7 @@ func (s *User) SetCreatedAt(val time.Time) {
 }
 
 // SetAttributes sets the value of Attributes.
-func (s *User) SetAttributes(val OptUserAttributes) {
+func (s *User) SetAttributes(val OptAttributes) {
 	s.Attributes = val
 }
 
@@ -4623,17 +4441,6 @@ func (*User) adminUpdateUserRes() {}
 func (*User) getSessionRes()      {}
 func (*User) loginRes()           {}
 func (*User) updateProfileRes()   {}
-
-type UserAttributes map[string]jx.Raw
-
-func (s *UserAttributes) init() UserAttributes {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
-}
 
 // Ref: #/components/schemas/UserInput
 type UserInput struct {

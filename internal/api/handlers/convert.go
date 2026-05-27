@@ -116,7 +116,7 @@ func deviceToOAS(d *model.Device) oas.Device {
 		ExpirationTime: ptrToOptTime(d.ExpirationTime),
 		Disabled:       d.Disabled,
 		Mileage:        ptrToOptFloat64(d.Mileage),
-		Attributes:     oas.DeviceAttributes(attrsToRaw(d.Attributes)),
+		Attributes:     oas.Attributes(attrsToRaw(d.Attributes)),
 		OwnerName:      optStr(d.OwnerName),
 		CreatedAt:      d.CreatedAt,
 		UpdatedAt:      d.UpdatedAt,
@@ -125,9 +125,9 @@ func deviceToOAS(d *model.Device) oas.Device {
 
 // userToOAS converts a model.User to oas.User.
 func userToOAS(u *model.User) oas.User {
-	var attrs oas.OptUserAttributes
+	var attrs oas.OptAttributes
 	if u.Attributes != nil {
-		attrs = oas.OptUserAttributes{Value: oas.UserAttributes(attrsToRaw(u.Attributes)), Set: true}
+		attrs = oas.OptAttributes{Value: oas.Attributes(attrsToRaw(u.Attributes)), Set: true}
 	}
 	return oas.User{
 		ID:            u.ID,
@@ -164,7 +164,6 @@ func positionToOAS(p *model.Position) oas.Position {
 		Address:    optStr(addr),
 		Accuracy:   p.Accuracy,
 		Attributes: oas.PositionAttributes(attrsToRaw(p.Attributes)),
-		Network:    oas.PositionNetwork(attrsToRaw(p.Network)),
 	}
 }
 
@@ -216,7 +215,7 @@ func geofenceToOAS(g *model.Geofence) oas.Geofence {
 		Geometry:    optStr(g.Geometry),
 		CalendarId:  ptrToOptInt64(g.CalendarID),
 		OwnerName:   optStr(g.OwnerName),
-		Attributes:  oas.GeofenceAttributes(attrsToRaw(g.Attributes)),
+		Attributes:  oas.Attributes(attrsToRaw(g.Attributes)),
 		CreatedAt:   g.CreatedAt,
 		UpdatedAt:   g.UpdatedAt,
 	}

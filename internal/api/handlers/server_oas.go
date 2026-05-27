@@ -2,10 +2,19 @@ package handlers
 
 import (
 	"context"
+	"net/http"
 
 	oas "github.com/tamcore/motus/internal/api/oas"
 	"github.com/tamcore/motus/internal/version"
 )
+
+// NewError maps a handler error to the default UnexpectedError response.
+func (h *Handler) NewError(_ context.Context, err error) *oas.UnexpectedErrorStatusCode {
+	return &oas.UnexpectedErrorStatusCode{
+		StatusCode: http.StatusInternalServerError,
+		Response:   oas.Error{Error: err.Error()},
+	}
+}
 
 // GetHealth returns the service health status.
 // GET /api/health
@@ -29,7 +38,6 @@ func (h *Handler) GetServer(ctx context.Context) (*oas.ServerInfo, error) {
 		Zoom:           oas.OptInt{Value: 13, Set: true},
 		OpenIdEnabled:  oas.OptBool{Value: false, Set: true},
 		OpenIdForce:    oas.OptBool{Value: false, Set: true},
-		Attributes:     oas.OptServerInfoAttributes{Value: oas.ServerInfoAttributes{}, Set: true},
 	}, nil
 }
 

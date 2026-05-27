@@ -428,6 +428,10 @@ type Handler interface {
 	//
 	// PUT /api/profile
 	UpdateProfile(ctx context.Context, req *UpdateProfileRequest) (UpdateProfileRes, error)
+	// NewError creates *UnexpectedErrorStatusCode from error returned by handler.
+	//
+	// Used for common default response.
+	NewError(ctx context.Context, err error) *UnexpectedErrorStatusCode
 }
 
 // Server implements http server based on OpenAPI v3 specification and

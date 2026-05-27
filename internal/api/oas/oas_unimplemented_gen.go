@@ -642,3 +642,11 @@ func (UnimplementedHandler) UpdateNotification(ctx context.Context, req *Notific
 func (UnimplementedHandler) UpdateProfile(ctx context.Context, req *UpdateProfileRequest) (r UpdateProfileRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
+
+// NewError creates *UnexpectedErrorStatusCode from error returned by handler.
+//
+// Used for common default response.
+func (UnimplementedHandler) NewError(ctx context.Context, err error) (r *UnexpectedErrorStatusCode) {
+	r = new(UnexpectedErrorStatusCode)
+	return r
+}

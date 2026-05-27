@@ -50,6 +50,12 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
+    UnexpectedError:
+      description: Unexpected error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
 
   schemas:
     Error:
@@ -82,11 +88,15 @@ components:
         disabled: { type: boolean }
         mileage: { type: number, format: double, nullable: true }
         attributes:
-          type: object
-          additionalProperties: {}
+          $ref: '#/components/schemas/Attributes'
         ownerName: { type: string }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
+
+    Attributes:
+      type: object
+      description: Free-form client attributes passed through unchanged (Traccar compat).
+      additionalProperties: true
 
     DeviceInput:
       type: object
@@ -103,12 +113,11 @@ components:
         speedLimit: { type: number, format: double }
         disabled: { type: boolean }
         attributes:
-          type: object
-          additionalProperties: {}
+          $ref: '#/components/schemas/Attributes'
 
     Position:
       type: object
-      required: [id, deviceId, serverTime, deviceTime, fixTime, valid, latitude, longitude, altitude, speed, course, accuracy, attributes, network]
+      required: [id, deviceId, serverTime, deviceTime, fixTime, valid, latitude, longitude, altitude, speed, course, accuracy, attributes]
       properties:
         id: { type: integer, format: int64 }
         deviceId: { type: integer, format: int64 }
@@ -130,9 +139,6 @@ components:
         attributes:
           type: object
           additionalProperties: {}
-        network:
-          type: object
-          additionalProperties: {}
 
     User:
       type: object
@@ -146,8 +152,7 @@ components:
         disabled: { type: boolean }
         createdAt: { type: string, format: date-time }
         attributes:
-          type: object
-          additionalProperties: {}
+          $ref: '#/components/schemas/Attributes'
 
     UserInput:
       type: object
@@ -245,8 +250,7 @@ components:
         calendarId: { type: integer, format: int64, nullable: true }
         ownerName: { type: string }
         attributes:
-          type: object
-          additionalProperties: {}
+          $ref: '#/components/schemas/Attributes'
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
 
@@ -260,8 +264,7 @@ components:
         geometry: { type: string }
         calendarId: { type: integer, format: int64 }
         attributes:
-          type: object
-          additionalProperties: {}
+          $ref: '#/components/schemas/Attributes'
 
     Calendar:
       type: object
@@ -483,9 +486,6 @@ components:
         zoom: { type: integer }
         openIdEnabled: { type: boolean }
         openIdForce: { type: boolean }
-        attributes:
-          type: object
-          additionalProperties: {}
 
     VersionInfo:
       type: object
@@ -511,6 +511,8 @@ paths:
                 required: [status]
                 properties:
                   status: { type: string }
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/version:
     get:
@@ -524,6 +526,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/VersionInfo'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/server:
     get:
@@ -537,6 +541,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServerInfo'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/session:
     get:
@@ -560,6 +566,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
     post:
       operationId: login
       summary: Login with email + password
@@ -589,6 +597,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
     delete:
       operationId: logout
       summary: Logout (delete current session)
@@ -602,6 +612,8 @@ paths:
           description: Logged out
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/session/token:
     post:
@@ -621,6 +633,8 @@ paths:
                 $ref: '#/components/schemas/TokenResponse'
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/devices:
     get:
@@ -642,6 +656,8 @@ paths:
                   $ref: '#/components/schemas/Device'
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
     post:
       operationId: createDevice
       summary: Create a device
@@ -667,6 +683,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/devices/{id}:
     parameters:
@@ -695,6 +713,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
     put:
       operationId: updateDevice
       summary: Update a device
@@ -724,6 +744,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
     delete:
       operationId: deleteDevice
       summary: Delete a device
@@ -741,6 +763,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/devices/{id}/gpx:
     parameters:
@@ -781,6 +805,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         "403":
           $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/devices/{id}/share:
     parameters:
@@ -812,6 +838,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         "403":
           $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/devices/{id}/shares:
     parameters:
@@ -840,6 +868,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         "403":
           $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/shares/{id}:
     parameters:
@@ -864,6 +894,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/share/{token}:
     parameters:
@@ -884,6 +916,8 @@ paths:
                 $ref: '#/components/schemas/Device'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/positions:
     get:
@@ -915,6 +949,8 @@ paths:
                   $ref: '#/components/schemas/Position'
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/commands:
     get:
@@ -940,6 +976,8 @@ paths:
                   $ref: '#/components/schemas/Command'
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
     post:
       operationId: createCommand
       summary: Save a command (not yet sent)
@@ -965,6 +1003,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/commands/send:
     post:
@@ -994,6 +1034,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/commands/types:
     get:
@@ -1015,6 +1057,8 @@ paths:
                   $ref: '#/components/schemas/CommandType'
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/geofences:
     get:
@@ -1036,6 +1080,8 @@ paths:
                   $ref: '#/components/schemas/Geofence'
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
     post:
       operationId: createGeofence
       summary: Create a geofence
@@ -1061,6 +1107,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/geofences/{id}:
     parameters:
@@ -1089,6 +1137,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
     put:
       operationId: updateGeofence
       summary: Update a geofence
@@ -1118,6 +1168,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
     delete:
       operationId: deleteGeofence
       summary: Delete a geofence
@@ -1135,6 +1187,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/calendars:
     get:
@@ -1156,6 +1210,8 @@ paths:
                   $ref: '#/components/schemas/Calendar'
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
     post:
       operationId: createCalendar
       summary: Create a calendar
@@ -1181,6 +1237,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/calendars/{id}:
     parameters:
@@ -1215,6 +1273,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
     delete:
       operationId: deleteCalendar
       summary: Delete a calendar
@@ -1230,6 +1290,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/calendars/{id}/check:
     parameters:
@@ -1256,6 +1318,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/events:
     get:
@@ -1290,6 +1354,8 @@ paths:
                   $ref: '#/components/schemas/Event'
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/reports/events:
     get:
@@ -1324,6 +1390,8 @@ paths:
                   $ref: '#/components/schemas/Event'
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/notifications:
     get:
@@ -1345,6 +1413,8 @@ paths:
                   $ref: '#/components/schemas/NotificationRule'
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
     post:
       operationId: createNotification
       summary: Create a notification rule
@@ -1370,6 +1440,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/notifications/{id}:
     parameters:
@@ -1406,6 +1478,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
     delete:
       operationId: deleteNotification
       summary: Delete a notification rule
@@ -1423,6 +1497,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/notifications/{id}/test:
     parameters:
@@ -1447,6 +1523,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/notifications/{id}/logs:
     parameters:
@@ -1477,6 +1555,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/keys:
     get:
@@ -1498,6 +1578,8 @@ paths:
                   $ref: '#/components/schemas/ApiKey'
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
     post:
       operationId: createApiKey
       summary: Create an API key
@@ -1523,6 +1605,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/keys/{id}:
     parameters:
@@ -1547,6 +1631,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/sessions:
     get:
@@ -1568,6 +1654,8 @@ paths:
                   $ref: '#/components/schemas/Session'
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
     delete:
       operationId: logoutAll
       summary: Revoke all sessions for the authenticated user
@@ -1581,6 +1669,8 @@ paths:
           description: All sessions revoked
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/sessions/{id}:
     parameters:
@@ -1605,6 +1695,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/profile:
     put:
@@ -1632,6 +1724,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/admin/sudo:
     get:
@@ -1651,6 +1745,8 @@ paths:
                 $ref: '#/components/schemas/SudoStatus'
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
     delete:
       operationId: endSudo
       summary: End sudo/impersonation session
@@ -1664,6 +1760,8 @@ paths:
           description: Sudo ended
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/admin/sudo/{id}:
     parameters:
@@ -1688,6 +1786,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/users:
     get:
@@ -1711,6 +1811,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         "403":
           $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
     post:
       operationId: adminCreateUser
       summary: Admin — create a user
@@ -1738,6 +1840,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         "403":
           $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/users/{id}:
     parameters:
@@ -1774,6 +1878,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
     delete:
       operationId: adminDeleteUser
       summary: Admin — delete a user
@@ -1791,6 +1897,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/users/{id}/devices:
     parameters:
@@ -1821,6 +1929,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/users/{id}/devices/{deviceId}:
     parameters:
@@ -1849,6 +1959,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
     delete:
       operationId: adminUnassignDevice
       summary: Admin — unassign a device from a user
@@ -1866,6 +1978,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/users/{id}/keys:
     parameters:
@@ -1896,6 +2010,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/users/{id}/sessions/{sessionId}:
     parameters:
@@ -1924,6 +2040,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/admin/devices:
     get:
@@ -1947,6 +2065,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         "403":
           $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/admin/geofences:
     get:
@@ -1970,6 +2090,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         "403":
           $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/admin/calendars:
     get:
@@ -1993,6 +2115,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         "403":
           $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/admin/notifications:
     get:
@@ -2016,6 +2140,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         "403":
           $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/admin/positions:
     get:
@@ -2039,6 +2165,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         "403":
           $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/admin/statistics:
     get:
@@ -2060,6 +2188,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         "403":
           $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/admin/statistics/users/{id}:
     parameters:
@@ -2088,6 +2218,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/admin/audit:
     get:
@@ -2125,6 +2257,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         "403":
           $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/auth/oidc/config:
     get:
@@ -2138,6 +2272,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/OIDCConfig'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/auth/oidc/login:
     get:
@@ -2147,6 +2283,8 @@ paths:
       responses:
         "302":
           description: Redirect to OIDC provider
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/auth/oidc/callback:
     get:
@@ -2165,3 +2303,6 @@ paths:
           description: Redirect to app after successful login
         "400":
           $ref: '#/components/responses/BadRequest'
+
+        default:
+          $ref: '#/components/responses/UnexpectedError'

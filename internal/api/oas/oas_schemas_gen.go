@@ -2073,15 +2073,378 @@ func (s *Event) SetAttributes(val OptEventAttributes) {
 	s.Attributes = val
 }
 
-type EventAttributes map[string]jx.Raw
+// Ref: #/components/schemas/EventAttrAlarm
+type EventAttrAlarm struct {
+	Type  string `json:"type"`
+	Alarm string `json:"alarm"`
+}
 
-func (s *EventAttributes) init() EventAttributes {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
+// GetType returns the value of Type.
+func (s *EventAttrAlarm) GetType() string {
+	return s.Type
+}
+
+// GetAlarm returns the value of Alarm.
+func (s *EventAttrAlarm) GetAlarm() string {
+	return s.Alarm
+}
+
+// SetType sets the value of Type.
+func (s *EventAttrAlarm) SetType(val string) {
+	s.Type = val
+}
+
+// SetAlarm sets the value of Alarm.
+func (s *EventAttrAlarm) SetAlarm(val string) {
+	s.Alarm = val
+}
+
+// Ref: #/components/schemas/EventAttrEmpty
+type EventAttrEmpty struct {
+	Type string `json:"type"`
+}
+
+// GetType returns the value of Type.
+func (s *EventAttrEmpty) GetType() string {
+	return s.Type
+}
+
+// SetType sets the value of Type.
+func (s *EventAttrEmpty) SetType(val string) {
+	s.Type = val
+}
+
+// Ref: #/components/schemas/EventAttrIdle
+type EventAttrIdle struct {
+	Type         string  `json:"type"`
+	IdleDuration float64 `json:"idleDuration"`
+}
+
+// GetType returns the value of Type.
+func (s *EventAttrIdle) GetType() string {
+	return s.Type
+}
+
+// GetIdleDuration returns the value of IdleDuration.
+func (s *EventAttrIdle) GetIdleDuration() float64 {
+	return s.IdleDuration
+}
+
+// SetType sets the value of Type.
+func (s *EventAttrIdle) SetType(val string) {
+	s.Type = val
+}
+
+// SetIdleDuration sets the value of IdleDuration.
+func (s *EventAttrIdle) SetIdleDuration(val float64) {
+	s.IdleDuration = val
+}
+
+// Ref: #/components/schemas/EventAttrIgnition
+type EventAttrIgnition struct {
+	Type     string `json:"type"`
+	Ignition bool   `json:"ignition"`
+}
+
+// GetType returns the value of Type.
+func (s *EventAttrIgnition) GetType() string {
+	return s.Type
+}
+
+// GetIgnition returns the value of Ignition.
+func (s *EventAttrIgnition) GetIgnition() bool {
+	return s.Ignition
+}
+
+// SetType sets the value of Type.
+func (s *EventAttrIgnition) SetType(val string) {
+	s.Type = val
+}
+
+// SetIgnition sets the value of Ignition.
+func (s *EventAttrIgnition) SetIgnition(val bool) {
+	s.Ignition = val
+}
+
+// Ref: #/components/schemas/EventAttrMotion
+type EventAttrMotion struct {
+	Type          string  `json:"type"`
+	Speed         float64 `json:"speed"`
+	PreviousSpeed float64 `json:"previousSpeed"`
+}
+
+// GetType returns the value of Type.
+func (s *EventAttrMotion) GetType() string {
+	return s.Type
+}
+
+// GetSpeed returns the value of Speed.
+func (s *EventAttrMotion) GetSpeed() float64 {
+	return s.Speed
+}
+
+// GetPreviousSpeed returns the value of PreviousSpeed.
+func (s *EventAttrMotion) GetPreviousSpeed() float64 {
+	return s.PreviousSpeed
+}
+
+// SetType sets the value of Type.
+func (s *EventAttrMotion) SetType(val string) {
+	s.Type = val
+}
+
+// SetSpeed sets the value of Speed.
+func (s *EventAttrMotion) SetSpeed(val float64) {
+	s.Speed = val
+}
+
+// SetPreviousSpeed sets the value of PreviousSpeed.
+func (s *EventAttrMotion) SetPreviousSpeed(val float64) {
+	s.PreviousSpeed = val
+}
+
+// Ref: #/components/schemas/EventAttrTrip
+type EventAttrTrip struct {
+	Type     string  `json:"type"`
+	Distance float64 `json:"distance"`
+	Mileage  float64 `json:"mileage"`
+}
+
+// GetType returns the value of Type.
+func (s *EventAttrTrip) GetType() string {
+	return s.Type
+}
+
+// GetDistance returns the value of Distance.
+func (s *EventAttrTrip) GetDistance() float64 {
+	return s.Distance
+}
+
+// GetMileage returns the value of Mileage.
+func (s *EventAttrTrip) GetMileage() float64 {
+	return s.Mileage
+}
+
+// SetType sets the value of Type.
+func (s *EventAttrTrip) SetType(val string) {
+	s.Type = val
+}
+
+// SetDistance sets the value of Distance.
+func (s *EventAttrTrip) SetDistance(val float64) {
+	s.Distance = val
+}
+
+// SetMileage sets the value of Mileage.
+func (s *EventAttrTrip) SetMileage(val float64) {
+	s.Mileage = val
+}
+
+// Ref: #/components/schemas/EventAttributes
+// EventAttributes represents sum type.
+type EventAttributes struct {
+	Type              EventAttributesType // switch on this field
+	EventAttrEmpty    EventAttrEmpty
+	EventAttrIgnition EventAttrIgnition
+	EventAttrAlarm    EventAttrAlarm
+	EventAttrMotion   EventAttrMotion
+	EventAttrTrip     EventAttrTrip
+	EventAttrIdle     EventAttrIdle
+}
+
+// EventAttributesType is oneOf type of EventAttributes.
+type EventAttributesType string
+
+// Possible values for EventAttributesType.
+const (
+	EventAttributesGeofenceEnterEventAttributes EventAttributesType = "geofenceEnter"
+	EventAttributesGeofenceExitEventAttributes  EventAttributesType = "geofenceExit"
+	EventAttributesIgnitionOffEventAttributes   EventAttributesType = "ignitionOff"
+	EventAttributesIgnitionOnEventAttributes    EventAttributesType = "ignitionOn"
+	EventAttrAlarmEventAttributes               EventAttributesType = "alarm"
+	EventAttrMotionEventAttributes              EventAttributesType = "motion"
+	EventAttrTripEventAttributes                EventAttributesType = "tripCompleted"
+	EventAttrIdleEventAttributes                EventAttributesType = "deviceIdle"
+)
+
+// IsEventAttrEmpty reports whether EventAttributes is EventAttrEmpty.
+func (s EventAttributes) IsEventAttrEmpty() bool {
+	switch s.Type {
+	case EventAttributesGeofenceEnterEventAttributes, EventAttributesGeofenceExitEventAttributes:
+		return true
+	default:
+		return false
 	}
-	return m
+}
+
+// IsEventAttrIgnition reports whether EventAttributes is EventAttrIgnition.
+func (s EventAttributes) IsEventAttrIgnition() bool {
+	switch s.Type {
+	case EventAttributesIgnitionOffEventAttributes, EventAttributesIgnitionOnEventAttributes:
+		return true
+	default:
+		return false
+	}
+}
+
+// IsEventAttrAlarm reports whether EventAttributes is EventAttrAlarm.
+func (s EventAttributes) IsEventAttrAlarm() bool { return s.Type == EventAttrAlarmEventAttributes }
+
+// IsEventAttrMotion reports whether EventAttributes is EventAttrMotion.
+func (s EventAttributes) IsEventAttrMotion() bool { return s.Type == EventAttrMotionEventAttributes }
+
+// IsEventAttrTrip reports whether EventAttributes is EventAttrTrip.
+func (s EventAttributes) IsEventAttrTrip() bool { return s.Type == EventAttrTripEventAttributes }
+
+// IsEventAttrIdle reports whether EventAttributes is EventAttrIdle.
+func (s EventAttributes) IsEventAttrIdle() bool { return s.Type == EventAttrIdleEventAttributes }
+
+// SetEventAttrEmpty sets EventAttributes to EventAttrEmpty.
+// panics if `t` is not associated with EventAttrEmpty
+func (s *EventAttributes) SetEventAttrEmpty(t EventAttributesType, v EventAttrEmpty) {
+	s.Type = t
+	s.EventAttrEmpty = v
+	if !s.IsEventAttrEmpty() {
+		panic(fmt.Errorf("invariant: %v is not EventAttrEmpty", t))
+	}
+}
+
+// GetEventAttrEmpty returns EventAttrEmpty and true boolean if EventAttributes is EventAttrEmpty.
+func (s EventAttributes) GetEventAttrEmpty() (v EventAttrEmpty, ok bool) {
+	if !s.IsEventAttrEmpty() {
+		return v, false
+	}
+	return s.EventAttrEmpty, true
+}
+
+// NewEventAttributesGeofenceEnterEventAttributes returns new EventAttributes from EventAttrEmpty.
+func NewEventAttributesGeofenceEnterEventAttributes(v EventAttrEmpty) EventAttributes {
+	var s EventAttributes
+	s.SetEventAttrEmpty(EventAttributesGeofenceEnterEventAttributes, v)
+	return s
+}
+
+// NewEventAttributesGeofenceExitEventAttributes returns new EventAttributes from EventAttrEmpty.
+func NewEventAttributesGeofenceExitEventAttributes(v EventAttrEmpty) EventAttributes {
+	var s EventAttributes
+	s.SetEventAttrEmpty(EventAttributesGeofenceExitEventAttributes, v)
+	return s
+}
+
+// SetEventAttrIgnition sets EventAttributes to EventAttrIgnition.
+// panics if `t` is not associated with EventAttrIgnition
+func (s *EventAttributes) SetEventAttrIgnition(t EventAttributesType, v EventAttrIgnition) {
+	s.Type = t
+	s.EventAttrIgnition = v
+	if !s.IsEventAttrIgnition() {
+		panic(fmt.Errorf("invariant: %v is not EventAttrIgnition", t))
+	}
+}
+
+// GetEventAttrIgnition returns EventAttrIgnition and true boolean if EventAttributes is EventAttrIgnition.
+func (s EventAttributes) GetEventAttrIgnition() (v EventAttrIgnition, ok bool) {
+	if !s.IsEventAttrIgnition() {
+		return v, false
+	}
+	return s.EventAttrIgnition, true
+}
+
+// NewEventAttributesIgnitionOffEventAttributes returns new EventAttributes from EventAttrIgnition.
+func NewEventAttributesIgnitionOffEventAttributes(v EventAttrIgnition) EventAttributes {
+	var s EventAttributes
+	s.SetEventAttrIgnition(EventAttributesIgnitionOffEventAttributes, v)
+	return s
+}
+
+// NewEventAttributesIgnitionOnEventAttributes returns new EventAttributes from EventAttrIgnition.
+func NewEventAttributesIgnitionOnEventAttributes(v EventAttrIgnition) EventAttributes {
+	var s EventAttributes
+	s.SetEventAttrIgnition(EventAttributesIgnitionOnEventAttributes, v)
+	return s
+}
+
+// SetEventAttrAlarm sets EventAttributes to EventAttrAlarm.
+func (s *EventAttributes) SetEventAttrAlarm(v EventAttrAlarm) {
+	s.Type = EventAttrAlarmEventAttributes
+	s.EventAttrAlarm = v
+}
+
+// GetEventAttrAlarm returns EventAttrAlarm and true boolean if EventAttributes is EventAttrAlarm.
+func (s EventAttributes) GetEventAttrAlarm() (v EventAttrAlarm, ok bool) {
+	if !s.IsEventAttrAlarm() {
+		return v, false
+	}
+	return s.EventAttrAlarm, true
+}
+
+// NewEventAttrAlarmEventAttributes returns new EventAttributes from EventAttrAlarm.
+func NewEventAttrAlarmEventAttributes(v EventAttrAlarm) EventAttributes {
+	var s EventAttributes
+	s.SetEventAttrAlarm(v)
+	return s
+}
+
+// SetEventAttrMotion sets EventAttributes to EventAttrMotion.
+func (s *EventAttributes) SetEventAttrMotion(v EventAttrMotion) {
+	s.Type = EventAttrMotionEventAttributes
+	s.EventAttrMotion = v
+}
+
+// GetEventAttrMotion returns EventAttrMotion and true boolean if EventAttributes is EventAttrMotion.
+func (s EventAttributes) GetEventAttrMotion() (v EventAttrMotion, ok bool) {
+	if !s.IsEventAttrMotion() {
+		return v, false
+	}
+	return s.EventAttrMotion, true
+}
+
+// NewEventAttrMotionEventAttributes returns new EventAttributes from EventAttrMotion.
+func NewEventAttrMotionEventAttributes(v EventAttrMotion) EventAttributes {
+	var s EventAttributes
+	s.SetEventAttrMotion(v)
+	return s
+}
+
+// SetEventAttrTrip sets EventAttributes to EventAttrTrip.
+func (s *EventAttributes) SetEventAttrTrip(v EventAttrTrip) {
+	s.Type = EventAttrTripEventAttributes
+	s.EventAttrTrip = v
+}
+
+// GetEventAttrTrip returns EventAttrTrip and true boolean if EventAttributes is EventAttrTrip.
+func (s EventAttributes) GetEventAttrTrip() (v EventAttrTrip, ok bool) {
+	if !s.IsEventAttrTrip() {
+		return v, false
+	}
+	return s.EventAttrTrip, true
+}
+
+// NewEventAttrTripEventAttributes returns new EventAttributes from EventAttrTrip.
+func NewEventAttrTripEventAttributes(v EventAttrTrip) EventAttributes {
+	var s EventAttributes
+	s.SetEventAttrTrip(v)
+	return s
+}
+
+// SetEventAttrIdle sets EventAttributes to EventAttrIdle.
+func (s *EventAttributes) SetEventAttrIdle(v EventAttrIdle) {
+	s.Type = EventAttrIdleEventAttributes
+	s.EventAttrIdle = v
+}
+
+// GetEventAttrIdle returns EventAttrIdle and true boolean if EventAttributes is EventAttrIdle.
+func (s EventAttributes) GetEventAttrIdle() (v EventAttrIdle, ok bool) {
+	if !s.IsEventAttrIdle() {
+		return v, false
+	}
+	return s.EventAttrIdle, true
+}
+
+// NewEventAttrIdleEventAttributes returns new EventAttributes from EventAttrIdle.
+func NewEventAttrIdleEventAttributes(v EventAttrIdle) EventAttributes {
+	var s EventAttributes
+	s.SetEventAttrIdle(v)
+	return s
 }
 
 // Ref: #/components/schemas/Geofence

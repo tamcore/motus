@@ -378,12 +378,43 @@ func commandToOAS(c *model.Command) oas.Command {
 	}
 }
 
+// buildEventAttributes converts a model event type+attrs map to a typed oas.OptEventAttributes.
+func buildEventAttributes(evtType string, modelAttrs map[string]interface{}) oas.OptEventAttributes {
+	if modelAttrs == nil {
+		return oas.OptEventAttributes{}
+	}
+	var ea oas.EventAttributes
+	switch evtType {
+	case "ignitionOn":
+		ignition, _ := modelAttrs["ignition"].(bool)
+		ea.SetEventAttrIgnition(oas.EventAttributesIgnitionOnEventAttributes,
+			oas.EventAttrIgnition{Type: evtType, Ignition: ignition})
+	case "ignitionOff":
+		ignition, _ := modelAttrs["ignition"].(bool)
+		ea.SetEventAttrIgnition(oas.EventAttributesIgnitionOffEventAttributes,
+			oas.EventAttrIgnition{Type: evtType, Ignition: ignition})
+	case "alarm":
+		alarm, _ := modelAttrs["alarm"].(string)
+		ea.SetEventAttrAlarm(oas.EventAttrAlarm{Type: evtType, Alarm: alarm})
+	case "motion":
+		speed, _ := modelAttrs["speed"].(float64)
+		prevSpeed, _ := modelAttrs["previousSpeed"].(float64)
+		ea.SetEventAttrMotion(oas.EventAttrMotion{Type: evtType, Speed: speed, PreviousSpeed: prevSpeed})
+	case "tripCompleted":
+		distance, _ := modelAttrs["distance"].(float64)
+		mileage, _ := modelAttrs["mileage"].(float64)
+		ea.SetEventAttrTrip(oas.EventAttrTrip{Type: evtType, Distance: distance, Mileage: mileage})
+	case "deviceIdle":
+		idleDuration, _ := modelAttrs["idleDuration"].(float64)
+		ea.SetEventAttrIdle(oas.EventAttrIdle{Type: evtType, IdleDuration: idleDuration})
+	default:
+		return oas.OptEventAttributes{}
+	}
+	return oas.OptEventAttributes{Value: ea, Set: true}
+}
+
 // eventToOAS converts a model.Event to oas.Event.
 func eventToOAS(e *model.Event) oas.Event {
-	var attrs oas.OptEventAttributes
-	if e.Attributes != nil {
-		attrs = oas.OptEventAttributes{Value: oas.EventAttributes(attrsToRaw(e.Attributes)), Set: true}
-	}
 	return oas.Event{
 		ID:         e.ID,
 		DeviceId:   e.DeviceID,
@@ -391,7 +422,7 @@ func eventToOAS(e *model.Event) oas.Event {
 		Type:       e.Type,
 		PositionId: ptrToOptInt64(e.PositionID),
 		EventTime:  e.Timestamp,
-		Attributes: attrs,
+		Attributes: buildEventAttributes(e.Type, e.Attributes),
 	}
 }
 

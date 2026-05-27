@@ -369,6 +369,86 @@ func TestEventToOAS(t *testing.T) {
 	if !got.GeofenceId.Set || got.GeofenceId.Value != 7 {
 		t.Errorf("GeofenceId = %+v", got.GeofenceId)
 	}
+	if got.Attributes.Set {
+		t.Error("geofenceEnter with nil attrs should have Attributes unset")
+	}
+}
+
+func TestBuildEventAttributes_Ignition(t *testing.T) {
+	attrs := map[string]interface{}{"ignition": true}
+	got := buildEventAttributes("ignitionOn", attrs)
+	if !got.Set {
+		t.Fatal("expected Attributes to be set")
+	}
+	if !got.Value.IsEventAttrIgnition() {
+		t.Fatal("expected EventAttrIgnition variant")
+	}
+	v, _ := got.Value.GetEventAttrIgnition()
+	if !v.Ignition {
+		t.Error("Ignition should be true")
+	}
+}
+
+func TestBuildEventAttributes_Alarm(t *testing.T) {
+	attrs := map[string]interface{}{"alarm": "sos"}
+	got := buildEventAttributes("alarm", attrs)
+	if !got.Set || !got.Value.IsEventAttrAlarm() {
+		t.Fatal("expected EventAttrAlarm variant set")
+	}
+	v, _ := got.Value.GetEventAttrAlarm()
+	if v.Alarm != "sos" {
+		t.Errorf("Alarm = %s, want sos", v.Alarm)
+	}
+}
+
+func TestBuildEventAttributes_Motion(t *testing.T) {
+	attrs := map[string]interface{}{"speed": 60.0, "previousSpeed": 0.0}
+	got := buildEventAttributes("motion", attrs)
+	if !got.Set || !got.Value.IsEventAttrMotion() {
+		t.Fatal("expected EventAttrMotion variant set")
+	}
+	v, _ := got.Value.GetEventAttrMotion()
+	if v.Speed != 60.0 || v.PreviousSpeed != 0.0 {
+		t.Errorf("speed=%v previousSpeed=%v", v.Speed, v.PreviousSpeed)
+	}
+}
+
+func TestBuildEventAttributes_Trip(t *testing.T) {
+	attrs := map[string]interface{}{"distance": 1234.5, "mileage": 50000.0}
+	got := buildEventAttributes("tripCompleted", attrs)
+	if !got.Set || !got.Value.IsEventAttrTrip() {
+		t.Fatal("expected EventAttrTrip variant set")
+	}
+	v, _ := got.Value.GetEventAttrTrip()
+	if v.Distance != 1234.5 || v.Mileage != 50000.0 {
+		t.Errorf("distance=%v mileage=%v", v.Distance, v.Mileage)
+	}
+}
+
+func TestBuildEventAttributes_Idle(t *testing.T) {
+	attrs := map[string]interface{}{"idleDuration": 15.5}
+	got := buildEventAttributes("deviceIdle", attrs)
+	if !got.Set || !got.Value.IsEventAttrIdle() {
+		t.Fatal("expected EventAttrIdle variant set")
+	}
+	v, _ := got.Value.GetEventAttrIdle()
+	if v.IdleDuration != 15.5 {
+		t.Errorf("idleDuration = %v", v.IdleDuration)
+	}
+}
+
+func TestBuildEventAttributes_Unknown(t *testing.T) {
+	got := buildEventAttributes("unknownType", map[string]interface{}{"foo": "bar"})
+	if got.Set {
+		t.Error("unknown event type should produce unset OptEventAttributes")
+	}
+}
+
+func TestBuildEventAttributes_NilAttrs(t *testing.T) {
+	got := buildEventAttributes("alarm", nil)
+	if got.Set {
+		t.Error("nil attrs should produce unset OptEventAttributes")
+	}
 }
 
 func TestDeviceShareToOAS(t *testing.T) {

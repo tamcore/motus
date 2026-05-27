@@ -119,6 +119,69 @@ components:
         satellites: { type: integer }
       additionalProperties: true
 
+    EventAttributes:
+      oneOf:
+        - $ref: '#/components/schemas/EventAttrEmpty'
+        - $ref: '#/components/schemas/EventAttrIgnition'
+        - $ref: '#/components/schemas/EventAttrAlarm'
+        - $ref: '#/components/schemas/EventAttrMotion'
+        - $ref: '#/components/schemas/EventAttrTrip'
+        - $ref: '#/components/schemas/EventAttrIdle'
+      discriminator:
+        propertyName: type
+        mapping:
+          geofenceEnter: '#/components/schemas/EventAttrEmpty'
+          geofenceExit:  '#/components/schemas/EventAttrEmpty'
+          ignitionOn:    '#/components/schemas/EventAttrIgnition'
+          ignitionOff:   '#/components/schemas/EventAttrIgnition'
+          alarm:         '#/components/schemas/EventAttrAlarm'
+          motion:        '#/components/schemas/EventAttrMotion'
+          tripCompleted: '#/components/schemas/EventAttrTrip'
+          deviceIdle:    '#/components/schemas/EventAttrIdle'
+
+    EventAttrEmpty:
+      type: object
+      required: [type]
+      properties:
+        type: { type: string }
+
+    EventAttrIgnition:
+      type: object
+      required: [type, ignition]
+      properties:
+        type: { type: string }
+        ignition: { type: boolean }
+
+    EventAttrAlarm:
+      type: object
+      required: [type, alarm]
+      properties:
+        type: { type: string }
+        alarm: { type: string }
+
+    EventAttrMotion:
+      type: object
+      required: [type, speed, previousSpeed]
+      properties:
+        type: { type: string }
+        speed: { type: number, format: double }
+        previousSpeed: { type: number, format: double }
+
+    EventAttrTrip:
+      type: object
+      required: [type, distance, mileage]
+      properties:
+        type: { type: string }
+        distance: { type: number, format: double }
+        mileage: { type: number, format: double }
+
+    EventAttrIdle:
+      type: object
+      required: [type, idleDuration]
+      properties:
+        type: { type: string }
+        idleDuration: { type: number, format: double }
+
     CommandAttributes:
       oneOf:
         - $ref: '#/components/schemas/CommandAttrCustom'
@@ -384,8 +447,7 @@ components:
         positionId: { type: integer, format: int64, nullable: true }
         eventTime: { type: string, format: date-time }
         attributes:
-          type: object
-          additionalProperties: {}
+          $ref: '#/components/schemas/EventAttributes'
 
     NotificationRule:
       type: object

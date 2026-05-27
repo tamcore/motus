@@ -84,7 +84,7 @@ func (h *DeviceHandler) Get(w http.ResponseWriter, r *http.Request) {
 type createDeviceRequest struct {
 	UniqueID   string   `json:"uniqueId"`
 	Name       string   `json:"name"`
-	Protocol   string   `json:"protocol"`
+	Protocol   *string  `json:"protocol,omitempty"`
 	SpeedLimit *float64 `json:"speedLimit,omitempty"`
 	Phone      *string  `json:"phone,omitempty"`
 	Model      *string  `json:"model,omitempty"`
@@ -110,10 +110,14 @@ func (h *DeviceHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var reqProtocol string
+	if req.Protocol != nil {
+		reqProtocol = *req.Protocol
+	}
 	device := &model.Device{
 		UniqueID:   req.UniqueID,
 		Name:       req.Name,
-		Protocol:   req.Protocol,
+		Protocol:   reqProtocol,
 		SpeedLimit: req.SpeedLimit,
 		Phone:      req.Phone,
 		Model:      req.Model,
@@ -178,8 +182,8 @@ func (h *DeviceHandler) Update(w http.ResponseWriter, r *http.Request) {
 		}
 		device.Name = req.Name
 	}
-	if req.Protocol != "" {
-		device.Protocol = req.Protocol
+	if req.Protocol != nil {
+		device.Protocol = *req.Protocol
 	}
 	if req.SpeedLimit != nil {
 		device.SpeedLimit = req.SpeedLimit

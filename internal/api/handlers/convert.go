@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/go-faster/jx"
@@ -349,13 +350,36 @@ func eventToOAS(e *model.Event) oas.Event {
 
 // notificationRuleToOAS converts a model.NotificationRule to oas.NotificationRule.
 func notificationRuleToOAS(n *model.NotificationRule) oas.NotificationRule {
+	var config oas.NotificationRuleConfig
+	switch n.Channel {
+	case "webhook":
+		webhookURL, _ := n.Config["webhookUrl"].(string)
+		u, err := url.Parse(webhookURL)
+		if err != nil || u == nil {
+			u = &url.URL{}
+		}
+		wh := oas.NotificationConfigWebhook{
+			Channel:    oas.NotificationConfigWebhookChannelWebhook,
+			WebhookUrl: *u,
+		}
+		if h, ok := n.Config["headers"].(map[string]interface{}); ok && len(h) > 0 {
+			headers := make(oas.NotificationConfigWebhookHeaders, len(h))
+			for k, v := range h {
+				if s, ok := v.(string); ok {
+					headers[k] = s
+				}
+			}
+			wh.Headers = oas.OptNotificationConfigWebhookHeaders{Value: headers, Set: true}
+		}
+		config.SetNotificationConfigWebhook(wh)
+	}
 	return oas.NotificationRule{
 		ID:         n.ID,
 		UserId:     n.UserID,
 		Name:       n.Name,
 		EventTypes: n.EventTypes,
 		Channel:    n.Channel,
-		Config:     oas.NotificationRuleConfig(attrsToRaw(n.Config)),
+		Config:     config,
 		Template:   n.Template,
 		Enabled:    n.Enabled,
 		OwnerName:  optStr(n.OwnerName),

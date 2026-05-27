@@ -525,6 +525,38 @@ func (s *LoginRequest) Validate() error {
 	return nil
 }
 
+func (s *NotificationConfigWebhook) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Channel.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "channel",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s NotificationConfigWebhookChannel) Validate() error {
+	switch s {
+	case "webhook":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s NotificationLogsOKApplicationJSON) Validate() error {
 	alias := ([]NotificationLog)(s)
 	if alias == nil {
@@ -550,10 +582,33 @@ func (s *NotificationRule) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if err := s.Config.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "config",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s NotificationRuleConfig) Validate() error {
+	switch s.Type {
+	case NotificationConfigWebhookNotificationRuleConfig:
+		if err := s.NotificationConfigWebhook.Validate(); err != nil {
+			return err
+		}
+		return nil
+	default:
+		return errors.Errorf("invalid type %q", s.Type)
+	}
 }
 
 func (s *NotificationRuleInput) Validate() error {
@@ -570,6 +625,17 @@ func (s *NotificationRuleInput) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "eventTypes",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Config.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "config",
 			Error: err,
 		})
 	}

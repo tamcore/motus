@@ -119,6 +119,29 @@ components:
         satellites: { type: integer }
       additionalProperties: true
 
+    NotificationRuleConfig:
+      oneOf:
+        - $ref: '#/components/schemas/NotificationConfigWebhook'
+      discriminator:
+        propertyName: channel
+        mapping:
+          webhook: '#/components/schemas/NotificationConfigWebhook'
+
+    NotificationConfigWebhook:
+      type: object
+      required: [channel, webhookUrl]
+      properties:
+        channel:
+          type: string
+          enum: [webhook]
+        webhookUrl:
+          type: string
+          format: uri
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+
     DeviceInput:
       type: object
       required: [name, uniqueId]
@@ -337,8 +360,7 @@ components:
           items: { type: string }
         channel: { type: string }
         config:
-          type: object
-          additionalProperties: {}
+          $ref: '#/components/schemas/NotificationRuleConfig'
         template: { type: string }
         enabled: { type: boolean }
         ownerName: { type: string }
@@ -355,8 +377,7 @@ components:
           items: { type: string }
         channel: { type: string }
         config:
-          type: object
-          additionalProperties: {}
+          $ref: '#/components/schemas/NotificationRuleConfig'
         template: { type: string }
         enabled: { type: boolean }
 

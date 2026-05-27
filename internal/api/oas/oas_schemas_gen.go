@@ -5,6 +5,7 @@ package api
 import (
 	"fmt"
 	"io"
+	"net/url"
 	"time"
 
 	"github.com/go-faster/errors"
@@ -2135,6 +2136,88 @@ type LogoutNoContent struct{}
 
 func (*LogoutNoContent) logoutRes() {}
 
+// Ref: #/components/schemas/NotificationConfigWebhook
+type NotificationConfigWebhook struct {
+	Channel    NotificationConfigWebhookChannel    `json:"channel"`
+	WebhookUrl url.URL                             `json:"webhookUrl"`
+	Headers    OptNotificationConfigWebhookHeaders `json:"headers"`
+}
+
+// GetChannel returns the value of Channel.
+func (s *NotificationConfigWebhook) GetChannel() NotificationConfigWebhookChannel {
+	return s.Channel
+}
+
+// GetWebhookUrl returns the value of WebhookUrl.
+func (s *NotificationConfigWebhook) GetWebhookUrl() url.URL {
+	return s.WebhookUrl
+}
+
+// GetHeaders returns the value of Headers.
+func (s *NotificationConfigWebhook) GetHeaders() OptNotificationConfigWebhookHeaders {
+	return s.Headers
+}
+
+// SetChannel sets the value of Channel.
+func (s *NotificationConfigWebhook) SetChannel(val NotificationConfigWebhookChannel) {
+	s.Channel = val
+}
+
+// SetWebhookUrl sets the value of WebhookUrl.
+func (s *NotificationConfigWebhook) SetWebhookUrl(val url.URL) {
+	s.WebhookUrl = val
+}
+
+// SetHeaders sets the value of Headers.
+func (s *NotificationConfigWebhook) SetHeaders(val OptNotificationConfigWebhookHeaders) {
+	s.Headers = val
+}
+
+type NotificationConfigWebhookChannel string
+
+const (
+	NotificationConfigWebhookChannelWebhook NotificationConfigWebhookChannel = "webhook"
+)
+
+// AllValues returns all NotificationConfigWebhookChannel values.
+func (NotificationConfigWebhookChannel) AllValues() []NotificationConfigWebhookChannel {
+	return []NotificationConfigWebhookChannel{
+		NotificationConfigWebhookChannelWebhook,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotificationConfigWebhookChannel) MarshalText() ([]byte, error) {
+	switch s {
+	case NotificationConfigWebhookChannelWebhook:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotificationConfigWebhookChannel) UnmarshalText(data []byte) error {
+	switch NotificationConfigWebhookChannel(data) {
+	case NotificationConfigWebhookChannelWebhook:
+		*s = NotificationConfigWebhookChannelWebhook
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type NotificationConfigWebhookHeaders map[string]string
+
+func (s *NotificationConfigWebhookHeaders) init() NotificationConfigWebhookHeaders {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
+}
+
 // Ref: #/components/schemas/NotificationLog
 type NotificationLog struct {
 	ID           int64          `json:"id"`
@@ -2360,25 +2443,55 @@ func (s *NotificationRule) SetUpdatedAt(val time.Time) {
 func (*NotificationRule) createNotificationRes() {}
 func (*NotificationRule) updateNotificationRes() {}
 
-type NotificationRuleConfig map[string]jx.Raw
+// Ref: #/components/schemas/NotificationRuleConfig
+// NotificationRuleConfig represents sum type.
+type NotificationRuleConfig struct {
+	Type                      NotificationRuleConfigType // switch on this field
+	NotificationConfigWebhook NotificationConfigWebhook
+}
 
-func (s *NotificationRuleConfig) init() NotificationRuleConfig {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
+// NotificationRuleConfigType is oneOf type of NotificationRuleConfig.
+type NotificationRuleConfigType string
+
+// Possible values for NotificationRuleConfigType.
+const (
+	NotificationConfigWebhookNotificationRuleConfig NotificationRuleConfigType = "webhook"
+)
+
+// IsNotificationConfigWebhook reports whether NotificationRuleConfig is NotificationConfigWebhook.
+func (s NotificationRuleConfig) IsNotificationConfigWebhook() bool {
+	return s.Type == NotificationConfigWebhookNotificationRuleConfig
+}
+
+// SetNotificationConfigWebhook sets NotificationRuleConfig to NotificationConfigWebhook.
+func (s *NotificationRuleConfig) SetNotificationConfigWebhook(v NotificationConfigWebhook) {
+	s.Type = NotificationConfigWebhookNotificationRuleConfig
+	s.NotificationConfigWebhook = v
+}
+
+// GetNotificationConfigWebhook returns NotificationConfigWebhook and true boolean if NotificationRuleConfig is NotificationConfigWebhook.
+func (s NotificationRuleConfig) GetNotificationConfigWebhook() (v NotificationConfigWebhook, ok bool) {
+	if !s.IsNotificationConfigWebhook() {
+		return v, false
 	}
-	return m
+	return s.NotificationConfigWebhook, true
+}
+
+// NewNotificationConfigWebhookNotificationRuleConfig returns new NotificationRuleConfig from NotificationConfigWebhook.
+func NewNotificationConfigWebhookNotificationRuleConfig(v NotificationConfigWebhook) NotificationRuleConfig {
+	var s NotificationRuleConfig
+	s.SetNotificationConfigWebhook(v)
+	return s
 }
 
 // Ref: #/components/schemas/NotificationRuleInput
 type NotificationRuleInput struct {
-	Name       string                      `json:"name"`
-	EventTypes []string                    `json:"eventTypes"`
-	Channel    string                      `json:"channel"`
-	Config     NotificationRuleInputConfig `json:"config"`
-	Template   OptString                   `json:"template"`
-	Enabled    OptBool                     `json:"enabled"`
+	Name       string                 `json:"name"`
+	EventTypes []string               `json:"eventTypes"`
+	Channel    string                 `json:"channel"`
+	Config     NotificationRuleConfig `json:"config"`
+	Template   OptString              `json:"template"`
+	Enabled    OptBool                `json:"enabled"`
 }
 
 // GetName returns the value of Name.
@@ -2397,7 +2510,7 @@ func (s *NotificationRuleInput) GetChannel() string {
 }
 
 // GetConfig returns the value of Config.
-func (s *NotificationRuleInput) GetConfig() NotificationRuleInputConfig {
+func (s *NotificationRuleInput) GetConfig() NotificationRuleConfig {
 	return s.Config
 }
 
@@ -2427,7 +2540,7 @@ func (s *NotificationRuleInput) SetChannel(val string) {
 }
 
 // SetConfig sets the value of Config.
-func (s *NotificationRuleInput) SetConfig(val NotificationRuleInputConfig) {
+func (s *NotificationRuleInput) SetConfig(val NotificationRuleConfig) {
 	s.Config = val
 }
 
@@ -2439,17 +2552,6 @@ func (s *NotificationRuleInput) SetTemplate(val OptString) {
 // SetEnabled sets the value of Enabled.
 func (s *NotificationRuleInput) SetEnabled(val OptBool) {
 	s.Enabled = val
-}
-
-type NotificationRuleInputConfig map[string]jx.Raw
-
-func (s *NotificationRuleInputConfig) init() NotificationRuleInputConfig {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
 }
 
 // Ref: #/components/schemas/OIDCConfig
@@ -3330,6 +3432,52 @@ func (o OptNilString) Get() (v string, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptNilString) Or(d string) string {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNotificationConfigWebhookHeaders returns new OptNotificationConfigWebhookHeaders with value set to v.
+func NewOptNotificationConfigWebhookHeaders(v NotificationConfigWebhookHeaders) OptNotificationConfigWebhookHeaders {
+	return OptNotificationConfigWebhookHeaders{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNotificationConfigWebhookHeaders is optional NotificationConfigWebhookHeaders.
+type OptNotificationConfigWebhookHeaders struct {
+	Value NotificationConfigWebhookHeaders
+	Set   bool
+}
+
+// IsSet returns true if OptNotificationConfigWebhookHeaders was set.
+func (o OptNotificationConfigWebhookHeaders) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNotificationConfigWebhookHeaders) Reset() {
+	var v NotificationConfigWebhookHeaders
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptNotificationConfigWebhookHeaders) SetTo(v NotificationConfigWebhookHeaders) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNotificationConfigWebhookHeaders) Get() (v NotificationConfigWebhookHeaders, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNotificationConfigWebhookHeaders) Or(d NotificationConfigWebhookHeaders) NotificationConfigWebhookHeaders {
 	if v, ok := o.Get(); ok {
 		return v
 	}

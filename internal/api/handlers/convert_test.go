@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"net/url"
 	"testing"
 	"time"
 
@@ -402,5 +403,59 @@ func TestAuditEntryToOAS_NilUserID(t *testing.T) {
 	got := auditEntryToOAS(e)
 	if got.UserId != 0 {
 		t.Errorf("UserId should be 0 when nil, got %d", got.UserId)
+	}
+}
+
+func TestNotificationRuleToOAS_Webhook(t *testing.T) {
+	now := time.Now().UTC().Truncate(time.Second)
+	n := &model.NotificationRule{
+		ID:         1,
+		UserID:     2,
+		Name:       "My Webhook",
+		EventTypes: []string{"geofenceEnter"},
+		Channel:    "webhook",
+		Config: map[string]interface{}{
+			"webhookUrl": "https://example.com/hook",
+			"headers":    map[string]interface{}{"X-Token": "abc"},
+		},
+		Template:  "{{.Type}}",
+		Enabled:   true,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	got := notificationRuleToOAS(n)
+	if !got.Config.IsNotificationConfigWebhook() {
+		t.Fatal("Config should be NotificationConfigWebhook variant")
+	}
+	wh := got.Config.NotificationConfigWebhook
+	if wh.WebhookUrl.String() != "https://example.com/hook" {
+		t.Errorf("WebhookUrl = %s, want https://example.com/hook", wh.WebhookUrl.String())
+	}
+	if !wh.Headers.Set || wh.Headers.Value["X-Token"] != "abc" {
+		t.Errorf("Headers = %+v, want {X-Token: abc}", wh.Headers)
+	}
+}
+
+func TestOasNotificationConfigToModel_Webhook(t *testing.T) {
+	u, _ := url.Parse("https://example.com/hook")
+	var config oas.NotificationRuleConfig
+	config.SetNotificationConfigWebhook(oas.NotificationConfigWebhook{
+		Channel:    oas.NotificationConfigWebhookChannelWebhook,
+		WebhookUrl: *u,
+	})
+	cfg, err := oasNotificationConfigToModel(config)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg["webhookUrl"] != "https://example.com/hook" {
+		t.Errorf("webhookUrl = %v, want https://example.com/hook", cfg["webhookUrl"])
+	}
+}
+
+func TestOasNotificationConfigToModel_Invalid(t *testing.T) {
+	var config oas.NotificationRuleConfig
+	_, err := oasNotificationConfigToModel(config)
+	if err == nil {
+		t.Error("expected error for zero-value config")
 	}
 }

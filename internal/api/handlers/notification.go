@@ -8,7 +8,6 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-faster/jx"
 	"github.com/tamcore/motus/internal/api"
 	oas "github.com/tamcore/motus/internal/api/oas"
 	"github.com/tamcore/motus/internal/audit"
@@ -387,12 +386,9 @@ func (h *Handler) CreateNotification(ctx context.Context, req *oas.NotificationR
 		return &oas.CreateNotificationBadRequest{Error: "template is required"}, nil
 	}
 
-	cfg := rawToAttrs(map[string]jx.Raw(req.Config))
-	if req.Channel == "webhook" {
-		webhookURL, _ := cfg["webhookUrl"].(string)
-		if err := notification.ValidateWebhookURL(webhookURL); err != nil {
-			return &oas.CreateNotificationBadRequest{Error: fmt.Sprintf("invalid webhook URL: %v", err)}, nil
-		}
+	cfg, cfgErr := oasNotificationConfigToModel(req.Config)
+	if cfgErr != nil {
+		return &oas.CreateNotificationBadRequest{Error: cfgErr.Error()}, nil
 	}
 
 	enabled, _ := req.Enabled.Get()
@@ -440,12 +436,9 @@ func (h *Handler) UpdateNotification(ctx context.Context, req *oas.NotificationR
 		return &oas.UpdateNotificationBadRequest{Error: "invalid channel"}, nil
 	}
 
-	cfg := rawToAttrs(map[string]jx.Raw(req.Config))
-	if req.Channel == "webhook" {
-		webhookURL, _ := cfg["webhookUrl"].(string)
-		if err := notification.ValidateWebhookURL(webhookURL); err != nil {
-			return &oas.UpdateNotificationBadRequest{Error: fmt.Sprintf("invalid webhook URL: %v", err)}, nil
-		}
+	cfg, cfgErr := oasNotificationConfigToModel(req.Config)
+	if cfgErr != nil {
+		return &oas.UpdateNotificationBadRequest{Error: cfgErr.Error()}, nil
 	}
 
 	existing, err := h.cfg.Notifications.GetByID(ctx, params.ID)
@@ -551,6 +544,26 @@ func (h *Handler) TestNotification(ctx context.Context, params oas.TestNotificat
 		return &oas.TestNotificationNotFound{Error: err.Error()}, nil
 	}
 	return &oas.TestNotificationNoContent{}, nil
+}
+
+// oasNotificationConfigToModel converts a typed oas.NotificationRuleConfig to a model attribute map.
+func oasNotificationConfigToModel(config oas.NotificationRuleConfig) (map[string]interface{}, error) {
+	if wh, ok := config.GetNotificationConfigWebhook(); ok {
+		webhookURL := wh.WebhookUrl.String()
+		if err := notification.ValidateWebhookURL(webhookURL); err != nil {
+			return nil, fmt.Errorf("invalid webhook URL: %v", err)
+		}
+		cfg := map[string]interface{}{"webhookUrl": webhookURL}
+		if wh.Headers.Set && len(wh.Headers.Value) > 0 {
+			hmap := make(map[string]interface{}, len(wh.Headers.Value))
+			for k, v := range wh.Headers.Value {
+				hmap[k] = v
+			}
+			cfg["headers"] = hmap
+		}
+		return cfg, nil
+	}
+	return nil, fmt.Errorf("unsupported notification channel config")
 }
 
 // AdminListNotifications returns all notification rules in the system (admin only).

@@ -2,8 +2,6 @@ import { test, expect, type APIRequestContext } from '@playwright/test';
 import { test as authTest } from '../fixtures/auth-fixture';
 import { GeofencesPage } from '../page-objects/GeofencesPage';
 
-const CIRCLE_AREA = 'CIRCLE (11.5820 48.1351, 1000)';
-
 async function getCSRF(request: APIRequestContext): Promise<string> {
   const res = await request.get('/api/session');
   return res.headers()['x-csrf-token'] ?? '';
@@ -12,6 +10,7 @@ async function getCSRF(request: APIRequestContext): Promise<string> {
 test.describe('Geofence API — partial update and calendarId', () => {
   let geofenceId: number;
   let calendarId: number;
+  let createdArea: string;
 
   test.beforeAll(async ({ browser }) => {
     const ctx = await browser.newContext({ storageState: '.auth/user.json' });
@@ -30,10 +29,15 @@ test.describe('Geofence API — partial update and calendarId', () => {
 
     const geoRes = await page.request.post('/api/geofences', {
       headers: { 'X-CSRF-Token': csrf },
-      data: { name: 'PW Calendar Test Fence', area: CIRCLE_AREA },
+      data: {
+        name: 'PW Calendar Test Fence',
+        area: 'POLYGON((11.57 48.12,11.6 48.12,11.6 48.15,11.57 48.15,11.57 48.12))',
+      },
     });
     expect(geoRes.status()).toBe(201);
-    geofenceId = (await geoRes.json()).id;
+    const geoBody = await geoRes.json();
+    geofenceId = geoBody.id;
+    createdArea = geoBody.area;
 
     await ctx.close();
   });
@@ -58,7 +62,7 @@ test.describe('Geofence API — partial update and calendarId', () => {
     expect(res.status()).toBe(200);
     const body = await res.json();
     expect(body.name).toBe('PW Renamed Fence');
-    expect(body.area).toBe(CIRCLE_AREA);
+    expect(body.area).toBe(createdArea);
     await ctx.close();
   });
 

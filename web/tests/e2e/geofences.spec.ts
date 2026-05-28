@@ -22,7 +22,7 @@ test.describe('Geofence API — partial update and calendarId', () => {
       headers: { 'X-CSRF-Token': csrf },
       data: {
         name: 'PW Test Calendar',
-        data: 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nEND:VCALENDAR',
+        data: 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Motus//Test//EN\r\nBEGIN:VEVENT\r\nDTSTART:20260115T090000Z\r\nDTEND:20260115T170000Z\r\nSUMMARY:PW Test Event\r\nEND:VEVENT\r\nEND:VCALENDAR',
       },
     });
     expect(calRes.status()).toBe(201);

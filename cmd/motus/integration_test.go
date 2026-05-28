@@ -235,7 +235,7 @@ func TestUserSetPassword_Integration(t *testing.T) {
 	}
 }
 
-func TestUserSetPassword_Generated_Integration(t *testing.T) {
+func TestUserSetPassword_DoesNotPrintPassword_Integration(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	defer injectTestDB(t)()
 	testutil.CleanTables(t, pool)
@@ -248,10 +248,16 @@ func TestUserSetPassword_Generated_Integration(t *testing.T) {
 	if err := cmd.Flags().Set("email", "genpwd@example.com"); err != nil {
 		t.Fatal(err)
 	}
-	// No --password flag → auto-generate
+	newPassword := "NoLeakPassword123!"
+	if err := cmd.Flags().Set("password", newPassword); err != nil {
+		t.Fatal(err)
+	}
 	out := captureStdout(func() { cmd.Run(cmd, nil) })
-	if !strings.Contains(out, "Generated password:") {
-		t.Errorf("expected 'Generated password:' in output, got: %q", out)
+	if strings.Contains(out, newPassword) {
+		t.Errorf("password should not be printed in output, got: %q", out)
+	}
+	if !strings.Contains(out, "Password reset for genpwd@example.com") {
+		t.Errorf("expected password reset confirmation in output, got: %q", out)
 	}
 }
 

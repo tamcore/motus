@@ -280,22 +280,11 @@ func newUserSetPasswordCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "set-password",
-		Short: "Reset a user's password (auto-generates if --password is omitted)",
+		Short: "Reset a user's password",
 		Run: func(cmd *cobra.Command, args []string) {
-			pwd := password
-			generated := false
-			if pwd == "" {
-				var genErr error
-				pwd, genErr = generatePassword(16)
-				if genErr != nil {
-					fatal("failed to generate password", slog.Any("error", genErr))
-				}
-				generated = true
-			} else {
-				if err := validation.ValidatePassword(pwd); err != nil {
-					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-					os.Exit(1)
-				}
+			if err := validation.ValidatePassword(password); err != nil {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				os.Exit(1)
 			}
 
 			pool, err := connectDBFn()
@@ -313,7 +302,7 @@ func newUserSetPasswordCmd() *cobra.Command {
 				fatal("user not found", slog.String("email", email))
 			}
 
-			hash, err := bcrypt.GenerateFromPassword([]byte(pwd), bcrypt.DefaultCost)
+			hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 			if err != nil {
 				fatal("failed to hash password", slog.Any("error", err))
 			}
@@ -322,18 +311,15 @@ func newUserSetPasswordCmd() *cobra.Command {
 				fatal("failed to update password", slog.Any("error", err))
 			}
 
-			if generated {
-				fmt.Printf("Password reset for %s\nGenerated password: %s\n", email, pwd)
-			} else {
-				fmt.Printf("Password reset for %s\n", email)
-			}
+			fmt.Printf("Password reset for %s\n", email)
 		},
 	}
 
 	f := cmd.Flags()
 	f.StringVar(&email, "email", "", "User email")
-	f.StringVar(&password, "password", "", "New password (auto-generated if omitted)")
+	f.StringVar(&password, "password", "", "New password")
 	_ = cmd.MarkFlagRequired("email")
+	_ = cmd.MarkFlagRequired("password")
 
 	return cmd
 }

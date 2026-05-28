@@ -1,11 +1,13 @@
 package repository
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"strings"
 	"testing"
 )
 
-func TestHashToken_IsHexSHA256(t *testing.T) {
+func TestHashToken_IsHexEncoded(t *testing.T) {
 	raw := "test-token-value"
 	h := hashToken(raw)
 
@@ -37,5 +39,13 @@ func TestHashToken_NotPlaintext(t *testing.T) {
 	h := hashToken(raw)
 	if h == raw {
 		t.Error("hash should not equal the raw token")
+	}
+}
+
+func TestHashToken_NotRawSHA256(t *testing.T) {
+	raw := "my-secret-token"
+	legacy := sha256.Sum256([]byte(raw))
+	if hashToken(raw) == hex.EncodeToString(legacy[:]) {
+		t.Error("hashToken should not use a plain SHA-256 digest")
 	}
 }

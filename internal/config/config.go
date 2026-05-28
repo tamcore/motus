@@ -277,8 +277,8 @@ func LoadFromEnv() (*Config, error) {
 			Name:     getEnv("MOTUS_DATABASE_NAME", "motus"),
 			SSLMode:  getEnv("MOTUS_DATABASE_SSLMODE", "require"),
 			Pool: PoolConfig{
-				MaxConns:        int32(getEnvInt("MOTUS_DB_MAX_CONNS", 25)),
-				MinConns:        int32(getEnvInt("MOTUS_DB_MIN_CONNS", 5)),
+				MaxConns:        getEnvInt32("MOTUS_DB_MAX_CONNS", 25),
+				MinConns:        getEnvInt32("MOTUS_DB_MIN_CONNS", 5),
 				MaxConnLifetime: getEnvDuration("MOTUS_DB_MAX_CONN_LIFETIME", 1*time.Hour),
 				MaxConnIdleTime: getEnvDuration("MOTUS_DB_MAX_CONN_IDLE_TIME", 30*time.Minute),
 			},
@@ -419,6 +419,18 @@ func getEnvInt(key string, defaultValue int) int {
 		return defaultValue
 	}
 	return n
+}
+
+func getEnvInt32(key string, defaultValue int32) int32 {
+	v := os.Getenv(key)
+	if v == "" {
+		return defaultValue
+	}
+	n, err := strconv.ParseInt(v, 10, 32)
+	if err != nil {
+		return defaultValue
+	}
+	return int32(n)
 }
 
 func getEnvBool(key string, defaultValue bool) bool {

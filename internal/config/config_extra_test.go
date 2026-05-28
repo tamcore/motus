@@ -239,6 +239,23 @@ func TestLoadFromEnv_PoolInvalidDurationFallsBackToDefault(t *testing.T) {
 	}
 }
 
+func TestLoadFromEnv_PoolOutOfRangeIntsFallBackToDefault(t *testing.T) {
+	t.Setenv("MOTUS_DB_MAX_CONNS", "2147483648")
+	t.Setenv("MOTUS_DB_MIN_CONNS", "-2147483649")
+
+	cfg, err := config.LoadFromEnv()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if cfg.Database.Pool.MaxConns != 25 {
+		t.Errorf("expected default MaxConns 25 on out-of-range input, got %d", cfg.Database.Pool.MaxConns)
+	}
+	if cfg.Database.Pool.MinConns != 5 {
+		t.Errorf("expected default MinConns 5 on out-of-range input, got %d", cfg.Database.Pool.MinConns)
+	}
+}
+
 func TestValidate_PoolMinConnsExceedsMaxConns(t *testing.T) {
 	t.Setenv("MOTUS_DB_MAX_CONNS", "5")
 	t.Setenv("MOTUS_DB_MIN_CONNS", "10")

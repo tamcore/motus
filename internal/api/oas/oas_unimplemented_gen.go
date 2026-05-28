@@ -621,7 +621,7 @@ func (UnimplementedHandler) UpdateDevice(ctx context.Context, req *DeviceInput, 
 // Update a geofence.
 //
 // PUT /api/geofences/{id}
-func (UnimplementedHandler) UpdateGeofence(ctx context.Context, req *GeofenceInput, params UpdateGeofenceParams) (r UpdateGeofenceRes, _ error) {
+func (UnimplementedHandler) UpdateGeofence(ctx context.Context, req *GeofenceUpdateInput, params UpdateGeofenceParams) (r UpdateGeofenceRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -641,4 +641,12 @@ func (UnimplementedHandler) UpdateNotification(ctx context.Context, req *Notific
 // PUT /api/profile
 func (UnimplementedHandler) UpdateProfile(ctx context.Context, req *UpdateProfileRequest) (r UpdateProfileRes, _ error) {
 	return r, ht.ErrNotImplemented
+}
+
+// NewError creates *UnexpectedErrorStatusCode from error returned by handler.
+//
+// Used for common default response.
+func (UnimplementedHandler) NewError(ctx context.Context, err error) (r *UnexpectedErrorStatusCode) {
+	r = new(UnexpectedErrorStatusCode)
+	return r
 }

@@ -50,6 +50,12 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
+    UnexpectedError:
+      description: Unexpected error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
 
   schemas:
     Error:
@@ -82,11 +88,374 @@ components:
         disabled: { type: boolean }
         mileage: { type: number, format: double, nullable: true }
         attributes:
-          type: object
-          additionalProperties: {}
+          $ref: '#/components/schemas/Attributes'
         ownerName: { type: string }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
+
+    Attributes:
+      type: object
+      description: Free-form client attributes passed through unchanged (Traccar compat).
+      additionalProperties: true
+
+    PositionAttributes:
+      type: object
+      description: |
+        Protocol-emitted position metadata. Known keys per protocol:
+        - All: motion (bool)
+        - H02: ignition (bool), flags (string), alarm (string), mcc/mnc/lac/cellId (int), iccid (string)
+        - Watch: satellites (int)
+        Open for forward compatibility with additional protocols.
+      properties:
+        motion:     { type: boolean }
+        ignition:   { type: boolean }
+        flags:      { type: string }
+        alarm:      { type: string }
+        mcc:        { type: integer }
+        mnc:        { type: integer }
+        lac:        { type: integer }
+        cellId:     { type: integer }
+        iccid:      { type: string }
+        satellites: { type: integer }
+      additionalProperties: true
+
+    AuditMetadata:
+      oneOf:
+        - $ref: '#/components/schemas/AuditMetaEmpty'
+        - $ref: '#/components/schemas/AuditMetaSessionLogin'
+        - $ref: '#/components/schemas/AuditMetaSessionLoginFailed'
+        - $ref: '#/components/schemas/AuditMetaSessionSudo'
+        - $ref: '#/components/schemas/AuditMetaSessionRevoke'
+        - $ref: '#/components/schemas/AuditMetaUserCreate'
+        - $ref: '#/components/schemas/AuditMetaUserUpdate'
+        - $ref: '#/components/schemas/AuditMetaDeviceCreate'
+        - $ref: '#/components/schemas/AuditMetaDeviceUpdate'
+        - $ref: '#/components/schemas/AuditMetaDeviceAssign'
+        - $ref: '#/components/schemas/AuditMetaDeviceGpxImport'
+        - $ref: '#/components/schemas/AuditMetaNamedResource'
+        - $ref: '#/components/schemas/AuditMetaNotificationRule'
+        - $ref: '#/components/schemas/AuditMetaNotifDelivery'
+        - $ref: '#/components/schemas/AuditMetaApiKeyCreate'
+        - $ref: '#/components/schemas/AuditMetaApiKeyDelete'
+        - $ref: '#/components/schemas/AuditMetaShare'
+        - $ref: '#/components/schemas/AuditMetaCommandSend'
+      discriminator:
+        propertyName: action
+        mapping:
+          session.logout:       '#/components/schemas/AuditMetaEmpty'
+          device.delete:        '#/components/schemas/AuditMetaEmpty'
+          device.online:        '#/components/schemas/AuditMetaEmpty'
+          device.offline:       '#/components/schemas/AuditMetaEmpty'
+          notification.delete:  '#/components/schemas/AuditMetaEmpty'
+          calendar.delete:      '#/components/schemas/AuditMetaEmpty'
+          geofence.delete:      '#/components/schemas/AuditMetaEmpty'
+          user.delete:          '#/components/schemas/AuditMetaEmpty'
+          session.login:        '#/components/schemas/AuditMetaSessionLogin'
+          session.login_failed: '#/components/schemas/AuditMetaSessionLoginFailed'
+          session.sudo:         '#/components/schemas/AuditMetaSessionSudo'
+          session.sudo_end:     '#/components/schemas/AuditMetaSessionSudo'
+          session.revoke:       '#/components/schemas/AuditMetaSessionRevoke'
+          user.create:          '#/components/schemas/AuditMetaUserCreate'
+          user.update:          '#/components/schemas/AuditMetaUserUpdate'
+          device.create:        '#/components/schemas/AuditMetaDeviceCreate'
+          device.update:        '#/components/schemas/AuditMetaDeviceUpdate'
+          device.assign:        '#/components/schemas/AuditMetaDeviceAssign'
+          device.unassign:      '#/components/schemas/AuditMetaDeviceAssign'
+          device.gpx_import:    '#/components/schemas/AuditMetaDeviceGpxImport'
+          geofence.create:      '#/components/schemas/AuditMetaNamedResource'
+          geofence.update:      '#/components/schemas/AuditMetaNamedResource'
+          calendar.create:      '#/components/schemas/AuditMetaNamedResource'
+          calendar.update:      '#/components/schemas/AuditMetaNamedResource'
+          notification.create:  '#/components/schemas/AuditMetaNotificationRule'
+          notification.update:  '#/components/schemas/AuditMetaNotificationRule'
+          notification.sent:    '#/components/schemas/AuditMetaNotifDelivery'
+          notification.failed:  '#/components/schemas/AuditMetaNotifDelivery'
+          apikey.create:        '#/components/schemas/AuditMetaApiKeyCreate'
+          apikey.delete:        '#/components/schemas/AuditMetaApiKeyDelete'
+          share.create:         '#/components/schemas/AuditMetaShare'
+          share.delete:         '#/components/schemas/AuditMetaShare'
+          command.send:         '#/components/schemas/AuditMetaCommandSend'
+
+    AuditMetaEmpty:
+      type: object
+      required: [action]
+      properties:
+        action: { type: string }
+
+    AuditMetaSessionLogin:
+      type: object
+      required: [action, email]
+      properties:
+        action: { type: string }
+        email: { type: string }
+
+    AuditMetaSessionLoginFailed:
+      type: object
+      required: [action, email, reason]
+      properties:
+        action: { type: string }
+        email: { type: string }
+        reason: { type: string }
+
+    AuditMetaSessionSudo:
+      type: object
+      required: [action, adminEmail, targetEmail]
+      properties:
+        action: { type: string }
+        adminEmail: { type: string }
+        targetEmail: { type: string }
+
+    AuditMetaSessionRevoke:
+      type: object
+      required: [action]
+      properties:
+        action: { type: string }
+        scope: { type: string }
+        revokedSessionId: { type: string }
+        sessionOwnerUserId: { type: integer, format: int64 }
+
+    AuditMetaUserCreate:
+      type: object
+      required: [action, email, role]
+      properties:
+        action: { type: string }
+        email: { type: string }
+        role: { type: string }
+
+    AuditMetaUserUpdate:
+      type: object
+      required: [action, email]
+      properties:
+        action: { type: string }
+        email: { type: string }
+        oldEmail: { type: string }
+        newEmail: { type: string }
+        oldName: { type: string }
+        newName: { type: string }
+        oldRole: { type: string }
+        newRole: { type: string }
+        disabled: { type: boolean }
+        readonly: { type: boolean }
+
+    AuditMetaDeviceCreate:
+      type: object
+      required: [action, name, uniqueId]
+      properties:
+        action: { type: string }
+        name: { type: string }
+        uniqueId: { type: string }
+
+    AuditMetaDeviceUpdate:
+      type: object
+      required: [action, name]
+      properties:
+        action: { type: string }
+        name: { type: string }
+
+    AuditMetaDeviceAssign:
+      type: object
+      required: [action, userId]
+      properties:
+        action: { type: string }
+        userId: { type: integer, format: int64 }
+
+    AuditMetaDeviceGpxImport:
+      type: object
+      required: [action, deviceId, positions]
+      properties:
+        action: { type: string }
+        deviceId: { type: integer, format: int64 }
+        positions: { type: integer }
+
+    AuditMetaNamedResource:
+      type: object
+      required: [action, name]
+      properties:
+        action: { type: string }
+        name: { type: string }
+
+    AuditMetaNotificationRule:
+      type: object
+      required: [action, name, channel]
+      properties:
+        action: { type: string }
+        name: { type: string }
+        eventTypes:
+          type: array
+          items: { type: string }
+        channel: { type: string }
+
+    AuditMetaNotifDelivery:
+      type: object
+      required: [action, ruleName, eventType, channel, deviceId]
+      properties:
+        action: { type: string }
+        ruleName: { type: string }
+        eventType: { type: string }
+        channel: { type: string }
+        deviceId: { type: integer, format: int64 }
+        responseCode: { type: integer }
+        error: { type: string }
+
+    AuditMetaApiKeyCreate:
+      type: object
+      required: [action, name, permissions]
+      properties:
+        action: { type: string }
+        name: { type: string }
+        permissions: { type: string }
+
+    AuditMetaApiKeyDelete:
+      type: object
+      required: [action, name, keyOwnerUserId]
+      properties:
+        action: { type: string }
+        name: { type: string }
+        keyOwnerUserId: { type: integer, format: int64 }
+
+    AuditMetaShare:
+      type: object
+      required: [action, deviceId]
+      properties:
+        action: { type: string }
+        deviceId: { type: integer, format: int64 }
+
+    AuditMetaCommandSend:
+      type: object
+      required: [action, commandType, commandStatus, deviceName]
+      properties:
+        action: { type: string }
+        commandType: { type: string }
+        commandStatus: { type: string }
+        deviceName: { type: string }
+
+    EventAttributes:
+      oneOf:
+        - $ref: '#/components/schemas/EventAttrEmpty'
+        - $ref: '#/components/schemas/EventAttrIgnition'
+        - $ref: '#/components/schemas/EventAttrAlarm'
+        - $ref: '#/components/schemas/EventAttrMotion'
+        - $ref: '#/components/schemas/EventAttrTrip'
+        - $ref: '#/components/schemas/EventAttrIdle'
+      discriminator:
+        propertyName: type
+        mapping:
+          geofenceEnter: '#/components/schemas/EventAttrEmpty'
+          geofenceExit:  '#/components/schemas/EventAttrEmpty'
+          ignitionOn:    '#/components/schemas/EventAttrIgnition'
+          ignitionOff:   '#/components/schemas/EventAttrIgnition'
+          alarm:         '#/components/schemas/EventAttrAlarm'
+          motion:        '#/components/schemas/EventAttrMotion'
+          tripCompleted: '#/components/schemas/EventAttrTrip'
+          deviceIdle:    '#/components/schemas/EventAttrIdle'
+
+    EventAttrEmpty:
+      type: object
+      required: [type]
+      properties:
+        type: { type: string }
+
+    EventAttrIgnition:
+      type: object
+      required: [type, ignition]
+      properties:
+        type: { type: string }
+        ignition: { type: boolean }
+
+    EventAttrAlarm:
+      type: object
+      required: [type, alarm]
+      properties:
+        type: { type: string }
+        alarm: { type: string }
+
+    EventAttrMotion:
+      type: object
+      required: [type, speed, previousSpeed]
+      properties:
+        type: { type: string }
+        speed: { type: number, format: double }
+        previousSpeed: { type: number, format: double }
+
+    EventAttrTrip:
+      type: object
+      required: [type, distance, mileage]
+      properties:
+        type: { type: string }
+        distance: { type: number, format: double }
+        mileage: { type: number, format: double }
+
+    EventAttrIdle:
+      type: object
+      required: [type, idleDuration]
+      properties:
+        type: { type: string }
+        idleDuration: { type: number, format: double }
+
+    CommandAttributes:
+      oneOf:
+        - $ref: '#/components/schemas/CommandAttrCustom'
+        - $ref: '#/components/schemas/CommandAttrPositionPeriodic'
+        - $ref: '#/components/schemas/CommandAttrSosNumber'
+        - $ref: '#/components/schemas/CommandAttrSetSpeedAlarm'
+      discriminator:
+        propertyName: type
+        mapping:
+          custom:           '#/components/schemas/CommandAttrCustom'
+          positionPeriodic: '#/components/schemas/CommandAttrPositionPeriodic'
+          sosNumber:        '#/components/schemas/CommandAttrSosNumber'
+          setSpeedAlarm:    '#/components/schemas/CommandAttrSetSpeedAlarm'
+
+    CommandAttrCustom:
+      type: object
+      required: [type, text]
+      properties:
+        type: { type: string, enum: [custom] }
+        text: { type: string }
+
+    CommandAttrPositionPeriodic:
+      type: object
+      required: [type, frequency]
+      properties:
+        type: { type: string, enum: [positionPeriodic] }
+        frequency: { type: integer }
+
+    CommandAttrSosNumber:
+      type: object
+      required: [type, phoneNumber]
+      properties:
+        type: { type: string, enum: [sosNumber] }
+        phoneNumber: { type: string }
+
+    CommandAttrSetSpeedAlarm:
+      type: object
+      required: [type, speed]
+      properties:
+        type: { type: string, enum: [setSpeedAlarm] }
+        speed: { type: number, format: double }
+
+    NotificationRuleConfig:
+      oneOf:
+        - $ref: '#/components/schemas/NotificationConfigWebhook'
+      discriminator:
+        propertyName: channel
+        mapping:
+          webhook: '#/components/schemas/NotificationConfigWebhook'
+
+    NotificationConfigWebhook:
+      type: object
+      required: [channel, webhookUrl]
+      properties:
+        channel:
+          type: string
+          enum: [webhook]
+        webhookUrl:
+          type: string
+          format: uri
+        headers:
+          type: object
+          additionalProperties:
+            type: string
 
     DeviceInput:
       type: object
@@ -99,12 +468,11 @@ components:
         contact: { type: string }
         category: { type: string }
         protocol: { type: string }
-        calendarId: { type: integer, format: int64 }
+        calendarId: { type: integer, format: int64, nullable: true }
         speedLimit: { type: number, format: double }
         disabled: { type: boolean }
         attributes:
-          type: object
-          additionalProperties: {}
+          $ref: '#/components/schemas/Attributes'
 
     Position:
       type: object
@@ -128,11 +496,9 @@ components:
         accuracy: { type: number, format: double }
         address: { type: string }
         attributes:
-          type: object
-          additionalProperties: {}
+          $ref: '#/components/schemas/PositionAttributes'
         network:
-          type: object
-          additionalProperties: {}
+          $ref: '#/components/schemas/Attributes'
 
     User:
       type: object
@@ -146,8 +512,7 @@ components:
         disabled: { type: boolean }
         createdAt: { type: string, format: date-time }
         attributes:
-          type: object
-          additionalProperties: {}
+          $ref: '#/components/schemas/Attributes'
 
     UserInput:
       type: object
@@ -204,8 +569,7 @@ components:
         executedAt: { type: string, format: date-time, nullable: true }
         createdAt: { type: string, format: date-time }
         attributes:
-          type: object
-          additionalProperties: {}
+          $ref: '#/components/schemas/CommandAttributes'
 
     CommandInput:
       type: object
@@ -214,8 +578,7 @@ components:
         deviceId: { type: integer, format: int64 }
         type: { type: string }
         attributes:
-          type: object
-          additionalProperties: {}
+          $ref: '#/components/schemas/CommandAttributes'
 
     SendCommandRequest:
       type: object
@@ -224,8 +587,7 @@ components:
         deviceId: { type: integer, format: int64 }
         type: { type: string }
         attributes:
-          type: object
-          additionalProperties: {}
+          $ref: '#/components/schemas/CommandAttributes'
 
     CommandType:
       type: object
@@ -245,8 +607,7 @@ components:
         calendarId: { type: integer, format: int64, nullable: true }
         ownerName: { type: string }
         attributes:
-          type: object
-          additionalProperties: {}
+          $ref: '#/components/schemas/Attributes'
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
 
@@ -258,10 +619,20 @@ components:
         description: { type: string }
         area: { type: string }
         geometry: { type: string }
-        calendarId: { type: integer, format: int64 }
+        calendarId: { type: integer, format: int64, nullable: true }
         attributes:
-          type: object
-          additionalProperties: {}
+          $ref: '#/components/schemas/Attributes'
+
+    GeofenceUpdateInput:
+      type: object
+      properties:
+        name: { type: string }
+        description: { type: string }
+        area: { type: string }
+        geometry: { type: string }
+        calendarId: { type: integer, format: int64, nullable: true }
+        attributes:
+          $ref: '#/components/schemas/Attributes'
 
     Calendar:
       type: object
@@ -299,8 +670,7 @@ components:
         positionId: { type: integer, format: int64, nullable: true }
         eventTime: { type: string, format: date-time }
         attributes:
-          type: object
-          additionalProperties: {}
+          $ref: '#/components/schemas/EventAttributes'
 
     NotificationRule:
       type: object
@@ -314,8 +684,7 @@ components:
           items: { type: string }
         channel: { type: string }
         config:
-          type: object
-          additionalProperties: {}
+          $ref: '#/components/schemas/NotificationRuleConfig'
         template: { type: string }
         enabled: { type: boolean }
         ownerName: { type: string }
@@ -332,8 +701,7 @@ components:
           items: { type: string }
         channel: { type: string }
         config:
-          type: object
-          additionalProperties: {}
+          $ref: '#/components/schemas/NotificationRuleConfig'
         template: { type: string }
         enabled: { type: boolean }
 
@@ -445,8 +813,7 @@ components:
         resourceType: { type: string }
         resourceId: { type: string }
         metadata:
-          type: object
-          additionalProperties: {}
+          $ref: '#/components/schemas/AuditMetadata'
         ipAddress: { type: string }
         createdAt: { type: string, format: date-time }
 
@@ -484,8 +851,7 @@ components:
         openIdEnabled: { type: boolean }
         openIdForce: { type: boolean }
         attributes:
-          type: object
-          additionalProperties: {}
+          $ref: '#/components/schemas/Attributes'
 
     VersionInfo:
       type: object
@@ -511,6 +877,8 @@ paths:
                 required: [status]
                 properties:
                   status: { type: string }
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/version:
     get:
@@ -524,6 +892,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/VersionInfo'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/server:
     get:
@@ -537,6 +907,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServerInfo'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/session:
     get:
@@ -560,6 +932,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
     post:
       operationId: login
       summary: Login with email + password
@@ -589,6 +963,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
     delete:
       operationId: logout
       summary: Logout (delete current session)
@@ -602,6 +978,8 @@ paths:
           description: Logged out
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/session/token:
     post:
@@ -621,6 +999,8 @@ paths:
                 $ref: '#/components/schemas/TokenResponse'
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/devices:
     get:
@@ -642,6 +1022,8 @@ paths:
                   $ref: '#/components/schemas/Device'
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
     post:
       operationId: createDevice
       summary: Create a device
@@ -667,6 +1049,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/devices/{id}:
     parameters:
@@ -695,6 +1079,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
     put:
       operationId: updateDevice
       summary: Update a device
@@ -724,6 +1110,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
     delete:
       operationId: deleteDevice
       summary: Delete a device
@@ -741,6 +1129,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/devices/{id}/gpx:
     parameters:
@@ -781,6 +1171,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         "403":
           $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/devices/{id}/share:
     parameters:
@@ -812,6 +1204,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         "403":
           $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/devices/{id}/shares:
     parameters:
@@ -840,6 +1234,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         "403":
           $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/shares/{id}:
     parameters:
@@ -864,6 +1260,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/share/{token}:
     parameters:
@@ -884,6 +1282,8 @@ paths:
                 $ref: '#/components/schemas/Device'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/positions:
     get:
@@ -915,6 +1315,8 @@ paths:
                   $ref: '#/components/schemas/Position'
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/commands:
     get:
@@ -940,6 +1342,8 @@ paths:
                   $ref: '#/components/schemas/Command'
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
     post:
       operationId: createCommand
       summary: Save a command (not yet sent)
@@ -965,6 +1369,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/commands/send:
     post:
@@ -994,6 +1400,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/commands/types:
     get:
@@ -1015,6 +1423,8 @@ paths:
                   $ref: '#/components/schemas/CommandType'
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/geofences:
     get:
@@ -1036,6 +1446,8 @@ paths:
                   $ref: '#/components/schemas/Geofence'
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
     post:
       operationId: createGeofence
       summary: Create a geofence
@@ -1061,6 +1473,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/geofences/{id}:
     parameters:
@@ -1089,6 +1503,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
     put:
       operationId: updateGeofence
       summary: Update a geofence
@@ -1102,7 +1518,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/GeofenceInput'
+              $ref: '#/components/schemas/GeofenceUpdateInput'
       responses:
         "200":
           description: Updated geofence
@@ -1118,6 +1534,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
     delete:
       operationId: deleteGeofence
       summary: Delete a geofence
@@ -1135,6 +1553,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/calendars:
     get:
@@ -1156,6 +1576,8 @@ paths:
                   $ref: '#/components/schemas/Calendar'
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
     post:
       operationId: createCalendar
       summary: Create a calendar
@@ -1181,6 +1603,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/calendars/{id}:
     parameters:
@@ -1215,6 +1639,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
     delete:
       operationId: deleteCalendar
       summary: Delete a calendar
@@ -1230,6 +1656,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/calendars/{id}/check:
     parameters:
@@ -1256,6 +1684,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/events:
     get:
@@ -1290,6 +1720,8 @@ paths:
                   $ref: '#/components/schemas/Event'
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/reports/events:
     get:
@@ -1324,6 +1756,8 @@ paths:
                   $ref: '#/components/schemas/Event'
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/notifications:
     get:
@@ -1345,6 +1779,8 @@ paths:
                   $ref: '#/components/schemas/NotificationRule'
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
     post:
       operationId: createNotification
       summary: Create a notification rule
@@ -1370,6 +1806,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/notifications/{id}:
     parameters:
@@ -1406,6 +1844,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
     delete:
       operationId: deleteNotification
       summary: Delete a notification rule
@@ -1423,6 +1863,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/notifications/{id}/test:
     parameters:
@@ -1447,6 +1889,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/notifications/{id}/logs:
     parameters:
@@ -1477,6 +1921,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/keys:
     get:
@@ -1498,6 +1944,8 @@ paths:
                   $ref: '#/components/schemas/ApiKey'
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
     post:
       operationId: createApiKey
       summary: Create an API key
@@ -1523,6 +1971,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/keys/{id}:
     parameters:
@@ -1547,6 +1997,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/sessions:
     get:
@@ -1568,6 +2020,8 @@ paths:
                   $ref: '#/components/schemas/Session'
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
     delete:
       operationId: logoutAll
       summary: Revoke all sessions for the authenticated user
@@ -1581,6 +2035,8 @@ paths:
           description: All sessions revoked
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/sessions/{id}:
     parameters:
@@ -1605,6 +2061,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/profile:
     put:
@@ -1632,6 +2090,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/admin/sudo:
     get:
@@ -1651,6 +2111,8 @@ paths:
                 $ref: '#/components/schemas/SudoStatus'
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
     delete:
       operationId: endSudo
       summary: End sudo/impersonation session
@@ -1664,6 +2126,8 @@ paths:
           description: Sudo ended
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/admin/sudo/{id}:
     parameters:
@@ -1688,6 +2152,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/users:
     get:
@@ -1711,6 +2177,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         "403":
           $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
     post:
       operationId: adminCreateUser
       summary: Admin — create a user
@@ -1738,6 +2206,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         "403":
           $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/users/{id}:
     parameters:
@@ -1774,6 +2244,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
     delete:
       operationId: adminDeleteUser
       summary: Admin — delete a user
@@ -1791,6 +2263,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/users/{id}/devices:
     parameters:
@@ -1821,6 +2295,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/users/{id}/devices/{deviceId}:
     parameters:
@@ -1849,6 +2325,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
     delete:
       operationId: adminUnassignDevice
       summary: Admin — unassign a device from a user
@@ -1866,6 +2344,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/users/{id}/keys:
     parameters:
@@ -1896,6 +2376,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/users/{id}/sessions/{sessionId}:
     parameters:
@@ -1924,6 +2406,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/admin/devices:
     get:
@@ -1947,6 +2431,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         "403":
           $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/admin/geofences:
     get:
@@ -1970,6 +2456,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         "403":
           $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/admin/calendars:
     get:
@@ -1993,6 +2481,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         "403":
           $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/admin/notifications:
     get:
@@ -2016,6 +2506,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         "403":
           $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/admin/positions:
     get:
@@ -2039,6 +2531,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         "403":
           $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/admin/statistics:
     get:
@@ -2060,6 +2554,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         "403":
           $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/admin/statistics/users/{id}:
     parameters:
@@ -2088,6 +2584,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         "404":
           $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/admin/audit:
     get:
@@ -2125,6 +2623,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         "403":
           $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/auth/oidc/config:
     get:
@@ -2138,6 +2638,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/OIDCConfig'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/auth/oidc/login:
     get:
@@ -2147,6 +2649,8 @@ paths:
       responses:
         "302":
           description: Redirect to OIDC provider
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /api/auth/oidc/callback:
     get:
@@ -2165,3 +2669,6 @@ paths:
           description: Redirect to app after successful login
         "400":
           $ref: '#/components/responses/BadRequest'
+
+        default:
+          $ref: '#/components/responses/UnexpectedError'

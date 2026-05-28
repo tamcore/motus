@@ -16,6 +16,7 @@
 		DEFAULT_TEMPLATE
 	} from '$lib/stores/notifications';
 	import type { NotificationRule, NotificationLog } from '$lib/stores/notifications';
+	import type { NotificationConfigWebhook } from '$lib/types/api';
 
 	let loading = true;
 	let error = '';
@@ -94,16 +95,13 @@
 		showModal = true;
 	}
 
-	function buildConfig(): Record<string, any> {
-		const config: Record<string, any> = {};
-
-		config.webhookUrl = formWebhookUrl;
+	function buildConfig(): NotificationConfigWebhook {
+		const cfg: NotificationConfigWebhook = { channel: 'webhook', webhookUrl: formWebhookUrl };
 		const filteredHeaders = formHeaders.filter((h) => h.key.trim());
 		if (filteredHeaders.length > 0) {
-			config.headers = Object.fromEntries(filteredHeaders.map((h) => [h.key, h.value]));
+			cfg.headers = Object.fromEntries(filteredHeaders.map((h) => [h.key, h.value]));
 		}
-
-		return config;
+		return cfg;
 	}
 
 	async function handleSubmit() {
@@ -170,12 +168,8 @@
 		testingId = rule.id;
 		error = '';
 		try {
-			const result = await api.testNotification(rule.id);
-			if (result.status === 'sent') {
-				alert('Test notification sent successfully! Check your destination.');
-			} else {
-				alert('Test notification failed: ' + (result.error || 'Unknown error'));
-			}
+			await api.testNotification(rule.id);
+			alert('Test notification sent successfully! Check your destination.');
 		} catch (err: any) {
 			error = 'Failed to send test notification';
 			alert('Failed to send test notification: ' + (err.message || 'Unknown error'));

@@ -3,13 +3,19 @@
 package api
 
 import (
+	"fmt"
 	"io"
+	"net/url"
 	"time"
 
 	"github.com/go-faster/errors"
 	"github.com/go-faster/jx"
 	ht "github.com/ogen-go/ogen/http"
 )
+
+func (s *UnexpectedErrorStatusCode) Error() string {
+	return fmt.Sprintf("code %d: %+v", s.StatusCode, s.Response)
+}
 
 type AdminAssignDeviceForbidden Error
 
@@ -470,17 +476,30 @@ func (s *ApiKeyPermissions) UnmarshalText(data []byte) error {
 	}
 }
 
+// Free-form client attributes passed through unchanged (Traccar compat).
+// Ref: #/components/schemas/Attributes
+type Attributes map[string]jx.Raw
+
+func (s *Attributes) init() Attributes {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
 // Ref: #/components/schemas/AuditEntry
 type AuditEntry struct {
-	ID           int64                 `json:"id"`
-	Action       string                `json:"action"`
-	UserId       int64                 `json:"userId"`
-	UserEmail    OptString             `json:"userEmail"`
-	ResourceType OptString             `json:"resourceType"`
-	ResourceId   OptString             `json:"resourceId"`
-	Metadata     OptAuditEntryMetadata `json:"metadata"`
-	IpAddress    OptString             `json:"ipAddress"`
-	CreatedAt    time.Time             `json:"createdAt"`
+	ID           int64            `json:"id"`
+	Action       string           `json:"action"`
+	UserId       int64            `json:"userId"`
+	UserEmail    OptString        `json:"userEmail"`
+	ResourceType OptString        `json:"resourceType"`
+	ResourceId   OptString        `json:"resourceId"`
+	Metadata     OptAuditMetadata `json:"metadata"`
+	IpAddress    OptString        `json:"ipAddress"`
+	CreatedAt    time.Time        `json:"createdAt"`
 }
 
 // GetID returns the value of ID.
@@ -514,7 +533,7 @@ func (s *AuditEntry) GetResourceId() OptString {
 }
 
 // GetMetadata returns the value of Metadata.
-func (s *AuditEntry) GetMetadata() OptAuditEntryMetadata {
+func (s *AuditEntry) GetMetadata() OptAuditMetadata {
 	return s.Metadata
 }
 
@@ -559,7 +578,7 @@ func (s *AuditEntry) SetResourceId(val OptString) {
 }
 
 // SetMetadata sets the value of Metadata.
-func (s *AuditEntry) SetMetadata(val OptAuditEntryMetadata) {
+func (s *AuditEntry) SetMetadata(val OptAuditMetadata) {
 	s.Metadata = val
 }
 
@@ -573,15 +592,1447 @@ func (s *AuditEntry) SetCreatedAt(val time.Time) {
 	s.CreatedAt = val
 }
 
-type AuditEntryMetadata map[string]jx.Raw
+// Ref: #/components/schemas/AuditMetaApiKeyCreate
+type AuditMetaApiKeyCreate struct {
+	Action      string `json:"action"`
+	Name        string `json:"name"`
+	Permissions string `json:"permissions"`
+}
 
-func (s *AuditEntryMetadata) init() AuditEntryMetadata {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
+// GetAction returns the value of Action.
+func (s *AuditMetaApiKeyCreate) GetAction() string {
+	return s.Action
+}
+
+// GetName returns the value of Name.
+func (s *AuditMetaApiKeyCreate) GetName() string {
+	return s.Name
+}
+
+// GetPermissions returns the value of Permissions.
+func (s *AuditMetaApiKeyCreate) GetPermissions() string {
+	return s.Permissions
+}
+
+// SetAction sets the value of Action.
+func (s *AuditMetaApiKeyCreate) SetAction(val string) {
+	s.Action = val
+}
+
+// SetName sets the value of Name.
+func (s *AuditMetaApiKeyCreate) SetName(val string) {
+	s.Name = val
+}
+
+// SetPermissions sets the value of Permissions.
+func (s *AuditMetaApiKeyCreate) SetPermissions(val string) {
+	s.Permissions = val
+}
+
+// Ref: #/components/schemas/AuditMetaApiKeyDelete
+type AuditMetaApiKeyDelete struct {
+	Action         string `json:"action"`
+	Name           string `json:"name"`
+	KeyOwnerUserId int64  `json:"keyOwnerUserId"`
+}
+
+// GetAction returns the value of Action.
+func (s *AuditMetaApiKeyDelete) GetAction() string {
+	return s.Action
+}
+
+// GetName returns the value of Name.
+func (s *AuditMetaApiKeyDelete) GetName() string {
+	return s.Name
+}
+
+// GetKeyOwnerUserId returns the value of KeyOwnerUserId.
+func (s *AuditMetaApiKeyDelete) GetKeyOwnerUserId() int64 {
+	return s.KeyOwnerUserId
+}
+
+// SetAction sets the value of Action.
+func (s *AuditMetaApiKeyDelete) SetAction(val string) {
+	s.Action = val
+}
+
+// SetName sets the value of Name.
+func (s *AuditMetaApiKeyDelete) SetName(val string) {
+	s.Name = val
+}
+
+// SetKeyOwnerUserId sets the value of KeyOwnerUserId.
+func (s *AuditMetaApiKeyDelete) SetKeyOwnerUserId(val int64) {
+	s.KeyOwnerUserId = val
+}
+
+// Ref: #/components/schemas/AuditMetaCommandSend
+type AuditMetaCommandSend struct {
+	Action        string `json:"action"`
+	CommandType   string `json:"commandType"`
+	CommandStatus string `json:"commandStatus"`
+	DeviceName    string `json:"deviceName"`
+}
+
+// GetAction returns the value of Action.
+func (s *AuditMetaCommandSend) GetAction() string {
+	return s.Action
+}
+
+// GetCommandType returns the value of CommandType.
+func (s *AuditMetaCommandSend) GetCommandType() string {
+	return s.CommandType
+}
+
+// GetCommandStatus returns the value of CommandStatus.
+func (s *AuditMetaCommandSend) GetCommandStatus() string {
+	return s.CommandStatus
+}
+
+// GetDeviceName returns the value of DeviceName.
+func (s *AuditMetaCommandSend) GetDeviceName() string {
+	return s.DeviceName
+}
+
+// SetAction sets the value of Action.
+func (s *AuditMetaCommandSend) SetAction(val string) {
+	s.Action = val
+}
+
+// SetCommandType sets the value of CommandType.
+func (s *AuditMetaCommandSend) SetCommandType(val string) {
+	s.CommandType = val
+}
+
+// SetCommandStatus sets the value of CommandStatus.
+func (s *AuditMetaCommandSend) SetCommandStatus(val string) {
+	s.CommandStatus = val
+}
+
+// SetDeviceName sets the value of DeviceName.
+func (s *AuditMetaCommandSend) SetDeviceName(val string) {
+	s.DeviceName = val
+}
+
+// Ref: #/components/schemas/AuditMetaDeviceAssign
+type AuditMetaDeviceAssign struct {
+	Action string `json:"action"`
+	UserId int64  `json:"userId"`
+}
+
+// GetAction returns the value of Action.
+func (s *AuditMetaDeviceAssign) GetAction() string {
+	return s.Action
+}
+
+// GetUserId returns the value of UserId.
+func (s *AuditMetaDeviceAssign) GetUserId() int64 {
+	return s.UserId
+}
+
+// SetAction sets the value of Action.
+func (s *AuditMetaDeviceAssign) SetAction(val string) {
+	s.Action = val
+}
+
+// SetUserId sets the value of UserId.
+func (s *AuditMetaDeviceAssign) SetUserId(val int64) {
+	s.UserId = val
+}
+
+// Ref: #/components/schemas/AuditMetaDeviceCreate
+type AuditMetaDeviceCreate struct {
+	Action   string `json:"action"`
+	Name     string `json:"name"`
+	UniqueId string `json:"uniqueId"`
+}
+
+// GetAction returns the value of Action.
+func (s *AuditMetaDeviceCreate) GetAction() string {
+	return s.Action
+}
+
+// GetName returns the value of Name.
+func (s *AuditMetaDeviceCreate) GetName() string {
+	return s.Name
+}
+
+// GetUniqueId returns the value of UniqueId.
+func (s *AuditMetaDeviceCreate) GetUniqueId() string {
+	return s.UniqueId
+}
+
+// SetAction sets the value of Action.
+func (s *AuditMetaDeviceCreate) SetAction(val string) {
+	s.Action = val
+}
+
+// SetName sets the value of Name.
+func (s *AuditMetaDeviceCreate) SetName(val string) {
+	s.Name = val
+}
+
+// SetUniqueId sets the value of UniqueId.
+func (s *AuditMetaDeviceCreate) SetUniqueId(val string) {
+	s.UniqueId = val
+}
+
+// Ref: #/components/schemas/AuditMetaDeviceGpxImport
+type AuditMetaDeviceGpxImport struct {
+	Action    string `json:"action"`
+	DeviceId  int64  `json:"deviceId"`
+	Positions int    `json:"positions"`
+}
+
+// GetAction returns the value of Action.
+func (s *AuditMetaDeviceGpxImport) GetAction() string {
+	return s.Action
+}
+
+// GetDeviceId returns the value of DeviceId.
+func (s *AuditMetaDeviceGpxImport) GetDeviceId() int64 {
+	return s.DeviceId
+}
+
+// GetPositions returns the value of Positions.
+func (s *AuditMetaDeviceGpxImport) GetPositions() int {
+	return s.Positions
+}
+
+// SetAction sets the value of Action.
+func (s *AuditMetaDeviceGpxImport) SetAction(val string) {
+	s.Action = val
+}
+
+// SetDeviceId sets the value of DeviceId.
+func (s *AuditMetaDeviceGpxImport) SetDeviceId(val int64) {
+	s.DeviceId = val
+}
+
+// SetPositions sets the value of Positions.
+func (s *AuditMetaDeviceGpxImport) SetPositions(val int) {
+	s.Positions = val
+}
+
+// Ref: #/components/schemas/AuditMetaDeviceUpdate
+type AuditMetaDeviceUpdate struct {
+	Action string `json:"action"`
+	Name   string `json:"name"`
+}
+
+// GetAction returns the value of Action.
+func (s *AuditMetaDeviceUpdate) GetAction() string {
+	return s.Action
+}
+
+// GetName returns the value of Name.
+func (s *AuditMetaDeviceUpdate) GetName() string {
+	return s.Name
+}
+
+// SetAction sets the value of Action.
+func (s *AuditMetaDeviceUpdate) SetAction(val string) {
+	s.Action = val
+}
+
+// SetName sets the value of Name.
+func (s *AuditMetaDeviceUpdate) SetName(val string) {
+	s.Name = val
+}
+
+// Ref: #/components/schemas/AuditMetaEmpty
+type AuditMetaEmpty struct {
+	Action string `json:"action"`
+}
+
+// GetAction returns the value of Action.
+func (s *AuditMetaEmpty) GetAction() string {
+	return s.Action
+}
+
+// SetAction sets the value of Action.
+func (s *AuditMetaEmpty) SetAction(val string) {
+	s.Action = val
+}
+
+// Ref: #/components/schemas/AuditMetaNamedResource
+type AuditMetaNamedResource struct {
+	Action string `json:"action"`
+	Name   string `json:"name"`
+}
+
+// GetAction returns the value of Action.
+func (s *AuditMetaNamedResource) GetAction() string {
+	return s.Action
+}
+
+// GetName returns the value of Name.
+func (s *AuditMetaNamedResource) GetName() string {
+	return s.Name
+}
+
+// SetAction sets the value of Action.
+func (s *AuditMetaNamedResource) SetAction(val string) {
+	s.Action = val
+}
+
+// SetName sets the value of Name.
+func (s *AuditMetaNamedResource) SetName(val string) {
+	s.Name = val
+}
+
+// Ref: #/components/schemas/AuditMetaNotifDelivery
+type AuditMetaNotifDelivery struct {
+	Action       string    `json:"action"`
+	RuleName     string    `json:"ruleName"`
+	EventType    string    `json:"eventType"`
+	Channel      string    `json:"channel"`
+	DeviceId     int64     `json:"deviceId"`
+	ResponseCode OptInt    `json:"responseCode"`
+	Error        OptString `json:"error"`
+}
+
+// GetAction returns the value of Action.
+func (s *AuditMetaNotifDelivery) GetAction() string {
+	return s.Action
+}
+
+// GetRuleName returns the value of RuleName.
+func (s *AuditMetaNotifDelivery) GetRuleName() string {
+	return s.RuleName
+}
+
+// GetEventType returns the value of EventType.
+func (s *AuditMetaNotifDelivery) GetEventType() string {
+	return s.EventType
+}
+
+// GetChannel returns the value of Channel.
+func (s *AuditMetaNotifDelivery) GetChannel() string {
+	return s.Channel
+}
+
+// GetDeviceId returns the value of DeviceId.
+func (s *AuditMetaNotifDelivery) GetDeviceId() int64 {
+	return s.DeviceId
+}
+
+// GetResponseCode returns the value of ResponseCode.
+func (s *AuditMetaNotifDelivery) GetResponseCode() OptInt {
+	return s.ResponseCode
+}
+
+// GetError returns the value of Error.
+func (s *AuditMetaNotifDelivery) GetError() OptString {
+	return s.Error
+}
+
+// SetAction sets the value of Action.
+func (s *AuditMetaNotifDelivery) SetAction(val string) {
+	s.Action = val
+}
+
+// SetRuleName sets the value of RuleName.
+func (s *AuditMetaNotifDelivery) SetRuleName(val string) {
+	s.RuleName = val
+}
+
+// SetEventType sets the value of EventType.
+func (s *AuditMetaNotifDelivery) SetEventType(val string) {
+	s.EventType = val
+}
+
+// SetChannel sets the value of Channel.
+func (s *AuditMetaNotifDelivery) SetChannel(val string) {
+	s.Channel = val
+}
+
+// SetDeviceId sets the value of DeviceId.
+func (s *AuditMetaNotifDelivery) SetDeviceId(val int64) {
+	s.DeviceId = val
+}
+
+// SetResponseCode sets the value of ResponseCode.
+func (s *AuditMetaNotifDelivery) SetResponseCode(val OptInt) {
+	s.ResponseCode = val
+}
+
+// SetError sets the value of Error.
+func (s *AuditMetaNotifDelivery) SetError(val OptString) {
+	s.Error = val
+}
+
+// Ref: #/components/schemas/AuditMetaNotificationRule
+type AuditMetaNotificationRule struct {
+	Action     string   `json:"action"`
+	Name       string   `json:"name"`
+	EventTypes []string `json:"eventTypes"`
+	Channel    string   `json:"channel"`
+}
+
+// GetAction returns the value of Action.
+func (s *AuditMetaNotificationRule) GetAction() string {
+	return s.Action
+}
+
+// GetName returns the value of Name.
+func (s *AuditMetaNotificationRule) GetName() string {
+	return s.Name
+}
+
+// GetEventTypes returns the value of EventTypes.
+func (s *AuditMetaNotificationRule) GetEventTypes() []string {
+	return s.EventTypes
+}
+
+// GetChannel returns the value of Channel.
+func (s *AuditMetaNotificationRule) GetChannel() string {
+	return s.Channel
+}
+
+// SetAction sets the value of Action.
+func (s *AuditMetaNotificationRule) SetAction(val string) {
+	s.Action = val
+}
+
+// SetName sets the value of Name.
+func (s *AuditMetaNotificationRule) SetName(val string) {
+	s.Name = val
+}
+
+// SetEventTypes sets the value of EventTypes.
+func (s *AuditMetaNotificationRule) SetEventTypes(val []string) {
+	s.EventTypes = val
+}
+
+// SetChannel sets the value of Channel.
+func (s *AuditMetaNotificationRule) SetChannel(val string) {
+	s.Channel = val
+}
+
+// Ref: #/components/schemas/AuditMetaSessionLogin
+type AuditMetaSessionLogin struct {
+	Action string `json:"action"`
+	Email  string `json:"email"`
+}
+
+// GetAction returns the value of Action.
+func (s *AuditMetaSessionLogin) GetAction() string {
+	return s.Action
+}
+
+// GetEmail returns the value of Email.
+func (s *AuditMetaSessionLogin) GetEmail() string {
+	return s.Email
+}
+
+// SetAction sets the value of Action.
+func (s *AuditMetaSessionLogin) SetAction(val string) {
+	s.Action = val
+}
+
+// SetEmail sets the value of Email.
+func (s *AuditMetaSessionLogin) SetEmail(val string) {
+	s.Email = val
+}
+
+// Ref: #/components/schemas/AuditMetaSessionLoginFailed
+type AuditMetaSessionLoginFailed struct {
+	Action string `json:"action"`
+	Email  string `json:"email"`
+	Reason string `json:"reason"`
+}
+
+// GetAction returns the value of Action.
+func (s *AuditMetaSessionLoginFailed) GetAction() string {
+	return s.Action
+}
+
+// GetEmail returns the value of Email.
+func (s *AuditMetaSessionLoginFailed) GetEmail() string {
+	return s.Email
+}
+
+// GetReason returns the value of Reason.
+func (s *AuditMetaSessionLoginFailed) GetReason() string {
+	return s.Reason
+}
+
+// SetAction sets the value of Action.
+func (s *AuditMetaSessionLoginFailed) SetAction(val string) {
+	s.Action = val
+}
+
+// SetEmail sets the value of Email.
+func (s *AuditMetaSessionLoginFailed) SetEmail(val string) {
+	s.Email = val
+}
+
+// SetReason sets the value of Reason.
+func (s *AuditMetaSessionLoginFailed) SetReason(val string) {
+	s.Reason = val
+}
+
+// Ref: #/components/schemas/AuditMetaSessionRevoke
+type AuditMetaSessionRevoke struct {
+	Action             string    `json:"action"`
+	Scope              OptString `json:"scope"`
+	RevokedSessionId   OptString `json:"revokedSessionId"`
+	SessionOwnerUserId OptInt64  `json:"sessionOwnerUserId"`
+}
+
+// GetAction returns the value of Action.
+func (s *AuditMetaSessionRevoke) GetAction() string {
+	return s.Action
+}
+
+// GetScope returns the value of Scope.
+func (s *AuditMetaSessionRevoke) GetScope() OptString {
+	return s.Scope
+}
+
+// GetRevokedSessionId returns the value of RevokedSessionId.
+func (s *AuditMetaSessionRevoke) GetRevokedSessionId() OptString {
+	return s.RevokedSessionId
+}
+
+// GetSessionOwnerUserId returns the value of SessionOwnerUserId.
+func (s *AuditMetaSessionRevoke) GetSessionOwnerUserId() OptInt64 {
+	return s.SessionOwnerUserId
+}
+
+// SetAction sets the value of Action.
+func (s *AuditMetaSessionRevoke) SetAction(val string) {
+	s.Action = val
+}
+
+// SetScope sets the value of Scope.
+func (s *AuditMetaSessionRevoke) SetScope(val OptString) {
+	s.Scope = val
+}
+
+// SetRevokedSessionId sets the value of RevokedSessionId.
+func (s *AuditMetaSessionRevoke) SetRevokedSessionId(val OptString) {
+	s.RevokedSessionId = val
+}
+
+// SetSessionOwnerUserId sets the value of SessionOwnerUserId.
+func (s *AuditMetaSessionRevoke) SetSessionOwnerUserId(val OptInt64) {
+	s.SessionOwnerUserId = val
+}
+
+// Ref: #/components/schemas/AuditMetaSessionSudo
+type AuditMetaSessionSudo struct {
+	Action      string `json:"action"`
+	AdminEmail  string `json:"adminEmail"`
+	TargetEmail string `json:"targetEmail"`
+}
+
+// GetAction returns the value of Action.
+func (s *AuditMetaSessionSudo) GetAction() string {
+	return s.Action
+}
+
+// GetAdminEmail returns the value of AdminEmail.
+func (s *AuditMetaSessionSudo) GetAdminEmail() string {
+	return s.AdminEmail
+}
+
+// GetTargetEmail returns the value of TargetEmail.
+func (s *AuditMetaSessionSudo) GetTargetEmail() string {
+	return s.TargetEmail
+}
+
+// SetAction sets the value of Action.
+func (s *AuditMetaSessionSudo) SetAction(val string) {
+	s.Action = val
+}
+
+// SetAdminEmail sets the value of AdminEmail.
+func (s *AuditMetaSessionSudo) SetAdminEmail(val string) {
+	s.AdminEmail = val
+}
+
+// SetTargetEmail sets the value of TargetEmail.
+func (s *AuditMetaSessionSudo) SetTargetEmail(val string) {
+	s.TargetEmail = val
+}
+
+// Ref: #/components/schemas/AuditMetaShare
+type AuditMetaShare struct {
+	Action   string `json:"action"`
+	DeviceId int64  `json:"deviceId"`
+}
+
+// GetAction returns the value of Action.
+func (s *AuditMetaShare) GetAction() string {
+	return s.Action
+}
+
+// GetDeviceId returns the value of DeviceId.
+func (s *AuditMetaShare) GetDeviceId() int64 {
+	return s.DeviceId
+}
+
+// SetAction sets the value of Action.
+func (s *AuditMetaShare) SetAction(val string) {
+	s.Action = val
+}
+
+// SetDeviceId sets the value of DeviceId.
+func (s *AuditMetaShare) SetDeviceId(val int64) {
+	s.DeviceId = val
+}
+
+// Ref: #/components/schemas/AuditMetaUserCreate
+type AuditMetaUserCreate struct {
+	Action string `json:"action"`
+	Email  string `json:"email"`
+	Role   string `json:"role"`
+}
+
+// GetAction returns the value of Action.
+func (s *AuditMetaUserCreate) GetAction() string {
+	return s.Action
+}
+
+// GetEmail returns the value of Email.
+func (s *AuditMetaUserCreate) GetEmail() string {
+	return s.Email
+}
+
+// GetRole returns the value of Role.
+func (s *AuditMetaUserCreate) GetRole() string {
+	return s.Role
+}
+
+// SetAction sets the value of Action.
+func (s *AuditMetaUserCreate) SetAction(val string) {
+	s.Action = val
+}
+
+// SetEmail sets the value of Email.
+func (s *AuditMetaUserCreate) SetEmail(val string) {
+	s.Email = val
+}
+
+// SetRole sets the value of Role.
+func (s *AuditMetaUserCreate) SetRole(val string) {
+	s.Role = val
+}
+
+// Ref: #/components/schemas/AuditMetaUserUpdate
+type AuditMetaUserUpdate struct {
+	Action   string    `json:"action"`
+	Email    string    `json:"email"`
+	OldEmail OptString `json:"oldEmail"`
+	NewEmail OptString `json:"newEmail"`
+	OldName  OptString `json:"oldName"`
+	NewName  OptString `json:"newName"`
+	OldRole  OptString `json:"oldRole"`
+	NewRole  OptString `json:"newRole"`
+	Disabled OptBool   `json:"disabled"`
+	Readonly OptBool   `json:"readonly"`
+}
+
+// GetAction returns the value of Action.
+func (s *AuditMetaUserUpdate) GetAction() string {
+	return s.Action
+}
+
+// GetEmail returns the value of Email.
+func (s *AuditMetaUserUpdate) GetEmail() string {
+	return s.Email
+}
+
+// GetOldEmail returns the value of OldEmail.
+func (s *AuditMetaUserUpdate) GetOldEmail() OptString {
+	return s.OldEmail
+}
+
+// GetNewEmail returns the value of NewEmail.
+func (s *AuditMetaUserUpdate) GetNewEmail() OptString {
+	return s.NewEmail
+}
+
+// GetOldName returns the value of OldName.
+func (s *AuditMetaUserUpdate) GetOldName() OptString {
+	return s.OldName
+}
+
+// GetNewName returns the value of NewName.
+func (s *AuditMetaUserUpdate) GetNewName() OptString {
+	return s.NewName
+}
+
+// GetOldRole returns the value of OldRole.
+func (s *AuditMetaUserUpdate) GetOldRole() OptString {
+	return s.OldRole
+}
+
+// GetNewRole returns the value of NewRole.
+func (s *AuditMetaUserUpdate) GetNewRole() OptString {
+	return s.NewRole
+}
+
+// GetDisabled returns the value of Disabled.
+func (s *AuditMetaUserUpdate) GetDisabled() OptBool {
+	return s.Disabled
+}
+
+// GetReadonly returns the value of Readonly.
+func (s *AuditMetaUserUpdate) GetReadonly() OptBool {
+	return s.Readonly
+}
+
+// SetAction sets the value of Action.
+func (s *AuditMetaUserUpdate) SetAction(val string) {
+	s.Action = val
+}
+
+// SetEmail sets the value of Email.
+func (s *AuditMetaUserUpdate) SetEmail(val string) {
+	s.Email = val
+}
+
+// SetOldEmail sets the value of OldEmail.
+func (s *AuditMetaUserUpdate) SetOldEmail(val OptString) {
+	s.OldEmail = val
+}
+
+// SetNewEmail sets the value of NewEmail.
+func (s *AuditMetaUserUpdate) SetNewEmail(val OptString) {
+	s.NewEmail = val
+}
+
+// SetOldName sets the value of OldName.
+func (s *AuditMetaUserUpdate) SetOldName(val OptString) {
+	s.OldName = val
+}
+
+// SetNewName sets the value of NewName.
+func (s *AuditMetaUserUpdate) SetNewName(val OptString) {
+	s.NewName = val
+}
+
+// SetOldRole sets the value of OldRole.
+func (s *AuditMetaUserUpdate) SetOldRole(val OptString) {
+	s.OldRole = val
+}
+
+// SetNewRole sets the value of NewRole.
+func (s *AuditMetaUserUpdate) SetNewRole(val OptString) {
+	s.NewRole = val
+}
+
+// SetDisabled sets the value of Disabled.
+func (s *AuditMetaUserUpdate) SetDisabled(val OptBool) {
+	s.Disabled = val
+}
+
+// SetReadonly sets the value of Readonly.
+func (s *AuditMetaUserUpdate) SetReadonly(val OptBool) {
+	s.Readonly = val
+}
+
+// Ref: #/components/schemas/AuditMetadata
+// AuditMetadata represents sum type.
+type AuditMetadata struct {
+	Type                        AuditMetadataType // switch on this field
+	AuditMetaEmpty              AuditMetaEmpty
+	AuditMetaSessionLogin       AuditMetaSessionLogin
+	AuditMetaSessionLoginFailed AuditMetaSessionLoginFailed
+	AuditMetaSessionSudo        AuditMetaSessionSudo
+	AuditMetaSessionRevoke      AuditMetaSessionRevoke
+	AuditMetaUserCreate         AuditMetaUserCreate
+	AuditMetaUserUpdate         AuditMetaUserUpdate
+	AuditMetaDeviceCreate       AuditMetaDeviceCreate
+	AuditMetaDeviceUpdate       AuditMetaDeviceUpdate
+	AuditMetaDeviceAssign       AuditMetaDeviceAssign
+	AuditMetaDeviceGpxImport    AuditMetaDeviceGpxImport
+	AuditMetaNamedResource      AuditMetaNamedResource
+	AuditMetaNotificationRule   AuditMetaNotificationRule
+	AuditMetaNotifDelivery      AuditMetaNotifDelivery
+	AuditMetaApiKeyCreate       AuditMetaApiKeyCreate
+	AuditMetaApiKeyDelete       AuditMetaApiKeyDelete
+	AuditMetaShare              AuditMetaShare
+	AuditMetaCommandSend        AuditMetaCommandSend
+}
+
+// AuditMetadataType is oneOf type of AuditMetadata.
+type AuditMetadataType string
+
+// Possible values for AuditMetadataType.
+const (
+	AuditMetadataCalendarDeleteAuditMetadata     AuditMetadataType = "calendar.delete"
+	AuditMetadataDeviceDeleteAuditMetadata       AuditMetadataType = "device.delete"
+	AuditMetadataDeviceOfflineAuditMetadata      AuditMetadataType = "device.offline"
+	AuditMetadataDeviceOnlineAuditMetadata       AuditMetadataType = "device.online"
+	AuditMetadataGeofenceDeleteAuditMetadata     AuditMetadataType = "geofence.delete"
+	AuditMetadataNotificationDeleteAuditMetadata AuditMetadataType = "notification.delete"
+	AuditMetadataSessionLogoutAuditMetadata      AuditMetadataType = "session.logout"
+	AuditMetadataUserDeleteAuditMetadata         AuditMetadataType = "user.delete"
+	AuditMetaSessionLoginAuditMetadata           AuditMetadataType = "session.login"
+	AuditMetaSessionLoginFailedAuditMetadata     AuditMetadataType = "session.login_failed"
+	AuditMetadataSessionSudoAuditMetadata        AuditMetadataType = "session.sudo"
+	AuditMetadataSessionSudoEndAuditMetadata     AuditMetadataType = "session.sudo_end"
+	AuditMetaSessionRevokeAuditMetadata          AuditMetadataType = "session.revoke"
+	AuditMetaUserCreateAuditMetadata             AuditMetadataType = "user.create"
+	AuditMetaUserUpdateAuditMetadata             AuditMetadataType = "user.update"
+	AuditMetaDeviceCreateAuditMetadata           AuditMetadataType = "device.create"
+	AuditMetaDeviceUpdateAuditMetadata           AuditMetadataType = "device.update"
+	AuditMetadataDeviceAssignAuditMetadata       AuditMetadataType = "device.assign"
+	AuditMetadataDeviceUnassignAuditMetadata     AuditMetadataType = "device.unassign"
+	AuditMetaDeviceGpxImportAuditMetadata        AuditMetadataType = "device.gpx_import"
+	AuditMetadataCalendarCreateAuditMetadata     AuditMetadataType = "calendar.create"
+	AuditMetadataCalendarUpdateAuditMetadata     AuditMetadataType = "calendar.update"
+	AuditMetadataGeofenceCreateAuditMetadata     AuditMetadataType = "geofence.create"
+	AuditMetadataGeofenceUpdateAuditMetadata     AuditMetadataType = "geofence.update"
+	AuditMetadataNotificationCreateAuditMetadata AuditMetadataType = "notification.create"
+	AuditMetadataNotificationUpdateAuditMetadata AuditMetadataType = "notification.update"
+	AuditMetadataNotificationFailedAuditMetadata AuditMetadataType = "notification.failed"
+	AuditMetadataNotificationSentAuditMetadata   AuditMetadataType = "notification.sent"
+	AuditMetaApiKeyCreateAuditMetadata           AuditMetadataType = "apikey.create"
+	AuditMetaApiKeyDeleteAuditMetadata           AuditMetadataType = "apikey.delete"
+	AuditMetadataShareCreateAuditMetadata        AuditMetadataType = "share.create"
+	AuditMetadataShareDeleteAuditMetadata        AuditMetadataType = "share.delete"
+	AuditMetaCommandSendAuditMetadata            AuditMetadataType = "command.send"
+)
+
+// IsAuditMetaEmpty reports whether AuditMetadata is AuditMetaEmpty.
+func (s AuditMetadata) IsAuditMetaEmpty() bool {
+	switch s.Type {
+	case AuditMetadataCalendarDeleteAuditMetadata, AuditMetadataDeviceDeleteAuditMetadata, AuditMetadataDeviceOfflineAuditMetadata, AuditMetadataDeviceOnlineAuditMetadata, AuditMetadataGeofenceDeleteAuditMetadata, AuditMetadataNotificationDeleteAuditMetadata, AuditMetadataSessionLogoutAuditMetadata, AuditMetadataUserDeleteAuditMetadata:
+		return true
+	default:
+		return false
 	}
-	return m
+}
+
+// IsAuditMetaSessionLogin reports whether AuditMetadata is AuditMetaSessionLogin.
+func (s AuditMetadata) IsAuditMetaSessionLogin() bool {
+	return s.Type == AuditMetaSessionLoginAuditMetadata
+}
+
+// IsAuditMetaSessionLoginFailed reports whether AuditMetadata is AuditMetaSessionLoginFailed.
+func (s AuditMetadata) IsAuditMetaSessionLoginFailed() bool {
+	return s.Type == AuditMetaSessionLoginFailedAuditMetadata
+}
+
+// IsAuditMetaSessionSudo reports whether AuditMetadata is AuditMetaSessionSudo.
+func (s AuditMetadata) IsAuditMetaSessionSudo() bool {
+	switch s.Type {
+	case AuditMetadataSessionSudoAuditMetadata, AuditMetadataSessionSudoEndAuditMetadata:
+		return true
+	default:
+		return false
+	}
+}
+
+// IsAuditMetaSessionRevoke reports whether AuditMetadata is AuditMetaSessionRevoke.
+func (s AuditMetadata) IsAuditMetaSessionRevoke() bool {
+	return s.Type == AuditMetaSessionRevokeAuditMetadata
+}
+
+// IsAuditMetaUserCreate reports whether AuditMetadata is AuditMetaUserCreate.
+func (s AuditMetadata) IsAuditMetaUserCreate() bool {
+	return s.Type == AuditMetaUserCreateAuditMetadata
+}
+
+// IsAuditMetaUserUpdate reports whether AuditMetadata is AuditMetaUserUpdate.
+func (s AuditMetadata) IsAuditMetaUserUpdate() bool {
+	return s.Type == AuditMetaUserUpdateAuditMetadata
+}
+
+// IsAuditMetaDeviceCreate reports whether AuditMetadata is AuditMetaDeviceCreate.
+func (s AuditMetadata) IsAuditMetaDeviceCreate() bool {
+	return s.Type == AuditMetaDeviceCreateAuditMetadata
+}
+
+// IsAuditMetaDeviceUpdate reports whether AuditMetadata is AuditMetaDeviceUpdate.
+func (s AuditMetadata) IsAuditMetaDeviceUpdate() bool {
+	return s.Type == AuditMetaDeviceUpdateAuditMetadata
+}
+
+// IsAuditMetaDeviceAssign reports whether AuditMetadata is AuditMetaDeviceAssign.
+func (s AuditMetadata) IsAuditMetaDeviceAssign() bool {
+	switch s.Type {
+	case AuditMetadataDeviceAssignAuditMetadata, AuditMetadataDeviceUnassignAuditMetadata:
+		return true
+	default:
+		return false
+	}
+}
+
+// IsAuditMetaDeviceGpxImport reports whether AuditMetadata is AuditMetaDeviceGpxImport.
+func (s AuditMetadata) IsAuditMetaDeviceGpxImport() bool {
+	return s.Type == AuditMetaDeviceGpxImportAuditMetadata
+}
+
+// IsAuditMetaNamedResource reports whether AuditMetadata is AuditMetaNamedResource.
+func (s AuditMetadata) IsAuditMetaNamedResource() bool {
+	switch s.Type {
+	case AuditMetadataCalendarCreateAuditMetadata, AuditMetadataCalendarUpdateAuditMetadata, AuditMetadataGeofenceCreateAuditMetadata, AuditMetadataGeofenceUpdateAuditMetadata:
+		return true
+	default:
+		return false
+	}
+}
+
+// IsAuditMetaNotificationRule reports whether AuditMetadata is AuditMetaNotificationRule.
+func (s AuditMetadata) IsAuditMetaNotificationRule() bool {
+	switch s.Type {
+	case AuditMetadataNotificationCreateAuditMetadata, AuditMetadataNotificationUpdateAuditMetadata:
+		return true
+	default:
+		return false
+	}
+}
+
+// IsAuditMetaNotifDelivery reports whether AuditMetadata is AuditMetaNotifDelivery.
+func (s AuditMetadata) IsAuditMetaNotifDelivery() bool {
+	switch s.Type {
+	case AuditMetadataNotificationFailedAuditMetadata, AuditMetadataNotificationSentAuditMetadata:
+		return true
+	default:
+		return false
+	}
+}
+
+// IsAuditMetaApiKeyCreate reports whether AuditMetadata is AuditMetaApiKeyCreate.
+func (s AuditMetadata) IsAuditMetaApiKeyCreate() bool {
+	return s.Type == AuditMetaApiKeyCreateAuditMetadata
+}
+
+// IsAuditMetaApiKeyDelete reports whether AuditMetadata is AuditMetaApiKeyDelete.
+func (s AuditMetadata) IsAuditMetaApiKeyDelete() bool {
+	return s.Type == AuditMetaApiKeyDeleteAuditMetadata
+}
+
+// IsAuditMetaShare reports whether AuditMetadata is AuditMetaShare.
+func (s AuditMetadata) IsAuditMetaShare() bool {
+	switch s.Type {
+	case AuditMetadataShareCreateAuditMetadata, AuditMetadataShareDeleteAuditMetadata:
+		return true
+	default:
+		return false
+	}
+}
+
+// IsAuditMetaCommandSend reports whether AuditMetadata is AuditMetaCommandSend.
+func (s AuditMetadata) IsAuditMetaCommandSend() bool {
+	return s.Type == AuditMetaCommandSendAuditMetadata
+}
+
+// SetAuditMetaEmpty sets AuditMetadata to AuditMetaEmpty.
+// panics if `t` is not associated with AuditMetaEmpty
+func (s *AuditMetadata) SetAuditMetaEmpty(t AuditMetadataType, v AuditMetaEmpty) {
+	s.Type = t
+	s.AuditMetaEmpty = v
+	if !s.IsAuditMetaEmpty() {
+		panic(fmt.Errorf("invariant: %v is not AuditMetaEmpty", t))
+	}
+}
+
+// GetAuditMetaEmpty returns AuditMetaEmpty and true boolean if AuditMetadata is AuditMetaEmpty.
+func (s AuditMetadata) GetAuditMetaEmpty() (v AuditMetaEmpty, ok bool) {
+	if !s.IsAuditMetaEmpty() {
+		return v, false
+	}
+	return s.AuditMetaEmpty, true
+}
+
+// NewAuditMetadataCalendarDeleteAuditMetadata returns new AuditMetadata from AuditMetaEmpty.
+func NewAuditMetadataCalendarDeleteAuditMetadata(v AuditMetaEmpty) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaEmpty(AuditMetadataCalendarDeleteAuditMetadata, v)
+	return s
+}
+
+// NewAuditMetadataDeviceDeleteAuditMetadata returns new AuditMetadata from AuditMetaEmpty.
+func NewAuditMetadataDeviceDeleteAuditMetadata(v AuditMetaEmpty) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaEmpty(AuditMetadataDeviceDeleteAuditMetadata, v)
+	return s
+}
+
+// NewAuditMetadataDeviceOfflineAuditMetadata returns new AuditMetadata from AuditMetaEmpty.
+func NewAuditMetadataDeviceOfflineAuditMetadata(v AuditMetaEmpty) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaEmpty(AuditMetadataDeviceOfflineAuditMetadata, v)
+	return s
+}
+
+// NewAuditMetadataDeviceOnlineAuditMetadata returns new AuditMetadata from AuditMetaEmpty.
+func NewAuditMetadataDeviceOnlineAuditMetadata(v AuditMetaEmpty) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaEmpty(AuditMetadataDeviceOnlineAuditMetadata, v)
+	return s
+}
+
+// NewAuditMetadataGeofenceDeleteAuditMetadata returns new AuditMetadata from AuditMetaEmpty.
+func NewAuditMetadataGeofenceDeleteAuditMetadata(v AuditMetaEmpty) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaEmpty(AuditMetadataGeofenceDeleteAuditMetadata, v)
+	return s
+}
+
+// NewAuditMetadataNotificationDeleteAuditMetadata returns new AuditMetadata from AuditMetaEmpty.
+func NewAuditMetadataNotificationDeleteAuditMetadata(v AuditMetaEmpty) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaEmpty(AuditMetadataNotificationDeleteAuditMetadata, v)
+	return s
+}
+
+// NewAuditMetadataSessionLogoutAuditMetadata returns new AuditMetadata from AuditMetaEmpty.
+func NewAuditMetadataSessionLogoutAuditMetadata(v AuditMetaEmpty) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaEmpty(AuditMetadataSessionLogoutAuditMetadata, v)
+	return s
+}
+
+// NewAuditMetadataUserDeleteAuditMetadata returns new AuditMetadata from AuditMetaEmpty.
+func NewAuditMetadataUserDeleteAuditMetadata(v AuditMetaEmpty) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaEmpty(AuditMetadataUserDeleteAuditMetadata, v)
+	return s
+}
+
+// SetAuditMetaSessionLogin sets AuditMetadata to AuditMetaSessionLogin.
+func (s *AuditMetadata) SetAuditMetaSessionLogin(v AuditMetaSessionLogin) {
+	s.Type = AuditMetaSessionLoginAuditMetadata
+	s.AuditMetaSessionLogin = v
+}
+
+// GetAuditMetaSessionLogin returns AuditMetaSessionLogin and true boolean if AuditMetadata is AuditMetaSessionLogin.
+func (s AuditMetadata) GetAuditMetaSessionLogin() (v AuditMetaSessionLogin, ok bool) {
+	if !s.IsAuditMetaSessionLogin() {
+		return v, false
+	}
+	return s.AuditMetaSessionLogin, true
+}
+
+// NewAuditMetaSessionLoginAuditMetadata returns new AuditMetadata from AuditMetaSessionLogin.
+func NewAuditMetaSessionLoginAuditMetadata(v AuditMetaSessionLogin) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaSessionLogin(v)
+	return s
+}
+
+// SetAuditMetaSessionLoginFailed sets AuditMetadata to AuditMetaSessionLoginFailed.
+func (s *AuditMetadata) SetAuditMetaSessionLoginFailed(v AuditMetaSessionLoginFailed) {
+	s.Type = AuditMetaSessionLoginFailedAuditMetadata
+	s.AuditMetaSessionLoginFailed = v
+}
+
+// GetAuditMetaSessionLoginFailed returns AuditMetaSessionLoginFailed and true boolean if AuditMetadata is AuditMetaSessionLoginFailed.
+func (s AuditMetadata) GetAuditMetaSessionLoginFailed() (v AuditMetaSessionLoginFailed, ok bool) {
+	if !s.IsAuditMetaSessionLoginFailed() {
+		return v, false
+	}
+	return s.AuditMetaSessionLoginFailed, true
+}
+
+// NewAuditMetaSessionLoginFailedAuditMetadata returns new AuditMetadata from AuditMetaSessionLoginFailed.
+func NewAuditMetaSessionLoginFailedAuditMetadata(v AuditMetaSessionLoginFailed) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaSessionLoginFailed(v)
+	return s
+}
+
+// SetAuditMetaSessionSudo sets AuditMetadata to AuditMetaSessionSudo.
+// panics if `t` is not associated with AuditMetaSessionSudo
+func (s *AuditMetadata) SetAuditMetaSessionSudo(t AuditMetadataType, v AuditMetaSessionSudo) {
+	s.Type = t
+	s.AuditMetaSessionSudo = v
+	if !s.IsAuditMetaSessionSudo() {
+		panic(fmt.Errorf("invariant: %v is not AuditMetaSessionSudo", t))
+	}
+}
+
+// GetAuditMetaSessionSudo returns AuditMetaSessionSudo and true boolean if AuditMetadata is AuditMetaSessionSudo.
+func (s AuditMetadata) GetAuditMetaSessionSudo() (v AuditMetaSessionSudo, ok bool) {
+	if !s.IsAuditMetaSessionSudo() {
+		return v, false
+	}
+	return s.AuditMetaSessionSudo, true
+}
+
+// NewAuditMetadataSessionSudoAuditMetadata returns new AuditMetadata from AuditMetaSessionSudo.
+func NewAuditMetadataSessionSudoAuditMetadata(v AuditMetaSessionSudo) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaSessionSudo(AuditMetadataSessionSudoAuditMetadata, v)
+	return s
+}
+
+// NewAuditMetadataSessionSudoEndAuditMetadata returns new AuditMetadata from AuditMetaSessionSudo.
+func NewAuditMetadataSessionSudoEndAuditMetadata(v AuditMetaSessionSudo) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaSessionSudo(AuditMetadataSessionSudoEndAuditMetadata, v)
+	return s
+}
+
+// SetAuditMetaSessionRevoke sets AuditMetadata to AuditMetaSessionRevoke.
+func (s *AuditMetadata) SetAuditMetaSessionRevoke(v AuditMetaSessionRevoke) {
+	s.Type = AuditMetaSessionRevokeAuditMetadata
+	s.AuditMetaSessionRevoke = v
+}
+
+// GetAuditMetaSessionRevoke returns AuditMetaSessionRevoke and true boolean if AuditMetadata is AuditMetaSessionRevoke.
+func (s AuditMetadata) GetAuditMetaSessionRevoke() (v AuditMetaSessionRevoke, ok bool) {
+	if !s.IsAuditMetaSessionRevoke() {
+		return v, false
+	}
+	return s.AuditMetaSessionRevoke, true
+}
+
+// NewAuditMetaSessionRevokeAuditMetadata returns new AuditMetadata from AuditMetaSessionRevoke.
+func NewAuditMetaSessionRevokeAuditMetadata(v AuditMetaSessionRevoke) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaSessionRevoke(v)
+	return s
+}
+
+// SetAuditMetaUserCreate sets AuditMetadata to AuditMetaUserCreate.
+func (s *AuditMetadata) SetAuditMetaUserCreate(v AuditMetaUserCreate) {
+	s.Type = AuditMetaUserCreateAuditMetadata
+	s.AuditMetaUserCreate = v
+}
+
+// GetAuditMetaUserCreate returns AuditMetaUserCreate and true boolean if AuditMetadata is AuditMetaUserCreate.
+func (s AuditMetadata) GetAuditMetaUserCreate() (v AuditMetaUserCreate, ok bool) {
+	if !s.IsAuditMetaUserCreate() {
+		return v, false
+	}
+	return s.AuditMetaUserCreate, true
+}
+
+// NewAuditMetaUserCreateAuditMetadata returns new AuditMetadata from AuditMetaUserCreate.
+func NewAuditMetaUserCreateAuditMetadata(v AuditMetaUserCreate) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaUserCreate(v)
+	return s
+}
+
+// SetAuditMetaUserUpdate sets AuditMetadata to AuditMetaUserUpdate.
+func (s *AuditMetadata) SetAuditMetaUserUpdate(v AuditMetaUserUpdate) {
+	s.Type = AuditMetaUserUpdateAuditMetadata
+	s.AuditMetaUserUpdate = v
+}
+
+// GetAuditMetaUserUpdate returns AuditMetaUserUpdate and true boolean if AuditMetadata is AuditMetaUserUpdate.
+func (s AuditMetadata) GetAuditMetaUserUpdate() (v AuditMetaUserUpdate, ok bool) {
+	if !s.IsAuditMetaUserUpdate() {
+		return v, false
+	}
+	return s.AuditMetaUserUpdate, true
+}
+
+// NewAuditMetaUserUpdateAuditMetadata returns new AuditMetadata from AuditMetaUserUpdate.
+func NewAuditMetaUserUpdateAuditMetadata(v AuditMetaUserUpdate) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaUserUpdate(v)
+	return s
+}
+
+// SetAuditMetaDeviceCreate sets AuditMetadata to AuditMetaDeviceCreate.
+func (s *AuditMetadata) SetAuditMetaDeviceCreate(v AuditMetaDeviceCreate) {
+	s.Type = AuditMetaDeviceCreateAuditMetadata
+	s.AuditMetaDeviceCreate = v
+}
+
+// GetAuditMetaDeviceCreate returns AuditMetaDeviceCreate and true boolean if AuditMetadata is AuditMetaDeviceCreate.
+func (s AuditMetadata) GetAuditMetaDeviceCreate() (v AuditMetaDeviceCreate, ok bool) {
+	if !s.IsAuditMetaDeviceCreate() {
+		return v, false
+	}
+	return s.AuditMetaDeviceCreate, true
+}
+
+// NewAuditMetaDeviceCreateAuditMetadata returns new AuditMetadata from AuditMetaDeviceCreate.
+func NewAuditMetaDeviceCreateAuditMetadata(v AuditMetaDeviceCreate) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaDeviceCreate(v)
+	return s
+}
+
+// SetAuditMetaDeviceUpdate sets AuditMetadata to AuditMetaDeviceUpdate.
+func (s *AuditMetadata) SetAuditMetaDeviceUpdate(v AuditMetaDeviceUpdate) {
+	s.Type = AuditMetaDeviceUpdateAuditMetadata
+	s.AuditMetaDeviceUpdate = v
+}
+
+// GetAuditMetaDeviceUpdate returns AuditMetaDeviceUpdate and true boolean if AuditMetadata is AuditMetaDeviceUpdate.
+func (s AuditMetadata) GetAuditMetaDeviceUpdate() (v AuditMetaDeviceUpdate, ok bool) {
+	if !s.IsAuditMetaDeviceUpdate() {
+		return v, false
+	}
+	return s.AuditMetaDeviceUpdate, true
+}
+
+// NewAuditMetaDeviceUpdateAuditMetadata returns new AuditMetadata from AuditMetaDeviceUpdate.
+func NewAuditMetaDeviceUpdateAuditMetadata(v AuditMetaDeviceUpdate) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaDeviceUpdate(v)
+	return s
+}
+
+// SetAuditMetaDeviceAssign sets AuditMetadata to AuditMetaDeviceAssign.
+// panics if `t` is not associated with AuditMetaDeviceAssign
+func (s *AuditMetadata) SetAuditMetaDeviceAssign(t AuditMetadataType, v AuditMetaDeviceAssign) {
+	s.Type = t
+	s.AuditMetaDeviceAssign = v
+	if !s.IsAuditMetaDeviceAssign() {
+		panic(fmt.Errorf("invariant: %v is not AuditMetaDeviceAssign", t))
+	}
+}
+
+// GetAuditMetaDeviceAssign returns AuditMetaDeviceAssign and true boolean if AuditMetadata is AuditMetaDeviceAssign.
+func (s AuditMetadata) GetAuditMetaDeviceAssign() (v AuditMetaDeviceAssign, ok bool) {
+	if !s.IsAuditMetaDeviceAssign() {
+		return v, false
+	}
+	return s.AuditMetaDeviceAssign, true
+}
+
+// NewAuditMetadataDeviceAssignAuditMetadata returns new AuditMetadata from AuditMetaDeviceAssign.
+func NewAuditMetadataDeviceAssignAuditMetadata(v AuditMetaDeviceAssign) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaDeviceAssign(AuditMetadataDeviceAssignAuditMetadata, v)
+	return s
+}
+
+// NewAuditMetadataDeviceUnassignAuditMetadata returns new AuditMetadata from AuditMetaDeviceAssign.
+func NewAuditMetadataDeviceUnassignAuditMetadata(v AuditMetaDeviceAssign) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaDeviceAssign(AuditMetadataDeviceUnassignAuditMetadata, v)
+	return s
+}
+
+// SetAuditMetaDeviceGpxImport sets AuditMetadata to AuditMetaDeviceGpxImport.
+func (s *AuditMetadata) SetAuditMetaDeviceGpxImport(v AuditMetaDeviceGpxImport) {
+	s.Type = AuditMetaDeviceGpxImportAuditMetadata
+	s.AuditMetaDeviceGpxImport = v
+}
+
+// GetAuditMetaDeviceGpxImport returns AuditMetaDeviceGpxImport and true boolean if AuditMetadata is AuditMetaDeviceGpxImport.
+func (s AuditMetadata) GetAuditMetaDeviceGpxImport() (v AuditMetaDeviceGpxImport, ok bool) {
+	if !s.IsAuditMetaDeviceGpxImport() {
+		return v, false
+	}
+	return s.AuditMetaDeviceGpxImport, true
+}
+
+// NewAuditMetaDeviceGpxImportAuditMetadata returns new AuditMetadata from AuditMetaDeviceGpxImport.
+func NewAuditMetaDeviceGpxImportAuditMetadata(v AuditMetaDeviceGpxImport) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaDeviceGpxImport(v)
+	return s
+}
+
+// SetAuditMetaNamedResource sets AuditMetadata to AuditMetaNamedResource.
+// panics if `t` is not associated with AuditMetaNamedResource
+func (s *AuditMetadata) SetAuditMetaNamedResource(t AuditMetadataType, v AuditMetaNamedResource) {
+	s.Type = t
+	s.AuditMetaNamedResource = v
+	if !s.IsAuditMetaNamedResource() {
+		panic(fmt.Errorf("invariant: %v is not AuditMetaNamedResource", t))
+	}
+}
+
+// GetAuditMetaNamedResource returns AuditMetaNamedResource and true boolean if AuditMetadata is AuditMetaNamedResource.
+func (s AuditMetadata) GetAuditMetaNamedResource() (v AuditMetaNamedResource, ok bool) {
+	if !s.IsAuditMetaNamedResource() {
+		return v, false
+	}
+	return s.AuditMetaNamedResource, true
+}
+
+// NewAuditMetadataCalendarCreateAuditMetadata returns new AuditMetadata from AuditMetaNamedResource.
+func NewAuditMetadataCalendarCreateAuditMetadata(v AuditMetaNamedResource) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaNamedResource(AuditMetadataCalendarCreateAuditMetadata, v)
+	return s
+}
+
+// NewAuditMetadataCalendarUpdateAuditMetadata returns new AuditMetadata from AuditMetaNamedResource.
+func NewAuditMetadataCalendarUpdateAuditMetadata(v AuditMetaNamedResource) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaNamedResource(AuditMetadataCalendarUpdateAuditMetadata, v)
+	return s
+}
+
+// NewAuditMetadataGeofenceCreateAuditMetadata returns new AuditMetadata from AuditMetaNamedResource.
+func NewAuditMetadataGeofenceCreateAuditMetadata(v AuditMetaNamedResource) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaNamedResource(AuditMetadataGeofenceCreateAuditMetadata, v)
+	return s
+}
+
+// NewAuditMetadataGeofenceUpdateAuditMetadata returns new AuditMetadata from AuditMetaNamedResource.
+func NewAuditMetadataGeofenceUpdateAuditMetadata(v AuditMetaNamedResource) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaNamedResource(AuditMetadataGeofenceUpdateAuditMetadata, v)
+	return s
+}
+
+// SetAuditMetaNotificationRule sets AuditMetadata to AuditMetaNotificationRule.
+// panics if `t` is not associated with AuditMetaNotificationRule
+func (s *AuditMetadata) SetAuditMetaNotificationRule(t AuditMetadataType, v AuditMetaNotificationRule) {
+	s.Type = t
+	s.AuditMetaNotificationRule = v
+	if !s.IsAuditMetaNotificationRule() {
+		panic(fmt.Errorf("invariant: %v is not AuditMetaNotificationRule", t))
+	}
+}
+
+// GetAuditMetaNotificationRule returns AuditMetaNotificationRule and true boolean if AuditMetadata is AuditMetaNotificationRule.
+func (s AuditMetadata) GetAuditMetaNotificationRule() (v AuditMetaNotificationRule, ok bool) {
+	if !s.IsAuditMetaNotificationRule() {
+		return v, false
+	}
+	return s.AuditMetaNotificationRule, true
+}
+
+// NewAuditMetadataNotificationCreateAuditMetadata returns new AuditMetadata from AuditMetaNotificationRule.
+func NewAuditMetadataNotificationCreateAuditMetadata(v AuditMetaNotificationRule) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaNotificationRule(AuditMetadataNotificationCreateAuditMetadata, v)
+	return s
+}
+
+// NewAuditMetadataNotificationUpdateAuditMetadata returns new AuditMetadata from AuditMetaNotificationRule.
+func NewAuditMetadataNotificationUpdateAuditMetadata(v AuditMetaNotificationRule) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaNotificationRule(AuditMetadataNotificationUpdateAuditMetadata, v)
+	return s
+}
+
+// SetAuditMetaNotifDelivery sets AuditMetadata to AuditMetaNotifDelivery.
+// panics if `t` is not associated with AuditMetaNotifDelivery
+func (s *AuditMetadata) SetAuditMetaNotifDelivery(t AuditMetadataType, v AuditMetaNotifDelivery) {
+	s.Type = t
+	s.AuditMetaNotifDelivery = v
+	if !s.IsAuditMetaNotifDelivery() {
+		panic(fmt.Errorf("invariant: %v is not AuditMetaNotifDelivery", t))
+	}
+}
+
+// GetAuditMetaNotifDelivery returns AuditMetaNotifDelivery and true boolean if AuditMetadata is AuditMetaNotifDelivery.
+func (s AuditMetadata) GetAuditMetaNotifDelivery() (v AuditMetaNotifDelivery, ok bool) {
+	if !s.IsAuditMetaNotifDelivery() {
+		return v, false
+	}
+	return s.AuditMetaNotifDelivery, true
+}
+
+// NewAuditMetadataNotificationFailedAuditMetadata returns new AuditMetadata from AuditMetaNotifDelivery.
+func NewAuditMetadataNotificationFailedAuditMetadata(v AuditMetaNotifDelivery) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaNotifDelivery(AuditMetadataNotificationFailedAuditMetadata, v)
+	return s
+}
+
+// NewAuditMetadataNotificationSentAuditMetadata returns new AuditMetadata from AuditMetaNotifDelivery.
+func NewAuditMetadataNotificationSentAuditMetadata(v AuditMetaNotifDelivery) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaNotifDelivery(AuditMetadataNotificationSentAuditMetadata, v)
+	return s
+}
+
+// SetAuditMetaApiKeyCreate sets AuditMetadata to AuditMetaApiKeyCreate.
+func (s *AuditMetadata) SetAuditMetaApiKeyCreate(v AuditMetaApiKeyCreate) {
+	s.Type = AuditMetaApiKeyCreateAuditMetadata
+	s.AuditMetaApiKeyCreate = v
+}
+
+// GetAuditMetaApiKeyCreate returns AuditMetaApiKeyCreate and true boolean if AuditMetadata is AuditMetaApiKeyCreate.
+func (s AuditMetadata) GetAuditMetaApiKeyCreate() (v AuditMetaApiKeyCreate, ok bool) {
+	if !s.IsAuditMetaApiKeyCreate() {
+		return v, false
+	}
+	return s.AuditMetaApiKeyCreate, true
+}
+
+// NewAuditMetaApiKeyCreateAuditMetadata returns new AuditMetadata from AuditMetaApiKeyCreate.
+func NewAuditMetaApiKeyCreateAuditMetadata(v AuditMetaApiKeyCreate) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaApiKeyCreate(v)
+	return s
+}
+
+// SetAuditMetaApiKeyDelete sets AuditMetadata to AuditMetaApiKeyDelete.
+func (s *AuditMetadata) SetAuditMetaApiKeyDelete(v AuditMetaApiKeyDelete) {
+	s.Type = AuditMetaApiKeyDeleteAuditMetadata
+	s.AuditMetaApiKeyDelete = v
+}
+
+// GetAuditMetaApiKeyDelete returns AuditMetaApiKeyDelete and true boolean if AuditMetadata is AuditMetaApiKeyDelete.
+func (s AuditMetadata) GetAuditMetaApiKeyDelete() (v AuditMetaApiKeyDelete, ok bool) {
+	if !s.IsAuditMetaApiKeyDelete() {
+		return v, false
+	}
+	return s.AuditMetaApiKeyDelete, true
+}
+
+// NewAuditMetaApiKeyDeleteAuditMetadata returns new AuditMetadata from AuditMetaApiKeyDelete.
+func NewAuditMetaApiKeyDeleteAuditMetadata(v AuditMetaApiKeyDelete) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaApiKeyDelete(v)
+	return s
+}
+
+// SetAuditMetaShare sets AuditMetadata to AuditMetaShare.
+// panics if `t` is not associated with AuditMetaShare
+func (s *AuditMetadata) SetAuditMetaShare(t AuditMetadataType, v AuditMetaShare) {
+	s.Type = t
+	s.AuditMetaShare = v
+	if !s.IsAuditMetaShare() {
+		panic(fmt.Errorf("invariant: %v is not AuditMetaShare", t))
+	}
+}
+
+// GetAuditMetaShare returns AuditMetaShare and true boolean if AuditMetadata is AuditMetaShare.
+func (s AuditMetadata) GetAuditMetaShare() (v AuditMetaShare, ok bool) {
+	if !s.IsAuditMetaShare() {
+		return v, false
+	}
+	return s.AuditMetaShare, true
+}
+
+// NewAuditMetadataShareCreateAuditMetadata returns new AuditMetadata from AuditMetaShare.
+func NewAuditMetadataShareCreateAuditMetadata(v AuditMetaShare) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaShare(AuditMetadataShareCreateAuditMetadata, v)
+	return s
+}
+
+// NewAuditMetadataShareDeleteAuditMetadata returns new AuditMetadata from AuditMetaShare.
+func NewAuditMetadataShareDeleteAuditMetadata(v AuditMetaShare) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaShare(AuditMetadataShareDeleteAuditMetadata, v)
+	return s
+}
+
+// SetAuditMetaCommandSend sets AuditMetadata to AuditMetaCommandSend.
+func (s *AuditMetadata) SetAuditMetaCommandSend(v AuditMetaCommandSend) {
+	s.Type = AuditMetaCommandSendAuditMetadata
+	s.AuditMetaCommandSend = v
+}
+
+// GetAuditMetaCommandSend returns AuditMetaCommandSend and true boolean if AuditMetadata is AuditMetaCommandSend.
+func (s AuditMetadata) GetAuditMetaCommandSend() (v AuditMetaCommandSend, ok bool) {
+	if !s.IsAuditMetaCommandSend() {
+		return v, false
+	}
+	return s.AuditMetaCommandSend, true
+}
+
+// NewAuditMetaCommandSendAuditMetadata returns new AuditMetadata from AuditMetaCommandSend.
+func NewAuditMetaCommandSendAuditMetadata(v AuditMetaCommandSend) AuditMetadata {
+	var s AuditMetadata
+	s.SetAuditMetaCommandSend(v)
+	return s
 }
 
 // Ref: #/components/schemas/AuditPage
@@ -868,22 +2319,376 @@ func (s *Command) SetAttributes(val OptCommandAttributes) {
 func (*Command) createCommandRes() {}
 func (*Command) sendCommandRes()   {}
 
-type CommandAttributes map[string]jx.Raw
+// Ref: #/components/schemas/CommandAttrCustom
+type CommandAttrCustom struct {
+	Type CommandAttrCustomType `json:"type"`
+	Text string                `json:"text"`
+}
 
-func (s *CommandAttributes) init() CommandAttributes {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
+// GetType returns the value of Type.
+func (s *CommandAttrCustom) GetType() CommandAttrCustomType {
+	return s.Type
+}
+
+// GetText returns the value of Text.
+func (s *CommandAttrCustom) GetText() string {
+	return s.Text
+}
+
+// SetType sets the value of Type.
+func (s *CommandAttrCustom) SetType(val CommandAttrCustomType) {
+	s.Type = val
+}
+
+// SetText sets the value of Text.
+func (s *CommandAttrCustom) SetText(val string) {
+	s.Text = val
+}
+
+type CommandAttrCustomType string
+
+const (
+	CommandAttrCustomTypeCustom CommandAttrCustomType = "custom"
+)
+
+// AllValues returns all CommandAttrCustomType values.
+func (CommandAttrCustomType) AllValues() []CommandAttrCustomType {
+	return []CommandAttrCustomType{
+		CommandAttrCustomTypeCustom,
 	}
-	return m
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CommandAttrCustomType) MarshalText() ([]byte, error) {
+	switch s {
+	case CommandAttrCustomTypeCustom:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CommandAttrCustomType) UnmarshalText(data []byte) error {
+	switch CommandAttrCustomType(data) {
+	case CommandAttrCustomTypeCustom:
+		*s = CommandAttrCustomTypeCustom
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/CommandAttrPositionPeriodic
+type CommandAttrPositionPeriodic struct {
+	Type      CommandAttrPositionPeriodicType `json:"type"`
+	Frequency int                             `json:"frequency"`
+}
+
+// GetType returns the value of Type.
+func (s *CommandAttrPositionPeriodic) GetType() CommandAttrPositionPeriodicType {
+	return s.Type
+}
+
+// GetFrequency returns the value of Frequency.
+func (s *CommandAttrPositionPeriodic) GetFrequency() int {
+	return s.Frequency
+}
+
+// SetType sets the value of Type.
+func (s *CommandAttrPositionPeriodic) SetType(val CommandAttrPositionPeriodicType) {
+	s.Type = val
+}
+
+// SetFrequency sets the value of Frequency.
+func (s *CommandAttrPositionPeriodic) SetFrequency(val int) {
+	s.Frequency = val
+}
+
+type CommandAttrPositionPeriodicType string
+
+const (
+	CommandAttrPositionPeriodicTypePositionPeriodic CommandAttrPositionPeriodicType = "positionPeriodic"
+)
+
+// AllValues returns all CommandAttrPositionPeriodicType values.
+func (CommandAttrPositionPeriodicType) AllValues() []CommandAttrPositionPeriodicType {
+	return []CommandAttrPositionPeriodicType{
+		CommandAttrPositionPeriodicTypePositionPeriodic,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CommandAttrPositionPeriodicType) MarshalText() ([]byte, error) {
+	switch s {
+	case CommandAttrPositionPeriodicTypePositionPeriodic:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CommandAttrPositionPeriodicType) UnmarshalText(data []byte) error {
+	switch CommandAttrPositionPeriodicType(data) {
+	case CommandAttrPositionPeriodicTypePositionPeriodic:
+		*s = CommandAttrPositionPeriodicTypePositionPeriodic
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/CommandAttrSetSpeedAlarm
+type CommandAttrSetSpeedAlarm struct {
+	Type  CommandAttrSetSpeedAlarmType `json:"type"`
+	Speed float64                      `json:"speed"`
+}
+
+// GetType returns the value of Type.
+func (s *CommandAttrSetSpeedAlarm) GetType() CommandAttrSetSpeedAlarmType {
+	return s.Type
+}
+
+// GetSpeed returns the value of Speed.
+func (s *CommandAttrSetSpeedAlarm) GetSpeed() float64 {
+	return s.Speed
+}
+
+// SetType sets the value of Type.
+func (s *CommandAttrSetSpeedAlarm) SetType(val CommandAttrSetSpeedAlarmType) {
+	s.Type = val
+}
+
+// SetSpeed sets the value of Speed.
+func (s *CommandAttrSetSpeedAlarm) SetSpeed(val float64) {
+	s.Speed = val
+}
+
+type CommandAttrSetSpeedAlarmType string
+
+const (
+	CommandAttrSetSpeedAlarmTypeSetSpeedAlarm CommandAttrSetSpeedAlarmType = "setSpeedAlarm"
+)
+
+// AllValues returns all CommandAttrSetSpeedAlarmType values.
+func (CommandAttrSetSpeedAlarmType) AllValues() []CommandAttrSetSpeedAlarmType {
+	return []CommandAttrSetSpeedAlarmType{
+		CommandAttrSetSpeedAlarmTypeSetSpeedAlarm,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CommandAttrSetSpeedAlarmType) MarshalText() ([]byte, error) {
+	switch s {
+	case CommandAttrSetSpeedAlarmTypeSetSpeedAlarm:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CommandAttrSetSpeedAlarmType) UnmarshalText(data []byte) error {
+	switch CommandAttrSetSpeedAlarmType(data) {
+	case CommandAttrSetSpeedAlarmTypeSetSpeedAlarm:
+		*s = CommandAttrSetSpeedAlarmTypeSetSpeedAlarm
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/CommandAttrSosNumber
+type CommandAttrSosNumber struct {
+	Type        CommandAttrSosNumberType `json:"type"`
+	PhoneNumber string                   `json:"phoneNumber"`
+}
+
+// GetType returns the value of Type.
+func (s *CommandAttrSosNumber) GetType() CommandAttrSosNumberType {
+	return s.Type
+}
+
+// GetPhoneNumber returns the value of PhoneNumber.
+func (s *CommandAttrSosNumber) GetPhoneNumber() string {
+	return s.PhoneNumber
+}
+
+// SetType sets the value of Type.
+func (s *CommandAttrSosNumber) SetType(val CommandAttrSosNumberType) {
+	s.Type = val
+}
+
+// SetPhoneNumber sets the value of PhoneNumber.
+func (s *CommandAttrSosNumber) SetPhoneNumber(val string) {
+	s.PhoneNumber = val
+}
+
+type CommandAttrSosNumberType string
+
+const (
+	CommandAttrSosNumberTypeSosNumber CommandAttrSosNumberType = "sosNumber"
+)
+
+// AllValues returns all CommandAttrSosNumberType values.
+func (CommandAttrSosNumberType) AllValues() []CommandAttrSosNumberType {
+	return []CommandAttrSosNumberType{
+		CommandAttrSosNumberTypeSosNumber,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CommandAttrSosNumberType) MarshalText() ([]byte, error) {
+	switch s {
+	case CommandAttrSosNumberTypeSosNumber:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CommandAttrSosNumberType) UnmarshalText(data []byte) error {
+	switch CommandAttrSosNumberType(data) {
+	case CommandAttrSosNumberTypeSosNumber:
+		*s = CommandAttrSosNumberTypeSosNumber
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/CommandAttributes
+// CommandAttributes represents sum type.
+type CommandAttributes struct {
+	Type                        CommandAttributesType // switch on this field
+	CommandAttrCustom           CommandAttrCustom
+	CommandAttrPositionPeriodic CommandAttrPositionPeriodic
+	CommandAttrSosNumber        CommandAttrSosNumber
+	CommandAttrSetSpeedAlarm    CommandAttrSetSpeedAlarm
+}
+
+// CommandAttributesType is oneOf type of CommandAttributes.
+type CommandAttributesType string
+
+// Possible values for CommandAttributesType.
+const (
+	CommandAttrCustomCommandAttributes           CommandAttributesType = "custom"
+	CommandAttrPositionPeriodicCommandAttributes CommandAttributesType = "positionPeriodic"
+	CommandAttrSosNumberCommandAttributes        CommandAttributesType = "sosNumber"
+	CommandAttrSetSpeedAlarmCommandAttributes    CommandAttributesType = "setSpeedAlarm"
+)
+
+// IsCommandAttrCustom reports whether CommandAttributes is CommandAttrCustom.
+func (s CommandAttributes) IsCommandAttrCustom() bool {
+	return s.Type == CommandAttrCustomCommandAttributes
+}
+
+// IsCommandAttrPositionPeriodic reports whether CommandAttributes is CommandAttrPositionPeriodic.
+func (s CommandAttributes) IsCommandAttrPositionPeriodic() bool {
+	return s.Type == CommandAttrPositionPeriodicCommandAttributes
+}
+
+// IsCommandAttrSosNumber reports whether CommandAttributes is CommandAttrSosNumber.
+func (s CommandAttributes) IsCommandAttrSosNumber() bool {
+	return s.Type == CommandAttrSosNumberCommandAttributes
+}
+
+// IsCommandAttrSetSpeedAlarm reports whether CommandAttributes is CommandAttrSetSpeedAlarm.
+func (s CommandAttributes) IsCommandAttrSetSpeedAlarm() bool {
+	return s.Type == CommandAttrSetSpeedAlarmCommandAttributes
+}
+
+// SetCommandAttrCustom sets CommandAttributes to CommandAttrCustom.
+func (s *CommandAttributes) SetCommandAttrCustom(v CommandAttrCustom) {
+	s.Type = CommandAttrCustomCommandAttributes
+	s.CommandAttrCustom = v
+}
+
+// GetCommandAttrCustom returns CommandAttrCustom and true boolean if CommandAttributes is CommandAttrCustom.
+func (s CommandAttributes) GetCommandAttrCustom() (v CommandAttrCustom, ok bool) {
+	if !s.IsCommandAttrCustom() {
+		return v, false
+	}
+	return s.CommandAttrCustom, true
+}
+
+// NewCommandAttrCustomCommandAttributes returns new CommandAttributes from CommandAttrCustom.
+func NewCommandAttrCustomCommandAttributes(v CommandAttrCustom) CommandAttributes {
+	var s CommandAttributes
+	s.SetCommandAttrCustom(v)
+	return s
+}
+
+// SetCommandAttrPositionPeriodic sets CommandAttributes to CommandAttrPositionPeriodic.
+func (s *CommandAttributes) SetCommandAttrPositionPeriodic(v CommandAttrPositionPeriodic) {
+	s.Type = CommandAttrPositionPeriodicCommandAttributes
+	s.CommandAttrPositionPeriodic = v
+}
+
+// GetCommandAttrPositionPeriodic returns CommandAttrPositionPeriodic and true boolean if CommandAttributes is CommandAttrPositionPeriodic.
+func (s CommandAttributes) GetCommandAttrPositionPeriodic() (v CommandAttrPositionPeriodic, ok bool) {
+	if !s.IsCommandAttrPositionPeriodic() {
+		return v, false
+	}
+	return s.CommandAttrPositionPeriodic, true
+}
+
+// NewCommandAttrPositionPeriodicCommandAttributes returns new CommandAttributes from CommandAttrPositionPeriodic.
+func NewCommandAttrPositionPeriodicCommandAttributes(v CommandAttrPositionPeriodic) CommandAttributes {
+	var s CommandAttributes
+	s.SetCommandAttrPositionPeriodic(v)
+	return s
+}
+
+// SetCommandAttrSosNumber sets CommandAttributes to CommandAttrSosNumber.
+func (s *CommandAttributes) SetCommandAttrSosNumber(v CommandAttrSosNumber) {
+	s.Type = CommandAttrSosNumberCommandAttributes
+	s.CommandAttrSosNumber = v
+}
+
+// GetCommandAttrSosNumber returns CommandAttrSosNumber and true boolean if CommandAttributes is CommandAttrSosNumber.
+func (s CommandAttributes) GetCommandAttrSosNumber() (v CommandAttrSosNumber, ok bool) {
+	if !s.IsCommandAttrSosNumber() {
+		return v, false
+	}
+	return s.CommandAttrSosNumber, true
+}
+
+// NewCommandAttrSosNumberCommandAttributes returns new CommandAttributes from CommandAttrSosNumber.
+func NewCommandAttrSosNumberCommandAttributes(v CommandAttrSosNumber) CommandAttributes {
+	var s CommandAttributes
+	s.SetCommandAttrSosNumber(v)
+	return s
+}
+
+// SetCommandAttrSetSpeedAlarm sets CommandAttributes to CommandAttrSetSpeedAlarm.
+func (s *CommandAttributes) SetCommandAttrSetSpeedAlarm(v CommandAttrSetSpeedAlarm) {
+	s.Type = CommandAttrSetSpeedAlarmCommandAttributes
+	s.CommandAttrSetSpeedAlarm = v
+}
+
+// GetCommandAttrSetSpeedAlarm returns CommandAttrSetSpeedAlarm and true boolean if CommandAttributes is CommandAttrSetSpeedAlarm.
+func (s CommandAttributes) GetCommandAttrSetSpeedAlarm() (v CommandAttrSetSpeedAlarm, ok bool) {
+	if !s.IsCommandAttrSetSpeedAlarm() {
+		return v, false
+	}
+	return s.CommandAttrSetSpeedAlarm, true
+}
+
+// NewCommandAttrSetSpeedAlarmCommandAttributes returns new CommandAttributes from CommandAttrSetSpeedAlarm.
+func NewCommandAttrSetSpeedAlarmCommandAttributes(v CommandAttrSetSpeedAlarm) CommandAttributes {
+	var s CommandAttributes
+	s.SetCommandAttrSetSpeedAlarm(v)
+	return s
 }
 
 // Ref: #/components/schemas/CommandInput
 type CommandInput struct {
-	DeviceId   int64                     `json:"deviceId"`
-	Type       string                    `json:"type"`
-	Attributes OptCommandInputAttributes `json:"attributes"`
+	DeviceId   int64                `json:"deviceId"`
+	Type       string               `json:"type"`
+	Attributes OptCommandAttributes `json:"attributes"`
 }
 
 // GetDeviceId returns the value of DeviceId.
@@ -897,7 +2702,7 @@ func (s *CommandInput) GetType() string {
 }
 
 // GetAttributes returns the value of Attributes.
-func (s *CommandInput) GetAttributes() OptCommandInputAttributes {
+func (s *CommandInput) GetAttributes() OptCommandAttributes {
 	return s.Attributes
 }
 
@@ -912,19 +2717,8 @@ func (s *CommandInput) SetType(val string) {
 }
 
 // SetAttributes sets the value of Attributes.
-func (s *CommandInput) SetAttributes(val OptCommandInputAttributes) {
+func (s *CommandInput) SetAttributes(val OptCommandAttributes) {
 	s.Attributes = val
-}
-
-type CommandInputAttributes map[string]jx.Raw
-
-func (s *CommandInputAttributes) init() CommandInputAttributes {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
 }
 
 // Ref: #/components/schemas/CommandType
@@ -1155,27 +2949,27 @@ func (*DeleteShareUnauthorized) deleteShareRes() {}
 
 // Ref: #/components/schemas/Device
 type Device struct {
-	ID             int64            `json:"id"`
-	UniqueId       string           `json:"uniqueId"`
-	Name           string           `json:"name"`
-	Protocol       OptString        `json:"protocol"`
-	Status         string           `json:"status"`
-	SpeedLimit     OptNilFloat64    `json:"speedLimit"`
-	LastUpdate     OptNilDateTime   `json:"lastUpdate"`
-	PositionId     OptNilInt64      `json:"positionId"`
-	GroupId        OptNilInt64      `json:"groupId"`
-	Phone          OptNilString     `json:"phone"`
-	Model          OptNilString     `json:"model"`
-	Contact        OptNilString     `json:"contact"`
-	Category       OptNilString     `json:"category"`
-	CalendarId     OptNilInt64      `json:"calendarId"`
-	ExpirationTime OptNilDateTime   `json:"expirationTime"`
-	Disabled       bool             `json:"disabled"`
-	Mileage        OptNilFloat64    `json:"mileage"`
-	Attributes     DeviceAttributes `json:"attributes"`
-	OwnerName      OptString        `json:"ownerName"`
-	CreatedAt      time.Time        `json:"createdAt"`
-	UpdatedAt      time.Time        `json:"updatedAt"`
+	ID             int64          `json:"id"`
+	UniqueId       string         `json:"uniqueId"`
+	Name           string         `json:"name"`
+	Protocol       OptString      `json:"protocol"`
+	Status         string         `json:"status"`
+	SpeedLimit     OptNilFloat64  `json:"speedLimit"`
+	LastUpdate     OptNilDateTime `json:"lastUpdate"`
+	PositionId     OptNilInt64    `json:"positionId"`
+	GroupId        OptNilInt64    `json:"groupId"`
+	Phone          OptNilString   `json:"phone"`
+	Model          OptNilString   `json:"model"`
+	Contact        OptNilString   `json:"contact"`
+	Category       OptNilString   `json:"category"`
+	CalendarId     OptNilInt64    `json:"calendarId"`
+	ExpirationTime OptNilDateTime `json:"expirationTime"`
+	Disabled       bool           `json:"disabled"`
+	Mileage        OptNilFloat64  `json:"mileage"`
+	Attributes     Attributes     `json:"attributes"`
+	OwnerName      OptString      `json:"ownerName"`
+	CreatedAt      time.Time      `json:"createdAt"`
+	UpdatedAt      time.Time      `json:"updatedAt"`
 }
 
 // GetID returns the value of ID.
@@ -1264,7 +3058,7 @@ func (s *Device) GetMileage() OptNilFloat64 {
 }
 
 // GetAttributes returns the value of Attributes.
-func (s *Device) GetAttributes() DeviceAttributes {
+func (s *Device) GetAttributes() Attributes {
 	return s.Attributes
 }
 
@@ -1369,7 +3163,7 @@ func (s *Device) SetMileage(val OptNilFloat64) {
 }
 
 // SetAttributes sets the value of Attributes.
-func (s *Device) SetAttributes(val DeviceAttributes) {
+func (s *Device) SetAttributes(val Attributes) {
 	s.Attributes = val
 }
 
@@ -1393,30 +3187,19 @@ func (*Device) getDeviceRes()       {}
 func (*Device) getSharedDeviceRes() {}
 func (*Device) updateDeviceRes()    {}
 
-type DeviceAttributes map[string]jx.Raw
-
-func (s *DeviceAttributes) init() DeviceAttributes {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
-}
-
 // Ref: #/components/schemas/DeviceInput
 type DeviceInput struct {
-	Name       string                   `json:"name"`
-	UniqueId   string                   `json:"uniqueId"`
-	Phone      OptString                `json:"phone"`
-	Model      OptString                `json:"model"`
-	Contact    OptString                `json:"contact"`
-	Category   OptString                `json:"category"`
-	Protocol   OptString                `json:"protocol"`
-	CalendarId OptInt64                 `json:"calendarId"`
-	SpeedLimit OptFloat64               `json:"speedLimit"`
-	Disabled   OptBool                  `json:"disabled"`
-	Attributes OptDeviceInputAttributes `json:"attributes"`
+	Name       string        `json:"name"`
+	UniqueId   string        `json:"uniqueId"`
+	Phone      OptString     `json:"phone"`
+	Model      OptString     `json:"model"`
+	Contact    OptString     `json:"contact"`
+	Category   OptString     `json:"category"`
+	Protocol   OptString     `json:"protocol"`
+	CalendarId OptNilInt64   `json:"calendarId"`
+	SpeedLimit OptFloat64    `json:"speedLimit"`
+	Disabled   OptBool       `json:"disabled"`
+	Attributes OptAttributes `json:"attributes"`
 }
 
 // GetName returns the value of Name.
@@ -1455,7 +3238,7 @@ func (s *DeviceInput) GetProtocol() OptString {
 }
 
 // GetCalendarId returns the value of CalendarId.
-func (s *DeviceInput) GetCalendarId() OptInt64 {
+func (s *DeviceInput) GetCalendarId() OptNilInt64 {
 	return s.CalendarId
 }
 
@@ -1470,7 +3253,7 @@ func (s *DeviceInput) GetDisabled() OptBool {
 }
 
 // GetAttributes returns the value of Attributes.
-func (s *DeviceInput) GetAttributes() OptDeviceInputAttributes {
+func (s *DeviceInput) GetAttributes() OptAttributes {
 	return s.Attributes
 }
 
@@ -1510,7 +3293,7 @@ func (s *DeviceInput) SetProtocol(val OptString) {
 }
 
 // SetCalendarId sets the value of CalendarId.
-func (s *DeviceInput) SetCalendarId(val OptInt64) {
+func (s *DeviceInput) SetCalendarId(val OptNilInt64) {
 	s.CalendarId = val
 }
 
@@ -1525,19 +3308,8 @@ func (s *DeviceInput) SetDisabled(val OptBool) {
 }
 
 // SetAttributes sets the value of Attributes.
-func (s *DeviceInput) SetAttributes(val OptDeviceInputAttributes) {
+func (s *DeviceInput) SetAttributes(val OptAttributes) {
 	s.Attributes = val
-}
-
-type DeviceInputAttributes map[string]jx.Raw
-
-func (s *DeviceInputAttributes) init() DeviceInputAttributes {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
 }
 
 // Ref: #/components/schemas/DeviceShare
@@ -1733,15 +3505,378 @@ func (s *Event) SetAttributes(val OptEventAttributes) {
 	s.Attributes = val
 }
 
-type EventAttributes map[string]jx.Raw
+// Ref: #/components/schemas/EventAttrAlarm
+type EventAttrAlarm struct {
+	Type  string `json:"type"`
+	Alarm string `json:"alarm"`
+}
 
-func (s *EventAttributes) init() EventAttributes {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
+// GetType returns the value of Type.
+func (s *EventAttrAlarm) GetType() string {
+	return s.Type
+}
+
+// GetAlarm returns the value of Alarm.
+func (s *EventAttrAlarm) GetAlarm() string {
+	return s.Alarm
+}
+
+// SetType sets the value of Type.
+func (s *EventAttrAlarm) SetType(val string) {
+	s.Type = val
+}
+
+// SetAlarm sets the value of Alarm.
+func (s *EventAttrAlarm) SetAlarm(val string) {
+	s.Alarm = val
+}
+
+// Ref: #/components/schemas/EventAttrEmpty
+type EventAttrEmpty struct {
+	Type string `json:"type"`
+}
+
+// GetType returns the value of Type.
+func (s *EventAttrEmpty) GetType() string {
+	return s.Type
+}
+
+// SetType sets the value of Type.
+func (s *EventAttrEmpty) SetType(val string) {
+	s.Type = val
+}
+
+// Ref: #/components/schemas/EventAttrIdle
+type EventAttrIdle struct {
+	Type         string  `json:"type"`
+	IdleDuration float64 `json:"idleDuration"`
+}
+
+// GetType returns the value of Type.
+func (s *EventAttrIdle) GetType() string {
+	return s.Type
+}
+
+// GetIdleDuration returns the value of IdleDuration.
+func (s *EventAttrIdle) GetIdleDuration() float64 {
+	return s.IdleDuration
+}
+
+// SetType sets the value of Type.
+func (s *EventAttrIdle) SetType(val string) {
+	s.Type = val
+}
+
+// SetIdleDuration sets the value of IdleDuration.
+func (s *EventAttrIdle) SetIdleDuration(val float64) {
+	s.IdleDuration = val
+}
+
+// Ref: #/components/schemas/EventAttrIgnition
+type EventAttrIgnition struct {
+	Type     string `json:"type"`
+	Ignition bool   `json:"ignition"`
+}
+
+// GetType returns the value of Type.
+func (s *EventAttrIgnition) GetType() string {
+	return s.Type
+}
+
+// GetIgnition returns the value of Ignition.
+func (s *EventAttrIgnition) GetIgnition() bool {
+	return s.Ignition
+}
+
+// SetType sets the value of Type.
+func (s *EventAttrIgnition) SetType(val string) {
+	s.Type = val
+}
+
+// SetIgnition sets the value of Ignition.
+func (s *EventAttrIgnition) SetIgnition(val bool) {
+	s.Ignition = val
+}
+
+// Ref: #/components/schemas/EventAttrMotion
+type EventAttrMotion struct {
+	Type          string  `json:"type"`
+	Speed         float64 `json:"speed"`
+	PreviousSpeed float64 `json:"previousSpeed"`
+}
+
+// GetType returns the value of Type.
+func (s *EventAttrMotion) GetType() string {
+	return s.Type
+}
+
+// GetSpeed returns the value of Speed.
+func (s *EventAttrMotion) GetSpeed() float64 {
+	return s.Speed
+}
+
+// GetPreviousSpeed returns the value of PreviousSpeed.
+func (s *EventAttrMotion) GetPreviousSpeed() float64 {
+	return s.PreviousSpeed
+}
+
+// SetType sets the value of Type.
+func (s *EventAttrMotion) SetType(val string) {
+	s.Type = val
+}
+
+// SetSpeed sets the value of Speed.
+func (s *EventAttrMotion) SetSpeed(val float64) {
+	s.Speed = val
+}
+
+// SetPreviousSpeed sets the value of PreviousSpeed.
+func (s *EventAttrMotion) SetPreviousSpeed(val float64) {
+	s.PreviousSpeed = val
+}
+
+// Ref: #/components/schemas/EventAttrTrip
+type EventAttrTrip struct {
+	Type     string  `json:"type"`
+	Distance float64 `json:"distance"`
+	Mileage  float64 `json:"mileage"`
+}
+
+// GetType returns the value of Type.
+func (s *EventAttrTrip) GetType() string {
+	return s.Type
+}
+
+// GetDistance returns the value of Distance.
+func (s *EventAttrTrip) GetDistance() float64 {
+	return s.Distance
+}
+
+// GetMileage returns the value of Mileage.
+func (s *EventAttrTrip) GetMileage() float64 {
+	return s.Mileage
+}
+
+// SetType sets the value of Type.
+func (s *EventAttrTrip) SetType(val string) {
+	s.Type = val
+}
+
+// SetDistance sets the value of Distance.
+func (s *EventAttrTrip) SetDistance(val float64) {
+	s.Distance = val
+}
+
+// SetMileage sets the value of Mileage.
+func (s *EventAttrTrip) SetMileage(val float64) {
+	s.Mileage = val
+}
+
+// Ref: #/components/schemas/EventAttributes
+// EventAttributes represents sum type.
+type EventAttributes struct {
+	Type              EventAttributesType // switch on this field
+	EventAttrEmpty    EventAttrEmpty
+	EventAttrIgnition EventAttrIgnition
+	EventAttrAlarm    EventAttrAlarm
+	EventAttrMotion   EventAttrMotion
+	EventAttrTrip     EventAttrTrip
+	EventAttrIdle     EventAttrIdle
+}
+
+// EventAttributesType is oneOf type of EventAttributes.
+type EventAttributesType string
+
+// Possible values for EventAttributesType.
+const (
+	EventAttributesGeofenceEnterEventAttributes EventAttributesType = "geofenceEnter"
+	EventAttributesGeofenceExitEventAttributes  EventAttributesType = "geofenceExit"
+	EventAttributesIgnitionOffEventAttributes   EventAttributesType = "ignitionOff"
+	EventAttributesIgnitionOnEventAttributes    EventAttributesType = "ignitionOn"
+	EventAttrAlarmEventAttributes               EventAttributesType = "alarm"
+	EventAttrMotionEventAttributes              EventAttributesType = "motion"
+	EventAttrTripEventAttributes                EventAttributesType = "tripCompleted"
+	EventAttrIdleEventAttributes                EventAttributesType = "deviceIdle"
+)
+
+// IsEventAttrEmpty reports whether EventAttributes is EventAttrEmpty.
+func (s EventAttributes) IsEventAttrEmpty() bool {
+	switch s.Type {
+	case EventAttributesGeofenceEnterEventAttributes, EventAttributesGeofenceExitEventAttributes:
+		return true
+	default:
+		return false
 	}
-	return m
+}
+
+// IsEventAttrIgnition reports whether EventAttributes is EventAttrIgnition.
+func (s EventAttributes) IsEventAttrIgnition() bool {
+	switch s.Type {
+	case EventAttributesIgnitionOffEventAttributes, EventAttributesIgnitionOnEventAttributes:
+		return true
+	default:
+		return false
+	}
+}
+
+// IsEventAttrAlarm reports whether EventAttributes is EventAttrAlarm.
+func (s EventAttributes) IsEventAttrAlarm() bool { return s.Type == EventAttrAlarmEventAttributes }
+
+// IsEventAttrMotion reports whether EventAttributes is EventAttrMotion.
+func (s EventAttributes) IsEventAttrMotion() bool { return s.Type == EventAttrMotionEventAttributes }
+
+// IsEventAttrTrip reports whether EventAttributes is EventAttrTrip.
+func (s EventAttributes) IsEventAttrTrip() bool { return s.Type == EventAttrTripEventAttributes }
+
+// IsEventAttrIdle reports whether EventAttributes is EventAttrIdle.
+func (s EventAttributes) IsEventAttrIdle() bool { return s.Type == EventAttrIdleEventAttributes }
+
+// SetEventAttrEmpty sets EventAttributes to EventAttrEmpty.
+// panics if `t` is not associated with EventAttrEmpty
+func (s *EventAttributes) SetEventAttrEmpty(t EventAttributesType, v EventAttrEmpty) {
+	s.Type = t
+	s.EventAttrEmpty = v
+	if !s.IsEventAttrEmpty() {
+		panic(fmt.Errorf("invariant: %v is not EventAttrEmpty", t))
+	}
+}
+
+// GetEventAttrEmpty returns EventAttrEmpty and true boolean if EventAttributes is EventAttrEmpty.
+func (s EventAttributes) GetEventAttrEmpty() (v EventAttrEmpty, ok bool) {
+	if !s.IsEventAttrEmpty() {
+		return v, false
+	}
+	return s.EventAttrEmpty, true
+}
+
+// NewEventAttributesGeofenceEnterEventAttributes returns new EventAttributes from EventAttrEmpty.
+func NewEventAttributesGeofenceEnterEventAttributes(v EventAttrEmpty) EventAttributes {
+	var s EventAttributes
+	s.SetEventAttrEmpty(EventAttributesGeofenceEnterEventAttributes, v)
+	return s
+}
+
+// NewEventAttributesGeofenceExitEventAttributes returns new EventAttributes from EventAttrEmpty.
+func NewEventAttributesGeofenceExitEventAttributes(v EventAttrEmpty) EventAttributes {
+	var s EventAttributes
+	s.SetEventAttrEmpty(EventAttributesGeofenceExitEventAttributes, v)
+	return s
+}
+
+// SetEventAttrIgnition sets EventAttributes to EventAttrIgnition.
+// panics if `t` is not associated with EventAttrIgnition
+func (s *EventAttributes) SetEventAttrIgnition(t EventAttributesType, v EventAttrIgnition) {
+	s.Type = t
+	s.EventAttrIgnition = v
+	if !s.IsEventAttrIgnition() {
+		panic(fmt.Errorf("invariant: %v is not EventAttrIgnition", t))
+	}
+}
+
+// GetEventAttrIgnition returns EventAttrIgnition and true boolean if EventAttributes is EventAttrIgnition.
+func (s EventAttributes) GetEventAttrIgnition() (v EventAttrIgnition, ok bool) {
+	if !s.IsEventAttrIgnition() {
+		return v, false
+	}
+	return s.EventAttrIgnition, true
+}
+
+// NewEventAttributesIgnitionOffEventAttributes returns new EventAttributes from EventAttrIgnition.
+func NewEventAttributesIgnitionOffEventAttributes(v EventAttrIgnition) EventAttributes {
+	var s EventAttributes
+	s.SetEventAttrIgnition(EventAttributesIgnitionOffEventAttributes, v)
+	return s
+}
+
+// NewEventAttributesIgnitionOnEventAttributes returns new EventAttributes from EventAttrIgnition.
+func NewEventAttributesIgnitionOnEventAttributes(v EventAttrIgnition) EventAttributes {
+	var s EventAttributes
+	s.SetEventAttrIgnition(EventAttributesIgnitionOnEventAttributes, v)
+	return s
+}
+
+// SetEventAttrAlarm sets EventAttributes to EventAttrAlarm.
+func (s *EventAttributes) SetEventAttrAlarm(v EventAttrAlarm) {
+	s.Type = EventAttrAlarmEventAttributes
+	s.EventAttrAlarm = v
+}
+
+// GetEventAttrAlarm returns EventAttrAlarm and true boolean if EventAttributes is EventAttrAlarm.
+func (s EventAttributes) GetEventAttrAlarm() (v EventAttrAlarm, ok bool) {
+	if !s.IsEventAttrAlarm() {
+		return v, false
+	}
+	return s.EventAttrAlarm, true
+}
+
+// NewEventAttrAlarmEventAttributes returns new EventAttributes from EventAttrAlarm.
+func NewEventAttrAlarmEventAttributes(v EventAttrAlarm) EventAttributes {
+	var s EventAttributes
+	s.SetEventAttrAlarm(v)
+	return s
+}
+
+// SetEventAttrMotion sets EventAttributes to EventAttrMotion.
+func (s *EventAttributes) SetEventAttrMotion(v EventAttrMotion) {
+	s.Type = EventAttrMotionEventAttributes
+	s.EventAttrMotion = v
+}
+
+// GetEventAttrMotion returns EventAttrMotion and true boolean if EventAttributes is EventAttrMotion.
+func (s EventAttributes) GetEventAttrMotion() (v EventAttrMotion, ok bool) {
+	if !s.IsEventAttrMotion() {
+		return v, false
+	}
+	return s.EventAttrMotion, true
+}
+
+// NewEventAttrMotionEventAttributes returns new EventAttributes from EventAttrMotion.
+func NewEventAttrMotionEventAttributes(v EventAttrMotion) EventAttributes {
+	var s EventAttributes
+	s.SetEventAttrMotion(v)
+	return s
+}
+
+// SetEventAttrTrip sets EventAttributes to EventAttrTrip.
+func (s *EventAttributes) SetEventAttrTrip(v EventAttrTrip) {
+	s.Type = EventAttrTripEventAttributes
+	s.EventAttrTrip = v
+}
+
+// GetEventAttrTrip returns EventAttrTrip and true boolean if EventAttributes is EventAttrTrip.
+func (s EventAttributes) GetEventAttrTrip() (v EventAttrTrip, ok bool) {
+	if !s.IsEventAttrTrip() {
+		return v, false
+	}
+	return s.EventAttrTrip, true
+}
+
+// NewEventAttrTripEventAttributes returns new EventAttributes from EventAttrTrip.
+func NewEventAttrTripEventAttributes(v EventAttrTrip) EventAttributes {
+	var s EventAttributes
+	s.SetEventAttrTrip(v)
+	return s
+}
+
+// SetEventAttrIdle sets EventAttributes to EventAttrIdle.
+func (s *EventAttributes) SetEventAttrIdle(v EventAttrIdle) {
+	s.Type = EventAttrIdleEventAttributes
+	s.EventAttrIdle = v
+}
+
+// GetEventAttrIdle returns EventAttrIdle and true boolean if EventAttributes is EventAttrIdle.
+func (s EventAttributes) GetEventAttrIdle() (v EventAttrIdle, ok bool) {
+	if !s.IsEventAttrIdle() {
+		return v, false
+	}
+	return s.EventAttrIdle, true
+}
+
+// NewEventAttrIdleEventAttributes returns new EventAttributes from EventAttrIdle.
+func NewEventAttrIdleEventAttributes(v EventAttrIdle) EventAttributes {
+	var s EventAttributes
+	s.SetEventAttrIdle(v)
+	return s
 }
 
 // Ref: #/components/schemas/Geofence
@@ -1752,12 +3887,12 @@ type Geofence struct {
 	// WKT geometry (Traccar-compatible).
 	Area string `json:"area"`
 	// GeoJSON geometry.
-	Geometry   OptString          `json:"geometry"`
-	CalendarId OptNilInt64        `json:"calendarId"`
-	OwnerName  OptString          `json:"ownerName"`
-	Attributes GeofenceAttributes `json:"attributes"`
-	CreatedAt  time.Time          `json:"createdAt"`
-	UpdatedAt  time.Time          `json:"updatedAt"`
+	Geometry   OptString   `json:"geometry"`
+	CalendarId OptNilInt64 `json:"calendarId"`
+	OwnerName  OptString   `json:"ownerName"`
+	Attributes Attributes  `json:"attributes"`
+	CreatedAt  time.Time   `json:"createdAt"`
+	UpdatedAt  time.Time   `json:"updatedAt"`
 }
 
 // GetID returns the value of ID.
@@ -1796,7 +3931,7 @@ func (s *Geofence) GetOwnerName() OptString {
 }
 
 // GetAttributes returns the value of Attributes.
-func (s *Geofence) GetAttributes() GeofenceAttributes {
+func (s *Geofence) GetAttributes() Attributes {
 	return s.Attributes
 }
 
@@ -1846,7 +3981,7 @@ func (s *Geofence) SetOwnerName(val OptString) {
 }
 
 // SetAttributes sets the value of Attributes.
-func (s *Geofence) SetAttributes(val GeofenceAttributes) {
+func (s *Geofence) SetAttributes(val Attributes) {
 	s.Attributes = val
 }
 
@@ -1864,25 +3999,14 @@ func (*Geofence) createGeofenceRes() {}
 func (*Geofence) getGeofenceRes()    {}
 func (*Geofence) updateGeofenceRes() {}
 
-type GeofenceAttributes map[string]jx.Raw
-
-func (s *GeofenceAttributes) init() GeofenceAttributes {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
-}
-
 // Ref: #/components/schemas/GeofenceInput
 type GeofenceInput struct {
-	Name        string                     `json:"name"`
-	Description OptString                  `json:"description"`
-	Area        string                     `json:"area"`
-	Geometry    OptString                  `json:"geometry"`
-	CalendarId  OptInt64                   `json:"calendarId"`
-	Attributes  OptGeofenceInputAttributes `json:"attributes"`
+	Name        string        `json:"name"`
+	Description OptString     `json:"description"`
+	Area        string        `json:"area"`
+	Geometry    OptString     `json:"geometry"`
+	CalendarId  OptNilInt64   `json:"calendarId"`
+	Attributes  OptAttributes `json:"attributes"`
 }
 
 // GetName returns the value of Name.
@@ -1906,12 +4030,12 @@ func (s *GeofenceInput) GetGeometry() OptString {
 }
 
 // GetCalendarId returns the value of CalendarId.
-func (s *GeofenceInput) GetCalendarId() OptInt64 {
+func (s *GeofenceInput) GetCalendarId() OptNilInt64 {
 	return s.CalendarId
 }
 
 // GetAttributes returns the value of Attributes.
-func (s *GeofenceInput) GetAttributes() OptGeofenceInputAttributes {
+func (s *GeofenceInput) GetAttributes() OptAttributes {
 	return s.Attributes
 }
 
@@ -1936,24 +4060,83 @@ func (s *GeofenceInput) SetGeometry(val OptString) {
 }
 
 // SetCalendarId sets the value of CalendarId.
-func (s *GeofenceInput) SetCalendarId(val OptInt64) {
+func (s *GeofenceInput) SetCalendarId(val OptNilInt64) {
 	s.CalendarId = val
 }
 
 // SetAttributes sets the value of Attributes.
-func (s *GeofenceInput) SetAttributes(val OptGeofenceInputAttributes) {
+func (s *GeofenceInput) SetAttributes(val OptAttributes) {
 	s.Attributes = val
 }
 
-type GeofenceInputAttributes map[string]jx.Raw
+// Ref: #/components/schemas/GeofenceUpdateInput
+type GeofenceUpdateInput struct {
+	Name        OptString     `json:"name"`
+	Description OptString     `json:"description"`
+	Area        OptString     `json:"area"`
+	Geometry    OptString     `json:"geometry"`
+	CalendarId  OptNilInt64   `json:"calendarId"`
+	Attributes  OptAttributes `json:"attributes"`
+}
 
-func (s *GeofenceInputAttributes) init() GeofenceInputAttributes {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
+// GetName returns the value of Name.
+func (s *GeofenceUpdateInput) GetName() OptString {
+	return s.Name
+}
+
+// GetDescription returns the value of Description.
+func (s *GeofenceUpdateInput) GetDescription() OptString {
+	return s.Description
+}
+
+// GetArea returns the value of Area.
+func (s *GeofenceUpdateInput) GetArea() OptString {
+	return s.Area
+}
+
+// GetGeometry returns the value of Geometry.
+func (s *GeofenceUpdateInput) GetGeometry() OptString {
+	return s.Geometry
+}
+
+// GetCalendarId returns the value of CalendarId.
+func (s *GeofenceUpdateInput) GetCalendarId() OptNilInt64 {
+	return s.CalendarId
+}
+
+// GetAttributes returns the value of Attributes.
+func (s *GeofenceUpdateInput) GetAttributes() OptAttributes {
+	return s.Attributes
+}
+
+// SetName sets the value of Name.
+func (s *GeofenceUpdateInput) SetName(val OptString) {
+	s.Name = val
+}
+
+// SetDescription sets the value of Description.
+func (s *GeofenceUpdateInput) SetDescription(val OptString) {
+	s.Description = val
+}
+
+// SetArea sets the value of Area.
+func (s *GeofenceUpdateInput) SetArea(val OptString) {
+	s.Area = val
+}
+
+// SetGeometry sets the value of Geometry.
+func (s *GeofenceUpdateInput) SetGeometry(val OptString) {
+	s.Geometry = val
+}
+
+// SetCalendarId sets the value of CalendarId.
+func (s *GeofenceUpdateInput) SetCalendarId(val OptNilInt64) {
+	s.CalendarId = val
+}
+
+// SetAttributes sets the value of Attributes.
+func (s *GeofenceUpdateInput) SetAttributes(val OptAttributes) {
+	s.Attributes = val
 }
 
 type GetCommandTypesOKApplicationJSON []CommandType
@@ -2160,6 +4343,88 @@ func (*LogoutAllNoContent) logoutAllRes() {}
 type LogoutNoContent struct{}
 
 func (*LogoutNoContent) logoutRes() {}
+
+// Ref: #/components/schemas/NotificationConfigWebhook
+type NotificationConfigWebhook struct {
+	Channel    NotificationConfigWebhookChannel    `json:"channel"`
+	WebhookUrl url.URL                             `json:"webhookUrl"`
+	Headers    OptNotificationConfigWebhookHeaders `json:"headers"`
+}
+
+// GetChannel returns the value of Channel.
+func (s *NotificationConfigWebhook) GetChannel() NotificationConfigWebhookChannel {
+	return s.Channel
+}
+
+// GetWebhookUrl returns the value of WebhookUrl.
+func (s *NotificationConfigWebhook) GetWebhookUrl() url.URL {
+	return s.WebhookUrl
+}
+
+// GetHeaders returns the value of Headers.
+func (s *NotificationConfigWebhook) GetHeaders() OptNotificationConfigWebhookHeaders {
+	return s.Headers
+}
+
+// SetChannel sets the value of Channel.
+func (s *NotificationConfigWebhook) SetChannel(val NotificationConfigWebhookChannel) {
+	s.Channel = val
+}
+
+// SetWebhookUrl sets the value of WebhookUrl.
+func (s *NotificationConfigWebhook) SetWebhookUrl(val url.URL) {
+	s.WebhookUrl = val
+}
+
+// SetHeaders sets the value of Headers.
+func (s *NotificationConfigWebhook) SetHeaders(val OptNotificationConfigWebhookHeaders) {
+	s.Headers = val
+}
+
+type NotificationConfigWebhookChannel string
+
+const (
+	NotificationConfigWebhookChannelWebhook NotificationConfigWebhookChannel = "webhook"
+)
+
+// AllValues returns all NotificationConfigWebhookChannel values.
+func (NotificationConfigWebhookChannel) AllValues() []NotificationConfigWebhookChannel {
+	return []NotificationConfigWebhookChannel{
+		NotificationConfigWebhookChannelWebhook,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotificationConfigWebhookChannel) MarshalText() ([]byte, error) {
+	switch s {
+	case NotificationConfigWebhookChannelWebhook:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotificationConfigWebhookChannel) UnmarshalText(data []byte) error {
+	switch NotificationConfigWebhookChannel(data) {
+	case NotificationConfigWebhookChannelWebhook:
+		*s = NotificationConfigWebhookChannelWebhook
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type NotificationConfigWebhookHeaders map[string]string
+
+func (s *NotificationConfigWebhookHeaders) init() NotificationConfigWebhookHeaders {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
+}
 
 // Ref: #/components/schemas/NotificationLog
 type NotificationLog struct {
@@ -2386,25 +4651,55 @@ func (s *NotificationRule) SetUpdatedAt(val time.Time) {
 func (*NotificationRule) createNotificationRes() {}
 func (*NotificationRule) updateNotificationRes() {}
 
-type NotificationRuleConfig map[string]jx.Raw
+// Ref: #/components/schemas/NotificationRuleConfig
+// NotificationRuleConfig represents sum type.
+type NotificationRuleConfig struct {
+	Type                      NotificationRuleConfigType // switch on this field
+	NotificationConfigWebhook NotificationConfigWebhook
+}
 
-func (s *NotificationRuleConfig) init() NotificationRuleConfig {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
+// NotificationRuleConfigType is oneOf type of NotificationRuleConfig.
+type NotificationRuleConfigType string
+
+// Possible values for NotificationRuleConfigType.
+const (
+	NotificationConfigWebhookNotificationRuleConfig NotificationRuleConfigType = "webhook"
+)
+
+// IsNotificationConfigWebhook reports whether NotificationRuleConfig is NotificationConfigWebhook.
+func (s NotificationRuleConfig) IsNotificationConfigWebhook() bool {
+	return s.Type == NotificationConfigWebhookNotificationRuleConfig
+}
+
+// SetNotificationConfigWebhook sets NotificationRuleConfig to NotificationConfigWebhook.
+func (s *NotificationRuleConfig) SetNotificationConfigWebhook(v NotificationConfigWebhook) {
+	s.Type = NotificationConfigWebhookNotificationRuleConfig
+	s.NotificationConfigWebhook = v
+}
+
+// GetNotificationConfigWebhook returns NotificationConfigWebhook and true boolean if NotificationRuleConfig is NotificationConfigWebhook.
+func (s NotificationRuleConfig) GetNotificationConfigWebhook() (v NotificationConfigWebhook, ok bool) {
+	if !s.IsNotificationConfigWebhook() {
+		return v, false
 	}
-	return m
+	return s.NotificationConfigWebhook, true
+}
+
+// NewNotificationConfigWebhookNotificationRuleConfig returns new NotificationRuleConfig from NotificationConfigWebhook.
+func NewNotificationConfigWebhookNotificationRuleConfig(v NotificationConfigWebhook) NotificationRuleConfig {
+	var s NotificationRuleConfig
+	s.SetNotificationConfigWebhook(v)
+	return s
 }
 
 // Ref: #/components/schemas/NotificationRuleInput
 type NotificationRuleInput struct {
-	Name       string                      `json:"name"`
-	EventTypes []string                    `json:"eventTypes"`
-	Channel    string                      `json:"channel"`
-	Config     NotificationRuleInputConfig `json:"config"`
-	Template   OptString                   `json:"template"`
-	Enabled    OptBool                     `json:"enabled"`
+	Name       string                 `json:"name"`
+	EventTypes []string               `json:"eventTypes"`
+	Channel    string                 `json:"channel"`
+	Config     NotificationRuleConfig `json:"config"`
+	Template   OptString              `json:"template"`
+	Enabled    OptBool                `json:"enabled"`
 }
 
 // GetName returns the value of Name.
@@ -2423,7 +4718,7 @@ func (s *NotificationRuleInput) GetChannel() string {
 }
 
 // GetConfig returns the value of Config.
-func (s *NotificationRuleInput) GetConfig() NotificationRuleInputConfig {
+func (s *NotificationRuleInput) GetConfig() NotificationRuleConfig {
 	return s.Config
 }
 
@@ -2453,7 +4748,7 @@ func (s *NotificationRuleInput) SetChannel(val string) {
 }
 
 // SetConfig sets the value of Config.
-func (s *NotificationRuleInput) SetConfig(val NotificationRuleInputConfig) {
+func (s *NotificationRuleInput) SetConfig(val NotificationRuleConfig) {
 	s.Config = val
 }
 
@@ -2465,17 +4760,6 @@ func (s *NotificationRuleInput) SetTemplate(val OptString) {
 // SetEnabled sets the value of Enabled.
 func (s *NotificationRuleInput) SetEnabled(val OptBool) {
 	s.Enabled = val
-}
-
-type NotificationRuleInputConfig map[string]jx.Raw
-
-func (s *NotificationRuleInputConfig) init() NotificationRuleInputConfig {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
 }
 
 // Ref: #/components/schemas/OIDCConfig
@@ -2558,38 +4842,38 @@ func (o OptApiKeyInputPermissions) Or(d ApiKeyInputPermissions) ApiKeyInputPermi
 	return d
 }
 
-// NewOptAuditEntryMetadata returns new OptAuditEntryMetadata with value set to v.
-func NewOptAuditEntryMetadata(v AuditEntryMetadata) OptAuditEntryMetadata {
-	return OptAuditEntryMetadata{
+// NewOptAttributes returns new OptAttributes with value set to v.
+func NewOptAttributes(v Attributes) OptAttributes {
+	return OptAttributes{
 		Value: v,
 		Set:   true,
 	}
 }
 
-// OptAuditEntryMetadata is optional AuditEntryMetadata.
-type OptAuditEntryMetadata struct {
-	Value AuditEntryMetadata
+// OptAttributes is optional Attributes.
+type OptAttributes struct {
+	Value Attributes
 	Set   bool
 }
 
-// IsSet returns true if OptAuditEntryMetadata was set.
-func (o OptAuditEntryMetadata) IsSet() bool { return o.Set }
+// IsSet returns true if OptAttributes was set.
+func (o OptAttributes) IsSet() bool { return o.Set }
 
 // Reset unsets value.
-func (o *OptAuditEntryMetadata) Reset() {
-	var v AuditEntryMetadata
+func (o *OptAttributes) Reset() {
+	var v Attributes
 	o.Value = v
 	o.Set = false
 }
 
 // SetTo sets value to v.
-func (o *OptAuditEntryMetadata) SetTo(v AuditEntryMetadata) {
+func (o *OptAttributes) SetTo(v Attributes) {
 	o.Set = true
 	o.Value = v
 }
 
 // Get returns value and boolean that denotes whether value was set.
-func (o OptAuditEntryMetadata) Get() (v AuditEntryMetadata, ok bool) {
+func (o OptAttributes) Get() (v Attributes, ok bool) {
 	if !o.Set {
 		return v, false
 	}
@@ -2597,7 +4881,53 @@ func (o OptAuditEntryMetadata) Get() (v AuditEntryMetadata, ok bool) {
 }
 
 // Or returns value if set, or given parameter if does not.
-func (o OptAuditEntryMetadata) Or(d AuditEntryMetadata) AuditEntryMetadata {
+func (o OptAttributes) Or(d Attributes) Attributes {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptAuditMetadata returns new OptAuditMetadata with value set to v.
+func NewOptAuditMetadata(v AuditMetadata) OptAuditMetadata {
+	return OptAuditMetadata{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptAuditMetadata is optional AuditMetadata.
+type OptAuditMetadata struct {
+	Value AuditMetadata
+	Set   bool
+}
+
+// IsSet returns true if OptAuditMetadata was set.
+func (o OptAuditMetadata) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptAuditMetadata) Reset() {
+	var v AuditMetadata
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptAuditMetadata) SetTo(v AuditMetadata) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptAuditMetadata) Get() (v AuditMetadata, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptAuditMetadata) Or(d AuditMetadata) AuditMetadata {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -2696,52 +5026,6 @@ func (o OptCommandAttributes) Or(d CommandAttributes) CommandAttributes {
 	return d
 }
 
-// NewOptCommandInputAttributes returns new OptCommandInputAttributes with value set to v.
-func NewOptCommandInputAttributes(v CommandInputAttributes) OptCommandInputAttributes {
-	return OptCommandInputAttributes{
-		Value: v,
-		Set:   true,
-	}
-}
-
-// OptCommandInputAttributes is optional CommandInputAttributes.
-type OptCommandInputAttributes struct {
-	Value CommandInputAttributes
-	Set   bool
-}
-
-// IsSet returns true if OptCommandInputAttributes was set.
-func (o OptCommandInputAttributes) IsSet() bool { return o.Set }
-
-// Reset unsets value.
-func (o *OptCommandInputAttributes) Reset() {
-	var v CommandInputAttributes
-	o.Value = v
-	o.Set = false
-}
-
-// SetTo sets value to v.
-func (o *OptCommandInputAttributes) SetTo(v CommandInputAttributes) {
-	o.Set = true
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o OptCommandInputAttributes) Get() (v CommandInputAttributes, ok bool) {
-	if !o.Set {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o OptCommandInputAttributes) Or(d CommandInputAttributes) CommandInputAttributes {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
 // NewOptCreateShareRequest returns new OptCreateShareRequest with value set to v.
 func NewOptCreateShareRequest(v CreateShareRequest) OptCreateShareRequest {
 	return OptCreateShareRequest{
@@ -2834,52 +5118,6 @@ func (o OptDateTime) Or(d time.Time) time.Time {
 	return d
 }
 
-// NewOptDeviceInputAttributes returns new OptDeviceInputAttributes with value set to v.
-func NewOptDeviceInputAttributes(v DeviceInputAttributes) OptDeviceInputAttributes {
-	return OptDeviceInputAttributes{
-		Value: v,
-		Set:   true,
-	}
-}
-
-// OptDeviceInputAttributes is optional DeviceInputAttributes.
-type OptDeviceInputAttributes struct {
-	Value DeviceInputAttributes
-	Set   bool
-}
-
-// IsSet returns true if OptDeviceInputAttributes was set.
-func (o OptDeviceInputAttributes) IsSet() bool { return o.Set }
-
-// Reset unsets value.
-func (o *OptDeviceInputAttributes) Reset() {
-	var v DeviceInputAttributes
-	o.Value = v
-	o.Set = false
-}
-
-// SetTo sets value to v.
-func (o *OptDeviceInputAttributes) SetTo(v DeviceInputAttributes) {
-	o.Set = true
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o OptDeviceInputAttributes) Get() (v DeviceInputAttributes, ok bool) {
-	if !o.Set {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o OptDeviceInputAttributes) Or(d DeviceInputAttributes) DeviceInputAttributes {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
 // NewOptEventAttributes returns new OptEventAttributes with value set to v.
 func NewOptEventAttributes(v EventAttributes) OptEventAttributes {
 	return OptEventAttributes{
@@ -2966,52 +5204,6 @@ func (o OptFloat64) Get() (v float64, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptFloat64) Or(d float64) float64 {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewOptGeofenceInputAttributes returns new OptGeofenceInputAttributes with value set to v.
-func NewOptGeofenceInputAttributes(v GeofenceInputAttributes) OptGeofenceInputAttributes {
-	return OptGeofenceInputAttributes{
-		Value: v,
-		Set:   true,
-	}
-}
-
-// OptGeofenceInputAttributes is optional GeofenceInputAttributes.
-type OptGeofenceInputAttributes struct {
-	Value GeofenceInputAttributes
-	Set   bool
-}
-
-// IsSet returns true if OptGeofenceInputAttributes was set.
-func (o OptGeofenceInputAttributes) IsSet() bool { return o.Set }
-
-// Reset unsets value.
-func (o *OptGeofenceInputAttributes) Reset() {
-	var v GeofenceInputAttributes
-	o.Value = v
-	o.Set = false
-}
-
-// SetTo sets value to v.
-func (o *OptGeofenceInputAttributes) SetTo(v GeofenceInputAttributes) {
-	o.Set = true
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o OptGeofenceInputAttributes) Get() (v GeofenceInputAttributes, ok bool) {
-	if !o.Set {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o OptGeofenceInputAttributes) Or(d GeofenceInputAttributes) GeofenceInputAttributes {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -3408,38 +5600,38 @@ func (o OptNilString) Or(d string) string {
 	return d
 }
 
-// NewOptSendCommandRequestAttributes returns new OptSendCommandRequestAttributes with value set to v.
-func NewOptSendCommandRequestAttributes(v SendCommandRequestAttributes) OptSendCommandRequestAttributes {
-	return OptSendCommandRequestAttributes{
+// NewOptNotificationConfigWebhookHeaders returns new OptNotificationConfigWebhookHeaders with value set to v.
+func NewOptNotificationConfigWebhookHeaders(v NotificationConfigWebhookHeaders) OptNotificationConfigWebhookHeaders {
+	return OptNotificationConfigWebhookHeaders{
 		Value: v,
 		Set:   true,
 	}
 }
 
-// OptSendCommandRequestAttributes is optional SendCommandRequestAttributes.
-type OptSendCommandRequestAttributes struct {
-	Value SendCommandRequestAttributes
+// OptNotificationConfigWebhookHeaders is optional NotificationConfigWebhookHeaders.
+type OptNotificationConfigWebhookHeaders struct {
+	Value NotificationConfigWebhookHeaders
 	Set   bool
 }
 
-// IsSet returns true if OptSendCommandRequestAttributes was set.
-func (o OptSendCommandRequestAttributes) IsSet() bool { return o.Set }
+// IsSet returns true if OptNotificationConfigWebhookHeaders was set.
+func (o OptNotificationConfigWebhookHeaders) IsSet() bool { return o.Set }
 
 // Reset unsets value.
-func (o *OptSendCommandRequestAttributes) Reset() {
-	var v SendCommandRequestAttributes
+func (o *OptNotificationConfigWebhookHeaders) Reset() {
+	var v NotificationConfigWebhookHeaders
 	o.Value = v
 	o.Set = false
 }
 
 // SetTo sets value to v.
-func (o *OptSendCommandRequestAttributes) SetTo(v SendCommandRequestAttributes) {
+func (o *OptNotificationConfigWebhookHeaders) SetTo(v NotificationConfigWebhookHeaders) {
 	o.Set = true
 	o.Value = v
 }
 
 // Get returns value and boolean that denotes whether value was set.
-func (o OptSendCommandRequestAttributes) Get() (v SendCommandRequestAttributes, ok bool) {
+func (o OptNotificationConfigWebhookHeaders) Get() (v NotificationConfigWebhookHeaders, ok bool) {
 	if !o.Set {
 		return v, false
 	}
@@ -3447,53 +5639,7 @@ func (o OptSendCommandRequestAttributes) Get() (v SendCommandRequestAttributes, 
 }
 
 // Or returns value if set, or given parameter if does not.
-func (o OptSendCommandRequestAttributes) Or(d SendCommandRequestAttributes) SendCommandRequestAttributes {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewOptServerInfoAttributes returns new OptServerInfoAttributes with value set to v.
-func NewOptServerInfoAttributes(v ServerInfoAttributes) OptServerInfoAttributes {
-	return OptServerInfoAttributes{
-		Value: v,
-		Set:   true,
-	}
-}
-
-// OptServerInfoAttributes is optional ServerInfoAttributes.
-type OptServerInfoAttributes struct {
-	Value ServerInfoAttributes
-	Set   bool
-}
-
-// IsSet returns true if OptServerInfoAttributes was set.
-func (o OptServerInfoAttributes) IsSet() bool { return o.Set }
-
-// Reset unsets value.
-func (o *OptServerInfoAttributes) Reset() {
-	var v ServerInfoAttributes
-	o.Value = v
-	o.Set = false
-}
-
-// SetTo sets value to v.
-func (o *OptServerInfoAttributes) SetTo(v ServerInfoAttributes) {
-	o.Set = true
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o OptServerInfoAttributes) Get() (v ServerInfoAttributes, ok bool) {
-	if !o.Set {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o OptServerInfoAttributes) Or(d ServerInfoAttributes) ServerInfoAttributes {
+func (o OptNotificationConfigWebhookHeaders) Or(d NotificationConfigWebhookHeaders) NotificationConfigWebhookHeaders {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -3540,52 +5686,6 @@ func (o OptString) Get() (v string, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptString) Or(d string) string {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewOptUserAttributes returns new OptUserAttributes with value set to v.
-func NewOptUserAttributes(v UserAttributes) OptUserAttributes {
-	return OptUserAttributes{
-		Value: v,
-		Set:   true,
-	}
-}
-
-// OptUserAttributes is optional UserAttributes.
-type OptUserAttributes struct {
-	Value UserAttributes
-	Set   bool
-}
-
-// IsSet returns true if OptUserAttributes was set.
-func (o OptUserAttributes) IsSet() bool { return o.Set }
-
-// Reset unsets value.
-func (o *OptUserAttributes) Reset() {
-	var v UserAttributes
-	o.Value = v
-	o.Set = false
-}
-
-// SetTo sets value to v.
-func (o *OptUserAttributes) SetTo(v UserAttributes) {
-	o.Set = true
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o OptUserAttributes) Get() (v UserAttributes, ok bool) {
-	if !o.Set {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o OptUserAttributes) Or(d UserAttributes) UserAttributes {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -3763,7 +5863,7 @@ type Position struct {
 	Accuracy   float64            `json:"accuracy"`
 	Address    OptString          `json:"address"`
 	Attributes PositionAttributes `json:"attributes"`
-	Network    PositionNetwork    `json:"network"`
+	Network    Attributes         `json:"network"`
 }
 
 // GetID returns the value of ID.
@@ -3857,7 +5957,7 @@ func (s *Position) GetAttributes() PositionAttributes {
 }
 
 // GetNetwork returns the value of Network.
-func (s *Position) GetNetwork() PositionNetwork {
+func (s *Position) GetNetwork() Attributes {
 	return s.Network
 }
 
@@ -3952,24 +6052,143 @@ func (s *Position) SetAttributes(val PositionAttributes) {
 }
 
 // SetNetwork sets the value of Network.
-func (s *Position) SetNetwork(val PositionNetwork) {
+func (s *Position) SetNetwork(val Attributes) {
 	s.Network = val
 }
 
-type PositionAttributes map[string]jx.Raw
-
-func (s *PositionAttributes) init() PositionAttributes {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
+// Protocol-emitted position metadata. Known keys per protocol:
+// - All: motion (bool)
+// - H02: ignition (bool), flags (string), alarm (string), mcc/mnc/lac/cellId (int), iccid (string)
+// - Watch: satellites (int)
+// Open for forward compatibility with additional protocols.
+// Ref: #/components/schemas/PositionAttributes
+type PositionAttributes struct {
+	Motion          OptBool   `json:"motion"`
+	Ignition        OptBool   `json:"ignition"`
+	Flags           OptString `json:"flags"`
+	Alarm           OptString `json:"alarm"`
+	Mcc             OptInt    `json:"mcc"`
+	Mnc             OptInt    `json:"mnc"`
+	Lac             OptInt    `json:"lac"`
+	CellId          OptInt    `json:"cellId"`
+	Iccid           OptString `json:"iccid"`
+	Satellites      OptInt    `json:"satellites"`
+	AdditionalProps PositionAttributesAdditional
 }
 
-type PositionNetwork map[string]jx.Raw
+// GetMotion returns the value of Motion.
+func (s *PositionAttributes) GetMotion() OptBool {
+	return s.Motion
+}
 
-func (s *PositionNetwork) init() PositionNetwork {
+// GetIgnition returns the value of Ignition.
+func (s *PositionAttributes) GetIgnition() OptBool {
+	return s.Ignition
+}
+
+// GetFlags returns the value of Flags.
+func (s *PositionAttributes) GetFlags() OptString {
+	return s.Flags
+}
+
+// GetAlarm returns the value of Alarm.
+func (s *PositionAttributes) GetAlarm() OptString {
+	return s.Alarm
+}
+
+// GetMcc returns the value of Mcc.
+func (s *PositionAttributes) GetMcc() OptInt {
+	return s.Mcc
+}
+
+// GetMnc returns the value of Mnc.
+func (s *PositionAttributes) GetMnc() OptInt {
+	return s.Mnc
+}
+
+// GetLac returns the value of Lac.
+func (s *PositionAttributes) GetLac() OptInt {
+	return s.Lac
+}
+
+// GetCellId returns the value of CellId.
+func (s *PositionAttributes) GetCellId() OptInt {
+	return s.CellId
+}
+
+// GetIccid returns the value of Iccid.
+func (s *PositionAttributes) GetIccid() OptString {
+	return s.Iccid
+}
+
+// GetSatellites returns the value of Satellites.
+func (s *PositionAttributes) GetSatellites() OptInt {
+	return s.Satellites
+}
+
+// GetAdditionalProps returns the value of AdditionalProps.
+func (s *PositionAttributes) GetAdditionalProps() PositionAttributesAdditional {
+	return s.AdditionalProps
+}
+
+// SetMotion sets the value of Motion.
+func (s *PositionAttributes) SetMotion(val OptBool) {
+	s.Motion = val
+}
+
+// SetIgnition sets the value of Ignition.
+func (s *PositionAttributes) SetIgnition(val OptBool) {
+	s.Ignition = val
+}
+
+// SetFlags sets the value of Flags.
+func (s *PositionAttributes) SetFlags(val OptString) {
+	s.Flags = val
+}
+
+// SetAlarm sets the value of Alarm.
+func (s *PositionAttributes) SetAlarm(val OptString) {
+	s.Alarm = val
+}
+
+// SetMcc sets the value of Mcc.
+func (s *PositionAttributes) SetMcc(val OptInt) {
+	s.Mcc = val
+}
+
+// SetMnc sets the value of Mnc.
+func (s *PositionAttributes) SetMnc(val OptInt) {
+	s.Mnc = val
+}
+
+// SetLac sets the value of Lac.
+func (s *PositionAttributes) SetLac(val OptInt) {
+	s.Lac = val
+}
+
+// SetCellId sets the value of CellId.
+func (s *PositionAttributes) SetCellId(val OptInt) {
+	s.CellId = val
+}
+
+// SetIccid sets the value of Iccid.
+func (s *PositionAttributes) SetIccid(val OptString) {
+	s.Iccid = val
+}
+
+// SetSatellites sets the value of Satellites.
+func (s *PositionAttributes) SetSatellites(val OptInt) {
+	s.Satellites = val
+}
+
+// SetAdditionalProps sets the value of AdditionalProps.
+func (s *PositionAttributes) SetAdditionalProps(val PositionAttributesAdditional) {
+	s.AdditionalProps = val
+}
+
+type PositionAttributesAdditional map[string]jx.Raw
+
+func (s *PositionAttributesAdditional) init() PositionAttributesAdditional {
 	m := *s
 	if m == nil {
 		m = map[string]jx.Raw{}
@@ -3992,9 +6211,9 @@ func (*SendCommandNotFound) sendCommandRes() {}
 
 // Ref: #/components/schemas/SendCommandRequest
 type SendCommandRequest struct {
-	DeviceId   int64                           `json:"deviceId"`
-	Type       string                          `json:"type"`
-	Attributes OptSendCommandRequestAttributes `json:"attributes"`
+	DeviceId   int64                `json:"deviceId"`
+	Type       string               `json:"type"`
+	Attributes OptCommandAttributes `json:"attributes"`
 }
 
 // GetDeviceId returns the value of DeviceId.
@@ -4008,7 +6227,7 @@ func (s *SendCommandRequest) GetType() string {
 }
 
 // GetAttributes returns the value of Attributes.
-func (s *SendCommandRequest) GetAttributes() OptSendCommandRequestAttributes {
+func (s *SendCommandRequest) GetAttributes() OptCommandAttributes {
 	return s.Attributes
 }
 
@@ -4023,19 +6242,8 @@ func (s *SendCommandRequest) SetType(val string) {
 }
 
 // SetAttributes sets the value of Attributes.
-func (s *SendCommandRequest) SetAttributes(val OptSendCommandRequestAttributes) {
+func (s *SendCommandRequest) SetAttributes(val OptCommandAttributes) {
 	s.Attributes = val
-}
-
-type SendCommandRequestAttributes map[string]jx.Raw
-
-func (s *SendCommandRequestAttributes) init() SendCommandRequestAttributes {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
 }
 
 type SendCommandUnauthorized Error
@@ -4044,19 +6252,19 @@ func (*SendCommandUnauthorized) sendCommandRes() {}
 
 // Ref: #/components/schemas/ServerInfo
 type ServerInfo struct {
-	ID             int                     `json:"id"`
-	Registration   bool                    `json:"registration"`
-	Readonly       bool                    `json:"readonly"`
-	DeviceReadonly bool                    `json:"deviceReadonly"`
-	LimitCommands  bool                    `json:"limitCommands"`
-	Version        string                  `json:"version"`
-	Map            OptString               `json:"map"`
-	Latitude       OptFloat64              `json:"latitude"`
-	Longitude      OptFloat64              `json:"longitude"`
-	Zoom           OptInt                  `json:"zoom"`
-	OpenIdEnabled  OptBool                 `json:"openIdEnabled"`
-	OpenIdForce    OptBool                 `json:"openIdForce"`
-	Attributes     OptServerInfoAttributes `json:"attributes"`
+	ID             int           `json:"id"`
+	Registration   bool          `json:"registration"`
+	Readonly       bool          `json:"readonly"`
+	DeviceReadonly bool          `json:"deviceReadonly"`
+	LimitCommands  bool          `json:"limitCommands"`
+	Version        string        `json:"version"`
+	Map            OptString     `json:"map"`
+	Latitude       OptFloat64    `json:"latitude"`
+	Longitude      OptFloat64    `json:"longitude"`
+	Zoom           OptInt        `json:"zoom"`
+	OpenIdEnabled  OptBool       `json:"openIdEnabled"`
+	OpenIdForce    OptBool       `json:"openIdForce"`
+	Attributes     OptAttributes `json:"attributes"`
 }
 
 // GetID returns the value of ID.
@@ -4120,7 +6328,7 @@ func (s *ServerInfo) GetOpenIdForce() OptBool {
 }
 
 // GetAttributes returns the value of Attributes.
-func (s *ServerInfo) GetAttributes() OptServerInfoAttributes {
+func (s *ServerInfo) GetAttributes() OptAttributes {
 	return s.Attributes
 }
 
@@ -4185,19 +6393,8 @@ func (s *ServerInfo) SetOpenIdForce(val OptBool) {
 }
 
 // SetAttributes sets the value of Attributes.
-func (s *ServerInfo) SetAttributes(val OptServerInfoAttributes) {
+func (s *ServerInfo) SetAttributes(val OptAttributes) {
 	s.Attributes = val
-}
-
-type ServerInfoAttributes map[string]jx.Raw
-
-func (s *ServerInfoAttributes) init() ServerInfoAttributes {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
 }
 
 // Ref: #/components/schemas/Session
@@ -4421,6 +6618,32 @@ func (s *TokenResponse) SetToken(val string) {
 
 func (*TokenResponse) generateTokenRes() {}
 
+// UnexpectedErrorStatusCode wraps Error with StatusCode.
+type UnexpectedErrorStatusCode struct {
+	StatusCode int
+	Response   Error
+}
+
+// GetStatusCode returns the value of StatusCode.
+func (s *UnexpectedErrorStatusCode) GetStatusCode() int {
+	return s.StatusCode
+}
+
+// GetResponse returns the value of Response.
+func (s *UnexpectedErrorStatusCode) GetResponse() Error {
+	return s.Response
+}
+
+// SetStatusCode sets the value of StatusCode.
+func (s *UnexpectedErrorStatusCode) SetStatusCode(val int) {
+	s.StatusCode = val
+}
+
+// SetResponse sets the value of Response.
+func (s *UnexpectedErrorStatusCode) SetResponse(val Error) {
+	s.Response = val
+}
+
 type UpdateCalendarBadRequest Error
 
 func (*UpdateCalendarBadRequest) updateCalendarRes() {}
@@ -4528,14 +6751,14 @@ func (*UpdateProfileUnauthorized) updateProfileRes() {}
 
 // Ref: #/components/schemas/User
 type User struct {
-	ID            int64             `json:"id"`
-	Email         string            `json:"email"`
-	Name          string            `json:"name"`
-	Administrator bool              `json:"administrator"`
-	Readonly      bool              `json:"readonly"`
-	Disabled      bool              `json:"disabled"`
-	CreatedAt     time.Time         `json:"createdAt"`
-	Attributes    OptUserAttributes `json:"attributes"`
+	ID            int64         `json:"id"`
+	Email         string        `json:"email"`
+	Name          string        `json:"name"`
+	Administrator bool          `json:"administrator"`
+	Readonly      bool          `json:"readonly"`
+	Disabled      bool          `json:"disabled"`
+	CreatedAt     time.Time     `json:"createdAt"`
+	Attributes    OptAttributes `json:"attributes"`
 }
 
 // GetID returns the value of ID.
@@ -4574,7 +6797,7 @@ func (s *User) GetCreatedAt() time.Time {
 }
 
 // GetAttributes returns the value of Attributes.
-func (s *User) GetAttributes() OptUserAttributes {
+func (s *User) GetAttributes() OptAttributes {
 	return s.Attributes
 }
 
@@ -4614,7 +6837,7 @@ func (s *User) SetCreatedAt(val time.Time) {
 }
 
 // SetAttributes sets the value of Attributes.
-func (s *User) SetAttributes(val OptUserAttributes) {
+func (s *User) SetAttributes(val OptAttributes) {
 	s.Attributes = val
 }
 
@@ -4623,17 +6846,6 @@ func (*User) adminUpdateUserRes() {}
 func (*User) getSessionRes()      {}
 func (*User) loginRes()           {}
 func (*User) updateProfileRes()   {}
-
-type UserAttributes map[string]jx.Raw
-
-func (s *UserAttributes) init() UserAttributes {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
-}
 
 // Ref: #/components/schemas/UserInput
 type UserInput struct {

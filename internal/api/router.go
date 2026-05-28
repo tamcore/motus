@@ -67,11 +67,11 @@ func exemptLoginFromCSRF(next http.Handler) http.Handler {
 	})
 }
 
-// csrfTokenMiddleware injects the X-CSRF-Token response header on login so the
-// client can include it in subsequent state-changing requests.
+// csrfTokenMiddleware injects the X-CSRF-Token response header on any /api/session
+// request so clients can obtain the token both on login and from an existing session.
 func csrfTokenMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPost && r.URL.Path == "/api/session" {
+		if r.URL.Path == "/api/session" {
 			w.Header().Set("X-CSRF-Token", csrf.Token(r))
 		}
 		next.ServeHTTP(w, r)

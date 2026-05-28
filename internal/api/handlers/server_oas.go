@@ -2,10 +2,25 @@ package handlers
 
 import (
 	"context"
+	"net/http"
 
 	oas "github.com/tamcore/motus/internal/api/oas"
 	"github.com/tamcore/motus/internal/version"
 )
+
+// NewError maps a handler error to an HTTP error response.
+// Uses the error's Code() method when available (e.g. 401 for SecurityError, 400 for DecodeRequestError).
+func (h *Handler) NewError(_ context.Context, err error) *oas.UnexpectedErrorStatusCode {
+	code := http.StatusInternalServerError
+	type coder interface{ Code() int }
+	if c, ok := err.(coder); ok {
+		code = c.Code()
+	}
+	return &oas.UnexpectedErrorStatusCode{
+		StatusCode: code,
+		Response:   oas.Error{Error: err.Error()},
+	}
+}
 
 // GetHealth returns the service health status.
 // GET /api/health
@@ -29,7 +44,7 @@ func (h *Handler) GetServer(ctx context.Context) (*oas.ServerInfo, error) {
 		Zoom:           oas.OptInt{Value: 13, Set: true},
 		OpenIdEnabled:  oas.OptBool{Value: false, Set: true},
 		OpenIdForce:    oas.OptBool{Value: false, Set: true},
-		Attributes:     oas.OptServerInfoAttributes{Value: oas.ServerInfoAttributes{}, Set: true},
+		Attributes:     oas.OptAttributes{Value: oas.Attributes{}, Set: true},
 	}, nil
 }
 

@@ -122,6 +122,21 @@ export interface UpdateDevicePayload {
 // Position
 // ---------------------------------------------------------------------------
 
+/** Known protocol-emitted position attributes. Open for forward-compat. */
+export interface PositionAttributes {
+  motion?: boolean;
+  ignition?: boolean;
+  flags?: string;
+  alarm?: string;
+  mcc?: number;
+  mnc?: number;
+  lac?: number;
+  cellId?: number;
+  iccid?: string;
+  satellites?: number;
+  [key: string]: unknown;
+}
+
 /** A GPS position report from a device. */
 export interface Position {
   id: number;
@@ -139,10 +154,10 @@ export interface Position {
   course?: number | null;
   address?: string | null;
   accuracy?: number | null;
-  network?: Record<string, unknown>;
   geofenceIds?: number[];
   outdated: boolean;
-  attributes?: Record<string, unknown>;
+  attributes?: PositionAttributes;
+  network?: Record<string, unknown>;
 }
 
 // ---------------------------------------------------------------------------
@@ -222,6 +237,20 @@ export interface UpdateGeofencePayload {
 // Event
 // ---------------------------------------------------------------------------
 
+export interface EventAttrIgnition { type: "ignitionOn" | "ignitionOff"; ignition: boolean; }
+export interface EventAttrAlarm { type: "alarm"; alarm: string; }
+export interface EventAttrMotion { type: "motion"; speed: number; previousSpeed: number; }
+export interface EventAttrTrip { type: "tripCompleted"; distance: number; mileage: number; }
+export interface EventAttrIdle { type: "deviceIdle"; idleDuration: number; }
+export interface EventAttrEmpty { type: "geofenceEnter" | "geofenceExit"; }
+export type EventAttributes =
+  | EventAttrIgnition
+  | EventAttrAlarm
+  | EventAttrMotion
+  | EventAttrTrip
+  | EventAttrIdle
+  | EventAttrEmpty;
+
 /** A system event (geofence enter/exit, alarm, etc). */
 export interface Event {
   id: number;
@@ -231,7 +260,7 @@ export interface Event {
   positionId?: number | null;
   /** The event time. Mapped from Go field `Timestamp` with JSON tag `eventTime`. */
   eventTime: string;
-  attributes?: Record<string, unknown>;
+  attributes?: EventAttributes;
 }
 
 // ---------------------------------------------------------------------------
@@ -244,14 +273,25 @@ export type CommandType =
   | "positionPeriodic"
   | "positionSingle"
   | "sosNumber"
+  | "setSpeedAlarm"
   | "custom";
+
+export interface CommandAttrCustom { type: "custom"; text: string; }
+export interface CommandAttrPositionPeriodic { type: "positionPeriodic"; frequency: number; }
+export interface CommandAttrSosNumber { type: "sosNumber"; phoneNumber: string; }
+export interface CommandAttrSetSpeedAlarm { type: "setSpeedAlarm"; speed: number; }
+export type CommandAttributes =
+  | CommandAttrCustom
+  | CommandAttrPositionPeriodic
+  | CommandAttrSosNumber
+  | CommandAttrSetSpeedAlarm;
 
 /** A control command sent to a device. */
 export interface Command {
   id: number;
   deviceId: number;
   type: string;
-  attributes?: Record<string, unknown>;
+  attributes?: CommandAttributes;
   status: string;
   result?: string | null;
   createdAt: string;
@@ -262,7 +302,7 @@ export interface Command {
 export interface SendCommandPayload {
   deviceId: number;
   type: string;
-  attributes?: Record<string, unknown>;
+  attributes?: CommandAttributes;
 }
 
 // ---------------------------------------------------------------------------
@@ -284,8 +324,14 @@ export type NotificationEventType =
   | "speedLimit"
   | "ignitionOn"
   | "ignitionOff"
-  | "tripCompleted"
-  | "alarm";
+  | "tripCompleted";
+
+export interface NotificationConfigWebhook {
+  channel: "webhook";
+  webhookUrl: string;
+  headers?: Record<string, string>;
+}
+export type NotificationConfig = NotificationConfigWebhook;
 
 /** A notification rule defining when and how to send notifications. */
 export interface NotificationRule {
@@ -294,7 +340,7 @@ export interface NotificationRule {
   name: string;
   eventTypes: string[];
   channel: NotificationChannel;
-  config: Record<string, unknown>;
+  config: NotificationConfig;
   template: string;
   enabled: boolean;
   createdAt: string;
@@ -308,7 +354,7 @@ export interface CreateNotificationPayload {
   name: string;
   eventTypes: string[];
   channel: string;
-  config: Record<string, unknown>;
+  config: NotificationConfig;
   template?: string;
   enabled?: boolean;
 }
@@ -318,7 +364,7 @@ export interface UpdateNotificationPayload {
   name?: string;
   eventTypes?: string[];
   channel?: string;
-  config?: Record<string, unknown>;
+  config?: NotificationConfig;
   template?: string;
   enabled?: boolean;
 }

@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/go-faster/jx"
 	"github.com/tamcore/motus/internal/api"
 	oas "github.com/tamcore/motus/internal/api/oas"
 	"github.com/tamcore/motus/internal/audit"
@@ -251,14 +250,10 @@ func (h *CommandHandler) GetTypes(w http.ResponseWriter, r *http.Request) {
 
 // oasCommandInputToModel converts an oas.CommandInput to a model.Command.
 func oasCommandInputToModel(req *oas.CommandInput) *model.Command {
-	var attrs map[string]interface{}
-	if req.Attributes.Set {
-		attrs = rawToAttrs(map[string]jx.Raw(req.Attributes.Value))
-	}
 	return &model.Command{
 		DeviceID:   req.DeviceId,
 		Type:       req.Type,
-		Attributes: attrs,
+		Attributes: oasCommandAttrsToModel(req.Attributes),
 		Status:     model.CommandStatusPending,
 	}
 }
@@ -341,11 +336,7 @@ func (h *Handler) SendCommand(ctx context.Context, req *oas.SendCommandRequest) 
 		return &oas.SendCommandBadRequest{Error: "invalid command type"}, nil
 	}
 
-	// Convert attributes for custom command text check.
-	var attrs map[string]interface{}
-	if req.Attributes.Set {
-		attrs = rawToAttrs(map[string]jx.Raw(req.Attributes.Value))
-	}
+	attrs := oasCommandAttrsToModel(req.Attributes)
 
 	// Custom commands require a non-empty "text" attribute.
 	if req.Type == model.CommandCustom {

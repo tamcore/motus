@@ -389,6 +389,14 @@ func (s *Server) decodeCreateCommandRequest(r *http.Request) (
 			}
 			return req, rawBody, close, err
 		}
+		if err := func() error {
+			if err := request.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return req, rawBody, close, errors.Wrap(err, "validate")
+		}
 		return &request, rawBody, close, nil
 	default:
 		return req, rawBody, close, validate.InvalidContentType(ct)
@@ -920,6 +928,14 @@ func (s *Server) decodeSendCommandRequest(r *http.Request) (
 			}
 			return req, rawBody, close, err
 		}
+		if err := func() error {
+			if err := request.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return req, rawBody, close, errors.Wrap(err, "validate")
+		}
 		return &request, rawBody, close, nil
 	default:
 		return req, rawBody, close, validate.InvalidContentType(ct)
@@ -1077,7 +1093,7 @@ func (s *Server) decodeUpdateDeviceRequest(r *http.Request) (
 }
 
 func (s *Server) decodeUpdateGeofenceRequest(r *http.Request) (
-	req *GeofenceInput,
+	req *GeofenceUpdateInput,
 	rawBody []byte,
 	close func() error,
 	rerr error,
@@ -1124,7 +1140,7 @@ func (s *Server) decodeUpdateGeofenceRequest(r *http.Request) (
 		rawBody = append(rawBody, buf...)
 		d := jx.DecodeBytes(buf)
 
-		var request GeofenceInput
+		var request GeofenceUpdateInput
 		if err := func() error {
 			if err := request.Decode(d); err != nil {
 				return err

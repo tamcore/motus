@@ -20,7 +20,6 @@ import type {
   Session,
   SharedDeviceResponse,
   SudoStatusResponse,
-  TestNotificationResponse,
   TokenResponse,
   UpdateCalendarPayload,
   UpdateDevicePayload,
@@ -277,9 +276,9 @@ export const api = {
   deleteNotification: (id: number) =>
     request<void>(`/notifications/${id}`, { method: "DELETE" }),
 
-  /** Send a test notification for the given rule. */
+  /** Send a test notification for the given rule. Returns void (204 No Content). */
   testNotification: (id: number) =>
-    request<TestNotificationResponse>(`/notifications/${id}/test`, {
+    request<void>(`/notifications/${id}/test`, {
       method: "POST",
     }),
 

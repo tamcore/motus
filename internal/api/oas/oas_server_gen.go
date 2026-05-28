@@ -415,7 +415,7 @@ type Handler interface {
 	// Update a geofence.
 	//
 	// PUT /api/geofences/{id}
-	UpdateGeofence(ctx context.Context, req *GeofenceInput, params UpdateGeofenceParams) (UpdateGeofenceRes, error)
+	UpdateGeofence(ctx context.Context, req *GeofenceUpdateInput, params UpdateGeofenceParams) (UpdateGeofenceRes, error)
 	// UpdateNotification implements updateNotification operation.
 	//
 	// Update a notification rule.
@@ -428,6 +428,10 @@ type Handler interface {
 	//
 	// PUT /api/profile
 	UpdateProfile(ctx context.Context, req *UpdateProfileRequest) (UpdateProfileRes, error)
+	// NewError creates *UnexpectedErrorStatusCode from error returned by handler.
+	//
+	// Used for common default response.
+	NewError(ctx context.Context, err error) *UnexpectedErrorStatusCode
 }
 
 // Server implements http server based on OpenAPI v3 specification and

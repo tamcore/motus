@@ -501,8 +501,12 @@ func applyDeviceInputFields(d *model.Device, req *oas.DeviceInput) *model.Device
 	if v, ok := req.Protocol.Get(); ok {
 		clone.Protocol = v
 	}
-	if v, ok := req.CalendarId.Get(); ok {
-		clone.CalendarID = &v
+	if req.CalendarId.Set {
+		if v, ok := req.CalendarId.Get(); ok {
+			clone.CalendarID = &v
+		} else {
+			clone.CalendarID = nil
+		}
 	}
 	if v, ok := req.SpeedLimit.Get(); ok {
 		clone.SpeedLimit = &v

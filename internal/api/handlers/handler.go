@@ -31,6 +31,7 @@ type HandlerConfig struct {
 	OIDCStateRepo repository.OIDCStateRepo
 
 	NotificationService *services.NotificationService
+	GeofenceService     *services.GeofenceService
 	DeviceRegistry      *protocol.DeviceRegistry
 	EncoderRegistry     *protocol.EncoderRegistry
 	Hub                 *websocket.Hub

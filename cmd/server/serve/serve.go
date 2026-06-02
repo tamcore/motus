@@ -139,6 +139,9 @@ func Run() {
 	// Audit logger.
 	auditLogger := audit.NewLogger(pool)
 
+	// Geofence service (shared by OAS handler and AI MCP tools).
+	geofenceService := services.NewGeofenceService(geofenceRepo, auditLogger)
+
 	// Device registry (used by protocol servers below).
 	deviceRegistry := protocol.NewDeviceRegistry()
 
@@ -250,6 +253,7 @@ func Run() {
 		Stats:               statsRepo,
 		OIDCStateRepo:       oidcStateRepo,
 		NotificationService: notificationService,
+		GeofenceService:     geofenceService,
 		DeviceRegistry:      deviceRegistry,
 		EncoderRegistry:     protocol.NewEncoderRegistry(),
 		Hub:                 hub,

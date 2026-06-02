@@ -138,6 +138,36 @@ to identify demo devices for cleanup. The default IMEIs are exported as
 `demo.DefaultDeviceIMEIs`. If you change the demo IMEIs via `MOTUS_DEMO_DEVICE_IMEIS`,
 the reset logic must receive the matching values.
 
+### AI Chat Feature (`MOTUS_AI_*`)
+
+The AI chat feature exposes an in-process MCP tool registry (via `mark3labs/mcp-go`) invoked
+by a streaming chat orchestrator that speaks to any OpenAI-compatible Chat Completions endpoint.
+
+**Env vars** (all optional; required fields marked):
+
+| Variable | Default | Notes |
+|---|---|---|
+| `MOTUS_AI_ENABLED` | `false` | Set to `true` to enable `/api/chat` and the Chat nav link |
+| `MOTUS_AI_BASE_URL` | `https://api.openai.com/v1` | Any OpenAI-compatible endpoint |
+| `MOTUS_AI_API_KEY` | *(required when enabled)* | Prefer a Kubernetes Secret / `apiKeyRef` in production |
+| `MOTUS_AI_MODEL` | `gpt-4o-mini` | Model name understood by the target endpoint |
+| `MOTUS_AI_MAX_TOKENS` | `4096` | Max completion tokens per request |
+| `MOTUS_AI_TEMPERATURE` | `0.2` | Sampling temperature |
+| `MOTUS_AI_TIMEOUT` | `90s` | Total wall-clock timeout per `POST /api/chat` request |
+| `MOTUS_AI_MAX_TOOL_LOOPS` | `8` | Max tool-call iterations before the loop is cut off |
+| `MOTUS_AI_SYSTEM_PROMPT` | *(built-in)* | Override the default system prompt |
+
+**Architecture:**
+- `POST /api/chat` → `internal/ai/chat.Service.Stream` → `internal/ai/mcp` (MCP tool dispatch)
+- MCP tools read `api.UserFromContext(ctx)` and enforce `UserHasAccess` on every resource.
+- Readonly API keys can call `/api/chat` for read-only queries; write tools (`create_geofence`)
+  return an error for readonly keys.
+
+**Helm:** `ai.enabled: false` by default in `charts/motus/values.yaml`. Override in
+`charts/motus/values-dev.yaml` (gitignored). When `ai.enabled` is `true` and `ai.apiKey`
+is non-empty (and `ai.apiKeyRef.secretName` is empty), an `<fullname>-ai` Secret is created
+automatically by `templates/ai-secret.yaml`.
+
 ## Development
 
 ### Docker Compose (E2E / local dev)

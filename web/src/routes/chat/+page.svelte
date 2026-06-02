@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
 	import { chatMessages, chatLoading, chatError, sendMessage } from '$lib/stores/chat';
+	import MarkdownMessage from '$lib/components/MarkdownMessage.svelte';
 
 	let input = '';
 	let messagesEl: HTMLElement;
@@ -49,7 +50,7 @@
 							{/each}
 						{/if}
 						{#if msg.content}
-							<p class="assistant-text">{msg.content}</p>
+							<MarkdownMessage content={msg.content} />
 						{:else if !msg.toolCalls?.length}
 							<span class="typing">▋</span>
 						{/if}
@@ -111,22 +112,18 @@
 		max-width: 80%;
 		padding: 0.6rem 0.9rem;
 		border-radius: 12px;
-		white-space: pre-wrap;
 		word-break: break-word;
 	}
 
 	.user-bubble {
 		background: var(--color-primary, #2563eb);
 		color: #fff;
+		white-space: pre-wrap;
 	}
 
 	.assistant-bubble {
 		background: var(--color-surface-alt, #f3f4f6);
 		color: var(--color-text, #111);
-	}
-
-	.assistant-text {
-		margin: 0;
 	}
 
 	.typing {

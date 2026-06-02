@@ -85,11 +85,12 @@
 	.chat-page {
 		display: flex;
 		flex-direction: column;
-		height: calc(100vh - 64px);
+		height: calc(100vh - 65px);
 		max-width: 800px;
 		margin: 0 auto;
 		padding: 1rem;
 		gap: 0.75rem;
+		overflow: hidden;
 	}
 
 	.messages {

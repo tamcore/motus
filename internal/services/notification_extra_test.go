@@ -157,6 +157,7 @@ func TestNewNotificationService(t *testing.T) {
 	svc := NewNotificationService(notifRepo, deviceRepo, geoRepo, posRepo)
 	if svc == nil {
 		t.Fatal("expected non-nil service")
+		return
 	}
 	if svc.sender == nil {
 		t.Error("expected sender to be initialized")

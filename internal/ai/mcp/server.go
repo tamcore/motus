@@ -5,6 +5,7 @@ package mcp
 
 import (
 	"github.com/mark3labs/mcp-go/server"
+	"github.com/tamcore/motus/internal/audit"
 	"github.com/tamcore/motus/internal/geocoding"
 	"github.com/tamcore/motus/internal/services"
 	"github.com/tamcore/motus/internal/storage/repository"
@@ -17,6 +18,10 @@ type Deps struct {
 	Events          repository.EventRepo
 	Geofences       repository.GeofenceRepo
 	GeofenceService *services.GeofenceService
+	Calendars       repository.CalendarRepo
+	CalendarService *services.CalendarService
+	Notifications   repository.NotificationRepo
+	AuditLogger     *audit.Logger
 	ForwardGeocoder geocoding.ForwardGeocoder
 }
 

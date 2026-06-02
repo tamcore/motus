@@ -301,12 +301,17 @@ func Run() {
 	}
 	var chatHandler http.Handler
 	if cfg.AI.Enabled {
+		calendarService := services.NewCalendarService(calendarRepo, auditLogger)
 		mcpSrv := aiMCP.NewServer(aiMCP.Deps{
 			Devices:         deviceRepo,
 			Positions:       positionRepo,
 			Events:          eventRepo,
 			Geofences:       geofenceRepo,
 			GeofenceService: geofenceService,
+			Calendars:       calendarRepo,
+			CalendarService: calendarService,
+			Notifications:   notificationRepo,
+			AuditLogger:     auditLogger,
 			ForwardGeocoder: forwardGeocoder,
 		})
 		chatSvc := aiChat.NewService(aiChat.Config{

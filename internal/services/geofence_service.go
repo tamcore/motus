@@ -9,6 +9,64 @@ import (
 	"github.com/tamcore/motus/internal/storage/repository"
 )
 
+// UpdateGeofenceInput holds the fields that may be changed. nil pointer fields
+// mean "no change"; CalendarID uses CalendarIDSet as a tri-state flag.
+type UpdateGeofenceInput struct {
+	Name          *string // nil = keep existing
+	CalendarID    *int64  // new calendar ID (ignored unless CalendarIDSet)
+	CalendarIDSet bool    // true = apply CalendarID change (clear if nil)
+}
+
+// UpdateForUser applies a partial update to a geofence owned by user and
+// emits an audit entry on success.
+func (s *GeofenceService) UpdateForUser(ctx context.Context, user *model.User, geofenceID int64, in UpdateGeofenceInput) (*model.Geofence, error) {
+	if !s.repo.UserHasAccess(ctx, user, geofenceID) {
+		return nil, fmt.Errorf("access denied")
+	}
+	existing, err := s.repo.GetByID(ctx, geofenceID)
+	if err != nil || existing == nil {
+		return nil, fmt.Errorf("geofence not found")
+	}
+
+	updated := *existing
+	if in.Name != nil && *in.Name != "" {
+		if err := validateDisplayName(*in.Name); err != nil {
+			return nil, err
+		}
+		updated.Name = *in.Name
+	}
+	if in.CalendarIDSet {
+		updated.CalendarID = in.CalendarID
+	}
+
+	if err := s.repo.Update(ctx, &updated); err != nil {
+		return nil, fmt.Errorf("update geofence: %w", err)
+	}
+	if s.auditLogger != nil {
+		s.auditLogger.Log(ctx, &user.ID,
+			audit.ActionGeofenceUpdate, audit.ResourceGeofence, &updated.ID,
+			map[string]interface{}{"name": updated.Name}, "", "")
+	}
+	return &updated, nil
+}
+
+// DeleteForUser deletes a geofence owned by user and emits an audit entry.
+func (s *GeofenceService) DeleteForUser(ctx context.Context, user *model.User, geofenceID int64) error {
+	if !s.repo.UserHasAccess(ctx, user, geofenceID) {
+		return fmt.Errorf("access denied")
+	}
+	if err := s.repo.Delete(ctx, geofenceID); err != nil {
+		return fmt.Errorf("delete geofence: %w", err)
+	}
+	if s.auditLogger != nil {
+		id := geofenceID
+		s.auditLogger.Log(ctx, &user.ID,
+			audit.ActionGeofenceDelete, audit.ResourceGeofence, &id,
+			nil, "", "")
+	}
+	return nil
+}
+
 // GeofenceService bundles geofence creation with validation and audit logging
 // so the OAS handler and MCP tool share identical behaviour.
 type GeofenceService struct {

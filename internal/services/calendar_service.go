@@ -41,8 +41,9 @@ func (s *CalendarService) CreateForUser(ctx context.Context, user *model.User, i
 	}
 
 	c := &model.Calendar{
-		Name: in.Name,
-		Data: in.Data,
+		UserID: user.ID,
+		Name:   in.Name,
+		Data:   in.Data,
 	}
 	if err := s.repo.Create(ctx, c); err != nil {
 		return nil, fmt.Errorf("create calendar: %w", err)

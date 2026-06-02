@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/tamcore/motus/internal/model"
+	"github.com/tamcore/motus/internal/storage/repository"
 )
 
 // ignitionFromAttributes is tested indirectly through CheckIgnition; we also
@@ -106,6 +107,9 @@ func (r *ignitionMockEventRepo) GetByUser(_ context.Context, _ int64, _ int) ([]
 }
 func (r *ignitionMockEventRepo) GetByFilters(_ context.Context, _ int64, _ []int64, _ []string, _, _ time.Time) ([]*model.Event, error) {
 	return nil, nil
+}
+func (r *ignitionMockEventRepo) SumTripDistance(_ context.Context, _ []int64, _, _ time.Time) ([]repository.DeviceTripTotal, float64, error) {
+	return nil, 0, nil
 }
 
 func makeIgnitionPos(deviceID int64, ignition bool, ts time.Time) *model.Position {

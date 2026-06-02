@@ -31,8 +31,8 @@ import type {
   UserStats,
 } from "$lib/types/api";
 import { currentUser } from "$lib/stores/auth";
-import { getStoredAuthToken } from "$lib/auth-token-store";
 import * as svelteStore from "svelte/store";
+import { getCsrfToken, getAuthHeaders, setCsrfToken } from "./headers";
 
 const API_BASE = "/api";
 
@@ -45,34 +45,17 @@ export class APIError extends Error {
   }
 }
 
-// Store CSRF token in memory (set by server in X-CSRF-Token response header)
-let csrfToken: string | null = null;
-
 async function request<T>(
   endpoint: string,
   options: RequestInit = {},
 ): Promise<T> {
+  const method = (options.method || "GET").toUpperCase();
+  const authHeaders = await getAuthHeaders(method);
   const headers: HeadersInit = {
     "Content-Type": "application/json",
+    ...authHeaders,
     ...options.headers,
   };
-
-  // Include CSRF token for state-changing requests
-  const method = (options.method || "GET").toUpperCase();
-  if (csrfToken && ["POST", "PUT", "DELETE", "PATCH"].includes(method)) {
-    (headers as Record<string, string>)["X-CSRF-Token"] = csrfToken;
-  }
-
-  // localStorage + IndexedDB fallback for iOS WebKit / Firefox-iOS PWA
-  // contexts that evict the session cookie (and sometimes localStorage
-  // itself). getStoredAuthToken checks localStorage first and falls back
-  // to IndexedDB, re-hydrating localStorage from IDB when needed. This
-  // closes the cold-start race where route components fire requests
-  // before the layout's startup hydration completes.
-  const authToken = await getStoredAuthToken();
-  if (authToken) {
-    (headers as Record<string, string>)["X-Auth-Token"] = authToken;
-  }
 
   const response = await fetch(`${API_BASE}${endpoint}`, {
     ...options,
@@ -80,10 +63,9 @@ async function request<T>(
     headers,
   });
 
-  // Extract and store CSRF token from response
   const token = response.headers.get("X-CSRF-Token");
   if (token) {
-    csrfToken = token;
+    setCsrfToken(token);
   }
 
   if (!response.ok) {
@@ -159,8 +141,9 @@ export const api = {
     formData.append("file", file);
 
     const headers: Record<string, string> = {};
-    if (csrfToken) {
-      headers["X-CSRF-Token"] = csrfToken;
+    const csrfTokenValue = getCsrfToken();
+    if (csrfTokenValue) {
+      headers["X-CSRF-Token"] = csrfTokenValue;
     }
 
     const response = await fetch(`${API_BASE}/devices/${deviceId}/gpx`, {
@@ -171,7 +154,7 @@ export const api = {
     });
 
     const token = response.headers.get("X-CSRF-Token");
-    if (token) csrfToken = token;
+    if (token) setCsrfToken(token);
 
     if (!response.ok) {
       throw new APIError(response.status, await response.text());

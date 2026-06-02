@@ -62,3 +62,22 @@ func TestStatusRecorderExplicit(t *testing.T) {
 		t.Errorf("expected status 404, got %d", sr.statusCode)
 	}
 }
+
+func TestStatusRecorderUnwrap(t *testing.T) {
+	rec := httptest.NewRecorder()
+	sr := &statusRecorder{ResponseWriter: rec, statusCode: http.StatusOK}
+
+	if got := sr.Unwrap(); got != rec {
+		t.Errorf("Unwrap() = %v, want underlying recorder", got)
+	}
+}
+
+func TestStatusRecorderFlushViaController(t *testing.T) {
+	rec := httptest.NewRecorder()
+	sr := &statusRecorder{ResponseWriter: rec, statusCode: http.StatusOK}
+
+	rc := http.NewResponseController(sr)
+	if err := rc.Flush(); err != nil {
+		t.Errorf("Flush through ResponseController failed: %v", err)
+	}
+}

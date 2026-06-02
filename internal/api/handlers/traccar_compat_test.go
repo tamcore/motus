@@ -1506,6 +1506,7 @@ func TestTraccarCompat_Logout(t *testing.T) {
 	}
 	if clearedCookie == nil {
 		t.Fatal("logout response did not include session_id cookie")
+		return
 	}
 	if clearedCookie.Value != "" {
 		t.Errorf("expected empty cookie value, got %q", clearedCookie.Value)

@@ -208,6 +208,7 @@ func TestLogin_RememberMe(t *testing.T) {
 			}
 			if sessionCookie == nil {
 				t.Fatal("expected session_id cookie to be set")
+				return
 			}
 
 			expiresIn := time.Until(sessionCookie.Expires)

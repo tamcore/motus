@@ -28,6 +28,7 @@
 	let dropdownOpen = false;
 	let sudoBarActive = false;
 	let sudoBarHeight = 0;
+	let navBarHeight = 0;
 	let isNative = false;
 
 	$: isCurrentUserAdmin = $currentUser?.administrator === true;
@@ -167,8 +168,8 @@
 	<slot />
 {:else if $isAuthenticated && $page.url.pathname !== '/login'}
 	<SudoBar bind:sudoActive={sudoBarActive} bind:barHeight={sudoBarHeight} />
-	<div class="app-layout" style:--sudo-bar-height="{sudoBarActive ? sudoBarHeight : 0}px">
-		<nav class="navbar">
+	<div class="app-layout" style:--sudo-bar-height="{sudoBarActive ? sudoBarHeight : 0}px" style:--nav-height="{navBarHeight}px">
+		<nav class="navbar" bind:clientHeight={navBarHeight}>
 			<div class="nav-container">
 				<div class="nav-left">
 					<a href="/" class="logo">

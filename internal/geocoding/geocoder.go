@@ -10,6 +10,9 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
 	"time"
 
 	"golang.org/x/time/rate"
@@ -21,6 +24,11 @@ type Geocoder interface {
 	// On failure, implementations should return a coordinate-based fallback
 	// string rather than an error, to avoid blocking position processing.
 	ReverseGeocode(ctx context.Context, lat, lon float64) (string, error)
+}
+
+// ForwardGeocoder converts a free-text address query into coordinates.
+type ForwardGeocoder interface {
+	ForwardGeocode(ctx context.Context, query string) (lat, lon float64, displayName string, err error)
 }
 
 // NominatimConfig holds configuration for the Nominatim geocoder.
@@ -161,6 +169,63 @@ func (g *NominatimGeocoder) ReverseGeocode(ctx context.Context, lat, lon float64
 	}
 
 	return result.DisplayName, nil
+}
+
+// ForwardGeocode queries Nominatim /search for the given address string and
+// returns the top-ranked result's coordinates and display name.
+func (g *NominatimGeocoder) ForwardGeocode(ctx context.Context, query string) (lat, lon float64, displayName string, err error) {
+	if err := g.limiter.Wait(ctx); err != nil {
+		return 0, 0, "", fmt.Errorf("rate limit wait: %w", err)
+	}
+
+	// Derive the search base: replace trailing "/reverse" with "/search".
+	searchBase := strings.TrimSuffix(g.url, "/reverse")
+	reqURL := fmt.Sprintf("%s/search?q=%s&format=jsonv2&limit=1",
+		searchBase, url.QueryEscape(query))
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
+	if err != nil {
+		return 0, 0, "", fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("User-Agent", g.userAgent)
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := g.client.Do(req)
+	if err != nil {
+		return 0, 0, "", fmt.Errorf("http request: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		return 0, 0, "", fmt.Errorf("http status %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
+	if err != nil {
+		return 0, 0, "", fmt.Errorf("read response: %w", err)
+	}
+
+	var results []struct {
+		Lat         string `json:"lat"`
+		Lon         string `json:"lon"`
+		DisplayName string `json:"display_name"`
+	}
+	if err := json.Unmarshal(body, &results); err != nil {
+		return 0, 0, "", fmt.Errorf("unmarshal response: %w", err)
+	}
+	if len(results) == 0 {
+		return 0, 0, "", fmt.Errorf("no results for %q", query)
+	}
+
+	latF, err := strconv.ParseFloat(results[0].Lat, 64)
+	if err != nil {
+		return 0, 0, "", fmt.Errorf("parse lat: %w", err)
+	}
+	lonF, err := strconv.ParseFloat(results[0].Lon, 64)
+	if err != nil {
+		return 0, 0, "", fmt.Errorf("parse lon: %w", err)
+	}
+	return latF, lonF, results[0].DisplayName, nil
 }
 
 // coordinateFallback returns a human-readable coordinate string for use when

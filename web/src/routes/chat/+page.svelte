@@ -50,7 +50,7 @@
 							{/each}
 						{/if}
 						{#if msg.content}
-							<MarkdownMessage content={msg.content} />
+							<div class="assistant-text"><MarkdownMessage content={msg.content} /></div>
 						{:else if !msg.toolCalls?.length}
 							<span class="typing">▋</span>
 						{/if}

@@ -58,9 +58,15 @@ jobs:
         working-directory: ./web
         run: npm ci
 
-      - name: Install Playwright browsers
+      - name: Install Playwright OS dependencies
         working-directory: ./web
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install-deps chromium
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 3
+        working-directory: ./web
+        run: npx playwright install chromium
 
       - name: Run E2E tests
         if: matrix.mode == 'regular'

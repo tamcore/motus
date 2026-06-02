@@ -11,6 +11,15 @@ x-motus-env: &motus-env
   MOTUS_LOGIN_RATE_LIMIT: "1000"
   MOTUS_API_RATE_LIMIT: "10000"
   MOTUS_ENV: development
+  MOTUS_AI_ENABLED: "false"
+  MOTUS_AI_BASE_URL: "https://api.openai.com/v1"
+  MOTUS_AI_MODEL: "gpt-4o-mini"
+  MOTUS_AI_MAX_TOKENS: "4096"
+  MOTUS_AI_TEMPERATURE: "0.2"
+  MOTUS_AI_TIMEOUT: "90s"
+  MOTUS_AI_MAX_TOOL_LOOPS: "8"
+  MOTUS_AI_SYSTEM_PROMPT: ""
+  MOTUS_AI_API_KEY: ""
 
 x-motus-build: &motus-build
   build:

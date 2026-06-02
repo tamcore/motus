@@ -199,6 +199,39 @@ spec:
         - name: MOTUS_ENV
           value: {{ .Values.config.env | quote }}
         {{- end }}
+        {{- if .Values.ai.enabled }}
+        - name: MOTUS_AI_ENABLED
+          value: "true"
+        - name: MOTUS_AI_BASE_URL
+          value: {{ .Values.ai.baseUrl | quote }}
+        - name: MOTUS_AI_MODEL
+          value: {{ .Values.ai.model | quote }}
+        - name: MOTUS_AI_MAX_TOKENS
+          value: {{ .Values.ai.maxTokens | quote }}
+        - name: MOTUS_AI_TEMPERATURE
+          value: {{ .Values.ai.temperature | quote }}
+        - name: MOTUS_AI_TIMEOUT
+          value: {{ .Values.ai.timeout | quote }}
+        - name: MOTUS_AI_MAX_TOOL_LOOPS
+          value: {{ .Values.ai.maxToolLoops | quote }}
+        {{- if .Values.ai.systemPrompt }}
+        - name: MOTUS_AI_SYSTEM_PROMPT
+          value: {{ .Values.ai.systemPrompt | quote }}
+        {{- end }}
+        {{- if .Values.ai.apiKeyRef.secretName }}
+        - name: MOTUS_AI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.ai.apiKeyRef.secretName }}
+              key: {{ .Values.ai.apiKeyRef.secretKey }}
+        {{- else }}
+        - name: MOTUS_AI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "motus.fullname" . }}-ai
+              key: api-key
+        {{- end }}
+        {{- end }}
         livenessProbe:
           httpGet:
             path: /api/health

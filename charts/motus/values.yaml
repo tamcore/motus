@@ -194,3 +194,19 @@ security:
   # internal networks (e.g. ntfy.example.lan) without disabling SSRF
   # protection globally. Empty list keeps the strict default.
   webhookAllowedHosts: []
+
+# AI chat feature. All env vars are generic MOTUS_AI_* — no provider names in code.
+ai:
+  enabled: false
+  baseUrl: "https://api.openai.com/v1"
+  model: "gpt-4o-mini"
+  maxTokens: 4096
+  temperature: 0.2
+  timeout: "90s"
+  maxToolLoops: 8
+  systemPrompt: ""
+  # apiKey: plain value (dev only). Prefer apiKeyRef for production.
+  apiKey: ""
+  apiKeyRef:
+    secretName: ""
+    secretKey: "api-key"

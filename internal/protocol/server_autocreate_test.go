@@ -60,6 +60,7 @@ func TestDeviceAutoCreate_H02_Enabled_UnknownDevice(t *testing.T) {
 	// Position should be created successfully.
 	if pos == nil {
 		t.Fatal("expected non-nil position after auto-create")
+		return
 	}
 	if devID != unknownDeviceID {
 		t.Errorf("deviceID: got %q, want %q", devID, unknownDeviceID)
@@ -456,6 +457,7 @@ func TestDeviceAutoCreate_Watch_Enabled_UnknownDevice(t *testing.T) {
 
 	if pos == nil {
 		t.Fatal("expected non-nil position after auto-create")
+		return
 	}
 	if devID != unknownDeviceID {
 		t.Errorf("deviceID: got %q, want %q", devID, unknownDeviceID)

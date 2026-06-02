@@ -95,6 +95,7 @@ func TestContextHelpers(t *testing.T) {
 	got := api.UserFromContext(ctx)
 	if got == nil {
 		t.Fatal("expected non-nil user from context")
+		return
 	}
 	if got.ID != 42 {
 		t.Errorf("expected user ID 42, got %d", got.ID)
@@ -116,6 +117,7 @@ func TestApiKeyContextHelpers(t *testing.T) {
 	got := api.ApiKeyFromContext(ctx)
 	if got == nil {
 		t.Fatal("expected non-nil API key from context")
+		return
 	}
 	if got.ID != 7 {
 		t.Errorf("expected API key ID 7, got %d", got.ID)

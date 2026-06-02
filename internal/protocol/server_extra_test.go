@@ -15,6 +15,7 @@ func TestNewH02Server(t *testing.T) {
 	srv := NewH02Server("5013", nil, nil)
 	if srv == nil {
 		t.Fatal("expected non-nil server")
+		return
 	}
 	if srv.name != "h02" {
 		t.Errorf("expected name 'h02', got %q", srv.name)
@@ -31,6 +32,7 @@ func TestNewWatchServer(t *testing.T) {
 	srv := NewWatchServer("5093", nil, nil)
 	if srv == nil {
 		t.Fatal("expected non-nil server")
+		return
 	}
 	if srv.name != "watch" {
 		t.Errorf("expected name 'watch', got %q", srv.name)

@@ -664,6 +664,7 @@ func TestDecodeH02_NoCellTowerInfo(t *testing.T) {
 	}
 	if pos == nil {
 		t.Fatal("expected non-nil position")
+		return
 	}
 	// MCC should not be in attributes (no cell tower data).
 	if _, ok := pos.Attributes["mcc"]; ok {

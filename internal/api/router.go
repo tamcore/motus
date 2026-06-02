@@ -45,6 +45,9 @@ type RouterConfig struct {
 	WriteAccess func(http.Handler) http.Handler
 	// Logger logs HTTP requests.
 	Logger func(http.Handler) http.Handler
+	// Chat is the SSE handler for POST /api/chat. When non-nil the route is
+	// registered before the ogen /api/* catchall without WriteAccess wrapping.
+	Chat http.Handler
 }
 
 // injectResponseWriter stores w in the request context so ogen handlers can
@@ -124,10 +127,11 @@ func NewRouter(h oas.Handler, sec oas.SecurityHandler, hub *websocket.Hub, opts 
 	if cfg.SecurityHeaders != nil {
 		r.Use(cfg.SecurityHeaders)
 	}
-	// Skip metrics wrapping for WebSocket — it wraps ResponseWriter, breaking http.Hijacker.
+	// Skip metrics wrapping for WebSocket (breaks http.Hijacker) and chat SSE
+	// (long-lived stream; metrics would record misleading latencies).
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Path == "/api/socket" {
+			if r.URL.Path == "/api/socket" || r.URL.Path == "/api/chat" {
 				next.ServeHTTP(w, r)
 			} else {
 				metrics.HTTPMetrics(next).ServeHTTP(w, r)
@@ -143,6 +147,20 @@ func NewRouter(h oas.Handler, sec oas.SecurityHandler, hub *websocket.Hub, opts 
 
 	// WebSocket (auth handled internally by hub).
 	r.Get("/api/socket", hub.HandleConnect)
+
+	// Chat SSE: auth + rate-limit only (no WriteAccess — readonly enforcement is
+	// per-tool inside the MCP layer).
+	if cfg.Chat != nil {
+		chatHandler := cfg.Chat
+		if cfg.APIRateLimit != nil {
+			chatHandler = cfg.APIRateLimit(chatHandler)
+		}
+		if cfg.Auth != nil {
+			chatHandler = cfg.Auth(chatHandler)
+		}
+		chatHandler = injectResponseWriter(chatHandler)
+		r.Post("/api/chat", chatHandler.ServeHTTP)
+	}
 
 	// Build the ogen API handler with middleware applied. Execution order is
 	// outermost-first: injectResponseWriter runs first, oasServer runs last.

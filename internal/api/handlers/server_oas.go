@@ -45,6 +45,7 @@ func (h *Handler) GetServer(ctx context.Context) (*oas.ServerInfo, error) {
 		OpenIdEnabled:  oas.OptBool{Value: false, Set: true},
 		OpenIdForce:    oas.OptBool{Value: false, Set: true},
 		Attributes:     oas.OptAttributes{Value: oas.Attributes{}, Set: true},
+		AiEnabled:      oas.OptBool{Value: h.cfg.AIEnabled, Set: true},
 	}, nil
 }
 

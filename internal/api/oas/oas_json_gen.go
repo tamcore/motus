@@ -16374,9 +16374,15 @@ func (s *ServerInfo) encodeFields(e *jx.Encoder) {
 			s.Attributes.Encode(e)
 		}
 	}
+	{
+		if s.AiEnabled.Set {
+			e.FieldStart("aiEnabled")
+			s.AiEnabled.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfServerInfo = [13]string{
+var jsonFieldsNameOfServerInfo = [14]string{
 	0:  "id",
 	1:  "registration",
 	2:  "readonly",
@@ -16390,6 +16396,7 @@ var jsonFieldsNameOfServerInfo = [13]string{
 	10: "openIdEnabled",
 	11: "openIdForce",
 	12: "attributes",
+	13: "aiEnabled",
 }
 
 // Decode decodes ServerInfo from json.
@@ -16542,6 +16549,16 @@ func (s *ServerInfo) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"attributes\"")
+			}
+		case "aiEnabled":
+			if err := func() error {
+				s.AiEnabled.Reset()
+				if err := s.AiEnabled.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"aiEnabled\"")
 			}
 		default:
 			return d.Skip()

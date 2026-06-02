@@ -15,6 +15,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	redislib "github.com/redis/go-redis/v9"
+	aiChat "github.com/tamcore/motus/internal/ai/chat"
+	aiMCP "github.com/tamcore/motus/internal/ai/mcp"
 	"github.com/tamcore/motus/internal/api"
 	"github.com/tamcore/motus/internal/api/handlers"
 	"github.com/tamcore/motus/internal/api/middleware"
@@ -276,6 +278,53 @@ func Run() {
 		slog.Warn("Redis enabled but unavailable — login rate limit is per-pod only")
 	}
 
+	// Reverse geocoding (moved up so the AI block can reuse the nominatim instance).
+	var cachedGeocoder *geocoding.CachedGeocoder
+	var forwardGeocoder geocoding.ForwardGeocoder
+	if cfg.Geocoding.Enabled || cfg.AI.Enabled {
+		nominatim := geocoding.NewNominatimGeocoder(geocoding.NominatimConfig{
+			URL:       cfg.Geocoding.URL,
+			RateLimit: cfg.Geocoding.RateLimit,
+		})
+		if cfg.Geocoding.Enabled {
+			geocodeLogger := appLogger.With(slog.String("component", "geocoding"))
+			nominatim.SetLogger(geocodeLogger)
+			cachedGeocoder = geocoding.NewCachedGeocoder(nominatim, cfg.Geocoding.CacheTTL)
+			cachedGeocoder.SetLogger(geocodeLogger)
+			slog.Info("geocoding enabled",
+				slog.String("provider", cfg.Geocoding.Provider),
+				slog.String("cacheTTL", cfg.Geocoding.CacheTTL.String()),
+				slog.Float64("rateLimit", cfg.Geocoding.RateLimit),
+			)
+		}
+		forwardGeocoder = nominatim
+	}
+	var chatHandler http.Handler
+	if cfg.AI.Enabled {
+		mcpSrv := aiMCP.NewServer(aiMCP.Deps{
+			Devices:         deviceRepo,
+			Positions:       positionRepo,
+			Events:          eventRepo,
+			Geofences:       geofenceRepo,
+			GeofenceService: geofenceService,
+			ForwardGeocoder: forwardGeocoder,
+		})
+		chatSvc := aiChat.NewService(aiChat.Config{
+			BaseURL:      cfg.AI.BaseURL,
+			APIKey:       cfg.AI.APIKey,
+			Model:        cfg.AI.Model,
+			MaxTokens:    cfg.AI.MaxTokens,
+			Temperature:  cfg.AI.Temperature,
+			SystemPrompt: cfg.AI.SystemPrompt,
+			MaxLoops:     cfg.AI.MaxToolLoops,
+			Timeout:      cfg.AI.Timeout,
+			MCPServer:    mcpSrv,
+		})
+		chatHandler = handlers.NewChatHandler(chatSvc)
+		slog.Info("AI chat enabled", slog.String("model", cfg.AI.Model), slog.String("baseURL", cfg.AI.BaseURL))
+	}
+	handler.SetAIEnabled(cfg.AI.Enabled)
+
 	routerCfg := api.RouterConfig{
 		LoginRateLimit:  loginRateLimit,
 		APIRateLimit:    middleware.APIRateLimit(),
@@ -283,6 +332,7 @@ func Run() {
 		Auth:            middleware.LoadAuthContext(userRepo, sessionRepo, apiKeyRepo),
 		WriteAccess:     middleware.RequireWriteAccess,
 		Logger:          middleware.Logger,
+		Chat:            chatHandler,
 		CSRFProtect: middleware.CSRF(middleware.CSRFConfig{
 			Secret: csrfSecret,
 			Secure: csrfSecure,
@@ -310,26 +360,6 @@ func Run() {
 	// Alarm detection service (SOS, power cut, vibration, overspeed from H02 flags).
 	alarmService := services.NewAlarmService(eventRepo, hub, notificationService)
 	alarmService.SetLogger(svcLogger)
-
-	// Reverse geocoding service (optional, enabled by default).
-	var cachedGeocoder *geocoding.CachedGeocoder
-	if cfg.Geocoding.Enabled {
-		nominatim := geocoding.NewNominatimGeocoder(geocoding.NominatimConfig{
-			URL:       cfg.Geocoding.URL,
-			RateLimit: cfg.Geocoding.RateLimit,
-		})
-		geocodeLogger := appLogger.With(slog.String("component", "geocoding"))
-		nominatim.SetLogger(geocodeLogger)
-
-		cachedGeocoder = geocoding.NewCachedGeocoder(nominatim, cfg.Geocoding.CacheTTL)
-		cachedGeocoder.SetLogger(geocodeLogger)
-
-		slog.Info("geocoding enabled",
-			slog.String("provider", cfg.Geocoding.Provider),
-			slog.String("cacheTTL", cfg.Geocoding.CacheTTL.String()),
-			slog.Float64("rateLimit", cfg.Geocoding.RateLimit),
-		)
-	}
 
 	// Idle detection service.
 	idleService := services.NewIdleService(deviceRepo, positionRepo, eventRepo, hub, notificationService)

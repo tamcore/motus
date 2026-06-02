@@ -146,6 +146,22 @@ func (c *Config) Validate() error {
 		}
 	}
 
+	// AI validation (only when enabled).
+	if c.AI.Enabled {
+		if c.AI.BaseURL == "" {
+			errs = append(errs, "MOTUS_AI_BASE_URL must be set when AI is enabled")
+		}
+		if c.AI.APIKey == "" {
+			errs = append(errs, "MOTUS_AI_API_KEY must be set when AI is enabled")
+		}
+		if c.AI.MaxToolLoops <= 0 {
+			errs = append(errs, "MOTUS_AI_MAX_TOOL_LOOPS must be > 0")
+		}
+		if c.AI.Timeout <= 0 {
+			errs = append(errs, "MOTUS_AI_TIMEOUT must be > 0")
+		}
+	}
+
 	if len(errs) > 0 {
 		return fmt.Errorf("configuration validation failed:\n  - %s", strings.Join(errs, "\n  - "))
 	}

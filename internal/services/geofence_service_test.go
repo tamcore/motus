@@ -55,7 +55,7 @@ func TestGeofenceService_UpdateForUser_AttachCalendar(t *testing.T) {
 	ctx := context.Background()
 	user, g := createTestUserAndGeofence(t, ctx, svc, userRepo, "geo-attach@example.com")
 
-	cal := &model.Calendar{Name: "Cal", Data: testIcal}
+	cal := &model.Calendar{UserID: user.ID, Name: "Cal", Data: testIcal}
 	if err := calRepo.Create(ctx, cal); err != nil {
 		t.Fatalf("create calendar: %v", err)
 	}
@@ -74,7 +74,7 @@ func TestGeofenceService_UpdateForUser_DetachCalendar(t *testing.T) {
 	ctx := context.Background()
 	user, g := createTestUserAndGeofence(t, ctx, svc, userRepo, "geo-detach@example.com")
 
-	cal := &model.Calendar{Name: "Cal2", Data: testIcal}
+	cal := &model.Calendar{UserID: user.ID, Name: "Cal2", Data: testIcal}
 	_ = calRepo.Create(ctx, cal)
 	_, _ = svc.UpdateForUser(ctx, user, g.ID, UpdateGeofenceInput{CalendarID: &cal.ID, CalendarIDSet: true})
 

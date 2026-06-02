@@ -578,3 +578,45 @@ export interface WebSocketMessage {
   positions?: Position[];
   events?: Event[];
 }
+
+// ---------------------------------------------------------------------------
+// Server Info
+// ---------------------------------------------------------------------------
+
+export interface ServerInfo {
+  id: number;
+  registration: boolean;
+  readonly: boolean;
+  deviceReadonly: boolean;
+  limitCommands: boolean;
+  version: string;
+  map?: string;
+  latitude?: number;
+  longitude?: number;
+  zoom?: number;
+  openIdEnabled?: boolean;
+  openIdForce?: boolean;
+  aiEnabled?: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// AI Chat
+// ---------------------------------------------------------------------------
+
+export type ChatMessage =
+  | { role: "user"; content: string }
+  | { role: "assistant"; content: string; toolCalls?: ChatToolCall[] }
+  | { role: "tool"; toolCallId: string; name: string; content: string };
+
+export interface ChatToolCall {
+  id: string;
+  name: string;
+  arguments: unknown;
+}
+
+export type ChatEvent =
+  | { type: "token"; delta: string }
+  | { type: "tool_call"; id: string; name: string; arguments?: unknown }
+  | { type: "tool_result"; id: string; name: string; result?: unknown; error?: string }
+  | { type: "done" }
+  | { type: "error"; message: string };

@@ -88,26 +88,41 @@ func (s *Service) buildTools() []openai.ChatCompletionToolParam {
 	return tools
 }
 
+// HistoryHandle provides a conversation's message history and persists new
+// turns. Implementations may be backed by Redis or held in memory only.
+type HistoryHandle interface {
+	// Messages returns the current conversation messages (excluding system prompt).
+	Messages() []Message
+	// Append persists one or more new messages. Errors are non-fatal — the
+	// implementation must update its in-memory view regardless.
+	Append(ctx context.Context, msgs ...Message) error
+}
+
 // Stream runs the chat loop, sending SSE events to sink until the model
 // produces a final response or an error occurs.
-func (s *Service) Stream(ctx context.Context, msgs []Message, sink EventSink) error {
+func (s *Service) Stream(ctx context.Context, hist HistoryHandle, sink EventSink) error {
 	ctx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
 
-	history := s.buildHistory(msgs)
+	history := s.buildHistory(hist.Messages())
 
 	for loop := 0; loop < s.maxLoops; loop++ {
-		pendingCalls, err := s.streamOnce(ctx, history, sink)
+		pendingCalls, text, err := s.streamOnce(ctx, history, sink)
 		if err != nil {
 			_ = sink.Send(ChatEvent{Type: "error", Message: err.Error()})
 			_ = sink.Flush()
 			break
 		}
 		if len(pendingCalls) == 0 {
+			// Final text response — persist it.
+			if text != "" {
+				_ = hist.Append(ctx, Message{Role: "assistant", Content: text})
+			}
 			break
 		}
 
-		// Append the assistant turn (with tool_calls) and dispatch each call.
+		// Persist the assistant turn (tool_calls only; text is display-only here).
+		_ = hist.Append(ctx, Message{Role: "assistant", ToolCalls: pendingCalls})
 		history = append(history, assistantMessageWithCalls(pendingCalls))
 
 		for _, tc := range pendingCalls {
@@ -116,14 +131,17 @@ func (s *Service) Stream(ctx context.Context, msgs []Message, sink EventSink) er
 
 			result, toolErr := s.dispatchTool(ctx, tc.Name, tc.Arguments)
 			if toolErr != nil {
+				errJSON := fmt.Sprintf(`{"error":%q}`, toolErr.Error())
 				_ = sink.Send(ChatEvent{Type: "tool_result", ID: tc.ID, Name: tc.Name, Error: toolErr.Error()})
 				_ = sink.Flush()
-				history = append(history, openai.ToolMessage(fmt.Sprintf(`{"error":%q}`, toolErr.Error()), tc.ID))
+				_ = hist.Append(ctx, Message{Role: "tool", Content: errJSON, ToolCallID: tc.ID})
+				history = append(history, openai.ToolMessage(errJSON, tc.ID))
 				continue
 			}
 
 			_ = sink.Send(ChatEvent{Type: "tool_result", ID: tc.ID, Name: tc.Name, Result: json.RawMessage(result)})
 			_ = sink.Flush()
+			_ = hist.Append(ctx, Message{Role: "tool", Content: result, ToolCallID: tc.ID})
 			history = append(history, openai.ToolMessage(result, tc.ID))
 		}
 	}
@@ -133,8 +151,9 @@ func (s *Service) Stream(ctx context.Context, msgs []Message, sink EventSink) er
 }
 
 // streamOnce performs a single streaming request, returning accumulated tool
-// calls when the finish reason is "tool_calls".
-func (s *Service) streamOnce(ctx context.Context, history []openai.ChatCompletionMessageParamUnion, sink EventSink) ([]ToolCall, error) {
+// calls and the assistant's text content. When finish reason is not
+// "tool_calls", pendingCalls is nil and text holds the full response.
+func (s *Service) streamOnce(ctx context.Context, history []openai.ChatCompletionMessageParamUnion, sink EventSink) ([]ToolCall, string, error) {
 	params := openai.ChatCompletionNewParams{
 		Model:       s.model,
 		Messages:    history,
@@ -153,6 +172,7 @@ func (s *Service) streamOnce(ctx context.Context, history []openai.ChatCompletio
 	}
 	callBufs := map[int64]*callBuf{}
 	finishReason := ""
+	var textBuf strings.Builder
 
 	for stream.Next() {
 		chunk := stream.Current()
@@ -163,6 +183,7 @@ func (s *Service) streamOnce(ctx context.Context, history []openai.ChatCompletio
 		finishReason = choice.FinishReason
 
 		if choice.Delta.Content != "" {
+			textBuf.WriteString(choice.Delta.Content)
 			_ = sink.Send(ChatEvent{Type: "token", Delta: choice.Delta.Content})
 			_ = sink.Flush()
 		}
@@ -185,13 +206,13 @@ func (s *Service) streamOnce(ctx context.Context, history []openai.ChatCompletio
 
 	if err := stream.Err(); err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
-			return nil, fmt.Errorf("request timed out")
+			return nil, "", fmt.Errorf("request timed out")
 		}
-		return nil, fmt.Errorf("stream error: %w", err)
+		return nil, "", fmt.Errorf("stream error: %w", err)
 	}
 
 	if finishReason != "tool_calls" {
-		return nil, nil
+		return nil, textBuf.String(), nil
 	}
 
 	calls := make([]ToolCall, 0, len(callBufs))
@@ -202,7 +223,7 @@ func (s *Service) streamOnce(ctx context.Context, history []openai.ChatCompletio
 		}
 		calls = append(calls, ToolCall{ID: buf.id, Name: buf.name, Arguments: buf.args.String()})
 	}
-	return calls, nil
+	return calls, textBuf.String(), nil
 }
 
 // dispatchTool invokes an MCP tool by name and returns the JSON result string.
@@ -272,7 +293,11 @@ func (s *Service) buildHistory(msgs []Message) []openai.ChatCompletionMessagePar
 		case "user":
 			history = append(history, openai.UserMessage(m.Content))
 		case "assistant":
-			history = append(history, openai.AssistantMessage(m.Content))
+			if len(m.ToolCalls) > 0 {
+				history = append(history, assistantMessageWithCalls(m.ToolCalls))
+			} else {
+				history = append(history, openai.AssistantMessage(m.Content))
+			}
 		case "tool":
 			history = append(history, openai.ToolMessage(m.Content, m.ToolCallID))
 		}

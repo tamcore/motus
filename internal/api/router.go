@@ -48,6 +48,9 @@ type RouterConfig struct {
 	// Chat is the SSE handler for POST /api/chat. When non-nil the route is
 	// registered before the ogen /api/* catchall without WriteAccess wrapping.
 	Chat http.Handler
+	// ChatHistory is the handler for GET/DELETE /api/chat/history.
+	// When non-nil the routes are registered with the same auth wrapping as Chat.
+	ChatHistory http.Handler
 }
 
 // injectResponseWriter stores w in the request context so ogen handlers can
@@ -131,7 +134,7 @@ func NewRouter(h oas.Handler, sec oas.SecurityHandler, hub *websocket.Hub, opts 
 	// (long-lived stream; metrics would record misleading latencies).
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Path == "/api/socket" || r.URL.Path == "/api/chat" {
+			if r.URL.Path == "/api/socket" || r.URL.Path == "/api/chat" || r.URL.Path == "/api/chat/history" {
 				next.ServeHTTP(w, r)
 			} else {
 				metrics.HTTPMetrics(next).ServeHTTP(w, r)
@@ -160,6 +163,17 @@ func NewRouter(h oas.Handler, sec oas.SecurityHandler, hub *websocket.Hub, opts 
 		}
 		chatHandler = injectResponseWriter(chatHandler)
 		r.Post("/api/chat", chatHandler.ServeHTTP)
+	}
+
+	// Chat history: auth only (no rate-limit — reads/deletes are lightweight).
+	if cfg.ChatHistory != nil {
+		histHandler := cfg.ChatHistory
+		if cfg.Auth != nil {
+			histHandler = cfg.Auth(histHandler)
+		}
+		histHandler = injectResponseWriter(histHandler)
+		r.Get("/api/chat/history", histHandler.ServeHTTP)
+		r.Delete("/api/chat/history", histHandler.ServeHTTP)
 	}
 
 	// Build the ogen API handler with middleware applied. Execution order is

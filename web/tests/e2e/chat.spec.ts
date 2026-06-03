@@ -2,7 +2,8 @@ import { test, expect } from '../fixtures/auth-fixture';
 
 test.describe('Chat page', () => {
   test.beforeEach(async ({ authedPage }) => {
-    // Mock /api/server to enable AI and /api/chat with a canned SSE response.
+    // Mock /api/server to enable AI, /api/chat with a canned SSE response,
+    // and /api/chat/history with empty history (for the onMount fetch).
     await authedPage.addInitScript(() => {
       const origFetch = window.fetch;
       window.fetch = async function (input: RequestInfo | URL, init?: RequestInit) {
@@ -24,6 +25,16 @@ test.describe('Chat page', () => {
               version: 'test',
               aiEnabled: true,
             }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          );
+        }
+
+        if (url.includes('/api/chat/history')) {
+          if ((init?.method ?? 'GET') === 'DELETE') {
+            return new Response(null, { status: 204 });
+          }
+          return new Response(
+            JSON.stringify({ messages: [] }),
             { status: 200, headers: { 'Content-Type': 'application/json' } },
           );
         }
@@ -77,5 +88,57 @@ test.describe('Chat page', () => {
     await expect(authedPage.locator('.assistant-text')).toContainText('answer is 42', {
       timeout: 10000,
     });
+  });
+
+  test('shows loaded history on mount', async ({ authedPage }) => {
+    // Override the history GET mock to return a prior conversation.
+    await authedPage.addInitScript(() => {
+      const origFetch = window.fetch;
+      window.fetch = async function (input: RequestInfo | URL, init?: RequestInit) {
+        const url =
+          typeof input === 'string'
+            ? input
+            : input instanceof URL
+              ? input.href
+              : input.url;
+        if (url.includes('/api/chat/history') && (init?.method ?? 'GET') === 'GET') {
+          return new Response(
+            JSON.stringify({
+              messages: [
+                { role: 'user', content: 'Hello from history' },
+                { role: 'assistant', content: 'Hi there!' },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          );
+        }
+        return origFetch.apply(globalThis, [input, init] as Parameters<typeof fetch>);
+      } as typeof fetch;
+    });
+
+    await authedPage.goto('/chat');
+    await expect(authedPage.locator('.user-bubble').first()).toContainText('Hello from history', {
+      timeout: 5000,
+    });
+    await expect(authedPage.locator('.assistant-text').first()).toContainText('Hi there!', {
+      timeout: 5000,
+    });
+  });
+
+  test('"New conversation" button clears messages', async ({ authedPage }) => {
+    await authedPage.goto('/chat');
+    const textarea = authedPage.locator('textarea');
+    await textarea.waitFor({ state: 'visible', timeout: 10000 });
+
+    // Send a message so there is something to clear.
+    await textarea.fill('Test message');
+    await authedPage.keyboard.press('Enter');
+    await expect(authedPage.locator('.user-bubble').first()).toContainText('Test message', {
+      timeout: 5000,
+    });
+
+    // Click "New conversation" — clears messages.
+    await authedPage.locator('button.new-chat-btn').click();
+    await expect(authedPage.locator('.user-bubble')).toHaveCount(0, { timeout: 3000 });
   });
 });

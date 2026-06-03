@@ -1,5 +1,5 @@
 import { writable } from "svelte/store";
-import { streamChat } from "$lib/api/chat";
+import { streamChat, clearHistory } from "$lib/api/chat";
 
 export interface DisplayMessage {
   role: "user" | "assistant";
@@ -32,17 +32,8 @@ export async function sendMessage(userText: string): Promise<void> {
   });
 
   try {
-    // Build wire history from messages before the blank assistant placeholder.
-    const history = await new Promise<DisplayMessage[]>((resolve) => {
-      chatMessages.subscribe((msgs) => resolve(msgs.slice(0, assistantIdx)))();
-    });
-
-    const wire = history.map((m) => ({
-      role: m.role as "user" | "assistant",
-      content: m.content,
-    }));
-
-    const stream = streamChat(wire, abortController.signal);
+    // Send only the new user message — server reconstructs history from Redis.
+    const stream = streamChat(userText, abortController.signal);
 
     for await (const event of stream) {
       if (event.type === "token") {
@@ -87,4 +78,10 @@ export async function sendMessage(userText: string): Promise<void> {
     chatLoading.set(false);
     abortController = null;
   }
+}
+
+export async function newConversation(): Promise<void> {
+  await clearHistory();
+  chatMessages.set([]);
+  chatError.set(null);
 }

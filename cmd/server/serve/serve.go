@@ -16,6 +16,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	redislib "github.com/redis/go-redis/v9"
 	aiChat "github.com/tamcore/motus/internal/ai/chat"
+	"github.com/tamcore/motus/internal/ai/chathistory"
 	aiMCP "github.com/tamcore/motus/internal/ai/mcp"
 	"github.com/tamcore/motus/internal/api"
 	"github.com/tamcore/motus/internal/api/handlers"
@@ -300,6 +301,7 @@ func Run() {
 		forwardGeocoder = nominatim
 	}
 	var chatHandler http.Handler
+	var chatHistoryHandler http.Handler
 	if cfg.AI.Enabled {
 		calendarService := services.NewCalendarService(calendarRepo, auditLogger)
 		mcpSrv := aiMCP.NewServer(aiMCP.Deps{
@@ -325,7 +327,13 @@ func Run() {
 			Timeout:      cfg.AI.Timeout,
 			MCPServer:    mcpSrv,
 		})
-		chatHandler = handlers.NewChatHandler(chatSvc)
+		var histStore *chathistory.Store
+		if redisClient != nil {
+			histStore = chathistory.NewStore(redisClient, 24*time.Hour)
+			slog.Info("Chat history persistence enabled (Redis, 24h TTL)")
+		}
+		chatHandler = handlers.NewChatHandler(chatSvc, histStore)
+		chatHistoryHandler = handlers.NewChatHistoryHandler(histStore)
 		slog.Info("AI chat enabled", slog.String("model", cfg.AI.Model), slog.String("baseURL", cfg.AI.BaseURL))
 	}
 	handler.SetAIEnabled(cfg.AI.Enabled)
@@ -338,6 +346,7 @@ func Run() {
 		WriteAccess:     middleware.RequireWriteAccess,
 		Logger:          middleware.Logger,
 		Chat:            chatHandler,
+		ChatHistory:     chatHistoryHandler,
 		CSRFProtect: middleware.CSRF(middleware.CSRFConfig{
 			Secret: csrfSecret,
 			Secure: csrfSecure,

@@ -1,6 +1,8 @@
 <script lang="ts">
-	import { onDestroy } from 'svelte';
-	import { chatMessages, chatLoading, chatError, sendMessage } from '$lib/stores/chat';
+	import { onMount, onDestroy } from 'svelte';
+	import { chatMessages, chatLoading, chatError, sendMessage, newConversation } from '$lib/stores/chat';
+	import { fetchHistory } from '$lib/api/chat';
+	import type { ChatMessage } from '$lib/types/api';
 	import MarkdownMessage from '$lib/components/MarkdownMessage.svelte';
 
 	let input = '';
@@ -9,6 +11,31 @@
 	$: if ($chatMessages) {
 		setTimeout(() => messagesEl?.scrollTo({ top: messagesEl.scrollHeight, behavior: 'smooth' }), 50);
 	}
+
+	onMount(async () => {
+		const history = await fetchHistory();
+		if (history.length > 0) {
+			chatMessages.set(history.map((m: ChatMessage) => {
+				if (m.role === 'user') {
+					return { role: 'user' as const, content: m.content };
+				}
+				if (m.role === 'assistant') {
+					return {
+						role: 'assistant' as const,
+						content: m.content,
+						toolCalls: m.toolCalls?.map((tc) => ({
+							id: tc.id,
+							name: tc.name,
+							result: undefined,
+							error: undefined,
+						})),
+					};
+				}
+				// tool messages are not rendered directly
+				return null;
+			}).filter(Boolean) as typeof $chatMessages);
+		}
+	});
 
 	async function submit() {
 		const text = input.trim();
@@ -28,6 +55,13 @@
 </script>
 
 <div class="chat-page">
+	<div class="chat-header">
+		<span class="chat-title">Chat</span>
+		<button class="new-chat-btn" on:click={newConversation} disabled={$chatLoading}>
+			New conversation
+		</button>
+	</div>
+
 	<div class="messages" bind:this={messagesEl}>
 		{#each $chatMessages as msg, i (i)}
 			<div class="message {msg.role}">
@@ -91,6 +125,39 @@
 		padding: 1rem;
 		gap: 0.75rem;
 		overflow: hidden;
+	}
+
+	.chat-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.chat-title {
+		font-weight: var(--font-semibold, 600);
+		font-size: var(--text-lg, 1.125rem);
+		color: var(--text-primary);
+	}
+
+	.new-chat-btn {
+		padding: 0.35rem 0.85rem;
+		border: 1px solid var(--color-border, #d1d5db);
+		border-radius: 6px;
+		background: none;
+		cursor: pointer;
+		font-size: 0.85rem;
+		color: var(--text-secondary);
+		transition: all 0.15s;
+	}
+
+	.new-chat-btn:hover:not(:disabled) {
+		background: var(--bg-hover);
+		color: var(--text-primary);
+	}
+
+	.new-chat-btn:disabled {
+		opacity: 0.4;
+		cursor: not-allowed;
 	}
 
 	.messages {

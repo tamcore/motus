@@ -242,6 +242,51 @@ func TestGeofenceHandler_Update_Success(t *testing.T) {
 	}
 }
 
+// testPolygonEastGeoJSON is disjoint from testPolygonGeoJSON.
+const testPolygonEastGeoJSON = `{"type":"Polygon","coordinates":[[[13.60,52.55],[13.60,52.57],[13.65,52.57],[13.65,52.55],[13.60,52.55]]]}`
+
+func TestGeofenceHandler_Update_GeometryAndArea(t *testing.T) {
+	h, geoRepo, user := setupGeofenceHandler(t)
+	ctx := context.Background()
+
+	// Create with original polygon.
+	g := &model.Geofence{Name: "Shape Test", Geometry: testPolygonGeoJSON}
+	_ = geoRepo.Create(ctx, g)
+	_ = geoRepo.AssociateUser(ctx, user.ID, g.ID)
+
+	// Verify original point is contained.
+	insideOrig, _ := geoRepo.CheckContainment(ctx, user.ID, 52.52, 13.37)
+	if len(insideOrig) == 0 {
+		t.Fatal("expected (52.52, 13.37) inside original polygon")
+	}
+
+	// Update to east polygon via geometry field.
+	body := fmt.Sprintf(`{"name":"Shape Test","geometry":%q}`, testPolygonEastGeoJSON)
+	req := httptest.NewRequest(http.MethodPut, fmt.Sprintf("/api/geofences/%d", g.ID), bytes.NewReader([]byte(body)))
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", fmt.Sprintf("%d", g.ID))
+	req = req.WithContext(context.WithValue(api.ContextWithUser(req.Context(), user), chi.RouteCtxKey, rctx))
+
+	rr := httptest.NewRecorder()
+	h.Update(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d; body: %s", rr.Code, rr.Body.String())
+	}
+
+	// Old point must now be outside.
+	nowOutside, _ := geoRepo.CheckContainment(ctx, user.ID, 52.52, 13.37)
+	if len(nowOutside) > 0 {
+		t.Error("expected (52.52, 13.37) outside after geometry update")
+	}
+
+	// New point (inside east polygon) must now be contained.
+	nowInside, _ := geoRepo.CheckContainment(ctx, user.ID, 52.56, 13.62)
+	if len(nowInside) == 0 || nowInside[0] != g.ID {
+		t.Error("expected (52.56, 13.62) inside updated polygon")
+	}
+}
+
 func TestGeofenceHandler_Delete_Success(t *testing.T) {
 	h, geoRepo, user := setupGeofenceHandler(t)
 	ctx := context.Background()

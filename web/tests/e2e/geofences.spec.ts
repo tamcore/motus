@@ -93,6 +93,80 @@ test.describe('Geofence API — partial update and calendarId', () => {
     expect(body.calendarId).toBeNull();
     await ctx.close();
   });
+
+  test('update with geometry GeoJSON should replace the geofence shape', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: '.auth/user.json' });
+    const page = await ctx.newPage();
+    const csrf = await getCSRF(page.request);
+    const newGeometry = JSON.stringify({
+      type: 'Polygon',
+      coordinates: [[[13.6, 52.55], [13.6, 52.57], [13.65, 52.57], [13.65, 52.55], [13.6, 52.55]]],
+    });
+    const res = await page.request.put(`/api/geofences/${geofenceId}`, {
+      headers: { 'X-CSRF-Token': csrf },
+      data: { geometry: newGeometry },
+    });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body.geometry).toBeTruthy();
+    await ctx.close();
+  });
+});
+
+authTest.describe('Geofence shape editing', () => {
+  let geofenceId: number;
+
+  authTest.beforeAll(async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: '.auth/user.json' });
+    const page = await ctx.newPage();
+    const csrf = await getCSRF(page.request);
+    const geoRes = await page.request.post('/api/geofences', {
+      headers: { 'X-CSRF-Token': csrf },
+      data: {
+        name: 'PW Shape Edit Fence',
+        area: 'POLYGON((11.57 48.12,11.6 48.12,11.6 48.15,11.57 48.15,11.57 48.12))',
+      },
+    });
+    expect(geoRes.status()).toBe(201);
+    geofenceId = (await geoRes.json()).id;
+    await ctx.close();
+  });
+
+  authTest.afterAll(async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: '.auth/user.json' });
+    const page = await ctx.newPage();
+    const csrf = await getCSRF(page.request);
+    await page.request.delete(`/api/geofences/${geofenceId}`, {
+      headers: { 'X-CSRF-Token': csrf },
+    });
+    await ctx.close();
+  });
+
+  authTest('should show Edit shape on map button in edit modal', async ({ authedPage }) => {
+    await authedPage.goto('/geofences');
+    await authedPage.waitForSelector('.fence-item', { timeout: 10000 });
+
+    const fenceItem = authedPage.locator('.fence-item', { hasText: 'PW Shape Edit Fence' });
+    await fenceItem.locator('.btn-edit').click();
+
+    await expect(authedPage.locator('.modal')).toBeVisible();
+    await expect(authedPage.locator('button', { hasText: 'Edit shape on map' })).toBeVisible();
+  });
+
+  authTest('Cancel from shape edit bar should restore modal', async ({ authedPage }) => {
+    await authedPage.goto('/geofences');
+    await authedPage.waitForSelector('.fence-item', { timeout: 10000 });
+
+    const fenceItem = authedPage.locator('.fence-item', { hasText: 'PW Shape Edit Fence' });
+    await fenceItem.locator('.btn-edit').click();
+    await authedPage.locator('button', { hasText: 'Edit shape on map' }).click();
+
+    await expect(authedPage.locator('.shape-edit-bar')).toBeVisible();
+    await expect(authedPage.locator('.modal')).toHaveCount(0);
+
+    await authedPage.locator('.shape-edit-bar button', { hasText: 'Cancel' }).click();
+    await expect(authedPage.locator('.shape-edit-bar')).toHaveCount(0);
+  });
 });
 
 authTest.describe('Geofences Page', () => {

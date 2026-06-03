@@ -13,6 +13,9 @@ import (
 // GeoJSON polygon around central Berlin (roughly Tiergarten area).
 const berlinPolygonGeoJSON = `{"type":"Polygon","coordinates":[[[13.35,52.51],[13.35,52.53],[13.40,52.53],[13.40,52.51],[13.35,52.51]]]}`
 
+// GeoJSON polygon in a different area (east Berlin outskirts) — used to verify geometry replacement.
+const berlinEastPolygonGeoJSON = `{"type":"Polygon","coordinates":[[[13.60,52.55],[13.60,52.57],[13.65,52.57],[13.65,52.55],[13.60,52.55]]]}`
+
 func TestGeofenceRepository_Create(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
@@ -244,6 +247,61 @@ func TestGeofenceRepository_UserHasAccess(t *testing.T) {
 	// After association.
 	if !geoRepo.UserHasAccess(ctx, &model.User{ID: user.ID}, g.ID) {
 		t.Error("expected access after association")
+	}
+}
+
+func TestGeofenceRepository_Update_Geometry(t *testing.T) {
+	pool := testutil.SetupTestDB(t)
+	testutil.CleanTables(t, pool)
+	geoRepo := repository.NewGeofenceRepository(pool)
+	userRepo := repository.NewUserRepository(pool)
+	ctx := context.Background()
+
+	user := &model.User{Email: "geoupdate-geom@example.com", PasswordHash: "hash", Name: "Geom Update"}
+	if err := userRepo.Create(ctx, user); err != nil {
+		t.Fatalf("Create user failed: %v", err)
+	}
+
+	// Create with the central-Berlin polygon (covers 52.51-52.53, 13.35-13.40).
+	g := &model.Geofence{Name: "Shape Test", Geometry: berlinPolygonGeoJSON}
+	if err := geoRepo.Create(ctx, g); err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+	if err := geoRepo.AssociateUser(ctx, user.ID, g.ID); err != nil {
+		t.Fatalf("AssociateUser failed: %v", err)
+	}
+
+	// A point inside the original polygon but outside the new one.
+	insideOld, err := geoRepo.CheckContainment(ctx, user.ID, 52.52, 13.37)
+	if err != nil {
+		t.Fatalf("CheckContainment before update failed: %v", err)
+	}
+	if len(insideOld) == 0 {
+		t.Fatal("expected point (52.52, 13.37) to be inside original polygon")
+	}
+
+	// Update to the east-Berlin polygon (covers 52.55-52.57, 13.60-13.65).
+	g.Geometry = berlinEastPolygonGeoJSON
+	if err := geoRepo.Update(ctx, g); err != nil {
+		t.Fatalf("Update failed: %v", err)
+	}
+
+	// Old point is now outside the new polygon.
+	nowOutside, err := geoRepo.CheckContainment(ctx, user.ID, 52.52, 13.37)
+	if err != nil {
+		t.Fatalf("CheckContainment after update (old point) failed: %v", err)
+	}
+	if len(nowOutside) > 0 {
+		t.Error("expected (52.52, 13.37) to be OUTSIDE the updated polygon")
+	}
+
+	// New point inside the new polygon.
+	nowInside, err := geoRepo.CheckContainment(ctx, user.ID, 52.56, 13.62)
+	if err != nil {
+		t.Fatalf("CheckContainment after update (new point) failed: %v", err)
+	}
+	if len(nowInside) == 0 || nowInside[0] != g.ID {
+		t.Error("expected (52.56, 13.62) to be INSIDE the updated polygon")
 	}
 }
 

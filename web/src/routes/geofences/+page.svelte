@@ -37,6 +37,10 @@
 	let saving = false;
 	let error = '';
 
+	// Shape-edit state — set when the user clicks "Edit shape on map"
+	let editingShape: Geofence | null = null;
+	let shapeEditLayer: any = null;
+
 	// User location
 	const userLocation = useUserLocation();
 	let userAccuracyCircle: any = null;
@@ -509,6 +513,99 @@
 	}
 
 	/**
+	 * Enter per-geofence shape-edit mode. Removes the static display layer,
+	 * places an editable L.polygon layer in drawnItems, and activates
+	 * leaflet-draw vertex handles on it.
+	 */
+	function startShapeEdit(geofence: Geofence) {
+		showEditModal = false;
+
+		let geometry: any;
+		try {
+			geometry = JSON.parse(geofence.geometry || '{}');
+		} catch {
+			return;
+		}
+		if (geometry.type !== 'Polygon' || !geometry.coordinates?.[0]) return;
+
+		// Remove the existing static display layer.
+		if (geofence.layer) {
+			map.removeLayer(geofence.layer);
+		}
+
+		// Build a plain L.Polygon from the GeoJSON ring coordinates.
+		// GeoJSON uses [lng, lat]; Leaflet uses [lat, lng].
+		const ring: [number, number][] = geometry.coordinates[0]
+			.slice(0, -1) // drop the closing duplicate
+			.map(([lng, lat]: [number, number]) => [lat, lng] as [number, number]);
+
+		const editLayer = L.polygon(ring, { ...GEOFENCE_STYLE, weight: 3 });
+		drawnItems.addLayer(editLayer);
+		editLayer.editing.enable();
+
+		shapeEditLayer = editLayer;
+		editingShape = geofence;
+	}
+
+	/**
+	 * Commit the edited shape: convert to GeoJSON, send to the API, and
+	 * re-render the geofence from the server response.
+	 */
+	async function saveShapeEdit() {
+		if (!editingShape || !shapeEditLayer) return;
+
+		shapeEditLayer.editing.disable();
+		const geometry = layerToGeoJSON(shapeEditLayer);
+		if (!geometry) {
+			cancelShapeEdit();
+			return;
+		}
+
+		saving = true;
+		try {
+			const updated = await api.updateGeofence(editingShape.id, {
+				name: editingShape.name,
+				geometry: JSON.stringify(geometry)
+			});
+
+			drawnItems.removeLayer(shapeEditLayer);
+			shapeEditLayer = null;
+
+			const newLayer = addGeofenceToMap(updated);
+			geofences = geofences.map((g) =>
+				g.id === updated.id ? { ...updated, layer: newLayer } : g
+			);
+
+			editingShape = null;
+		} catch (err: any) {
+			console.error('Failed to save shape:', err);
+			error = 'Failed to save shape';
+			// Re-enable editing so user can retry or cancel
+			shapeEditLayer.editing.enable();
+		}
+		saving = false;
+	}
+
+	/**
+	 * Discard shape edits, remove the edit layer, and restore the original
+	 * display layer without an API call.
+	 */
+	function cancelShapeEdit() {
+		if (shapeEditLayer) {
+			shapeEditLayer.editing.disable();
+			drawnItems.removeLayer(shapeEditLayer);
+			shapeEditLayer = null;
+		}
+		if (editingShape) {
+			const newLayer = addGeofenceToMap(editingShape);
+			geofences = geofences.map((g) =>
+				g.id === editingShape!.id ? { ...editingShape!, layer: newLayer } : g
+			);
+			editingShape = null;
+		}
+	}
+
+	/**
 	 * Focus the map on a specific geofence.
 	 */
 	function selectGeofence(geofence: Geofence) {
@@ -691,6 +788,20 @@
 				{userLocation.error}
 			</div>
 		{/if}
+
+		{#if editingShape}
+			<div class="shape-edit-bar">
+				<span class="shape-edit-label">
+					Drag vertices to reshape <strong>{editingShape.name}</strong>
+				</span>
+				<div class="shape-edit-actions">
+					<Button variant="secondary" on:click={cancelShapeEdit} disabled={saving}>Cancel</Button>
+					<Button variant="primary" on:click={saveShapeEdit} loading={saving} disabled={saving}>
+						Save Shape
+					</Button>
+				</div>
+			</div>
+		{/if}
 	</div>
 </div>
 
@@ -779,8 +890,14 @@
 	</form>
 
 	<svelte:fragment slot="footer">
-		<div class="modal-actions">
+		<div class="modal-actions modal-actions--edit">
 			<Button variant="secondary" on:click={cancelEdit}>Cancel</Button>
+			<Button
+				variant="secondary"
+				on:click={() => editingGeofence && startShapeEdit(editingGeofence)}
+			>
+				Edit shape on map
+			</Button>
 			<Button variant="primary" on:click={saveEdit} disabled={!editGeofenceName.trim() || saving} loading={saving}>
 				Save Changes
 			</Button>
@@ -1222,6 +1339,42 @@
 		display: flex;
 		justify-content: flex-end;
 		gap: var(--space-3);
+	}
+
+	.modal-actions--edit {
+		justify-content: space-between;
+		align-items: center;
+	}
+
+	.modal-actions--edit > :global(button:last-child) {
+		margin-left: auto;
+	}
+
+	.shape-edit-bar {
+		position: absolute;
+		bottom: var(--space-4);
+		left: 50%;
+		transform: translateX(-50%);
+		z-index: 1000;
+		display: flex;
+		align-items: center;
+		gap: var(--space-4);
+		padding: var(--space-3) var(--space-5);
+		background-color: var(--bg-secondary);
+		border: 1px solid var(--accent-primary);
+		border-radius: var(--radius-lg);
+		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+		white-space: nowrap;
+	}
+
+	.shape-edit-label {
+		font-size: var(--text-sm);
+		color: var(--text-primary);
+	}
+
+	.shape-edit-actions {
+		display: flex;
+		gap: var(--space-2);
 	}
 
 	@media (max-width: 768px) {

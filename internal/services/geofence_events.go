@@ -94,9 +94,21 @@ func (s *GeofenceEventService) CheckGeofences(ctx context.Context, position *mod
 		return nil
 	}
 
-	prevGeofences, err := s.geofenceRepo.CheckContainmentForDevice(ctx, position.DeviceID, prevPosition.Latitude, prevPosition.Longitude)
-	if err != nil {
-		return err
+	// Use the geofence membership stored on the previous position (written by the
+	// protocol handler via UpdateGeofenceIDs). This avoids re-evaluating the prior
+	// location against the current (possibly edited) polygon, which would produce
+	// spurious enter/exit events after a geofence shape change.
+	// Fall back to live recomputation only when no stored membership exists
+	// (e.g. very first position after a new deployment, or test helpers that
+	// skip the UpdateGeofenceIDs step).
+	var prevGeofences []int64
+	if len(prevPosition.GeofenceIDs) > 0 {
+		prevGeofences = prevPosition.GeofenceIDs
+	} else {
+		prevGeofences, err = s.geofenceRepo.CheckContainmentForDevice(ctx, position.DeviceID, prevPosition.Latitude, prevPosition.Longitude)
+		if err != nil {
+			return err
+		}
 	}
 
 	for _, gid := range currentGeofences {

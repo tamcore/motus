@@ -102,6 +102,65 @@ func TestGeofenceService_UpdateForUser_AccessDenied(t *testing.T) {
 	}
 }
 
+// eastPolygonGeoJSON is disjoint from testGeoJSONCircle — used to verify geometry replacement.
+const eastPolygonGeoJSON = `{"type":"Polygon","coordinates":[[[13.60,52.55],[13.60,52.57],[13.65,52.57],[13.65,52.55],[13.60,52.55]]]}`
+
+func TestGeofenceService_UpdateForUser_ShapeChange(t *testing.T) {
+	svc, geoRepo, _, userRepo := setupGeofenceServiceCRUD(t)
+	ctx := context.Background()
+	user, g := createTestUserAndGeofence(t, ctx, svc, userRepo, "geo-shape@example.com")
+
+	// Point inside original polygon.
+	insideOrig, _ := geoRepo.CheckContainment(ctx, user.ID, 52.52, 13.41)
+	if len(insideOrig) == 0 {
+		t.Fatal("expected point inside original polygon before update")
+	}
+
+	// Update geometry to a completely different polygon.
+	newGeom := eastPolygonGeoJSON
+	updated, err := svc.UpdateForUser(ctx, user, g.ID, UpdateGeofenceInput{Geometry: &newGeom})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if updated.Geometry == "" {
+		t.Error("expected non-empty Geometry on returned geofence")
+	}
+
+	// Old point must now be outside the updated shape.
+	nowOutside, _ := geoRepo.CheckContainment(ctx, user.ID, 52.52, 13.41)
+	if len(nowOutside) > 0 {
+		t.Error("expected (52.52, 13.41) to be OUTSIDE updated polygon")
+	}
+
+	// New point must be inside.
+	nowInside, _ := geoRepo.CheckContainment(ctx, user.ID, 52.56, 13.62)
+	if len(nowInside) == 0 || nowInside[0] != g.ID {
+		t.Error("expected (52.56, 13.62) to be INSIDE updated polygon")
+	}
+}
+
+func TestGeofenceService_UpdateForUser_AreaWKT(t *testing.T) {
+	svc, geoRepo, _, userRepo := setupGeofenceServiceCRUD(t)
+	ctx := context.Background()
+	user, g := createTestUserAndGeofence(t, ctx, svc, userRepo, "geo-area@example.com")
+
+	// Update via WKT area string (east polygon).
+	newArea := "POLYGON((13.60 52.55, 13.60 52.57, 13.65 52.57, 13.65 52.55, 13.60 52.55))"
+	updated, err := svc.UpdateForUser(ctx, user, g.ID, UpdateGeofenceInput{Area: &newArea})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if updated.Area == "" && updated.Geometry == "" {
+		t.Error("expected non-empty Area or Geometry on returned geofence")
+	}
+
+	// New point inside the WKT polygon must now be contained.
+	nowInside, _ := geoRepo.CheckContainment(ctx, user.ID, 52.56, 13.62)
+	if len(nowInside) == 0 || nowInside[0] != g.ID {
+		t.Error("expected (52.56, 13.62) to be INSIDE updated WKT polygon")
+	}
+}
+
 func TestGeofenceService_DeleteForUser_HappyPath(t *testing.T) {
 	svc, geoRepo, _, userRepo := setupGeofenceServiceCRUD(t)
 	ctx := context.Background()

@@ -12,9 +12,14 @@ import (
 // UpdateGeofenceInput holds the fields that may be changed. nil pointer fields
 // mean "no change"; CalendarID uses CalendarIDSet as a tri-state flag.
 type UpdateGeofenceInput struct {
-	Name          *string // nil = keep existing
-	CalendarID    *int64  // new calendar ID (ignored unless CalendarIDSet)
-	CalendarIDSet bool    // true = apply CalendarID change (clear if nil)
+	Name          *string                // nil = keep existing
+	Description   *string                // nil = keep existing
+	Area          *string                // WKT; nil = keep existing
+	Geometry      *string                // GeoJSON; nil = keep existing
+	CalendarID    *int64                 // new calendar ID (ignored unless CalendarIDSet)
+	CalendarIDSet bool                   // true = apply CalendarID change (clear if nil)
+	Attributes    map[string]interface{} // nil = keep existing
+	AttributesSet bool                   // true = apply Attributes change
 }
 
 // UpdateForUser applies a partial update to a geofence owned by user and
@@ -35,8 +40,25 @@ func (s *GeofenceService) UpdateForUser(ctx context.Context, user *model.User, g
 		}
 		updated.Name = *in.Name
 	}
+	if in.Description != nil {
+		if err := validateDescription(*in.Description); err != nil {
+			return nil, err
+		}
+		updated.Description = *in.Description
+	}
+	if in.Geometry != nil && *in.Geometry != "" {
+		updated.Geometry = *in.Geometry
+		updated.Area = ""
+	}
+	if in.Area != nil && *in.Area != "" {
+		updated.Area = *in.Area
+		updated.Geometry = ""
+	}
 	if in.CalendarIDSet {
 		updated.CalendarID = in.CalendarID
+	}
+	if in.AttributesSet {
+		updated.Attributes = in.Attributes
 	}
 
 	if err := s.repo.Update(ctx, &updated); err != nil {

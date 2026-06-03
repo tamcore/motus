@@ -147,7 +147,7 @@ authTest.describe('Geofence shape editing', () => {
     await authedPage.waitForSelector('.fence-item', { timeout: 10000 });
 
     const fenceItem = authedPage.locator('.fence-item', { hasText: 'PW Shape Edit Fence' });
-    await fenceItem.locator('.btn-edit').click();
+    await fenceItem.locator('.fence-edit').click();
 
     await expect(authedPage.locator('.modal')).toBeVisible();
     await expect(authedPage.locator('button', { hasText: 'Edit shape on map' })).toBeVisible();
@@ -158,7 +158,7 @@ authTest.describe('Geofence shape editing', () => {
     await authedPage.waitForSelector('.fence-item', { timeout: 10000 });
 
     const fenceItem = authedPage.locator('.fence-item', { hasText: 'PW Shape Edit Fence' });
-    await fenceItem.locator('.btn-edit').click();
+    await fenceItem.locator('.fence-edit').click();
     await authedPage.locator('button', { hasText: 'Edit shape on map' }).click();
 
     await expect(authedPage.locator('.shape-edit-bar')).toBeVisible();

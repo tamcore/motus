@@ -4,6 +4,7 @@
 	import { page } from '$app/stores';
 	import { theme } from '$lib/stores/theme';
 	import { currentUser, isAuthenticated } from '$lib/stores/auth';
+	import { serverInfo, loadServerInfo } from '$lib/stores/server';
 	import { wsManager } from '$lib/stores/websocket';
 	import { pwa } from '$lib/stores/pwa';
 	import { api, APIError } from '$lib/api/client';
@@ -27,6 +28,7 @@
 	let dropdownOpen = false;
 	let sudoBarActive = false;
 	let sudoBarHeight = 0;
+	let navBarHeight = 0;
 	let isNative = false;
 
 	$: isCurrentUserAdmin = $currentUser?.administrator === true;
@@ -41,6 +43,9 @@
 		// API call fires. iOS PWA cold starts purge localStorage, but
 		// IndexedDB survives, so this restores the X-Auth-Token fallback.
 		await hydrateAuthToken();
+
+		// Load server info (aiEnabled flag for chat nav link) in parallel.
+		loadServerInfo();
 
 		// Check if running in Traccar Manager native app
 		isNative = isNativeEnvironment();
@@ -163,8 +168,8 @@
 	<slot />
 {:else if $isAuthenticated && $page.url.pathname !== '/login'}
 	<SudoBar bind:sudoActive={sudoBarActive} bind:barHeight={sudoBarHeight} />
-	<div class="app-layout" style:--sudo-bar-height="{sudoBarActive ? sudoBarHeight : 0}px">
-		<nav class="navbar">
+	<div class="app-layout" style:--sudo-bar-height="{sudoBarActive ? sudoBarHeight : 0}px" style:--nav-height="{navBarHeight}px">
+		<nav class="navbar" bind:clientHeight={navBarHeight}>
 			<div class="nav-container">
 				<div class="nav-left">
 					<a href="/" class="logo">
@@ -198,6 +203,11 @@
 					<a href="/calendars" class="nav-link" class:active={$page.url.pathname === '/calendars'}>
 						Calendars
 					</a>
+					{#if $serverInfo?.aiEnabled}
+						<a href="/chat" class="nav-link" class:active={$page.url.pathname === '/chat'}>
+							Chat
+						</a>
+					{/if}
 					<a href="/notifications" class="nav-link" class:active={$page.url.pathname.startsWith('/notifications')}>
 						Notifications
 					</a>

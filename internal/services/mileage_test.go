@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/tamcore/motus/internal/model"
+	"github.com/tamcore/motus/internal/storage/repository"
 )
 
 // --- Mock repos for mileage tests ---
@@ -124,6 +125,9 @@ func (r *mileageMockEventRepo) GetByUser(_ context.Context, _ int64, _ int) ([]*
 }
 func (r *mileageMockEventRepo) GetByFilters(_ context.Context, _ int64, _ []int64, _ []string, _, _ time.Time) ([]*model.Event, error) {
 	return nil, nil
+}
+func (r *mileageMockEventRepo) SumTripDistance(_ context.Context, _ []int64, _, _ time.Time) ([]repository.DeviceTripTotal, float64, error) {
+	return nil, 0, nil
 }
 
 // --- Helper functions ---

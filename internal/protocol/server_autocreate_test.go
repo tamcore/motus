@@ -60,6 +60,7 @@ func TestDeviceAutoCreate_H02_Enabled_UnknownDevice(t *testing.T) {
 	// Position should be created successfully.
 	if pos == nil {
 		t.Fatal("expected non-nil position after auto-create")
+		return
 	}
 	if devID != unknownDeviceID {
 		t.Errorf("deviceID: got %q, want %q", devID, unknownDeviceID)
@@ -184,6 +185,7 @@ func TestDeviceAutoCreate_H02_Enabled_SubsequentPositions(t *testing.T) {
 	}
 	if pos2 == nil {
 		t.Fatal("expected non-nil position on second decode")
+		return
 	}
 
 	// Should reference the same device.
@@ -212,6 +214,7 @@ func TestDeviceAutoCreate_H02_Enabled_SubsequentPositions(t *testing.T) {
 	}
 	if latestPos == nil {
 		t.Fatal("expected latest position to exist")
+		return
 	}
 	// Latest position should be the second one (with latitude 4948.9000 / 49.815)
 	if latestPos.Latitude < 49.814 || latestPos.Latitude > 49.816 {
@@ -391,6 +394,7 @@ func TestDeviceAutoCreate_H02_ExistingDevice(t *testing.T) {
 
 	if pos == nil {
 		t.Fatal("expected non-nil position")
+		return
 	}
 
 	if pos.DeviceID != existingDevice.ID {
@@ -456,6 +460,7 @@ func TestDeviceAutoCreate_Watch_Enabled_UnknownDevice(t *testing.T) {
 
 	if pos == nil {
 		t.Fatal("expected non-nil position after auto-create")
+		return
 	}
 	if devID != unknownDeviceID {
 		t.Errorf("deviceID: got %q, want %q", devID, unknownDeviceID)

@@ -114,6 +114,7 @@ type EventRepo interface {
 	GetRecentByDeviceAndType(ctx context.Context, deviceID int64, eventType string, limit int) ([]*model.Event, error)
 	GetByUser(ctx context.Context, userID int64, limit int) ([]*model.Event, error)
 	GetByFilters(ctx context.Context, userID int64, deviceIDs []int64, eventTypes []string, from, to time.Time) ([]*model.Event, error)
+	SumTripDistance(ctx context.Context, deviceIDs []int64, from, to time.Time) ([]DeviceTripTotal, float64, error)
 }
 
 // CommandRepo defines the operations on the commands table.

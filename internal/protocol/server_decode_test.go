@@ -48,6 +48,7 @@ func TestDecodeH02_FullDecode(t *testing.T) {
 
 	if pos == nil {
 		t.Fatal("expected non-nil position for V1 message")
+		return
 	}
 	if pos.DeviceID != device.ID {
 		t.Errorf("DeviceID: got %d, want %d", pos.DeviceID, device.ID)
@@ -124,6 +125,7 @@ func TestDecodeH02_V6WithICCID(t *testing.T) {
 	}
 	if pos == nil {
 		t.Fatal("expected non-nil position for V6 message")
+		return
 	}
 	if pos.Attributes["iccid"] != "8949227221106570251F" {
 		t.Errorf("iccid: got %v, want 8949227221106570251F", pos.Attributes["iccid"])
@@ -184,6 +186,7 @@ func TestDecodeWatch_FullDecode(t *testing.T) {
 
 	if pos == nil {
 		t.Fatal("expected non-nil position for UD message")
+		return
 	}
 	if pos.DeviceID != device.ID {
 		t.Errorf("DeviceID: got %d, want %d", pos.DeviceID, device.ID)
@@ -661,6 +664,7 @@ func TestDecodeH02_NoCellTowerInfo(t *testing.T) {
 	}
 	if pos == nil {
 		t.Fatal("expected non-nil position")
+		return
 	}
 	// MCC should not be in attributes (no cell tower data).
 	if _, ok := pos.Attributes["mcc"]; ok {

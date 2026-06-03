@@ -157,6 +157,53 @@ func (r *EventRepository) GetByUser(ctx context.Context, userID int64, limit int
 	return events, rows.Err()
 }
 
+// DeviceTripTotal holds the aggregate trip distance for a single device.
+type DeviceTripTotal struct {
+	DeviceID   int64
+	DistanceKm float64
+	TripCount  int
+}
+
+// SumTripDistance aggregates tripCompleted event distances per device for the
+// given device IDs and time window. Returns per-device totals and the grand
+// total. No row cap — uses SQL SUM instead of fetching rows.
+func (r *EventRepository) SumTripDistance(ctx context.Context, deviceIDs []int64, from, to time.Time) ([]DeviceTripTotal, float64, error) {
+	if len(deviceIDs) == 0 {
+		return nil, 0, nil
+	}
+
+	rows, err := r.pool.Query(ctx, `
+		SELECT device_id,
+		       COALESCE(SUM((attributes->>'distance')::float8), 0) AS km,
+		       COUNT(*) AS trips
+		FROM events
+		WHERE type = 'tripCompleted'
+		  AND device_id = ANY($1)
+		  AND timestamp >= $2
+		  AND timestamp < $3
+		GROUP BY device_id
+	`, deviceIDs, from, to)
+	if err != nil {
+		return nil, 0, fmt.Errorf("sum trip distance: %w", err)
+	}
+	defer rows.Close()
+
+	var totals []DeviceTripTotal
+	var grandTotal float64
+	for rows.Next() {
+		var t DeviceTripTotal
+		if err := rows.Scan(&t.DeviceID, &t.DistanceKm, &t.TripCount); err != nil {
+			return nil, 0, fmt.Errorf("scan trip total: %w", err)
+		}
+		totals = append(totals, t)
+		grandTotal += t.DistanceKm
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+	return totals, grandTotal, nil
+}
+
 // GetByFilters retrieves events filtered by user access, device IDs, event types, and time range.
 func (r *EventRepository) GetByFilters(ctx context.Context, userID int64, deviceIDs []int64, eventTypes []string, from, to time.Time) ([]*model.Event, error) {
 	query := `

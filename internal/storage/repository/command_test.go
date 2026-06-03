@@ -217,6 +217,7 @@ func TestCommandRepository_GetLatestSentByDevice(t *testing.T) {
 	}
 	if latest == nil {
 		t.Fatal("expected to find the sent command, got nil")
+		return
 	}
 	if latest.Status != "sent" {
 		t.Errorf("expected status 'sent', got %q", latest.Status)

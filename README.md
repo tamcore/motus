@@ -12,6 +12,7 @@ A production-ready GPS tracking system with real-time updates, geofencing, notif
 - **Reports** — Trip detection, route playback with animation, heatmaps, distance charts, CSV/GPX export
 - **Security** — Session cookies + Bearer tokens, RBAC (admin/user/readonly), CSRF protection, audit logging
 - **UI** — Dark/light themes, mobile responsive, metric/imperial units, timezone preferences
+- **AI Assistant** — Natural-language control of geofences, calendars, notifications, and device queries via any OpenAI-compatible API (opt-in, requires API key). See [docs/ai-assistant.md](docs/ai-assistant.md).
 
 ## Quick Start
 
@@ -65,6 +66,7 @@ All configuration is via environment variables.
 | `MOTUS_API_RATE_LIMIT` | `60` | API requests per minute per IP |
 | `MOTUS_DEMO_ENABLED` | `false` | Enable demo mode with simulated GPS tracks |
 | `MOTUS_DEMO_DEVICE_IMEIS` | — | Comma-separated demo device identifiers |
+| `MOTUS_AI_ENABLED` | `false` | Enable the AI assistant chat feature. See [docs/ai-assistant.md](docs/ai-assistant.md) for the full `MOTUS_AI_*` configuration reference. |
 
 ## CLI
 
@@ -81,6 +83,8 @@ motus version                                    # Print version
 ```
 
 See [docs/import.md](docs/import.md) and [docs/replay.md](docs/replay.md) for tool documentation.
+
+See [docs/ai-assistant.md](docs/ai-assistant.md) and [docs/ai-mcp-tools.md](docs/ai-mcp-tools.md) for the AI assistant feature and its 16 MCP tools.
 
 ## License
 

@@ -70,6 +70,9 @@ func (r *alarmMockEventRepo) GetRecentByDeviceAndType(_ context.Context, _ int64
 func (r *alarmMockEventRepo) GetByFilters(_ context.Context, _ int64, _ []int64, _ []string, _, _ time.Time) ([]*model.Event, error) {
 	return nil, nil
 }
+func (r *alarmMockEventRepo) SumTripDistance(_ context.Context, _ []int64, _, _ time.Time) ([]repository.DeviceTripTotal, float64, error) {
+	return nil, 0, nil
+}
 
 func TestCheckAlarm_NoAlarmAttribute(t *testing.T) {
 	repo := &alarmMockEventRepo{}

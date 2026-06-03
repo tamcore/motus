@@ -6265,6 +6265,7 @@ type ServerInfo struct {
 	OpenIdEnabled  OptBool       `json:"openIdEnabled"`
 	OpenIdForce    OptBool       `json:"openIdForce"`
 	Attributes     OptAttributes `json:"attributes"`
+	AiEnabled      OptBool       `json:"aiEnabled"`
 }
 
 // GetID returns the value of ID.
@@ -6332,6 +6333,11 @@ func (s *ServerInfo) GetAttributes() OptAttributes {
 	return s.Attributes
 }
 
+// GetAiEnabled returns the value of AiEnabled.
+func (s *ServerInfo) GetAiEnabled() OptBool {
+	return s.AiEnabled
+}
+
 // SetID sets the value of ID.
 func (s *ServerInfo) SetID(val int) {
 	s.ID = val
@@ -6395,6 +6401,11 @@ func (s *ServerInfo) SetOpenIdForce(val OptBool) {
 // SetAttributes sets the value of Attributes.
 func (s *ServerInfo) SetAttributes(val OptAttributes) {
 	s.Attributes = val
+}
+
+// SetAiEnabled sets the value of AiEnabled.
+func (s *ServerInfo) SetAiEnabled(val OptBool) {
+	s.AiEnabled = val
 }
 
 // Ref: #/components/schemas/Session

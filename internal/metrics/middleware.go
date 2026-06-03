@@ -18,6 +18,13 @@ func (r *statusRecorder) WriteHeader(code int) {
 	r.ResponseWriter.WriteHeader(code)
 }
 
+// Unwrap returns the underlying ResponseWriter so that
+// http.NewResponseController can walk through to discover Flusher, Hijacker,
+// etc. implemented by the original writer.
+func (r *statusRecorder) Unwrap() http.ResponseWriter {
+	return r.ResponseWriter
+}
+
 // HTTPMetrics returns middleware that records HTTP request metrics.
 func HTTPMetrics(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -12,6 +12,7 @@ import (
 	oas "github.com/tamcore/motus/internal/api/oas"
 	"github.com/tamcore/motus/internal/audit"
 	"github.com/tamcore/motus/internal/model"
+	"github.com/tamcore/motus/internal/services"
 	"github.com/tamcore/motus/internal/storage/repository"
 )
 
@@ -283,20 +284,9 @@ func (h *Handler) CreateGeofence(ctx context.Context, req *oas.GeofenceInput) (o
 	if user == nil {
 		return &oas.CreateGeofenceUnauthorized{Error: "unauthorized"}, nil
 	}
-	if req.Name == "" {
-		return &oas.CreateGeofenceBadRequest{Error: "name is required"}, nil
-	}
-	if err := ValidateDisplayName(req.Name); err != nil {
-		return &oas.CreateGeofenceBadRequest{Error: err.Error()}, nil
-	}
+
 	desc, _ := req.Description.Get()
-	if err := ValidateDescription(desc); err != nil {
-		return &oas.CreateGeofenceBadRequest{Error: err.Error()}, nil
-	}
 	geom, _ := req.Geometry.Get()
-	if req.Area == "" && geom == "" {
-		return &oas.CreateGeofenceBadRequest{Error: "geometry or area is required"}, nil
-	}
 
 	var calID *int64
 	if v, ok := req.CalendarId.Get(); ok {
@@ -307,26 +297,16 @@ func (h *Handler) CreateGeofence(ctx context.Context, req *oas.GeofenceInput) (o
 		attrs = rawToAttrs(map[string]jx.Raw(req.Attributes.Value))
 	}
 
-	geofence := &model.Geofence{
+	geofence, err := h.cfg.GeofenceService.CreateForUser(ctx, user, services.CreateGeofenceInput{
 		Name:        req.Name,
 		Description: desc,
-		Area:        req.Area,
 		Geometry:    geom,
+		Area:        req.Area,
 		CalendarID:  calID,
 		Attributes:  attrs,
-	}
-
-	if err := h.cfg.Geofences.Create(ctx, geofence); err != nil {
-		return &oas.CreateGeofenceBadRequest{Error: "failed to create geofence"}, nil
-	}
-	if err := h.cfg.Geofences.AssociateUser(ctx, user.ID, geofence.ID); err != nil {
-		return &oas.CreateGeofenceBadRequest{Error: "failed to associate geofence with user"}, nil
-	}
-
-	if h.cfg.AuditLogger != nil {
-		h.cfg.AuditLogger.Log(ctx, &user.ID,
-			audit.ActionGeofenceCreate, audit.ResourceGeofence, &geofence.ID,
-			map[string]interface{}{"name": geofence.Name}, "", "")
+	})
+	if err != nil {
+		return &oas.CreateGeofenceBadRequest{Error: err.Error()}, nil
 	}
 	out := geofenceToOAS(geofence)
 	return &out, nil

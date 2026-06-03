@@ -23,6 +23,39 @@ type Config struct {
 	Log       LogConfig
 	Geocoding GeocodingConfig
 	OIDC      OIDCConfig
+	AI        AIConfig
+}
+
+// AIConfig holds settings for the OpenAI-compatible chat/MCP feature.
+type AIConfig struct {
+	// Enabled activates the /api/chat endpoint and in-process MCP tools.
+	// Loaded from MOTUS_AI_ENABLED. Default: false.
+	Enabled bool
+	// BaseURL is the base URL of the OpenAI-compatible API.
+	// Loaded from MOTUS_AI_BASE_URL. Default: "https://api.openai.com/v1".
+	BaseURL string
+	// APIKey is the API key for the AI provider.
+	// Loaded from MOTUS_AI_API_KEY. Required when Enabled.
+	APIKey string
+	// Model is the chat completion model to use.
+	// Loaded from MOTUS_AI_MODEL. Default: "gpt-4o-mini".
+	Model string
+	// MaxTokens is the maximum number of tokens in a completion.
+	// Loaded from MOTUS_AI_MAX_TOKENS. Default: 4096.
+	MaxTokens int
+	// Temperature controls output randomness (0.0–2.0).
+	// Loaded from MOTUS_AI_TEMPERATURE. Default: 0.2.
+	Temperature float64
+	// Timeout is the maximum duration for a single chat request including all
+	// tool-call iterations.
+	// Loaded from MOTUS_AI_TIMEOUT. Default: 90s.
+	Timeout time.Duration
+	// MaxToolLoops is the maximum number of tool-call iterations per chat turn.
+	// Loaded from MOTUS_AI_MAX_TOOL_LOOPS. Default: 8.
+	MaxToolLoops int
+	// SystemPrompt overrides the built-in system prompt when non-empty.
+	// Loaded from MOTUS_AI_SYSTEM_PROMPT.
+	SystemPrompt string
 }
 
 // OIDCConfig holds OpenID Connect authentication settings.
@@ -350,6 +383,17 @@ func LoadFromEnv() (*Config, error) {
 			AdminClaim:      getEnv("MOTUS_OIDC_ADMIN_CLAIM", ""),
 			AdminClaimValue: getEnv("MOTUS_OIDC_ADMIN_CLAIM_VALUE", ""),
 			Scopes:          getEnv("MOTUS_OIDC_SCOPES", ""),
+		},
+		AI: AIConfig{
+			Enabled:      getEnvBool("MOTUS_AI_ENABLED", false),
+			BaseURL:      getEnv("MOTUS_AI_BASE_URL", "https://api.openai.com/v1"),
+			APIKey:       getEnv("MOTUS_AI_API_KEY", ""),
+			Model:        getEnv("MOTUS_AI_MODEL", "gpt-4o-mini"),
+			MaxTokens:    getEnvInt("MOTUS_AI_MAX_TOKENS", 4096),
+			Temperature:  getEnvFloat("MOTUS_AI_TEMPERATURE", 0.2),
+			Timeout:      getEnvDuration("MOTUS_AI_TIMEOUT", 90*time.Second),
+			MaxToolLoops: getEnvInt("MOTUS_AI_MAX_TOOL_LOOPS", 8),
+			SystemPrompt: getEnv("MOTUS_AI_SYSTEM_PROMPT", ""),
 		},
 	}
 	if err := cfg.Validate(); err != nil {

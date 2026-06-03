@@ -215,6 +215,7 @@ func TestNewDeviceTimeoutService(t *testing.T) {
 	svc := NewDeviceTimeoutService(deviceRepo, hub, 10*time.Minute, 2*time.Minute)
 	if svc == nil {
 		t.Fatal("expected non-nil service")
+		return
 	}
 	if svc.timeout != 10*time.Minute {
 		t.Errorf("expected timeout 10m, got %v", svc.timeout)

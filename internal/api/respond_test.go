@@ -103,6 +103,7 @@ func TestContextWithUser_AndUserFromContext(t *testing.T) {
 	got := UserFromContext(ctx)
 	if got == nil {
 		t.Fatal("expected non-nil user")
+		return
 	}
 	if got.ID != 42 {
 		t.Errorf("expected ID 42, got %d", got.ID)

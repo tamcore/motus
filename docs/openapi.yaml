@@ -852,6 +852,7 @@ components:
         openIdForce: { type: boolean }
         attributes:
           $ref: '#/components/schemas/Attributes'
+        aiEnabled: { type: boolean }
 
     VersionInfo:
       type: object

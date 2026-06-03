@@ -318,55 +318,46 @@ func (h *Handler) UpdateGeofence(ctx context.Context, req *oas.GeofenceUpdateInp
 	if user == nil {
 		return &oas.UpdateGeofenceUnauthorized{Error: "unauthorized"}, nil
 	}
-	if !h.cfg.Geofences.UserHasAccess(ctx, user, params.ID) {
-		return &oas.UpdateGeofenceForbidden{Error: "access denied"}, nil
-	}
-	existing, err := h.cfg.Geofences.GetByID(ctx, params.ID)
-	if err != nil {
-		return &oas.UpdateGeofenceNotFound{Error: "geofence not found"}, nil
-	}
 
-	updated := *existing
-	if n, ok := req.Name.Get(); ok && n != "" {
-		if err := ValidateDisplayName(n); err != nil {
-			return &oas.UpdateGeofenceBadRequest{Error: err.Error()}, nil
-		}
-		updated.Name = n
+	in := services.UpdateGeofenceInput{}
+	if n, ok := req.Name.Get(); ok {
+		in.Name = &n
 	}
 	if req.Description.Set {
 		desc, _ := req.Description.Get()
-		if err := ValidateDescription(desc); err != nil {
-			return &oas.UpdateGeofenceBadRequest{Error: err.Error()}, nil
-		}
-		updated.Description = desc
+		in.Description = &desc
 	}
 	if geom, ok := req.Geometry.Get(); ok && geom != "" {
-		updated.Geometry = geom
+		in.Geometry = &geom
 	}
 	if a, ok := req.Area.Get(); ok && a != "" {
-		updated.Area = a
+		in.Area = &a
 	}
 	if req.CalendarId.Set {
+		in.CalendarIDSet = true
 		if v, ok := req.CalendarId.Get(); ok {
-			updated.CalendarID = &v
-		} else {
-			updated.CalendarID = nil
+			in.CalendarID = &v
 		}
 	}
 	if req.Attributes.Set {
-		updated.Attributes = rawToAttrs(map[string]jx.Raw(req.Attributes.Value))
+		attrs := rawToAttrs(map[string]jx.Raw(req.Attributes.Value))
+		in.Attributes = attrs
+		in.AttributesSet = true
 	}
 
-	if err := h.cfg.Geofences.Update(ctx, &updated); err != nil {
-		return &oas.UpdateGeofenceBadRequest{Error: "failed to update geofence"}, nil
+	updated, err := h.cfg.GeofenceService.UpdateForUser(ctx, user, params.ID, in)
+	if err != nil {
+		switch err.Error() {
+		case "access denied":
+			return &oas.UpdateGeofenceForbidden{Error: "access denied"}, nil
+		case "geofence not found":
+			return &oas.UpdateGeofenceNotFound{Error: "geofence not found"}, nil
+		default:
+			return &oas.UpdateGeofenceBadRequest{Error: err.Error()}, nil
+		}
 	}
 
-	if h.cfg.AuditLogger != nil {
-		h.cfg.AuditLogger.Log(ctx, &user.ID,
-			audit.ActionGeofenceUpdate, audit.ResourceGeofence, &updated.ID,
-			map[string]interface{}{"name": updated.Name}, "", "")
-	}
-	out := geofenceToOAS(&updated)
+	out := geofenceToOAS(updated)
 	return &out, nil
 }
 

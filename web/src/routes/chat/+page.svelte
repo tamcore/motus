@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { chatMessages, chatLoading, chatError, sendMessage, newConversation } from '$lib/stores/chat';
+	import type { DisplayMessage } from '$lib/stores/chat';
 	import { fetchHistory } from '$lib/api/chat';
 	import type { ChatMessage } from '$lib/types/api';
 	import MarkdownMessage from '$lib/components/MarkdownMessage.svelte';
@@ -14,27 +15,41 @@
 
 	onMount(async () => {
 		const history = await fetchHistory();
-		if (history.length > 0) {
-			chatMessages.set(history.map((m: ChatMessage) => {
-				if (m.role === 'user') {
-					return { role: 'user' as const, content: m.content };
+		if (history.length === 0) return;
+
+		// Pass 1: index tool results by toolCallId.
+		const toolResultMap = new Map<string, unknown>();
+		for (const m of history) {
+			if (m.role === 'tool') {
+				try {
+					toolResultMap.set(m.toolCallId, JSON.parse(m.content));
+				} catch {
+					toolResultMap.set(m.toolCallId, m.content);
 				}
-				if (m.role === 'assistant') {
-					return {
-						role: 'assistant' as const,
-						content: m.content,
-						toolCalls: m.toolCalls?.map((tc) => ({
-							id: tc.id,
-							name: tc.name,
-							result: undefined,
-							error: undefined,
-						})),
-					};
-				}
-				// tool messages are not rendered directly
-				return null;
-			}).filter(Boolean) as typeof $chatMessages);
+			}
 		}
+
+		// Pass 2: build display messages, populating tool call results.
+		const display = history.flatMap((m: ChatMessage): DisplayMessage[] => {
+			if (m.role === 'user') {
+				return [{ role: 'user', content: m.content }];
+			}
+			if (m.role === 'assistant') {
+				return [{
+					role: 'assistant',
+					content: m.content,
+					toolCalls: m.toolCalls?.map((tc) => ({
+						id: tc.id,
+						name: tc.name,
+						result: toolResultMap.get(tc.id),
+						error: undefined,
+					})),
+				}];
+			}
+			return [];
+		});
+
+		chatMessages.set(display);
 	});
 
 	async function submit() {

@@ -125,6 +125,56 @@ test.describe('Chat page', () => {
     });
   });
 
+  test('preserves tool call results on history reload', async ({ authedPage }) => {
+    await authedPage.addInitScript(() => {
+      const origFetch = window.fetch;
+      window.fetch = async function (input: RequestInfo | URL, init?: RequestInit) {
+        const url =
+          typeof input === 'string'
+            ? input
+            : input instanceof URL
+              ? input.href
+              : input.url;
+        if (url.includes('/api/chat/history') && (init?.method ?? 'GET') === 'GET') {
+          return new Response(
+            JSON.stringify({
+              messages: [
+                { role: 'user', content: 'What time is it?' },
+                {
+                  role: 'assistant',
+                  content: '',
+                  toolCalls: [{ id: 'tc1', name: 'get_server_time', arguments: '{}' }],
+                },
+                {
+                  role: 'tool',
+                  toolCallId: 'tc1',
+                  name: 'get_server_time',
+                  content: '{"now":"2025-01-01T00:00:00Z"}',
+                },
+                { role: 'assistant', content: 'It is midnight UTC.' },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          );
+        }
+        return origFetch.apply(globalThis, [input, init] as Parameters<typeof fetch>);
+      } as typeof fetch;
+    });
+
+    await authedPage.goto('/chat');
+
+    await expect(authedPage.locator('details.tool-card summary')).toContainText(
+      'get_server_time',
+      { timeout: 5000 },
+    );
+
+    await authedPage.locator('details.tool-card').click();
+    await expect(authedPage.locator('.tool-result')).toContainText('2025-01-01T00:00:00Z', {
+      timeout: 3000,
+    });
+    await expect(authedPage.locator('.tool-pending')).toHaveCount(0);
+  });
+
   test('"New conversation" button clears messages', async ({ authedPage }) => {
     await authedPage.goto('/chat');
     const textarea = authedPage.locator('textarea');

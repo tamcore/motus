@@ -192,21 +192,36 @@
 	}
 
 	.bubble {
-		max-width: 80%;
 		padding: 0.6rem 0.9rem;
 		border-radius: 12px;
 		word-break: break-word;
 	}
 
 	.user-bubble {
+		max-width: 80%;
 		background: var(--color-primary, #2563eb);
 		color: #fff;
 		white-space: pre-wrap;
 	}
 
 	.assistant-bubble {
+		max-width: min(85%, 720px);
 		background: var(--color-surface-alt, #f3f4f6);
 		color: var(--color-text, #111);
+	}
+
+	@media (max-width: 640px) {
+		.chat-page {
+			padding: 0.6rem;
+		}
+
+		.user-bubble {
+			max-width: 88%;
+		}
+
+		.assistant-bubble {
+			max-width: 100%;
+		}
 	}
 
 	.typing {

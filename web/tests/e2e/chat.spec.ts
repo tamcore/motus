@@ -175,6 +175,65 @@ test.describe('Chat page', () => {
     await expect(authedPage.locator('.tool-pending')).toHaveCount(0);
   });
 
+  test('renders markdown tables inside a scrollable container', async ({ authedPage }) => {
+    await authedPage.addInitScript(() => {
+      const origFetch = window.fetch;
+      window.fetch = async function (input: RequestInfo | URL, init?: RequestInit) {
+        const url =
+          typeof input === 'string'
+            ? input
+            : input instanceof URL
+              ? input.href
+              : input.url;
+        if (url.includes('/api/chat')) {
+          const tableMarkdown =
+            '| Device | Status | Location |\\n|--------|--------|----------|\\n| Car | Online | Berlin |\\n';
+          const body = [
+            `data: {"type":"token","delta":"${tableMarkdown}"}\n\n`,
+            'data: {"type":"done"}\n\n',
+          ].join('');
+          return new Response(body, {
+            status: 200,
+            headers: { 'Content-Type': 'text/event-stream' },
+          });
+        }
+        return origFetch.apply(globalThis, [input, init] as Parameters<typeof fetch>);
+      } as typeof fetch;
+    });
+
+    await authedPage.goto('/chat');
+    const textarea = authedPage.locator('textarea');
+    await textarea.waitFor({ state: 'visible', timeout: 10000 });
+
+    await textarea.fill('List my devices');
+    await authedPage.keyboard.press('Enter');
+
+    await expect(authedPage.locator('.assistant-text .table-container')).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(
+      authedPage.locator('.assistant-text .table-container table'),
+    ).toBeVisible({ timeout: 5000 });
+  });
+
+  test('assistant bubble does not overflow on mobile viewport', async ({ authedPage }) => {
+    await authedPage.setViewportSize({ width: 390, height: 844 });
+    await authedPage.goto('/chat');
+    const textarea = authedPage.locator('textarea');
+    await textarea.waitFor({ state: 'visible', timeout: 10000 });
+
+    await textarea.fill('Hi');
+    await authedPage.keyboard.press('Enter');
+
+    await expect(authedPage.locator('.assistant-text')).toBeVisible({ timeout: 10000 });
+
+    const overflow = await authedPage.evaluate(() => {
+      const messages = document.querySelector('.messages') as HTMLElement;
+      return messages ? messages.scrollWidth > messages.clientWidth : false;
+    });
+    expect(overflow).toBe(false);
+  });
+
   test('"New conversation" button clears messages', async ({ authedPage }) => {
     await authedPage.goto('/chat');
     const textarea = authedPage.locator('textarea');

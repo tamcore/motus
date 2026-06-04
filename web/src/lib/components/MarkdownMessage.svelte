@@ -6,7 +6,17 @@
 
 	marked.use({ gfm: true, breaks: true });
 
-	$: html = DOMPurify.sanitize(marked.parse(content) as string);
+	$: {
+		const raw = marked.parse(content) as string;
+		// Wrap every table in a scrollable container so wide tables scroll
+		// horizontally on mobile rather than squashing columns.
+		const wrapped = raw
+			.replace(/<table(\s|>)/g, '<div class="table-container"><table$1')
+			.replace(/<\/table>/g, '</table></div>');
+		html = DOMPurify.sanitize(wrapped);
+	}
+
+	let html = '';
 </script>
 
 <div class="markdown-body">{@html html}</div>
@@ -58,17 +68,26 @@
 		padding: 0;
 		font-size: 0.85em;
 	}
-	.markdown-body :global(table) {
-		border-collapse: collapse;
-		width: 100%;
+	.markdown-body :global(.table-container) {
+		overflow-x: auto;
+		-webkit-overflow-scrolling: touch;
+		max-width: 100%;
 		margin: 0.5em 0;
+	}
+	.markdown-body :global(.table-container table) {
+		border-collapse: collapse;
+		width: auto;
+		min-width: 100%;
 		font-size: 0.9em;
+		margin: 0;
 	}
 	.markdown-body :global(th),
 	.markdown-body :global(td) {
 		border: 1px solid rgba(0, 0, 0, 0.15);
 		padding: 0.3em 0.6em;
 		text-align: left;
+		white-space: nowrap;
+		word-break: normal;
 	}
 	.markdown-body :global(th) {
 		background: rgba(0, 0, 0, 0.05);

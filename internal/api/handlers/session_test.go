@@ -19,6 +19,27 @@ import (
 	"github.com/tamcore/motus/internal/storage/repository"
 )
 
+// TestLogin_FormBodyTooLarge verifies that an oversized form-encoded body is rejected
+// rather than being buffered in full, preventing memory exhaustion.
+func TestLogin_FormBodyTooLarge(t *testing.T) {
+	h := handlers.NewSessionHandler(
+		repository.NewUserRepository(nil),
+		repository.NewSessionRepository(nil),
+		repository.NewApiKeyRepository(nil),
+	)
+
+	// Build a form body well over 1 MB.
+	oversized := "email=a%40b.com&password=" + strings.Repeat("x", 2<<20)
+	req := httptest.NewRequest(http.MethodPost, "/api/session", strings.NewReader(oversized))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+	h.Login(rr, req)
+
+	if rr.Code == http.StatusOK {
+		t.Error("expected non-200 response for oversized form body, got 200")
+	}
+}
+
 // TestLogin_MissingFields verifies that login rejects requests missing email or password.
 func TestLogin_MissingFields(t *testing.T) {
 	h := handlers.NewSessionHandler(

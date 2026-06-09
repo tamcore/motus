@@ -35,6 +35,8 @@ func SecurityHeaders(next http.Handler) http.Handler {
 				"font-src 'self'; "+
 				"worker-src 'self'; "+
 				"manifest-src 'self'; "+
+				"frame-src 'none'; "+
+				"form-action 'self'; "+
 				"frame-ancestors 'none'")
 
 		// HTTP Strict Transport Security: force HTTPS for 1 year.
@@ -44,6 +46,9 @@ func SecurityHeaders(next http.Handler) http.Handler {
 		// Permissions Policy: disable unused browser features.
 		h.Set("Permissions-Policy",
 			"camera=(), microphone=(), geolocation=(), payment=()")
+
+		// Prevent cross-origin reads of API responses via <img>, <script>, etc.
+		h.Set("Cross-Origin-Resource-Policy", "same-origin")
 
 		// Referrer Policy: send origin only for cross-origin requests.
 		h.Set("Referrer-Policy", "strict-origin-when-cross-origin")

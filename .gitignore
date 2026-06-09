@@ -61,6 +61,9 @@ charts/motus/values-dev.yaml
 # Root node_modules (safety net)
 node_modules/
 
+# Security scan reports (contain sensitive scan artifacts)
+security-reports/
+
 # Database
 *.db
 *.sqlite
@@ -80,6 +83,7 @@ kube_*.yaml
 # Environment files
 .env
 .env.local
+.envrc
 web/test-results/
 web/playwright-report/
 .claude/
@@ -90,4 +94,3 @@ web/test-run-output.txt
 
 charts/motus/values-dev.yaml
 AGENTS.md.local
-

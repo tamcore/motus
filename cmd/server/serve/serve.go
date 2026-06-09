@@ -567,7 +567,12 @@ func Run() {
 		metricsMux.Handle("/metrics", promhttp.Handler())
 		go func() {
 			slog.Info("metrics server listening", slog.String("addr", metricsAddr))
-			if err := http.ListenAndServe(metricsAddr, metricsMux); err != nil && err != http.ErrServerClosed {
+			metricsSrv := &http.Server{
+				Addr:              metricsAddr,
+				Handler:           metricsMux,
+				ReadHeaderTimeout: 10 * time.Second,
+			}
+			if err := metricsSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 				slog.Error("metrics server error", slog.Any("error", err))
 			}
 		}()

@@ -35,7 +35,7 @@ func (h *Handler) GetOIDCConfig(ctx context.Context) (*oas.OIDCConfig, error) {
 // GET /api/auth/oidc/login
 func (h *Handler) OidcLogin(ctx context.Context) error {
 	if !h.cfg.OIDCConfig.Enabled {
-		return fmt.Errorf("oidc not enabled")
+		return &httpStatusError{code: http.StatusNotFound, msg: "OIDC not enabled"}
 	}
 
 	b := make([]byte, 16)

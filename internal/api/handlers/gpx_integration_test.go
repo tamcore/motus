@@ -89,6 +89,43 @@ func setupGPXHandler(t *testing.T) (*handlers.GPXImportHandler, *repository.Devi
 	return h, deviceRepo, posRepo, user
 }
 
+// TestGPXHandler_Import_BodyTooLarge verifies that a multipart body over 32 MB
+// is rejected rather than being buffered in full, preventing memory exhaustion.
+// Uses a mock device repo so no database is needed.
+func TestGPXHandler_Import_BodyTooLarge(t *testing.T) {
+	deviceRepo := &mockDeviceRepo{
+		userHasAccessFn: func(_ context.Context, _ *model.User, _ int64) bool { return true },
+	}
+	h := handlers.NewGPXImportHandler(deviceRepo, repository.NewPositionRepository(nil), nil)
+
+	// Build a multipart body well over 32 MB.
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	fw, err := mw.CreateFormFile("file", "big.gpx")
+	if err != nil {
+		t.Fatalf("create form file: %v", err)
+	}
+	chunk := bytes.Repeat([]byte("x"), 1<<20) // 1 MB chunks
+	for i := 0; i < 33; i++ {
+		if _, err := fw.Write(chunk); err != nil {
+			t.Fatalf("write chunk %d: %v", i, err)
+		}
+	}
+	_ = mw.Close()
+
+	req := httptest.NewRequest(http.MethodPost, "/api/devices/1/gpx", &buf)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	req = withUser(req, &model.User{ID: 1})
+	req = withChiParam(req, "id", "1")
+	rr := httptest.NewRecorder()
+
+	h.Import(rr, req)
+
+	if rr.Code == http.StatusOK {
+		t.Error("expected non-200 response for oversized multipart body, got 200")
+	}
+}
+
 func TestGPXHandler_Import_InvalidDeviceID(t *testing.T) {
 	h, _, _, user := setupGPXHandler(t)
 

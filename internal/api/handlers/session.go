@@ -71,6 +71,8 @@ func (h *SessionHandler) Login(w http.ResponseWriter, r *http.Request) {
 	contentType := r.Header.Get("Content-Type")
 
 	if strings.Contains(contentType, "application/x-www-form-urlencoded") {
+		// Limit form body to 1 MB to prevent memory exhaustion before ParseForm reads it.
+		r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 		// Parse form data (Traccar Manager compatibility).
 		if err := r.ParseForm(); err != nil {
 			api.RespondError(w, http.StatusBadRequest, "invalid form data")

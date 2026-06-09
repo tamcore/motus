@@ -19,6 +19,20 @@ import (
 	"golang.org/x/oauth2"
 )
 
+// TestOidcLogin_Disabled_Returns404 verifies that calling OidcLogin when OIDC
+// is not enabled produces an error that NewError maps to 404, not 500.
+func TestOidcLogin_Disabled_Returns404(t *testing.T) {
+	h := NewHandler(HandlerConfig{OIDCConfig: config.OIDCConfig{Enabled: false}})
+	err := h.OidcLogin(context.Background())
+	if err == nil {
+		t.Fatal("expected an error when OIDC is disabled")
+	}
+	resp := h.NewError(context.Background(), err)
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("expected NewError to produce 404, got %d (error: %v)", resp.StatusCode, err)
+	}
+}
+
 // ── mock types ───────────────────────────────────────────────────────────────
 
 // oidcTestUserRepo is a test double for repository.UserRepo, used only in

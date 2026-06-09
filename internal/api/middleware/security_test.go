@@ -160,6 +160,38 @@ func extractCSPDirective(csp, directive string) string {
 	return ""
 }
 
+func TestSecurityHeaders_CORPHeader(t *testing.T) {
+	handler := middleware.SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/devices", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	corp := rr.Header().Get("Cross-Origin-Resource-Policy")
+	if corp != "same-origin" {
+		t.Errorf("expected Cross-Origin-Resource-Policy: same-origin, got %q", corp)
+	}
+}
+
+func TestSecurityHeaders_CSPExplicitFallbackDirectives(t *testing.T) {
+	handler := middleware.SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	csp := rr.Header().Get("Content-Security-Policy")
+	for _, d := range []string{"frame-src 'none'", "form-action 'self'"} {
+		if !strings.Contains(csp, d) {
+			t.Errorf("CSP missing explicit directive %q; full CSP: %s", d, csp)
+		}
+	}
+}
+
 func TestSecurityHeaders_AppliedToAllMethods(t *testing.T) {
 	handler := middleware.SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)

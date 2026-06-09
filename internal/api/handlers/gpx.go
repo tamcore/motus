@@ -50,6 +50,8 @@ func (h *GPXImportHandler) Import(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Limit raw body to 32 MB to prevent memory exhaustion before multipart parsing.
+	r.Body = http.MaxBytesReader(w, r.Body, 32<<20)
 	if err := r.ParseMultipartForm(16 << 20); err != nil {
 		api.RespondError(w, http.StatusBadRequest, "failed to parse form")
 		return

@@ -557,11 +557,11 @@ func (s *Server) decodeH02(ctx context.Context, line string) (*model.Position, s
 	// SMS: command response from the device.
 	if msg.Type == "SMS" {
 		if s.commands != nil && msg.Result != "" {
-			// Use a detached context with timeout so the goroutine is not
-			// cancelled when the connection (and its ctx) closes before the
-			// DB write completes.
+			// WithoutCancel inherits trace spans from the connection context but
+			// is not cancelled when the connection closes before the DB write
+			// completes.
 			go func(deviceID, result string) {
-				gCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				gCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 				defer cancel()
 				device, devErr := s.resolveOrCreateDevice(gCtx, deviceID)
 				if devErr != nil {

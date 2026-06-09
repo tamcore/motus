@@ -83,7 +83,9 @@ func (s *NotificationService) ProcessEvent(ctx context.Context, event *model.Eve
 			// created inside the goroutine so the timer lifetime is scoped
 			// to the goroutine, not the outer loop iteration.
 			go func(r *model.NotificationRule, uid int64) {
-				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+				// WithoutCancel inherits trace spans from the event context but is
+				// not cancelled when ProcessEvent returns.
+				ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
 				defer cancel()
 				s.sendNotification(ctx, r, event, device, uid)
 			}(rule, userID)

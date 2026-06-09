@@ -58,7 +58,7 @@ func buildAuthMiddleware(users repository.UserRepo, sessions repository.SessionR
 
 							// Update last_used_at asynchronously to avoid adding
 							// latency to every API request.
-							go apiKeys.UpdateLastUsed(context.Background(), apiKey.ID) //nolint:errcheck
+							go apiKeys.UpdateLastUsed(context.WithoutCancel(r.Context()), apiKey.ID) //nolint:errcheck
 							return
 						}
 					}
@@ -92,10 +92,10 @@ func buildAuthMiddleware(users repository.UserRepo, sessions repository.SessionR
 							}
 						}
 						next.ServeHTTP(w, r.WithContext(ctx))
-						go sessions.UpdateLastSeen(context.Background(), session.ID, //nolint:errcheck
+						go sessions.UpdateLastSeen(context.WithoutCancel(r.Context()), session.ID, //nolint:errcheck
 							audit.ExtractIP(r), r.Header.Get("User-Agent"))
 						if session.RememberMe && time.Until(session.ExpiresAt) < 15*24*time.Hour {
-							go sessions.UpdateExpiry(context.Background(), session.ID, //nolint:errcheck
+							go sessions.UpdateExpiry(context.WithoutCancel(r.Context()), session.ID, //nolint:errcheck
 								time.Now().Add(30*24*time.Hour))
 						}
 						return
@@ -131,10 +131,10 @@ func buildAuthMiddleware(users repository.UserRepo, sessions repository.SessionR
 						}
 
 						next.ServeHTTP(w, r.WithContext(ctx))
-						go sessions.UpdateLastSeen(context.Background(), session.ID, //nolint:errcheck
+						go sessions.UpdateLastSeen(context.WithoutCancel(r.Context()), session.ID, //nolint:errcheck
 							audit.ExtractIP(r), r.Header.Get("User-Agent"))
 						if session.RememberMe && time.Until(session.ExpiresAt) < 15*24*time.Hour {
-							go sessions.UpdateExpiry(context.Background(), session.ID, //nolint:errcheck
+							go sessions.UpdateExpiry(context.WithoutCancel(r.Context()), session.ID, //nolint:errcheck
 								time.Now().Add(30*24*time.Hour))
 						}
 						return

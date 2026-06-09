@@ -40,7 +40,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	slog.Info("starting traccar demo",
+	slog.Info("starting traccar demo", //nolint:gosec // G706: CLI args are in structured slog fields, not interpolated into the message string
 		slog.String("target", target),
 		slog.String("imei", imei),
 		slog.Int("routes", len(routes)))

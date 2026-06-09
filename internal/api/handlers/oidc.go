@@ -130,7 +130,7 @@ func (h *OIDCHandler) Callback(w http.ResponseWriter, r *http.Request) {
 	state := r.URL.Query().Get("state")
 	code := r.URL.Query().Get("code")
 	if errParam := r.URL.Query().Get("error"); errParam != "" {
-		slog.Warn("oidc: provider returned error",
+		slog.Warn("oidc: provider returned error", //nolint:gosec // G706: provider error values are in structured slog fields, not interpolated into the message string
 			slog.String("error", errParam),
 			slog.String("description", r.URL.Query().Get("error_description")),
 		)

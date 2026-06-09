@@ -86,7 +86,7 @@ func Logger(next http.Handler) http.Handler {
 
 		next.ServeHTTP(rec, r)
 
-		slog.Info("http",
+		slog.Info("http", //nolint:gosec // G706: user-supplied values are in structured slog fields, not interpolated into the message string
 			slog.String("type", "http"),
 			slog.String("method", r.Method),
 			slog.String("path", r.URL.Path),

@@ -15,6 +15,13 @@
 	import Input from '$lib/components/Input.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import QrScannerDialog from '$lib/components/QrScannerDialog.svelte';
+	import { sanitizeReturnTo } from '$lib/utils/returnTo';
+
+	/** Navigate to the sanitized returnTo target (or /) after a successful login. */
+	function redirectAfterLogin() {
+		const params = new URLSearchParams(window.location.search);
+		goto(sanitizeReturnTo(params.get('returnTo')));
+	}
 
 	let email = '';
 	let password = '';
@@ -68,7 +75,7 @@
 			currentUser.set(userData);
 			isAuthenticated.set(true);
 			wsManager.connect();
-			goto('/');
+			redirectAfterLogin();
 		} catch {
 			// Token login failed; let the user log in manually.
 			loading = false;
@@ -110,7 +117,7 @@
 			currentUser.set(user);
 			isAuthenticated.set(true);
 			wsManager.connect();
-			goto('/');
+			redirectAfterLogin();
 			return;
 		} catch {
 			// Not authenticated; show the login form normally.
@@ -161,7 +168,7 @@
 			// auto-login on subsequent launches without re-entering credentials.
 			generateLoginToken();
 
-			goto('/');
+			redirectAfterLogin();
 		} catch {
 			error = 'Invalid email or password';
 		} finally {

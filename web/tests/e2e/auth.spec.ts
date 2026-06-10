@@ -63,3 +63,24 @@ test.describe('Authentication', () => {
     await loginPage.expectOnLoginPage();
   });
 });
+
+test.describe('Login returnTo', () => {
+  test('should return to the requested page after login', async ({ page }) => {
+    await page.goto('/devices');
+    await page.waitForURL(/\/login\?returnTo=%2Fdevices/, { timeout: 10000 });
+
+    const loginPage = new LoginPage(page);
+    await loginPage.login(TEST_CREDENTIALS.email, TEST_CREDENTIALS.password);
+    await page.waitForURL('/devices', { timeout: 15000 });
+    await expect(page.locator('h1:has-text("Devices")')).toBeVisible({ timeout: 10000 });
+  });
+
+  test('should ignore non-relative returnTo values (open redirect guard)', async ({ page }) => {
+    await page.goto('/login?returnTo=%2F%2Fevil.com');
+
+    const loginPage = new LoginPage(page);
+    await loginPage.login(TEST_CREDENTIALS.email, TEST_CREDENTIALS.password);
+    await page.waitForURL('/', { timeout: 15000 });
+    await expect(page.locator('h1:has-text("Dashboard")')).toBeVisible({ timeout: 10000 });
+  });
+});

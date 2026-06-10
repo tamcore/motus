@@ -6724,6 +6724,8 @@ type UpdateProfileRequest struct {
 	Name     OptString `json:"name"`
 	Email    OptString `json:"email"`
 	Password OptString `json:"password"`
+	// Required when setting a new password; must match the user's current password.
+	CurrentPassword OptString `json:"currentPassword"`
 }
 
 // GetName returns the value of Name.
@@ -6741,6 +6743,11 @@ func (s *UpdateProfileRequest) GetPassword() OptString {
 	return s.Password
 }
 
+// GetCurrentPassword returns the value of CurrentPassword.
+func (s *UpdateProfileRequest) GetCurrentPassword() OptString {
+	return s.CurrentPassword
+}
+
 // SetName sets the value of Name.
 func (s *UpdateProfileRequest) SetName(val OptString) {
 	s.Name = val
@@ -6754,6 +6761,11 @@ func (s *UpdateProfileRequest) SetEmail(val OptString) {
 // SetPassword sets the value of Password.
 func (s *UpdateProfileRequest) SetPassword(val OptString) {
 	s.Password = val
+}
+
+// SetCurrentPassword sets the value of CurrentPassword.
+func (s *UpdateProfileRequest) SetCurrentPassword(val OptString) {
+	s.CurrentPassword = val
 }
 
 type UpdateProfileUnauthorized Error

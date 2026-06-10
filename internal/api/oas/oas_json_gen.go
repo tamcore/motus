@@ -17893,12 +17893,19 @@ func (s *UpdateProfileRequest) encodeFields(e *jx.Encoder) {
 			s.Password.Encode(e)
 		}
 	}
+	{
+		if s.CurrentPassword.Set {
+			e.FieldStart("currentPassword")
+			s.CurrentPassword.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfUpdateProfileRequest = [3]string{
+var jsonFieldsNameOfUpdateProfileRequest = [4]string{
 	0: "name",
 	1: "email",
 	2: "password",
+	3: "currentPassword",
 }
 
 // Decode decodes UpdateProfileRequest from json.
@@ -17938,6 +17945,16 @@ func (s *UpdateProfileRequest) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"password\"")
+			}
+		case "currentPassword":
+			if err := func() error {
+				s.CurrentPassword.Reset()
+				if err := s.CurrentPassword.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"currentPassword\"")
 			}
 		default:
 			return d.Skip()

@@ -17,8 +17,7 @@ type CSRFConfig struct {
 	Secure bool
 	// ValidateXAuthToken, when non-nil, is called to confirm an X-Auth-Token
 	// value resolves to a live session before granting the CSRF exemption.
-	// If nil, any non-empty X-Auth-Token is accepted (preserves existing
-	// behaviour when not wired up).
+	// If nil, the X-Auth-Token header grants no exemption (fail closed).
 	ValidateXAuthToken func(ctx context.Context, token string) bool
 }
 
@@ -71,8 +70,11 @@ func CSRF(cfg CSRFConfig) func(http.Handler) http.Handler {
 			// iOS/Firefox-iOS PWA contexts where the cookie gets evicted.
 			// Validate the token against a live session before exempting CSRF;
 			// an empty or invalid token falls through to gorilla/csrf.
+			// Fail closed: with no validator configured the header grants no
+			// exemption — failing open would let any client skip CSRF by
+			// sending an arbitrary X-Auth-Token value.
 			if xat := r.Header.Get("X-Auth-Token"); xat != "" {
-				if cfg.ValidateXAuthToken == nil || cfg.ValidateXAuthToken(r.Context(), xat) {
+				if cfg.ValidateXAuthToken != nil && cfg.ValidateXAuthToken(r.Context(), xat) {
 					next.ServeHTTP(w, r)
 					return
 				}

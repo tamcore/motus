@@ -42,6 +42,31 @@ func TestLoadFromEnv_CustomValues(t *testing.T) {
 	}
 }
 
+func TestLoadFromEnv_OIDCTrustUnverifiedEmail(t *testing.T) {
+	t.Run("defaults to false", func(t *testing.T) {
+		cfg, err := config.LoadFromEnv()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if cfg.OIDC.TrustUnverifiedEmail {
+			t.Error("expected TrustUnverifiedEmail to default to false")
+		}
+	})
+
+	t.Run("enabled via env", func(t *testing.T) {
+		_ = os.Setenv("MOTUS_OIDC_TRUST_UNVERIFIED_EMAIL", "true")
+		defer func() { _ = os.Unsetenv("MOTUS_OIDC_TRUST_UNVERIFIED_EMAIL") }()
+
+		cfg, err := config.LoadFromEnv()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !cfg.OIDC.TrustUnverifiedEmail {
+			t.Error("expected TrustUnverifiedEmail to be true")
+		}
+	})
+}
+
 func TestDatabaseConfig_URL(t *testing.T) {
 	cfg := config.DatabaseConfig{
 		Host:     "localhost",

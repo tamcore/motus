@@ -54,6 +54,13 @@ func (h *Handler) UpdateProfile(ctx context.Context, req *oas.UpdateProfileReque
 	}
 
 	if pw, ok := req.Password.Get(); ok && pw != "" {
+		currentPw, ok := req.CurrentPassword.Get()
+		if !ok || currentPw == "" {
+			return &oas.UpdateProfileBadRequest{Error: "current password is required to set a new password"}, nil
+		}
+		if err := bcrypt.CompareHashAndPassword([]byte(existing.PasswordHash), []byte(currentPw)); err != nil {
+			return &oas.UpdateProfileBadRequest{Error: "current password is incorrect"}, nil
+		}
 		if err := validation.ValidatePassword(pw); err != nil {
 			return &oas.UpdateProfileBadRequest{Error: err.Error()}, nil
 		}
@@ -65,6 +72,18 @@ func (h *Handler) UpdateProfile(ctx context.Context, req *oas.UpdateProfileReque
 			return &oas.UpdateProfileBadRequest{Error: "failed to update password"}, nil
 		}
 		changes["passwordChanged"] = true
+
+		// Revoke every other session so a stolen session does not survive a
+		// password rotation. Keep the current session when known; with
+		// API-key auth there is no session in context, so revoke all.
+		exceptID := ""
+		if session := api.SessionFromContext(ctx); session != nil {
+			exceptID = session.ID
+		}
+		if err := h.cfg.Sessions.DeleteAllByUser(ctx, existing.ID, exceptID); err != nil {
+			return &oas.UpdateProfileBadRequest{Error: "failed to revoke sessions"}, nil
+		}
+		changes["sessionsRevoked"] = true
 	}
 
 	if h.cfg.AuditLogger != nil && len(changes) > 0 {

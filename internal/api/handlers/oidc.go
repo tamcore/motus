@@ -192,8 +192,11 @@ func (h *OIDCHandler) Callback(w http.ResponseWriter, r *http.Request) {
 	var allClaims map[string]interface{}
 	_ = idToken.Claims(&allClaims)
 
-	// Resolve or create the local user account.
-	user, err := h.resolveOIDCUser(r.Context(), idToken.Subject, stdClaims.Email, stdClaims.Name)
+	// Resolve or create the local user account. email_verified is read from
+	// the raw claims map because some IdPs emit it as the string "true"
+	// rather than a JSON boolean.
+	emailVerified := claimBool(allClaims, "email_verified")
+	user, err := h.resolveOIDCUser(r.Context(), idToken.Subject, stdClaims.Email, stdClaims.Name, emailVerified)
 	if errors.Is(err, errSignupDisabled) {
 		http.Redirect(w, r, "/login?error=signup_disabled", http.StatusFound)
 		return
@@ -242,7 +245,12 @@ func (h *OIDCHandler) Callback(w http.ResponseWriter, r *http.Request) {
 // resolveOIDCUser finds an existing user by OIDC subject, falls back to
 // email lookup and links the subject, or creates a new account when signup
 // is enabled. Returns errSignupDisabled if the user is new and signup is off.
-func (h *OIDCHandler) resolveOIDCUser(ctx context.Context, subject, email, name string) (*model.User, error) {
+//
+// The email fallback only links when the IdP asserts the email is verified
+// (or TrustUnverifiedEmail is configured): linking on an unverified email
+// would let an attacker take over a local account by registering the same
+// address at a lax IdP.
+func (h *OIDCHandler) resolveOIDCUser(ctx context.Context, subject, email, name string, emailVerified bool) (*model.User, error) {
 	issuer := h.cfg.Issuer
 
 	// 1. Primary lookup: OIDC subject (survives email changes).
@@ -252,7 +260,7 @@ func (h *OIDCHandler) resolveOIDCUser(ctx context.Context, subject, email, name 
 	}
 
 	// 2. Email fallback: link subject to an existing account.
-	if email != "" {
+	if email != "" && (emailVerified || h.cfg.TrustUnverifiedEmail) {
 		user, err = h.users.GetByEmail(ctx, email)
 		if err == nil {
 			if linkErr := h.users.SetOIDCSubject(ctx, user.ID, subject, issuer); linkErr != nil {
@@ -279,6 +287,20 @@ func (h *OIDCHandler) resolveOIDCUser(ctx context.Context, subject, email, name 
 	}
 	slog.Info("oidc: new user registered", slog.String("email", email))
 	return user, nil
+}
+
+// claimBool reads a boolean claim from a raw claims map. It accepts both a
+// JSON boolean and the string forms "true"/"false" (used by some IdPs, e.g.
+// Azure AD B2C). Missing or unrecognised values return false.
+func claimBool(claims map[string]interface{}, key string) bool {
+	switch v := claims[key].(type) {
+	case bool:
+		return v
+	case string:
+		return v == "true"
+	default:
+		return false
+	}
 }
 
 // isAdminByFilter returns true if either the email regex or the claim filter

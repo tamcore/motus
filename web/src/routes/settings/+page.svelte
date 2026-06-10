@@ -92,7 +92,7 @@
 					name: name || undefined,
 					email: email || undefined,
 					currentPassword: currentPassword || undefined,
-					newPassword: newPassword || undefined,
+					password: newPassword || undefined,
 				});
 				currentUser.set(updated);
 				originalName = updated.name;

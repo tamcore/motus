@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -14,6 +15,14 @@ import (
 	"github.com/openai/openai-go/option"
 	"github.com/openai/openai-go/packages/param"
 	"github.com/openai/openai-go/shared"
+)
+
+// Client-facing error messages. Upstream API errors are deliberately not
+// forwarded to the SSE stream — they can contain provider response bodies,
+// rate-limit details, or request metadata. The full error is logged instead.
+const (
+	genericErrorMessage = "The assistant encountered an error. Please try again."
+	timeoutErrorMessage = "The request timed out. Please try again."
 )
 
 // EventSink receives streaming events from the chat service.
@@ -109,7 +118,12 @@ func (s *Service) Stream(ctx context.Context, hist HistoryHandle, sink EventSink
 	for loop := 0; loop < s.maxLoops; loop++ {
 		pendingCalls, text, err := s.streamOnce(ctx, history, sink)
 		if err != nil {
-			_ = sink.Send(ChatEvent{Type: "error", Message: err.Error()})
+			slog.Error("ai chat: upstream stream error", slog.Any("error", err))
+			msg := genericErrorMessage
+			if errors.Is(err, context.DeadlineExceeded) {
+				msg = timeoutErrorMessage
+			}
+			_ = sink.Send(ChatEvent{Type: "error", Message: msg})
 			_ = sink.Flush()
 			break
 		}
@@ -205,8 +219,11 @@ func (s *Service) streamOnce(ctx context.Context, history []openai.ChatCompletio
 	}
 
 	if err := stream.Err(); err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			return nil, "", fmt.Errorf("request timed out")
+		// Wrap with %w so the caller can classify (e.g. deadline exceeded).
+		// The context error may also surface only via ctx when the SDK
+		// swallows it, so prefer ctx.Err() when set.
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, "", fmt.Errorf("stream error: %w", ctxErr)
 		}
 		return nil, "", fmt.Errorf("stream error: %w", err)
 	}

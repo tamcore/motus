@@ -262,10 +262,12 @@ type Handler interface {
 	GetServer(ctx context.Context) (*ServerInfo, error)
 	// GetSession implements getSession operation.
 	//
-	// Get current session / validate credentials.
+	// With a `token` query parameter, performs a token login (QR code / Traccar Manager / pytraccar):
+	// the token is resolved against API keys (with legacy users.token fallback) and a session cookie is
+	// set. Without it, validates the current session credentials.
 	//
 	// GET /api/session
-	GetSession(ctx context.Context) (GetSessionRes, error)
+	GetSession(ctx context.Context, params GetSessionParams) (GetSessionRes, error)
 	// GetSharedDevice implements getSharedDevice operation.
 	//
 	// Get device info via public share token.
@@ -349,7 +351,7 @@ type Handler interface {
 	// Login with email + password.
 	//
 	// POST /api/session
-	Login(ctx context.Context, req *LoginRequest) (LoginRes, error)
+	Login(ctx context.Context, req LoginReq) (LoginRes, error)
 	// Logout implements logout operation.
 	//
 	// Logout (delete current session).

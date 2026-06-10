@@ -393,10 +393,12 @@ func (UnimplementedHandler) GetServer(ctx context.Context) (r *ServerInfo, _ err
 
 // GetSession implements getSession operation.
 //
-// Get current session / validate credentials.
+// With a `token` query parameter, performs a token login (QR code / Traccar Manager / pytraccar):
+// the token is resolved against API keys (with legacy users.token fallback) and a session cookie is
+// set. Without it, validates the current session credentials.
 //
 // GET /api/session
-func (UnimplementedHandler) GetSession(ctx context.Context) (r GetSessionRes, _ error) {
+func (UnimplementedHandler) GetSession(ctx context.Context, params GetSessionParams) (r GetSessionRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -522,7 +524,7 @@ func (UnimplementedHandler) ListShares(ctx context.Context, params ListSharesPar
 // Login with email + password.
 //
 // POST /api/session
-func (UnimplementedHandler) Login(ctx context.Context, req *LoginRequest) (r LoginRes, _ error) {
+func (UnimplementedHandler) Login(ctx context.Context, req LoginReq) (r LoginRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

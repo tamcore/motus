@@ -9638,7 +9638,9 @@ func (s *Server) handleGetServerRequest(args [0]string, argsEscaped bool, w http
 
 // handleGetSessionRequest handles getSession operation.
 //
-// Get current session / validate credentials.
+// With a `token` query parameter, performs a token login (QR code / Traccar Manager / pytraccar):
+// the token is resolved against API keys (with legacy users.token fallback) and a session cookie is
+// set. Without it, validates the current session credentials.
 //
 // GET /api/session
 func (s *Server) handleGetSessionRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -9776,6 +9778,7 @@ func (s *Server) handleGetSessionRequest(args [0]string, argsEscaped bool, w htt
 				{0b00000001},
 				{0b00000010},
 				{0b00000100},
+				{},
 			} {
 				for i, mask := range requirement {
 					if satisfied[i]&mask != mask {
@@ -9796,6 +9799,16 @@ func (s *Server) handleGetSessionRequest(args [0]string, argsEscaped bool, w htt
 			return
 		}
 	}
+	params, err := decodeGetSessionParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
 
 	var rawBody []byte
 
@@ -9808,13 +9821,18 @@ func (s *Server) handleGetSessionRequest(args [0]string, argsEscaped bool, w htt
 			OperationID:      "getSession",
 			Body:             nil,
 			RawBody:          rawBody,
-			Params:           middleware.Parameters{},
-			Raw:              r,
+			Params: middleware.Parameters{
+				{
+					Name: "token",
+					In:   "query",
+				}: params.Token,
+			},
+			Raw: r,
 		}
 
 		type (
 			Request  = struct{}
-			Params   = struct{}
+			Params   = GetSessionParams
 			Response = GetSessionRes
 		)
 		response, err = middleware.HookMiddleware[
@@ -9824,14 +9842,14 @@ func (s *Server) handleGetSessionRequest(args [0]string, argsEscaped bool, w htt
 		](
 			m,
 			mreq,
-			nil,
+			unpackGetSessionParams,
 			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.GetSession(ctx)
+				response, err = s.h.GetSession(ctx, params)
 				return response, err
 			},
 		)
 	} else {
-		response, err = s.h.GetSession(ctx)
+		response, err = s.h.GetSession(ctx, params)
 	}
 	if err != nil {
 		if errRes, ok := errors.Into[*UnexpectedErrorStatusCode](err); ok {
@@ -12796,7 +12814,7 @@ func (s *Server) handleLoginRequest(args [0]string, argsEscaped bool, w http.Res
 		}
 
 		type (
-			Request  = *LoginRequest
+			Request  = LoginReq
 			Params   = struct{}
 			Response = LoginRes
 		)

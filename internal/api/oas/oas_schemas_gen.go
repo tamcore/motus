@@ -4289,6 +4289,14 @@ type ListSharesUnauthorized Error
 
 func (*ListSharesUnauthorized) listSharesRes() {}
 
+type LoginApplicationJSON LoginRequest
+
+func (*LoginApplicationJSON) loginReq() {}
+
+type LoginApplicationXWwwFormUrlencoded LoginRequest
+
+func (*LoginApplicationXWwwFormUrlencoded) loginReq() {}
+
 // Ref: #/components/schemas/LoginRequest
 type LoginRequest struct {
 	Email    string  `json:"email"`

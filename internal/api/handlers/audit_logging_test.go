@@ -12,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/tamcore/motus/internal/api"
 	"github.com/tamcore/motus/internal/api/handlers"
+	oas "github.com/tamcore/motus/internal/api/oas"
 	"github.com/tamcore/motus/internal/audit"
 	"github.com/tamcore/motus/internal/model"
 	"github.com/tamcore/motus/internal/storage/repository"
@@ -537,34 +538,42 @@ func TestApiKeyHandler_Delete_WithAuditLogger(t *testing.T) {
 	}
 }
 
-// --- Session failed login with audit logger ---
+// --- Session failed login with audit logger (ogen Handler) ---
 
-// TestSessionHandler_LoginFailed_UnknownEmail exercises the failed login audit path.
-func TestSessionHandler_LoginFailed_UnknownEmail(t *testing.T) {
+// TestLogin_AuditFailedLogin_UnknownEmail exercises the failed login audit
+// path. The audit logger has a nil pool, so the write is a no-op but the
+// unconditional AuditLogger.Log call in Login is exercised. The persisted
+// audit entries are asserted in TestLogin_NonexistentUser_Integration
+// (session_oas_test.go).
+func TestLogin_AuditFailedLogin_UnknownEmail(t *testing.T) {
 	users := &mockUserRepo{
 		getByEmailFn: func(_ context.Context, _ string) (*model.User, error) {
 			return nil, errors.New("not found")
 		},
 	}
-	h := handlers.NewSessionHandler(users, &mockSessionRepo{}, &mockApiKeyRepo{})
-	h.SetAuditLogger(audit.NewLogger(nil))
+	h := handlers.NewHandler(handlers.HandlerConfig{
+		Users:       users,
+		Sessions:    &mockSessionRepo{},
+		ApiKeys:     &mockApiKeyRepo{},
+		AuditLogger: audit.NewLogger(nil),
+	})
 
-	body := `{"email":"unknown@example.com","password":"wrong"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/session", bytes.NewReader([]byte(body)))
-	req.Header.Set("Content-Type", "application/json")
-	req.RemoteAddr = "192.168.1.1:12345"
-	rr := httptest.NewRecorder()
-
-	h.Login(rr, req)
-
-	if rr.Code != http.StatusUnauthorized {
-		t.Errorf("expected 401, got %d", rr.Code)
+	res, err := h.Login(context.Background(), &oas.LoginApplicationJSON{
+		Email:    "unknown@example.com",
+		Password: "wrong",
+	})
+	if err != nil {
+		t.Fatalf("Login returned error: %v", err)
+	}
+	if _, ok := res.(*oas.LoginUnauthorized); !ok {
+		t.Errorf("expected *oas.LoginUnauthorized, got %T", res)
 	}
 }
 
-// TestSessionHandler_LoginFailed_WrongPassword exercises the wrong password audit path.
-func TestSessionHandler_LoginFailed_WrongPassword(t *testing.T) {
-	// bcrypt hash for "correctpassword"
+// TestLogin_AuditFailedLogin_WrongPassword exercises the wrong password audit
+// path. The persisted audit entries are asserted in
+// TestLogin_WrongPassword_Integration (session_oas_test.go).
+func TestLogin_AuditFailedLogin_WrongPassword(t *testing.T) {
 	users := &mockUserRepo{
 		getByEmailFn: func(_ context.Context, _ string) (*model.User, error) {
 			return &model.User{
@@ -574,19 +583,22 @@ func TestSessionHandler_LoginFailed_WrongPassword(t *testing.T) {
 			}, nil
 		},
 	}
-	h := handlers.NewSessionHandler(users, &mockSessionRepo{}, &mockApiKeyRepo{})
-	h.SetAuditLogger(audit.NewLogger(nil))
+	h := handlers.NewHandler(handlers.HandlerConfig{
+		Users:       users,
+		Sessions:    &mockSessionRepo{},
+		ApiKeys:     &mockApiKeyRepo{},
+		AuditLogger: audit.NewLogger(nil),
+	})
 
-	body := `{"email":"test@example.com","password":"wrongpassword"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/session", bytes.NewReader([]byte(body)))
-	req.Header.Set("Content-Type", "application/json")
-	req.RemoteAddr = "10.0.0.1:54321"
-	rr := httptest.NewRecorder()
-
-	h.Login(rr, req)
-
-	if rr.Code != http.StatusUnauthorized {
-		t.Errorf("expected 401, got %d", rr.Code)
+	res, err := h.Login(context.Background(), &oas.LoginApplicationJSON{
+		Email:    "test@example.com",
+		Password: "wrongpassword",
+	})
+	if err != nil {
+		t.Fatalf("Login returned error: %v", err)
+	}
+	if _, ok := res.(*oas.LoginUnauthorized); !ok {
+		t.Errorf("expected *oas.LoginUnauthorized, got %T", res)
 	}
 }
 

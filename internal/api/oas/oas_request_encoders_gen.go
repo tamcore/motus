@@ -7,9 +7,11 @@ import (
 	"mime"
 	"mime/multipart"
 	"net/http"
+	"strings"
 
 	"github.com/go-faster/errors"
 	"github.com/go-faster/jx"
+	"github.com/ogen-go/ogen/conv"
 	ht "github.com/ogen-go/ogen/http"
 	"github.com/ogen-go/ogen/uri"
 )
@@ -180,17 +182,72 @@ func encodeImportGPXRequest(
 }
 
 func encodeLoginRequest(
-	req *LoginRequest,
+	req LoginReq,
 	r *http.Request,
 ) error {
-	const contentType = "application/json"
-	e := new(jx.Encoder)
-	{
-		req.Encode(e)
+	switch req := req.(type) {
+	case *LoginApplicationJSON:
+		const contentType = "application/json"
+		e := new(jx.Encoder)
+		{
+			req.Encode(e)
+		}
+		encoded := e.Bytes()
+		ht.SetBody(r, bytes.NewReader(encoded), contentType)
+		return nil
+	case *LoginApplicationXWwwFormUrlencoded:
+		const contentType = "application/x-www-form-urlencoded"
+		request := req
+
+		q := uri.NewFormEncoder(map[string]string{})
+		{
+			// Encode "email" form field.
+			cfg := uri.QueryParameterEncodingConfig{
+				Name:    "email",
+				Style:   uri.QueryStyleForm,
+				Explode: true,
+			}
+			if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+				return e.EncodeValue(conv.StringToString(request.Email))
+			}); err != nil {
+				return errors.Wrap(err, "encode query")
+			}
+		}
+		{
+			// Encode "password" form field.
+			cfg := uri.QueryParameterEncodingConfig{
+				Name:    "password",
+				Style:   uri.QueryStyleForm,
+				Explode: true,
+			}
+			if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+				return e.EncodeValue(conv.StringToString(request.Password))
+			}); err != nil {
+				return errors.Wrap(err, "encode query")
+			}
+		}
+		{
+			// Encode "remember" form field.
+			cfg := uri.QueryParameterEncodingConfig{
+				Name:    "remember",
+				Style:   uri.QueryStyleForm,
+				Explode: true,
+			}
+			if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+				if val, ok := request.Remember.Get(); ok {
+					return e.EncodeValue(conv.BoolToString(val))
+				}
+				return nil
+			}); err != nil {
+				return errors.Wrap(err, "encode query")
+			}
+		}
+		encoded := q.Values().Encode()
+		ht.SetBody(r, strings.NewReader(encoded), contentType)
+		return nil
+	default:
+		return errors.Errorf("unexpected request type: %T", req)
 	}
-	encoded := e.Bytes()
-	ht.SetBody(r, bytes.NewReader(encoded), contentType)
-	return nil
 }
 
 func encodeSendCommandRequest(

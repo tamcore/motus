@@ -12901,6 +12901,82 @@ func (s *ListSharesUnauthorized) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode encodes LoginApplicationJSON as json.
+func (s *LoginApplicationJSON) Encode(e *jx.Encoder) {
+	unwrapped := (*LoginRequest)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes LoginApplicationJSON from json.
+func (s *LoginApplicationJSON) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode LoginApplicationJSON to nil")
+	}
+	var unwrapped LoginRequest
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = LoginApplicationJSON(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *LoginApplicationJSON) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *LoginApplicationJSON) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes LoginApplicationXWwwFormUrlencoded as json.
+func (s *LoginApplicationXWwwFormUrlencoded) Encode(e *jx.Encoder) {
+	unwrapped := (*LoginRequest)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes LoginApplicationXWwwFormUrlencoded from json.
+func (s *LoginApplicationXWwwFormUrlencoded) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode LoginApplicationXWwwFormUrlencoded to nil")
+	}
+	var unwrapped LoginRequest
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = LoginApplicationXWwwFormUrlencoded(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *LoginApplicationXWwwFormUrlencoded) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *LoginApplicationXWwwFormUrlencoded) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode implements json.Marshaler.
 func (s *LoginRequest) Encode(e *jx.Encoder) {
 	e.ObjStart()

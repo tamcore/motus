@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -946,121 +947,181 @@ func TestTraccarCompat_BearerTokenAuth(t *testing.T) {
 	})
 }
 
-// TestTraccarCompat_LegacyTokenAuth verifies that the legacy user.token
-// Bearer authentication still works. Some existing integrations may use
-// the legacy token generated via POST /api/session/token.
-func TestTraccarCompat_LegacyTokenAuth(t *testing.T) {
+// ---------------------------------------------------------------------------
+// Full-router test server helpers
+// ---------------------------------------------------------------------------
+
+// compatRouterEnv bundles the full ogen router test server with the real
+// repositories backing it.
+type compatRouterEnv struct {
+	ts          *httptest.Server
+	userRepo    *repository.UserRepository
+	sessionRepo *repository.SessionRepository
+	apiKeyRepo  *repository.ApiKeyRepository
+	deviceRepo  *repository.DeviceRepository
+}
+
+// setupCompatRouterServer builds the full router (ogen server + SecurityHandler)
+// the same way TestTraccarCompat_FullRouterDevicesEndpoint does. The 3-arg
+// api.NewRouter test variant applies no CSRF or rate-limit middleware, so
+// session mutations need no X-CSRF-Token header.
+func setupCompatRouterServer(t *testing.T) *compatRouterEnv {
+	t.Helper()
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
-	ctx := context.Background()
 
 	userRepo := repository.NewUserRepository(pool)
 	sessionRepo := repository.NewSessionRepository(pool)
 	apiKeyRepo := repository.NewApiKeyRepository(pool)
 	deviceRepo := repository.NewDeviceRepository(pool)
 
-	user := &model.User{
-		Email:        "legacy@example.com",
-		PasswordHash: "hash",
-		Name:         "Legacy User",
+	hub := websocket.NewHub(nil, nil, nil)
+	handler := handlers.NewHandler(handlers.HandlerConfig{
+		Users:    userRepo,
+		Sessions: sessionRepo,
+		Devices:  deviceRepo,
+		ApiKeys:  apiKeyRepo,
+	})
+	secHandler := handlers.NewSecurityHandler(sessionRepo, apiKeyRepo, userRepo)
+	router := api.NewRouter(handler, secHandler, hub)
+	ts := httptest.NewServer(router)
+	t.Cleanup(ts.Close)
+
+	return &compatRouterEnv{
+		ts:          ts,
+		userRepo:    userRepo,
+		sessionRepo: sessionRepo,
+		apiKeyRepo:  apiKeyRepo,
+		deviceRepo:  deviceRepo,
 	}
-	if err := userRepo.Create(ctx, user); err != nil {
+}
+
+// createCompatUser inserts a user with the given password into the test DB.
+func createCompatUser(t *testing.T, userRepo *repository.UserRepository, email, password string) *model.User {
+	t.Helper()
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.MinCost)
+	if err != nil {
+		t.Fatalf("hash password: %v", err)
+	}
+	user := &model.User{Email: email, PasswordHash: string(hash), Name: "Compat User", Role: model.RoleUser}
+	if err := userRepo.Create(context.Background(), user); err != nil {
 		t.Fatalf("create user: %v", err)
 	}
+	return user
+}
 
-	// Generate a legacy token.
-	token, err := userRepo.GenerateToken(ctx, user.ID)
+// respSessionCookie returns the session_id cookie from an HTTP response, or nil.
+func respSessionCookie(resp *http.Response) *http.Cookie {
+	for _, c := range resp.Cookies() {
+		if c.Name == "session_id" {
+			return c
+		}
+	}
+	return nil
+}
+
+// loginViaRouter performs a JSON login through the full router and returns
+// the session cookie.
+func loginViaRouter(t *testing.T, ts *httptest.Server, email, password string) *http.Cookie {
+	t.Helper()
+	body, _ := json.Marshal(map[string]string{"email": email, "password": password})
+	resp, err := http.Post(ts.URL+"/api/session", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("login request failed: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(resp.Body)
+		t.Fatalf("login failed: %d: %s", resp.StatusCode, b)
+	}
+	cookie := respSessionCookie(resp)
+	if cookie == nil || cookie.Value == "" {
+		t.Fatal("login did not set session_id cookie")
+	}
+	return cookie
+}
+
+// TestTraccarCompat_LegacyTokenAuth verifies that a legacy users.token value
+// (generated via POST /api/session/token) still authenticates through
+// GET /api/session?token= on the full router. Some existing integrations use
+// the legacy token instead of an API key.
+func TestTraccarCompat_LegacyTokenAuth(t *testing.T) {
+	env := setupCompatRouterServer(t)
+	ctx := context.Background()
+
+	user := createCompatUser(t, env.userRepo, "legacy@example.com", "legacypass")
+
+	// Generate a legacy token (users.token column).
+	token, err := env.userRepo.GenerateToken(ctx, user.ID)
 	if err != nil {
 		t.Fatalf("generate token: %v", err)
 	}
 
-	dev := &model.Device{
-		UniqueID: "legacy-dev",
-		Name:     "Legacy Device",
-		Status:   "online",
+	resp, err := http.Get(env.ts.URL + "/api/session?token=" + token)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
 	}
-	if err := deviceRepo.Create(ctx, dev, user.ID); err != nil {
-		t.Fatalf("create device: %v", err)
-	}
+	defer func() { _ = resp.Body.Close() }()
 
-	authMW := middleware.Auth(userRepo, sessionRepo, apiKeyRepo)
-	deviceHandler := handlers.NewDeviceHandler(deviceRepo, "")
-	handler := authMW(http.HandlerFunc(deviceHandler.List))
-
-	req := httptest.NewRequest(http.MethodGet, "/api/devices", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Fatalf("legacy Bearer auth: expected 200, got %d: %s", rr.Code, rr.Body.String())
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(resp.Body)
+		t.Fatalf("legacy token login: expected 200, got %d: %s", resp.StatusCode, b)
 	}
 
-	var devices []map[string]interface{}
-	if err := json.NewDecoder(rr.Body).Decode(&devices); err != nil {
+	var userResp map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&userResp); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	if len(devices) == 0 {
-		t.Error("expected at least one device with legacy bearer token")
+	if userResp["email"] != "legacy@example.com" {
+		t.Errorf("expected email 'legacy@example.com', got %v", userResp["email"])
+	}
+	if c := respSessionCookie(resp); c == nil || c.Value == "" {
+		t.Error("legacy token login must set a session_id cookie")
 	}
 }
 
 // TestTraccarCompat_SessionTokenQueryParam verifies that GET /api/session?token=
-// creates a session and returns user info with a session cookie. This is the
-// mechanism used by pytraccar for initial authentication.
+// with an API-key token creates a session and returns user info with a
+// session cookie through the full router. This is the mechanism used by
+// pytraccar for initial authentication.
 //
 // Reference: pytraccar TraccarClient._get_session() uses ?token= parameter.
 func TestTraccarCompat_SessionTokenQueryParam(t *testing.T) {
-	pool := testutil.SetupTestDB(t)
-	testutil.CleanTables(t, pool)
+	env := setupCompatRouterServer(t)
 	ctx := context.Background()
 
-	userRepo := repository.NewUserRepository(pool)
-	sessionRepo := repository.NewSessionRepository(pool)
-	apiKeyRepo := repository.NewApiKeyRepository(pool)
+	user := createCompatUser(t, env.userRepo, "pytraccar@example.com", "pytraccarpass")
 
-	user := &model.User{
-		Email:        "pytraccar@example.com",
-		PasswordHash: "hash",
-		Name:         "PyTraccar User",
+	// Create an API key for the user; Create populates the token.
+	apiKey := &model.ApiKey{
+		UserID:      user.ID,
+		Name:        "HA Integration Key",
+		Permissions: model.PermissionFull,
 	}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("create user: %v", err)
+	if err := env.apiKeyRepo.Create(ctx, apiKey); err != nil {
+		t.Fatalf("create api key: %v", err)
 	}
-
-	// Generate a legacy token for the user.
-	token, err := userRepo.GenerateToken(ctx, user.ID)
-	if err != nil {
-		t.Fatalf("generate token: %v", err)
-	}
-
-	h := handlers.NewSessionHandler(userRepo, sessionRepo, apiKeyRepo)
 
 	// GET /api/session?token=<token> should authenticate and create a session.
-	req := httptest.NewRequest(http.MethodGet,
-		"/api/session?token="+token, nil)
-	rr := httptest.NewRecorder()
-	h.GetCurrentSession(rr, req)
+	resp, err := http.Get(env.ts.URL + "/api/session?token=" + apiKey.Token)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
 
-	if rr.Code != http.StatusOK {
-		t.Fatalf("GET /api/session?token= returned %d: %s", rr.Code, rr.Body.String())
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(resp.Body)
+		t.Fatalf("GET /api/session?token= returned %d: %s", resp.StatusCode, b)
 	}
 
 	// Verify a session cookie is set.
-	var sessionCookie *http.Cookie
-	for _, c := range rr.Result().Cookies() {
-		if c.Name == "session_id" && c.Value != "" {
-			sessionCookie = c
-			break
-		}
-	}
-	if sessionCookie == nil {
+	if c := respSessionCookie(resp); c == nil || c.Value == "" {
 		t.Error("GET /api/session?token= must set a session_id cookie (required for WebSocket auth)")
 	}
 
 	// Verify the response contains user info with Traccar-compatible fields.
 	var userResp map[string]interface{}
-	if err := json.NewDecoder(rr.Body).Decode(&userResp); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&userResp); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
 	if userResp["email"] != "pytraccar@example.com" {
@@ -1079,101 +1140,56 @@ func TestTraccarCompat_SessionTokenQueryParam(t *testing.T) {
 }
 
 // TestTraccarCompat_SessionTokenQueryParam_InvalidToken verifies that an
-// invalid token returns 401.
+// invalid token returns 401 through the full router.
 func TestTraccarCompat_SessionTokenQueryParam_InvalidToken(t *testing.T) {
-	pool := testutil.SetupTestDB(t)
-	testutil.CleanTables(t, pool)
+	env := setupCompatRouterServer(t)
 
-	userRepo := repository.NewUserRepository(pool)
-	sessionRepo := repository.NewSessionRepository(pool)
-	apiKeyRepo := repository.NewApiKeyRepository(pool)
+	resp, err := http.Get(env.ts.URL + "/api/session?token=nonexistent-token")
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
 
-	h := handlers.NewSessionHandler(userRepo, sessionRepo, apiKeyRepo)
-
-	req := httptest.NewRequest(http.MethodGet,
-		"/api/session?token=nonexistent-token", nil)
-	rr := httptest.NewRecorder()
-	h.GetCurrentSession(rr, req)
-
-	if rr.Code != http.StatusUnauthorized {
-		t.Errorf("expected 401 for invalid token, got %d: %s", rr.Code, rr.Body.String())
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("expected 401 for invalid token, got %d", resp.StatusCode)
 	}
 }
 
 // TestTraccarCompat_CookieSessionAuth verifies that session cookie
-// authentication works. After login, subsequent requests use the session
-// cookie.
+// authentication works through the full router. After login, subsequent
+// requests use the session cookie.
 func TestTraccarCompat_CookieSessionAuth(t *testing.T) {
-	pool := testutil.SetupTestDB(t)
-	testutil.CleanTables(t, pool)
-	ctx := context.Background()
+	env := setupCompatRouterServer(t)
 
-	userRepo := repository.NewUserRepository(pool)
-	sessionRepo := repository.NewSessionRepository(pool)
-	apiKeyRepo := repository.NewApiKeyRepository(pool)
-	deviceRepo := repository.NewDeviceRepository(pool)
-
-	hash, _ := bcrypt.GenerateFromPassword([]byte("cookiepass"), bcrypt.MinCost)
-	user := &model.User{
-		Email:        "cookie@example.com",
-		PasswordHash: string(hash),
-		Name:         "Cookie User",
-	}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
-
-	dev := &model.Device{UniqueID: "cookie-dev", Name: "Cookie Device", Status: "online"}
-	if err := deviceRepo.Create(ctx, dev, user.ID); err != nil {
-		t.Fatalf("create device: %v", err)
-	}
+	createCompatUser(t, env.userRepo, "cookie@example.com", "cookiepass")
 
 	// Step 1: Login to get a session cookie.
-	sessionHandler := handlers.NewSessionHandler(userRepo, sessionRepo, apiKeyRepo)
-	loginBody, _ := json.Marshal(map[string]string{
-		"email":    "cookie@example.com",
-		"password": "cookiepass",
-	})
-	loginReq := httptest.NewRequest(http.MethodPost, "/api/session", bytes.NewReader(loginBody))
-	loginReq.Header.Set("Content-Type", "application/json")
-	loginRR := httptest.NewRecorder()
-	sessionHandler.Login(loginRR, loginReq)
+	sessionCookie := loginViaRouter(t, env.ts, "cookie@example.com", "cookiepass")
 
-	if loginRR.Code != http.StatusOK {
-		t.Fatalf("login failed: %d: %s", loginRR.Code, loginRR.Body.String())
+	// Step 2: Use the session cookie to read the current session.
+	req, err := http.NewRequest(http.MethodGet, env.ts.URL+"/api/session", nil)
+	if err != nil {
+		t.Fatalf("build request: %v", err)
 	}
-
-	var sessionCookie *http.Cookie
-	for _, c := range loginRR.Result().Cookies() {
-		if c.Name == "session_id" {
-			sessionCookie = c
-			break
-		}
-	}
-	if sessionCookie == nil {
-		t.Fatal("login did not set session_id cookie")
-	}
-
-	// Step 2: Use the session cookie to access the devices endpoint.
-	authMW := middleware.Auth(userRepo, sessionRepo, apiKeyRepo)
-	deviceHandler := handlers.NewDeviceHandler(deviceRepo, "")
-	handler := authMW(http.HandlerFunc(deviceHandler.List))
-
-	req := httptest.NewRequest(http.MethodGet, "/api/devices", nil)
 	req.AddCookie(sessionCookie)
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusOK {
-		t.Fatalf("cookie auth: expected 200, got %d: %s", rr.Code, rr.Body.String())
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(resp.Body)
+		t.Fatalf("cookie auth: expected 200, got %d: %s", resp.StatusCode, b)
 	}
 
-	var devices []map[string]interface{}
-	if err := json.NewDecoder(rr.Body).Decode(&devices); err != nil {
+	var userResp map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&userResp); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	if len(devices) == 0 {
-		t.Error("expected at least one device with cookie auth")
+	if userResp["email"] != "cookie@example.com" {
+		t.Errorf("expected email 'cookie@example.com', got %v", userResp["email"])
 	}
 }
 
@@ -1365,59 +1381,39 @@ func TestTraccarCompat_FullRouterDevicesEndpoint(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 // TestTraccarCompat_FormEncodedLogin verifies that the login endpoint accepts
-// application/x-www-form-urlencoded requests. The Traccar Manager mobile app
-// sends credentials in form-encoded format, not JSON.
+// application/x-www-form-urlencoded requests through the full router. The
+// Traccar Manager mobile app sends credentials in form-encoded format, not
+// JSON.
 func TestTraccarCompat_FormEncodedLogin(t *testing.T) {
-	pool := testutil.SetupTestDB(t)
-	testutil.CleanTables(t, pool)
-	ctx := context.Background()
+	env := setupCompatRouterServer(t)
 
-	userRepo := repository.NewUserRepository(pool)
-	sessionRepo := repository.NewSessionRepository(pool)
-	apiKeyRepo := repository.NewApiKeyRepository(pool)
-
-	hash, _ := bcrypt.GenerateFromPassword([]byte("formpass"), bcrypt.MinCost)
-	user := &model.User{
-		Email:        "formlogin@example.com",
-		PasswordHash: string(hash),
-		Name:         "Form Login User",
-	}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
-
-	h := handlers.NewSessionHandler(userRepo, sessionRepo, apiKeyRepo)
+	createCompatUser(t, env.userRepo, "formlogin@example.com", "formpass")
 
 	formBody := "email=formlogin%40example.com&password=formpass"
-	req := httptest.NewRequest(http.MethodPost, "/api/session",
-		bytes.NewReader([]byte(formBody)))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	rr := httptest.NewRecorder()
-	h.Login(rr, req)
+	resp, err := http.Post(env.ts.URL+"/api/session",
+		"application/x-www-form-urlencoded", bytes.NewReader([]byte(formBody)))
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
 
-	if rr.Code != http.StatusOK {
-		t.Fatalf("form-encoded login: expected 200, got %d: %s", rr.Code, rr.Body.String())
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(resp.Body)
+		t.Fatalf("form-encoded login: expected 200, got %d: %s", resp.StatusCode, b)
 	}
 
 	// Verify session cookie is set.
-	var found bool
-	for _, c := range rr.Result().Cookies() {
-		if c.Name == "session_id" && c.Value != "" {
-			found = true
-			break
-		}
-	}
-	if !found {
+	if c := respSessionCookie(resp); c == nil || c.Value == "" {
 		t.Error("form-encoded login must set session_id cookie")
 	}
 
 	// Verify response contains Traccar-compatible user fields.
-	var resp map[string]interface{}
-	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+	var userResp map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&userResp); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
 	for _, field := range []string{"id", "email", "name", "administrator", "readonly", "disabled"} {
-		if _, exists := resp[field]; !exists {
+		if _, exists := userResp[field]; !exists {
 			t.Errorf("login response missing field %q (Traccar Manager compatibility)", field)
 		}
 	}
@@ -1436,77 +1432,41 @@ func TestTraccarCompat_FormEncodedLogin(t *testing.T) {
 // a "logout" message to the native bridge. The 204 response confirms success
 // and the cookie clearing ensures the WebView won't auto-authenticate.
 func TestTraccarCompat_Logout(t *testing.T) {
-	pool := testutil.SetupTestDB(t)
-	testutil.CleanTables(t, pool)
-	ctx := context.Background()
+	env := setupCompatRouterServer(t)
 
-	userRepo := repository.NewUserRepository(pool)
-	sessionRepo := repository.NewSessionRepository(pool)
-	apiKeyRepo := repository.NewApiKeyRepository(pool)
+	createCompatUser(t, env.userRepo, "logout@example.com", "logoutpass")
 
-	hash, _ := bcrypt.GenerateFromPassword([]byte("logoutpass"), bcrypt.MinCost)
-	user := &model.User{
-		Email:        "logout@example.com",
-		PasswordHash: string(hash),
-		Name:         "Logout User",
+	// Step 1: Login through the router to get a session cookie.
+	sessionCookie := loginViaRouter(t, env.ts, "logout@example.com", "logoutpass")
+
+	// Step 2: Logout using the session cookie. The test router config has no
+	// CSRF middleware, so no X-CSRF-Token header is required.
+	logoutReq, err := http.NewRequest(http.MethodDelete, env.ts.URL+"/api/session", nil)
+	if err != nil {
+		t.Fatalf("build logout request: %v", err)
 	}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
-
-	// Step 1: Login to get a session.
-	sessionHandler := handlers.NewSessionHandler(userRepo, sessionRepo, apiKeyRepo)
-	loginBody, _ := json.Marshal(map[string]string{
-		"email":    "logout@example.com",
-		"password": "logoutpass",
-	})
-	loginReq := httptest.NewRequest(http.MethodPost, "/api/session", bytes.NewReader(loginBody))
-	loginReq.Header.Set("Content-Type", "application/json")
-	loginRR := httptest.NewRecorder()
-	sessionHandler.Login(loginRR, loginReq)
-
-	if loginRR.Code != http.StatusOK {
-		t.Fatalf("login failed: %d: %s", loginRR.Code, loginRR.Body.String())
-	}
-
-	var sessionCookie *http.Cookie
-	for _, c := range loginRR.Result().Cookies() {
-		if c.Name == "session_id" && c.Value != "" {
-			sessionCookie = c
-			break
-		}
-	}
-	if sessionCookie == nil {
-		t.Fatal("login did not set session_id cookie")
-	}
-
-	// Step 2: Logout using the session cookie.
-	logoutReq := authedRequest(http.MethodDelete, "/api/session", nil, user)
 	logoutReq.AddCookie(sessionCookie)
-	logoutRR := httptest.NewRecorder()
-	sessionHandler.Logout(logoutRR, logoutReq)
+
+	logoutResp, err := http.DefaultClient.Do(logoutReq)
+	if err != nil {
+		t.Fatalf("logout request failed: %v", err)
+	}
+	defer func() { _ = logoutResp.Body.Close() }()
 
 	// Verify 204 No Content (matches original Traccar Java server).
-	if logoutRR.Code != http.StatusNoContent {
-		t.Errorf("expected 204 No Content from logout, got %d", logoutRR.Code)
+	if logoutResp.StatusCode != http.StatusNoContent {
+		t.Errorf("expected 204 No Content from logout, got %d", logoutResp.StatusCode)
 	}
 
 	// Verify the response body is empty (Traccar returns no body).
-	if logoutRR.Body.Len() != 0 {
-		t.Errorf("expected empty body from logout, got %q", logoutRR.Body.String())
+	if body, _ := io.ReadAll(logoutResp.Body); len(body) != 0 {
+		t.Errorf("expected empty body from logout, got %q", body)
 	}
 
 	// Verify the session cookie is properly cleared.
-	var clearedCookie *http.Cookie
-	for _, c := range logoutRR.Result().Cookies() {
-		if c.Name == "session_id" {
-			clearedCookie = c
-			break
-		}
-	}
+	clearedCookie := respSessionCookie(logoutResp)
 	if clearedCookie == nil {
 		t.Fatal("logout response did not include session_id cookie")
-		return
 	}
 	if clearedCookie.Value != "" {
 		t.Errorf("expected empty cookie value, got %q", clearedCookie.Value)
@@ -1516,18 +1476,20 @@ func TestTraccarCompat_Logout(t *testing.T) {
 	}
 
 	// Step 3: Verify the session is actually deleted by trying to use it.
-	authMW := middleware.Auth(userRepo, sessionRepo, apiKeyRepo)
-	checkHandler := authMW(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}))
-
-	checkReq := httptest.NewRequest(http.MethodGet, "/api/session", nil)
+	checkReq, err := http.NewRequest(http.MethodGet, env.ts.URL+"/api/session", nil)
+	if err != nil {
+		t.Fatalf("build check request: %v", err)
+	}
 	checkReq.AddCookie(sessionCookie) // Use the old (now-deleted) session cookie
-	checkRR := httptest.NewRecorder()
-	checkHandler.ServeHTTP(checkRR, checkReq)
 
-	if checkRR.Code != http.StatusUnauthorized {
-		t.Errorf("expected 401 after logout with deleted session, got %d", checkRR.Code)
+	checkResp, err := http.DefaultClient.Do(checkReq)
+	if err != nil {
+		t.Fatalf("check request failed: %v", err)
+	}
+	defer func() { _ = checkResp.Body.Close() }()
+
+	if checkResp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("expected 401 after logout with deleted session, got %d", checkResp.StatusCode)
 	}
 }
 

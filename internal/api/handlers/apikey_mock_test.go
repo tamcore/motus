@@ -14,66 +14,9 @@ import (
 	"github.com/tamcore/motus/internal/api"
 	"github.com/tamcore/motus/internal/api/handlers"
 	"github.com/tamcore/motus/internal/model"
-	"github.com/tamcore/motus/internal/storage/repository"
 )
 
-// mockApiKeyRepo is a mock implementation of repository.ApiKeyRepo for
-// unit testing handlers without a database.
-type mockApiKeyRepo struct {
-	createFn         func(ctx context.Context, key *model.ApiKey) error
-	getByTokenFn     func(ctx context.Context, token string) (*model.ApiKey, error)
-	getByIDFn        func(ctx context.Context, id int64) (*model.ApiKey, error)
-	listByUserFn     func(ctx context.Context, userID int64) ([]*model.ApiKey, error)
-	deleteFn         func(ctx context.Context, id int64) error
-	updateLastUsedFn func(ctx context.Context, id int64) error
-}
-
-// Compile-time assertion that mockApiKeyRepo satisfies repository.ApiKeyRepo.
-var _ repository.ApiKeyRepo = (*mockApiKeyRepo)(nil)
-
-func (m *mockApiKeyRepo) Create(ctx context.Context, key *model.ApiKey) error {
-	if m.createFn != nil {
-		return m.createFn(ctx, key)
-	}
-	key.ID = 1
-	key.Token = "generated-test-token-0123456789abcdef0123456789abcdef"
-	return nil
-}
-
-func (m *mockApiKeyRepo) GetByToken(ctx context.Context, token string) (*model.ApiKey, error) {
-	if m.getByTokenFn != nil {
-		return m.getByTokenFn(ctx, token)
-	}
-	return nil, errors.New("not found")
-}
-
-func (m *mockApiKeyRepo) GetByID(ctx context.Context, id int64) (*model.ApiKey, error) {
-	if m.getByIDFn != nil {
-		return m.getByIDFn(ctx, id)
-	}
-	return nil, errors.New("not found")
-}
-
-func (m *mockApiKeyRepo) ListByUser(ctx context.Context, userID int64) ([]*model.ApiKey, error) {
-	if m.listByUserFn != nil {
-		return m.listByUserFn(ctx, userID)
-	}
-	return nil, nil
-}
-
-func (m *mockApiKeyRepo) Delete(ctx context.Context, id int64) error {
-	if m.deleteFn != nil {
-		return m.deleteFn(ctx, id)
-	}
-	return nil
-}
-
-func (m *mockApiKeyRepo) UpdateLastUsed(ctx context.Context, id int64) error {
-	if m.updateLastUsedFn != nil {
-		return m.updateLastUsedFn(ctx, id)
-	}
-	return nil
-}
+// mockApiKeyRepo lives in mocks_test.go (shared across test files).
 
 // --- Create tests ---
 

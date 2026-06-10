@@ -9,114 +9,14 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/tamcore/motus/internal/api"
 	"github.com/tamcore/motus/internal/api/handlers"
 	"github.com/tamcore/motus/internal/model"
-	"github.com/tamcore/motus/internal/storage/repository"
 )
 
-// mockDeviceRepo is a mock implementation of repository.DeviceRepo for
-// unit testing handlers without a database.
-type mockDeviceRepo struct {
-	// Configurable return values.
-	userHasAccessFn func(ctx context.Context, user *model.User, deviceID int64) bool
-	getByIDFn       func(ctx context.Context, id int64) (*model.Device, error)
-	getByUniqueIDFn func(ctx context.Context, uniqueID string) (*model.Device, error)
-	getByUserFn     func(ctx context.Context, userID int64) ([]*model.Device, error)
-	getAllFn        func(ctx context.Context) ([]model.Device, error)
-	getUserIDsFn    func(ctx context.Context, deviceID int64) ([]int64, error)
-	createFn        func(ctx context.Context, d *model.Device, userID int64) error
-	updateFn        func(ctx context.Context, d *model.Device) error
-	deleteFn        func(ctx context.Context, id int64) error
-}
-
-// Compile-time assertion that mockDeviceRepo satisfies repository.DeviceRepo.
-var _ repository.DeviceRepo = (*mockDeviceRepo)(nil)
-
-func (m *mockDeviceRepo) UserHasAccess(ctx context.Context, user *model.User, deviceID int64) bool {
-	if m.userHasAccessFn != nil {
-		return m.userHasAccessFn(ctx, user, deviceID)
-	}
-	return false
-}
-
-func (m *mockDeviceRepo) GetByID(ctx context.Context, id int64) (*model.Device, error) {
-	if m.getByIDFn != nil {
-		return m.getByIDFn(ctx, id)
-	}
-	return nil, errors.New("not found")
-}
-
-func (m *mockDeviceRepo) GetByUniqueID(ctx context.Context, uniqueID string) (*model.Device, error) {
-	if m.getByUniqueIDFn != nil {
-		return m.getByUniqueIDFn(ctx, uniqueID)
-	}
-	return nil, errors.New("not found")
-}
-
-func (m *mockDeviceRepo) GetByUser(ctx context.Context, userID int64) ([]*model.Device, error) {
-	if m.getByUserFn != nil {
-		return m.getByUserFn(ctx, userID)
-	}
-	return nil, nil
-}
-
-func (m *mockDeviceRepo) GetAll(ctx context.Context) ([]model.Device, error) {
-	if m.getAllFn != nil {
-		return m.getAllFn(ctx)
-	}
-	return nil, nil
-}
-
-func (m *mockDeviceRepo) GetUserIDs(ctx context.Context, deviceID int64) ([]int64, error) {
-	if m.getUserIDsFn != nil {
-		return m.getUserIDsFn(ctx, deviceID)
-	}
-	return nil, nil
-}
-
-func (m *mockDeviceRepo) Create(ctx context.Context, d *model.Device, userID int64) error {
-	if m.createFn != nil {
-		return m.createFn(ctx, d, userID)
-	}
-	d.ID = 42 // Assign a fake ID.
-	return nil
-}
-
-func (m *mockDeviceRepo) Update(ctx context.Context, d *model.Device) error {
-	if m.updateFn != nil {
-		return m.updateFn(ctx, d)
-	}
-	return nil
-}
-
-func (m *mockDeviceRepo) Delete(ctx context.Context, id int64) error {
-	if m.deleteFn != nil {
-		return m.deleteFn(ctx, id)
-	}
-	return nil
-}
-func (m *mockDeviceRepo) GetTimedOut(_ context.Context, _ time.Time) ([]model.Device, error) {
-	return nil, nil
-}
-
-func (m *mockDeviceRepo) GetAllWithOwners(ctx context.Context) ([]model.Device, error) {
-	if m.getAllFn != nil {
-		return m.getAllFn(ctx)
-	}
-	return nil, nil
-}
-
-func (m *mockDeviceRepo) UpdateIgnitionState(_ context.Context, _ int64, _ bool, _ time.Time) error {
-	return nil
-}
-
-func (m *mockDeviceRepo) UpdateProtocol(_ context.Context, _ int64, _ string) error {
-	return nil
-}
+// mockDeviceRepo lives in mocks_test.go (shared across test files).
 
 // --- Mock-based unit tests ---
 // These tests run without a database and are significantly faster than

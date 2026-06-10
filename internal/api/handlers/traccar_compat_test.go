@@ -1120,6 +1120,46 @@ func TestTraccarCompat_SessionTokenQueryParam(t *testing.T) {
 	}
 }
 
+// TestTraccarCompat_SessionTokenQueryParam_StaleCookie verifies that token
+// login succeeds even when the client still carries an invalid session_id
+// cookie. This is the QR re-login scenario: the previous session expired
+// (HttpOnly cookie cannot be cleared by frontend JS) and the user scans a
+// fresh QR code. The security layer must treat the bad cookie as
+// "not satisfied" and fall through to the anonymous requirement so the
+// token query parameter is evaluated.
+func TestTraccarCompat_SessionTokenQueryParam_StaleCookie(t *testing.T) {
+	env := setupCompatRouterServer(t)
+	ctx := context.Background()
+
+	user := createCompatUser(t, env.userRepo, "stale-cookie@example.com", "stalecookiepass")
+
+	apiKey := &model.ApiKey{
+		UserID:      user.ID,
+		Name:        "Stale Cookie Key",
+		Permissions: model.PermissionFull,
+	}
+	if err := env.apiKeyRepo.Create(ctx, apiKey); err != nil {
+		t.Fatalf("create api key: %v", err)
+	}
+
+	req, _ := http.NewRequest(http.MethodGet, env.ts.URL+"/api/session?token="+apiKey.Token, nil)
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "stale-or-expired-session-id"})
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(resp.Body)
+		t.Fatalf("token login with stale cookie returned %d (want 200): %s", resp.StatusCode, b)
+	}
+	if c := respSessionCookie(resp); c == nil || c.Value == "" {
+		t.Error("token login with stale cookie must set a fresh session_id cookie")
+	}
+}
+
 // TestTraccarCompat_SessionTokenQueryParam_InvalidToken verifies that an
 // invalid token returns 401 through the full router.
 func TestTraccarCompat_SessionTokenQueryParam_InvalidToken(t *testing.T) {

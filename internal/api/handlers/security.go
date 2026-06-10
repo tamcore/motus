@@ -2,8 +2,8 @@ package handlers
 
 import (
 	"context"
-	"fmt"
 
+	"github.com/ogen-go/ogen/ogenerrors"
 	"github.com/tamcore/motus/internal/api"
 	oas "github.com/tamcore/motus/internal/api/oas"
 	"github.com/tamcore/motus/internal/storage/repository"
@@ -25,11 +25,23 @@ func NewSecurityHandler(sessions repository.SessionRepo, apikeys repository.ApiK
 func (s *SecurityHandler) HandleCookieAuth(ctx context.Context, op oas.OperationName, t oas.CookieAuth) (context.Context, error) {
 	session, err := s.sessions.GetByID(ctx, t.APIKey)
 	if err != nil || session == nil {
-		return ctx, fmt.Errorf("unauthorized")
+		// Invalid/expired credentials mark this scheme as "not satisfied"
+		// instead of hard-failing: ogen then tries the operation's remaining
+		// security requirements. Auth-required operations still end in 401
+		// (no requirement satisfied); operations with an anonymous
+		// requirement (getSession token login) proceed to the handler even
+		// when the client carries a stale session cookie.
+		return ctx, ogenerrors.ErrSkipServerSecurity
 	}
 	user, err := s.users.GetByID(ctx, session.UserID)
 	if err != nil || user == nil {
-		return ctx, fmt.Errorf("unauthorized")
+		// Invalid/expired credentials mark this scheme as "not satisfied"
+		// instead of hard-failing: ogen then tries the operation's remaining
+		// security requirements. Auth-required operations still end in 401
+		// (no requirement satisfied); operations with an anonymous
+		// requirement (getSession token login) proceed to the handler even
+		// when the client carries a stale session cookie.
+		return ctx, ogenerrors.ErrSkipServerSecurity
 	}
 	user.PopulateTraccarFields()
 	ctx = api.ContextWithUser(ctx, user)
@@ -41,11 +53,23 @@ func (s *SecurityHandler) HandleCookieAuth(ctx context.Context, op oas.Operation
 func (s *SecurityHandler) HandleBearerAuth(ctx context.Context, op oas.OperationName, t oas.BearerAuth) (context.Context, error) {
 	key, err := s.apikeys.GetByToken(ctx, t.Token)
 	if err != nil || key == nil || key.IsExpired() {
-		return ctx, fmt.Errorf("unauthorized")
+		// Invalid/expired credentials mark this scheme as "not satisfied"
+		// instead of hard-failing: ogen then tries the operation's remaining
+		// security requirements. Auth-required operations still end in 401
+		// (no requirement satisfied); operations with an anonymous
+		// requirement (getSession token login) proceed to the handler even
+		// when the client carries a stale session cookie.
+		return ctx, ogenerrors.ErrSkipServerSecurity
 	}
 	user, err := s.users.GetByID(ctx, key.UserID)
 	if err != nil || user == nil {
-		return ctx, fmt.Errorf("unauthorized")
+		// Invalid/expired credentials mark this scheme as "not satisfied"
+		// instead of hard-failing: ogen then tries the operation's remaining
+		// security requirements. Auth-required operations still end in 401
+		// (no requirement satisfied); operations with an anonymous
+		// requirement (getSession token login) proceed to the handler even
+		// when the client carries a stale session cookie.
+		return ctx, ogenerrors.ErrSkipServerSecurity
 	}
 	user.PopulateTraccarFields()
 	ctx = api.ContextWithUser(ctx, user)
@@ -58,11 +82,23 @@ func (s *SecurityHandler) HandleBearerAuth(ctx context.Context, op oas.Operation
 func (s *SecurityHandler) HandleXAuthToken(ctx context.Context, op oas.OperationName, t oas.XAuthToken) (context.Context, error) {
 	session, err := s.sessions.GetByID(ctx, t.APIKey)
 	if err != nil || session == nil {
-		return ctx, fmt.Errorf("unauthorized")
+		// Invalid/expired credentials mark this scheme as "not satisfied"
+		// instead of hard-failing: ogen then tries the operation's remaining
+		// security requirements. Auth-required operations still end in 401
+		// (no requirement satisfied); operations with an anonymous
+		// requirement (getSession token login) proceed to the handler even
+		// when the client carries a stale session cookie.
+		return ctx, ogenerrors.ErrSkipServerSecurity
 	}
 	user, err := s.users.GetByID(ctx, session.UserID)
 	if err != nil || user == nil {
-		return ctx, fmt.Errorf("unauthorized")
+		// Invalid/expired credentials mark this scheme as "not satisfied"
+		// instead of hard-failing: ogen then tries the operation's remaining
+		// security requirements. Auth-required operations still end in 401
+		// (no requirement satisfied); operations with an anonymous
+		// requirement (getSession token login) proceed to the handler even
+		// when the client carries a stale session cookie.
+		return ctx, ogenerrors.ErrSkipServerSecurity
 	}
 	user.PopulateTraccarFields()
 	ctx = api.ContextWithUser(ctx, user)

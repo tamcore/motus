@@ -1,36 +1,48 @@
 package handlers_test
 
+// Integration tests for the live ogen Handler.ImportGPX endpoint. Ported
+// from the deleted chi GPXImportHandler tests.
+//
+// Dropped tests (no live equivalent):
+//   - TestGPXHandler_Import_BodyTooLarge: request size limiting is enforced
+//     by the router-level limitRequestBody middleware, not the handler.
+//   - TestGPXHandler_Import_InvalidDeviceID: ogen decodes the typed int64
+//     path param; invalid IDs are rejected before the handler runs.
+
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"mime/multipart"
-	"net/http"
-	"net/http/httptest"
+	"math"
+	"strings"
 	"testing"
 	"time"
 
+	ht "github.com/ogen-go/ogen/http"
+	"github.com/tamcore/motus/internal/api"
 	"github.com/tamcore/motus/internal/api/handlers"
+	oas "github.com/tamcore/motus/internal/api/oas"
 	"github.com/tamcore/motus/internal/model"
 	"github.com/tamcore/motus/internal/storage/repository"
 	"github.com/tamcore/motus/internal/storage/repository/testutil"
 )
 
+// gpxTrackStart is the timestamp of the first generated trackpoint.
+var gpxTrackStart = time.Date(2026, 1, 15, 10, 0, 0, 0, time.UTC)
+
 // minimalGPX builds a valid GPX XML document with n trackpoints.
-// Points are spaced 1 second and ~100 m apart starting at Berlin.
+// Points are spaced 1 second and ~100 m apart (due north) starting at Berlin,
+// which yields a speed of ~360 km/h and a course of ~0 degrees.
 func minimalGPX(n int) string {
 	base := `<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" xmlns="http://www.topografix.com/GPX/1/1">
   <trk><trkseg>`
-	ts := time.Date(2026, 1, 15, 10, 0, 0, 0, time.UTC)
 	for i := 0; i < n; i++ {
 		lat := 52.520000 + float64(i)*0.0009 // ~100 m north per step
 		base += fmt.Sprintf(`
     <trkpt lat="%f" lon="13.404954">
       <ele>35.0</ele>
       <time>%s</time>
-    </trkpt>`, lat, ts.Add(time.Duration(i)*time.Second).Format(time.RFC3339))
+    </trkpt>`, lat, gpxTrackStart.Add(time.Duration(i)*time.Second).Format(time.RFC3339))
 	}
 	base += `
   </trkseg></trk>
@@ -40,7 +52,6 @@ func minimalGPX(n int) string {
 
 // gpxWithUntimed returns a GPX file with one timed and one untimed point.
 func gpxWithUntimed() string {
-	ts := time.Date(2026, 1, 15, 10, 0, 0, 0, time.UTC)
 	return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" xmlns="http://www.topografix.com/GPX/1/1">
   <trk><trkseg>
@@ -52,26 +63,22 @@ func gpxWithUntimed() string {
       <ele>35.0</ele>
     </trkpt>
   </trkseg></trk>
-</gpx>`, ts.Format(time.RFC3339))
+</gpx>`, gpxTrackStart.Format(time.RFC3339))
 }
 
-// makeMultipartGPX creates a multipart request body with the given GPX content in a "file" field.
-func makeMultipartGPX(t *testing.T, gpxContent string) (*bytes.Buffer, string) {
-	t.Helper()
-	var buf bytes.Buffer
-	mw := multipart.NewWriter(&buf)
-	fw, err := mw.CreateFormFile("file", "track.gpx")
-	if err != nil {
-		t.Fatalf("create form file: %v", err)
+// gpxMultipartReq wraps GPX content in the ogen multipart/form-data request union member.
+func gpxMultipartReq(gpxContent string) *oas.ImportGPXReqMultipartFormData {
+	return &oas.ImportGPXReqMultipartFormData{
+		File: oas.NewOptMultipartFile(ht.MultipartFile{
+			Name: "track.gpx",
+			File: strings.NewReader(gpxContent),
+			Size: int64(len(gpxContent)),
+		}),
 	}
-	if _, err := fw.Write([]byte(gpxContent)); err != nil {
-		t.Fatalf("write gpx: %v", err)
-	}
-	_ = mw.Close()
-	return &buf, mw.FormDataContentType()
 }
 
-func setupGPXHandler(t *testing.T) (*handlers.GPXImportHandler, *repository.DeviceRepository, *repository.PositionRepository, *model.User) {
+// setupGPXTest builds a live ogen Handler over real repositories plus a test user.
+func setupGPXTest(t *testing.T) (*handlers.Handler, *repository.DeviceRepository, *repository.PositionRepository, *model.User) {
 	t.Helper()
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
@@ -85,142 +92,107 @@ func setupGPXHandler(t *testing.T) (*handlers.GPXImportHandler, *repository.Devi
 		t.Fatalf("create user: %v", err)
 	}
 
-	h := handlers.NewGPXImportHandler(deviceRepo, posRepo, nil)
+	h := handlers.NewHandler(handlers.HandlerConfig{
+		Devices:   deviceRepo,
+		Positions: posRepo,
+	})
 	return h, deviceRepo, posRepo, user
 }
 
-// TestGPXHandler_Import_BodyTooLarge verifies that a multipart body over 32 MB
-// is rejected rather than being buffered in full, preventing memory exhaustion.
-// Uses a mock device repo so no database is needed.
-func TestGPXHandler_Import_BodyTooLarge(t *testing.T) {
-	deviceRepo := &mockDeviceRepo{
-		userHasAccessFn: func(_ context.Context, _ *model.User, _ int64) bool { return true },
-	}
-	h := handlers.NewGPXImportHandler(deviceRepo, repository.NewPositionRepository(nil), nil)
-
-	// Build a multipart body well over 32 MB.
-	var buf bytes.Buffer
-	mw := multipart.NewWriter(&buf)
-	fw, err := mw.CreateFormFile("file", "big.gpx")
-	if err != nil {
-		t.Fatalf("create form file: %v", err)
-	}
-	chunk := bytes.Repeat([]byte("x"), 1<<20) // 1 MB chunks
-	for i := 0; i < 33; i++ {
-		if _, err := fw.Write(chunk); err != nil {
-			t.Fatalf("write chunk %d: %v", i, err)
-		}
-	}
-	_ = mw.Close()
-
-	req := httptest.NewRequest(http.MethodPost, "/api/devices/1/gpx", &buf)
-	req.Header.Set("Content-Type", mw.FormDataContentType())
-	req = withUser(req, &model.User{ID: 1})
-	req = withChiParam(req, "id", "1")
-	rr := httptest.NewRecorder()
-
-	h.Import(rr, req)
-
-	if rr.Code == http.StatusOK {
-		t.Error("expected non-200 response for oversized multipart body, got 200")
-	}
+// gpxUserCtx returns a context carrying the given authenticated user.
+func gpxUserCtx(user *model.User) context.Context {
+	return api.ContextWithUser(context.Background(), user)
 }
 
-func TestGPXHandler_Import_InvalidDeviceID(t *testing.T) {
-	h, _, _, user := setupGPXHandler(t)
-
-	body, ct := makeMultipartGPX(t, minimalGPX(2))
-	req := httptest.NewRequest(http.MethodPost, "/api/devices/bad/gpx", body)
-	req.Header.Set("Content-Type", ct)
-	req = withUser(req, user)
-	req = withChiParam(req, "id", "bad")
-	rr := httptest.NewRecorder()
-
-	h.Import(rr, req)
-
-	if rr.Code != http.StatusBadRequest {
-		t.Errorf("expected 400, got %d", rr.Code)
-	}
-}
-
-func TestGPXHandler_Import_AccessDenied(t *testing.T) {
-	h, deviceRepo, _, user := setupGPXHandler(t)
+func TestImportGPX_AccessDenied(t *testing.T) {
+	h, deviceRepo, _, user := setupGPXTest(t)
 	ctx := context.Background()
 
-	// Create a device owned by a different user.
+	// Create a device owned by a different user (IDOR check).
 	otherUser := &model.User{Email: "other@example.com", PasswordHash: "$2a$10$hash", Name: "Other"}
 	pool := testutil.SetupTestDB(t)
 	userRepo := repository.NewUserRepository(pool)
-	_ = userRepo.Create(ctx, otherUser)
+	if err := userRepo.Create(ctx, otherUser); err != nil {
+		t.Fatalf("create other user: %v", err)
+	}
 	device := &model.Device{UniqueID: "gpx-other-dev", Name: "Other Device", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, otherUser.ID)
+	if err := deviceRepo.Create(ctx, device, otherUser.ID); err != nil {
+		t.Fatalf("create device: %v", err)
+	}
 
-	body, ct := makeMultipartGPX(t, minimalGPX(2))
-	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/devices/%d/gpx", device.ID), body)
-	req.Header.Set("Content-Type", ct)
-	req = withUser(req, user) // user != device owner
-	req = withChiParam(req, "id", fmt.Sprintf("%d", device.ID))
-	rr := httptest.NewRecorder()
-
-	h.Import(rr, req)
-
-	if rr.Code != http.StatusForbidden {
-		t.Errorf("expected 403, got %d", rr.Code)
+	res, err := h.ImportGPX(gpxUserCtx(user), gpxMultipartReq(minimalGPX(2)), oas.ImportGPXParams{ID: device.ID})
+	if err != nil {
+		t.Fatalf("ImportGPX returned error: %v", err)
+	}
+	if _, ok := res.(*oas.ImportGPXForbidden); !ok {
+		t.Errorf("expected *oas.ImportGPXForbidden, got %T", res)
 	}
 }
 
-func TestGPXHandler_Import_NoFileField(t *testing.T) {
-	h, deviceRepo, _, user := setupGPXHandler(t)
+func TestImportGPX_MissingOrEmptyFile(t *testing.T) {
+	h, deviceRepo, _, user := setupGPXTest(t)
 	ctx := context.Background()
 
 	device := &model.Device{UniqueID: "gpx-nofile-dev", Name: "GPX Device", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
-
-	// Send multipart without a "file" field.
-	var buf bytes.Buffer
-	mw := multipart.NewWriter(&buf)
-	_ = mw.Close()
-
-	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/devices/%d/gpx", device.ID), &buf)
-	req.Header.Set("Content-Type", mw.FormDataContentType())
-	req = withUser(req, user)
-	req = withChiParam(req, "id", fmt.Sprintf("%d", device.ID))
-	rr := httptest.NewRecorder()
-
-	h.Import(rr, req)
-
-	if rr.Code != http.StatusBadRequest {
-		t.Errorf("expected 400, got %d", rr.Code)
+	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
+		t.Fatalf("create device: %v", err)
 	}
+
+	t.Run("file field not set", func(t *testing.T) {
+		res, err := h.ImportGPX(gpxUserCtx(user), &oas.ImportGPXReqMultipartFormData{}, oas.ImportGPXParams{ID: device.ID})
+		if err != nil {
+			t.Fatalf("ImportGPX returned error: %v", err)
+		}
+		bad, ok := res.(*oas.ImportGPXBadRequest)
+		if !ok {
+			t.Fatalf("expected *oas.ImportGPXBadRequest, got %T", res)
+		}
+		if bad.Error != "missing file field" {
+			t.Errorf("expected 'missing file field' error, got %q", bad.Error)
+		}
+	})
+
+	t.Run("empty file content", func(t *testing.T) {
+		res, err := h.ImportGPX(gpxUserCtx(user), gpxMultipartReq(""), oas.ImportGPXParams{ID: device.ID})
+		if err != nil {
+			t.Fatalf("ImportGPX returned error: %v", err)
+		}
+		if _, ok := res.(*oas.ImportGPXBadRequest); !ok {
+			t.Errorf("expected *oas.ImportGPXBadRequest, got %T", res)
+		}
+	})
 }
 
-func TestGPXHandler_Import_InvalidGPXXML(t *testing.T) {
-	h, deviceRepo, _, user := setupGPXHandler(t)
+func TestImportGPX_InvalidGPXXML(t *testing.T) {
+	h, deviceRepo, _, user := setupGPXTest(t)
 	ctx := context.Background()
 
 	device := &model.Device{UniqueID: "gpx-badxml-dev", Name: "GPX Device", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
+		t.Fatalf("create device: %v", err)
+	}
 
-	body, ct := makeMultipartGPX(t, "this is not xml")
-	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/devices/%d/gpx", device.ID), body)
-	req.Header.Set("Content-Type", ct)
-	req = withUser(req, user)
-	req = withChiParam(req, "id", fmt.Sprintf("%d", device.ID))
-	rr := httptest.NewRecorder()
-
-	h.Import(rr, req)
-
-	if rr.Code != http.StatusBadRequest {
-		t.Errorf("expected 400, got %d", rr.Code)
+	res, err := h.ImportGPX(gpxUserCtx(user), gpxMultipartReq("this is not xml"), oas.ImportGPXParams{ID: device.ID})
+	if err != nil {
+		t.Fatalf("ImportGPX returned error: %v", err)
+	}
+	bad, ok := res.(*oas.ImportGPXBadRequest)
+	if !ok {
+		t.Fatalf("expected *oas.ImportGPXBadRequest, got %T", res)
+	}
+	if bad.Error != "invalid GPX file" {
+		t.Errorf("expected 'invalid GPX file' error, got %q", bad.Error)
 	}
 }
 
-func TestGPXHandler_Import_NoTimedPoints(t *testing.T) {
-	h, deviceRepo, _, user := setupGPXHandler(t)
+func TestImportGPX_NoTimedPoints(t *testing.T) {
+	h, deviceRepo, _, user := setupGPXTest(t)
 	ctx := context.Background()
 
 	device := &model.Device{UniqueID: "gpx-notimed-dev", Name: "GPX Device", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
+		t.Fatalf("create device: %v", err)
+	}
 
 	// GPX with only untimed points.
 	gpx := `<?xml version="1.0" encoding="UTF-8"?>
@@ -230,54 +202,43 @@ func TestGPXHandler_Import_NoTimedPoints(t *testing.T) {
   </trkseg></trk>
 </gpx>`
 
-	body, ct := makeMultipartGPX(t, gpx)
-	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/devices/%d/gpx", device.ID), body)
-	req.Header.Set("Content-Type", ct)
-	req = withUser(req, user)
-	req = withChiParam(req, "id", fmt.Sprintf("%d", device.ID))
-	rr := httptest.NewRecorder()
-
-	h.Import(rr, req)
-
-	if rr.Code != http.StatusBadRequest {
-		t.Errorf("expected 400 for no timed points, got %d", rr.Code)
+	res, err := h.ImportGPX(gpxUserCtx(user), gpxMultipartReq(gpx), oas.ImportGPXParams{ID: device.ID})
+	if err != nil {
+		t.Fatalf("ImportGPX returned error: %v", err)
+	}
+	bad, ok := res.(*oas.ImportGPXBadRequest)
+	if !ok {
+		t.Fatalf("expected *oas.ImportGPXBadRequest, got %T", res)
+	}
+	if bad.Error != "no timed positions found in GPX file" {
+		t.Errorf("expected 'no timed positions found in GPX file' error, got %q", bad.Error)
 	}
 }
 
-func TestGPXHandler_Import_Success(t *testing.T) {
-	h, deviceRepo, posRepo, user := setupGPXHandler(t)
+func TestImportGPX_Success(t *testing.T) {
+	h, deviceRepo, posRepo, user := setupGPXTest(t)
 	ctx := context.Background()
 
 	device := &model.Device{UniqueID: "gpx-ok-dev", Name: "GPX Device", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
+		t.Fatalf("create device: %v", err)
+	}
 
 	// 3-point track with spacing for speed calculation.
-	body, ct := makeMultipartGPX(t, minimalGPX(3))
-	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/devices/%d/gpx", device.ID), body)
-	req.Header.Set("Content-Type", ct)
-	req = withUser(req, user)
-	req = withChiParam(req, "id", fmt.Sprintf("%d", device.ID))
-	rr := httptest.NewRecorder()
-
-	h.Import(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("expected 200, got %d; body: %s", rr.Code, rr.Body.String())
+	res, err := h.ImportGPX(gpxUserCtx(user), gpxMultipartReq(minimalGPX(3)), oas.ImportGPXParams{ID: device.ID})
+	if err != nil {
+		t.Fatalf("ImportGPX returned error: %v", err)
 	}
-
-	var result map[string]int
-	if err := json.NewDecoder(rr.Body).Decode(&result); err != nil {
-		t.Fatalf("decode response: %v", err)
+	ok, isOK := res.(*oas.ImportGPXOK)
+	if !isOK {
+		t.Fatalf("expected *oas.ImportGPXOK, got %T", res)
 	}
-	if result["imported"] != 3 {
-		t.Errorf("expected imported=3, got %d", result["imported"])
-	}
-	if result["skipped"] != 0 {
-		t.Errorf("expected skipped=0, got %d", result["skipped"])
+	if ok.Imported.Value != 3 {
+		t.Errorf("expected imported=3, got %d", ok.Imported.Value)
 	}
 
 	// Verify positions were persisted (use a wide range since GPX timestamps
-	// may differ from current time).
+	// may differ from current time). Results are ordered timestamp ascending.
 	from := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	to := time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC)
 	positions, err := posRepo.GetByDeviceAndTimeRange(ctx, device.ID, from, to, 10)
@@ -285,36 +246,78 @@ func TestGPXHandler_Import_Success(t *testing.T) {
 		t.Fatalf("get positions: %v", err)
 	}
 	if len(positions) != 3 {
-		t.Errorf("expected 3 positions in DB, got %d", len(positions))
+		t.Fatalf("expected 3 positions in DB, got %d", len(positions))
+	}
+
+	// First point has no predecessor: speed and course must be 0.
+	first := positions[0]
+	if first.Speed == nil || *first.Speed != 0 {
+		t.Errorf("expected first position speed=0, got %v", first.Speed)
+	}
+	if first.Course == nil || *first.Course != 0 {
+		t.Errorf("expected first position course=0, got %v", first.Course)
+	}
+
+	// Subsequent points: ~100 m north per second => ~360 km/h, course ~0 deg.
+	for i, pos := range positions[1:] {
+		if pos.Speed == nil {
+			t.Fatalf("position %d: expected speed, got nil", i+1)
+		}
+		if math.Abs(*pos.Speed-360.0) > 5.0 {
+			t.Errorf("position %d: expected speed ~360 km/h, got %.2f", i+1, *pos.Speed)
+		}
+		if pos.Course == nil {
+			t.Fatalf("position %d: expected course, got nil", i+1)
+		}
+		if math.Abs(*pos.Course) > 1.0 && math.Abs(*pos.Course-360.0) > 1.0 {
+			t.Errorf("position %d: expected course ~0 deg, got %.2f", i+1, *pos.Course)
+		}
+	}
+
+	// Device rollup: LastUpdate and PositionID must point at the last track point.
+	updated, err := deviceRepo.GetByID(ctx, device.ID)
+	if err != nil {
+		t.Fatalf("get device: %v", err)
+	}
+	lastPos := positions[2]
+	if updated.LastUpdate == nil || !updated.LastUpdate.Equal(lastPos.Timestamp) {
+		t.Errorf("expected device LastUpdate=%v, got %v", lastPos.Timestamp, updated.LastUpdate)
+	}
+	if updated.PositionID == nil || *updated.PositionID != lastPos.ID {
+		t.Errorf("expected device PositionID=%d, got %v", lastPos.ID, updated.PositionID)
 	}
 }
 
-func TestGPXHandler_Import_WithUntimedPoints(t *testing.T) {
-	h, deviceRepo, _, user := setupGPXHandler(t)
+func TestImportGPX_UntimedPointsSkipped(t *testing.T) {
+	h, deviceRepo, posRepo, user := setupGPXTest(t)
 	ctx := context.Background()
 
 	device := &model.Device{UniqueID: "gpx-mix-dev", Name: "GPX Device", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
-
-	body, ct := makeMultipartGPX(t, gpxWithUntimed())
-	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/devices/%d/gpx", device.ID), body)
-	req.Header.Set("Content-Type", ct)
-	req = withUser(req, user)
-	req = withChiParam(req, "id", fmt.Sprintf("%d", device.ID))
-	rr := httptest.NewRecorder()
-
-	h.Import(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("expected 200, got %d; body: %s", rr.Code, rr.Body.String())
+	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
+		t.Fatalf("create device: %v", err)
 	}
 
-	var result map[string]int
-	_ = json.NewDecoder(rr.Body).Decode(&result)
-	if result["imported"] != 1 {
-		t.Errorf("expected imported=1, got %d", result["imported"])
+	res, err := h.ImportGPX(gpxUserCtx(user), gpxMultipartReq(gpxWithUntimed()), oas.ImportGPXParams{ID: device.ID})
+	if err != nil {
+		t.Fatalf("ImportGPX returned error: %v", err)
 	}
-	if result["skipped"] != 1 {
-		t.Errorf("expected skipped=1, got %d", result["skipped"])
+	ok, isOK := res.(*oas.ImportGPXOK)
+	if !isOK {
+		t.Fatalf("expected *oas.ImportGPXOK, got %T", res)
+	}
+	if ok.Imported.Value != 1 {
+		t.Errorf("expected imported=1, got %d", ok.Imported.Value)
+	}
+
+	// The untimed point must be skipped: only one position in the DB.
+	// (ImportGPXOK carries no skipped count, so assert via persistence.)
+	from := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC)
+	positions, err := posRepo.GetByDeviceAndTimeRange(ctx, device.ID, from, to, 10)
+	if err != nil {
+		t.Fatalf("get positions: %v", err)
+	}
+	if len(positions) != 1 {
+		t.Errorf("expected 1 position in DB (untimed point skipped), got %d", len(positions))
 	}
 }

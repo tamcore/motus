@@ -101,10 +101,3 @@ func TestGPXBearing(t *testing.T) {
 		})
 	}
 }
-
-func TestNewGPXImportHandler(t *testing.T) {
-	h := NewGPXImportHandler(nil, nil, nil)
-	if h == nil {
-		t.Fatal("expected non-nil handler")
-	}
-}

@@ -1918,6 +1918,70 @@ func decodeGetPositionsParams(args [0]string, argsEscaped bool, r *http.Request)
 	return params, nil
 }
 
+// GetSessionParams is parameters of getSession operation.
+type GetSessionParams struct {
+	Token OptString `json:",omitempty,omitzero"`
+}
+
+func unpackGetSessionParams(packed middleware.Parameters) (params GetSessionParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "token",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Token = v.(OptString)
+		}
+	}
+	return params
+}
+
+func decodeGetSessionParams(args [0]string, argsEscaped bool, r *http.Request) (params GetSessionParams, _ error) {
+	q := uri.NewQueryDecoder(r.URL.Query())
+	// Decode query: token.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "token",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotTokenVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotTokenVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.Token.SetTo(paramsDotTokenVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "token",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // GetSharedDeviceParams is parameters of getSharedDevice operation.
 type GetSharedDeviceParams struct {
 	Token string

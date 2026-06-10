@@ -919,11 +919,22 @@ paths:
     get:
       operationId: getSession
       summary: Get current session / validate credentials
+      description: >-
+        With a `token` query parameter, performs a token login (QR code /
+        Traccar Manager / pytraccar): the token is resolved against API keys
+        (with legacy users.token fallback) and a session cookie is set.
+        Without it, validates the current session credentials.
       tags: [auth]
       security:
         - cookieAuth: []
         - bearerAuth: []
         - xAuthToken: []
+        - {}
+      parameters:
+        - name: token
+          in: query
+          required: false
+          schema: { type: string }
       responses:
         "200":
           description: Authenticated user
@@ -947,6 +958,11 @@ paths:
         required: true
         content:
           application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+          # Traccar Manager and other Traccar-compatible clients post
+          # form-encoded credentials.
+          application/x-www-form-urlencoded:
             schema:
               $ref: '#/components/schemas/LoginRequest'
       responses:

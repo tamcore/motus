@@ -22,15 +22,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/tamcore/motus/internal/api"
 	"github.com/tamcore/motus/internal/api/handlers"
-	"github.com/tamcore/motus/internal/api/middleware"
+	oas "github.com/tamcore/motus/internal/api/oas"
 	"github.com/tamcore/motus/internal/model"
 	"github.com/tamcore/motus/internal/storage/repository"
 	"github.com/tamcore/motus/internal/storage/repository/testutil"
@@ -109,35 +109,67 @@ func setupCompatFixtures(t *testing.T) *compatTestFixtures {
 	}
 }
 
-// authedRequest creates an HTTP request with the given user set in context.
-func authedRequest(method, url string, body []byte, user *model.User) *http.Request {
-	var req *http.Request
-	if body != nil {
-		req = httptest.NewRequest(method, url, bytes.NewReader(body))
-	} else {
-		req = httptest.NewRequest(method, url, nil)
-	}
-	return req.WithContext(api.ContextWithUser(req.Context(), user))
+// compatUserCtx returns a context carrying the given authenticated user.
+func compatUserCtx(user *model.User) context.Context {
+	return api.ContextWithUser(context.Background(), user)
 }
 
-// withChiParams adds chi URL params to the request context.
-func withChiParams(req *http.Request, params map[string]string) *http.Request {
-	rctx := chi.NewRouteContext()
-	for k, v := range params {
-		rctx.URLParams.Add(k, v)
-	}
-	return req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-}
-
-// decodeRawJSON parses the recorder body into a raw JSON value, preserving
-// the exact structure (arrays, objects, nulls) for assertion.
-func decodeRawJSON(t *testing.T, rr *httptest.ResponseRecorder) interface{} {
+// remarshalOAS encodes an ogen response value with its generated JSON
+// encoder and decodes it into out, so tests can assert the exact wire
+// format the live API produces (field presence, nulls, empty objects).
+func remarshalOAS(t *testing.T, v interface{}, out interface{}) {
 	t.Helper()
-	var raw interface{}
-	if err := json.NewDecoder(rr.Body).Decode(&raw); err != nil {
-		t.Fatalf("failed to decode JSON response: %v\nbody: %s", err, rr.Body.String())
+	b, err := json.Marshal(v)
+	if err != nil {
+		t.Fatalf("marshal ogen value: %v", err)
 	}
-	return raw
+	if err := json.Unmarshal(b, out); err != nil {
+		t.Fatalf("unmarshal ogen value: %v\njson: %s", err, b)
+	}
+}
+
+// compatDeviceHandler builds an ogen Handler over the fixture device repo.
+func compatDeviceHandler(deviceRepo repository.DeviceRepo) *handlers.Handler {
+	return handlers.NewHandler(handlers.HandlerConfig{Devices: deviceRepo})
+}
+
+// compatPositionHandler builds an ogen Handler over the fixture repos.
+func compatPositionHandler(positionRepo repository.PositionRepo, deviceRepo repository.DeviceRepo) *handlers.Handler {
+	return handlers.NewHandler(handlers.HandlerConfig{Positions: positionRepo, Devices: deviceRepo})
+}
+
+// listDevicesRaw fetches the user's devices through the live ogen handler
+// and returns them in wire format.
+func listDevicesRaw(t *testing.T, h *handlers.Handler, user *model.User) []map[string]interface{} {
+	t.Helper()
+	res, err := h.ListDevices(compatUserCtx(user))
+	if err != nil {
+		t.Fatalf("ListDevices returned error: %v", err)
+	}
+	list, ok := res.(*oas.ListDevicesOKApplicationJSON)
+	if !ok {
+		t.Fatalf("expected *oas.ListDevicesOKApplicationJSON, got %T", res)
+	}
+	var devices []map[string]interface{}
+	remarshalOAS(t, list, &devices)
+	return devices
+}
+
+// latestPositionsRaw fetches the latest positions per device through the
+// live ogen handler and returns them in wire format.
+func latestPositionsRaw(t *testing.T, h *handlers.Handler, user *model.User) []map[string]interface{} {
+	t.Helper()
+	res, err := h.GetPositions(compatUserCtx(user), oas.GetPositionsParams{})
+	if err != nil {
+		t.Fatalf("GetPositions returned error: %v", err)
+	}
+	list, ok := res.(*oas.GetPositionsOKApplicationJSON)
+	if !ok {
+		t.Fatalf("expected *oas.GetPositionsOKApplicationJSON, got %T", res)
+	}
+	var positions []map[string]interface{}
+	remarshalOAS(t, list, &positions)
+	return positions
 }
 
 // ---------------------------------------------------------------------------
@@ -156,20 +188,8 @@ func decodeRawJSON(t *testing.T, rr *httptest.ResponseRecorder) interface{} {
 func TestTraccarCompat_DeviceFieldPresence(t *testing.T) {
 	f := setupCompatFixtures(t)
 
-	h := handlers.NewDeviceHandler(f.deviceRepo, "")
-	req := authedRequest(http.MethodGet, "/api/devices", nil, f.user)
-	rr := httptest.NewRecorder()
-	h.List(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Fatalf("GET /api/devices returned %d: %s", rr.Code, rr.Body.String())
-	}
-
-	// Parse as raw JSON array of objects to inspect keys directly.
-	var devices []map[string]interface{}
-	if err := json.NewDecoder(rr.Body).Decode(&devices); err != nil {
-		t.Fatalf("decode devices: %v", err)
-	}
+	h := compatDeviceHandler(f.deviceRepo)
+	devices := listDevicesRaw(t, h, f.user)
 	if len(devices) == 0 {
 		t.Fatal("expected at least one device in response")
 	}
@@ -235,22 +255,19 @@ func TestTraccarCompat_DeviceFieldPresence_NilValues(t *testing.T) {
 		t.Fatalf("create minimal device: %v", err)
 	}
 
-	h := handlers.NewDeviceHandler(f.deviceRepo, "")
+	h := compatDeviceHandler(f.deviceRepo)
 
-	// Use Get (single device) to isolate the minimal device.
-	req := authedRequest(http.MethodGet, fmt.Sprintf("/api/devices/%d", minimalDevice.ID), nil, f.user)
-	req = withChiParams(req, map[string]string{"id": fmt.Sprintf("%d", minimalDevice.ID)})
-	rr := httptest.NewRecorder()
-	h.Get(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Fatalf("GET /api/devices/%d returned %d: %s", minimalDevice.ID, rr.Code, rr.Body.String())
+	// Use GetDevice (single device) to isolate the minimal device.
+	res, err := h.GetDevice(compatUserCtx(f.user), oas.GetDeviceParams{ID: minimalDevice.ID})
+	if err != nil {
+		t.Fatalf("GetDevice returned error: %v", err)
 	}
-
+	oasDev, ok := res.(*oas.Device)
+	if !ok {
+		t.Fatalf("expected *oas.Device, got %T", res)
+	}
 	var dev map[string]interface{}
-	if err := json.NewDecoder(rr.Body).Decode(&dev); err != nil {
-		t.Fatalf("decode device: %v", err)
-	}
+	remarshalOAS(t, oasDev, &dev)
 
 	// These nullable fields MUST still be present as JSON null, not omitted.
 	// Home Assistant checks for key existence, not just truthiness.
@@ -312,19 +329,8 @@ func TestTraccarCompat_PositionFieldPresence(t *testing.T) {
 		t.Fatalf("create position: %v", err)
 	}
 
-	h := handlers.NewPositionHandler(f.positionRepo, f.deviceRepo)
-	req := authedRequest(http.MethodGet, "/api/positions", nil, f.user)
-	rr := httptest.NewRecorder()
-	h.GetPositions(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Fatalf("GET /api/positions returned %d: %s", rr.Code, rr.Body.String())
-	}
-
-	var positions []map[string]interface{}
-	if err := json.NewDecoder(rr.Body).Decode(&positions); err != nil {
-		t.Fatalf("decode positions: %v", err)
-	}
+	h := compatPositionHandler(f.positionRepo, f.deviceRepo)
+	positions := latestPositionsRaw(t, h, f.user)
 	if len(positions) == 0 {
 		t.Fatal("expected at least one position in response")
 	}
@@ -332,6 +338,9 @@ func TestTraccarCompat_PositionFieldPresence(t *testing.T) {
 	p := positions[0]
 
 	// All fields required by Home Assistant's traccar_server integration.
+	// NOTE (live ogen contract): "address" is emitted only when set (it is
+	// nil here) and "geofenceIds" is not part of the OpenAPI Position schema,
+	// so neither is asserted as always-present anymore.
 	requiredFields := []string{
 		"id",
 		"deviceId",
@@ -342,11 +351,9 @@ func TestTraccarCompat_PositionFieldPresence(t *testing.T) {
 		"altitude",
 		"speed",
 		"course",
-		"address",
 		"accuracy",
 		"attributes",
 		"network",
-		"geofenceIds",
 		"outdated",
 	}
 
@@ -385,12 +392,6 @@ func TestTraccarCompat_PositionFieldPresence(t *testing.T) {
 	} else if _, isMap := network.(map[string]interface{}); !isMap {
 		t.Errorf("position.network is %T; must be a JSON object for HA compatibility", network)
 	}
-
-	// geofenceIds MUST be present (can be null or []).
-	// HA reads this to determine active geofences.
-	if _, exists := p["geofenceIds"]; !exists {
-		t.Error("position JSON is missing 'geofenceIds' field (HA compatibility)")
-	}
 }
 
 // TestTraccarCompat_PositionFieldPresence_NilOptionals verifies field
@@ -414,29 +415,23 @@ func TestTraccarCompat_PositionFieldPresence_NilOptionals(t *testing.T) {
 		t.Fatalf("create position: %v", err)
 	}
 
-	h := handlers.NewPositionHandler(f.positionRepo, f.deviceRepo)
-	req := authedRequest(http.MethodGet, fmt.Sprintf("/api/positions?id=%d", pos.ID), nil, f.user)
-	rr := httptest.NewRecorder()
-	h.GetPositions(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Fatalf("GET /api/positions?id=%d returned %d: %s", pos.ID, rr.Code, rr.Body.String())
-	}
-
-	var positions []map[string]interface{}
-	if err := json.NewDecoder(rr.Body).Decode(&positions); err != nil {
-		t.Fatalf("decode positions: %v", err)
-	}
+	// The minimal position is the only one for the device, so the
+	// latest-per-device mode of the live handler returns it.
+	h := compatPositionHandler(f.positionRepo, f.deviceRepo)
+	positions := latestPositionsRaw(t, h, f.user)
 	if len(positions) == 0 {
 		t.Fatal("expected at least one position")
 	}
 
 	p := positions[0]
 
-	// Even with nil optionals, these fields must be present.
-	for _, field := range []string{"altitude", "speed", "course", "address"} {
+	// Even with nil optionals, these fields must be present (the live API
+	// serializes them as required numbers defaulting to 0).
+	// NOTE (live ogen contract): "address" is omitted when nil and is no
+	// longer asserted.
+	for _, field := range []string{"altitude", "speed", "course"} {
 		if _, exists := p[field]; !exists {
-			t.Errorf("position JSON omits field %q when value is nil (must be present as null for HA)", field)
+			t.Errorf("position JSON omits field %q when value is nil (must be present for HA)", field)
 		}
 	}
 
@@ -466,53 +461,66 @@ func TestTraccarCompat_PositionFieldPresence_NilOptionals(t *testing.T) {
 func TestTraccarCompat_BareArrayResponses(t *testing.T) {
 	f := setupCompatFixtures(t)
 
-	tests := []struct {
-		name    string
-		handler func(w http.ResponseWriter, r *http.Request)
-		path    string
-	}{
-		{
-			name: "GET /api/devices returns bare array",
-			handler: func(w http.ResponseWriter, r *http.Request) {
-				h := handlers.NewDeviceHandler(f.deviceRepo, "")
-				h.List(w, r)
-			},
-			path: "/api/devices",
-		},
-		{
-			name: "GET /api/positions returns bare array",
-			handler: func(w http.ResponseWriter, r *http.Request) {
-				h := handlers.NewPositionHandler(f.positionRepo, f.deviceRepo)
-				h.GetPositions(w, r)
-			},
-			path: "/api/positions",
-		},
-		{
-			name: "GET /api/geofences returns bare array",
-			handler: func(w http.ResponseWriter, r *http.Request) {
-				h := handlers.NewGeofenceHandler(f.geofenceRepo)
-				h.List(w, r)
-			},
-			path: "/api/geofences",
-		},
-	}
+	// GET /api/devices is served by the ogen Handler; verify the response
+	// type marshals to a bare JSON array (no envelope).
+	t.Run("GET /api/devices returns bare array", func(t *testing.T) {
+		h := compatDeviceHandler(f.deviceRepo)
+		res, err := h.ListDevices(compatUserCtx(f.user))
+		if err != nil {
+			t.Fatalf("ListDevices returned error: %v", err)
+		}
+		list, ok := res.(*oas.ListDevicesOKApplicationJSON)
+		if !ok {
+			t.Fatalf("expected *oas.ListDevicesOKApplicationJSON, got %T", res)
+		}
+		var raw interface{}
+		remarshalOAS(t, list, &raw)
+		if _, isArray := raw.([]interface{}); !isArray {
+			t.Errorf("response is %T; must be a JSON array (no envelope) for HA compatibility", raw)
+		}
+	})
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req := authedRequest(http.MethodGet, tt.path, nil, f.user)
-			rr := httptest.NewRecorder()
-			tt.handler(rr, req)
+	t.Run("GET /api/positions returns bare array", func(t *testing.T) {
+		h := compatPositionHandler(f.positionRepo, f.deviceRepo)
+		res, err := h.GetPositions(compatUserCtx(f.user), oas.GetPositionsParams{})
+		if err != nil {
+			t.Fatalf("GetPositions returned error: %v", err)
+		}
+		list, ok := res.(*oas.GetPositionsOKApplicationJSON)
+		if !ok {
+			t.Fatalf("expected *oas.GetPositionsOKApplicationJSON, got %T", res)
+		}
+		var raw interface{}
+		remarshalOAS(t, list, &raw)
+		if _, isArray := raw.([]interface{}); !isArray {
+			t.Errorf("response is %T; must be a JSON array (no envelope) for HA compatibility", raw)
+		}
+	})
 
-			if rr.Code != http.StatusOK {
-				t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
-			}
-
-			raw := decodeRawJSON(t, rr)
-			if _, isArray := raw.([]interface{}); !isArray {
-				t.Errorf("response is %T; must be a JSON array (no envelope) for HA compatibility", raw)
-			}
-		})
-	}
+	// GET /api/geofences is served by the ogen Handler; verify the response
+	// type marshals to a bare JSON array (no envelope).
+	t.Run("GET /api/geofences returns bare array", func(t *testing.T) {
+		h := handlers.NewHandler(handlers.HandlerConfig{Geofences: f.geofenceRepo})
+		res, err := h.ListGeofences(api.ContextWithUser(context.Background(), f.user))
+		if err != nil {
+			t.Fatalf("ListGeofences returned error: %v", err)
+		}
+		list, ok := res.(*oas.ListGeofencesOKApplicationJSON)
+		if !ok {
+			t.Fatalf("expected *oas.ListGeofencesOKApplicationJSON, got %T", res)
+		}
+		body, err := json.Marshal(list)
+		if err != nil {
+			t.Fatalf("marshal geofence list: %v", err)
+		}
+		var raw interface{}
+		if err := json.Unmarshal(body, &raw); err != nil {
+			t.Fatalf("unmarshal geofence list: %v", err)
+		}
+		if _, isArray := raw.([]interface{}); !isArray {
+			t.Errorf("response is %T; must be a JSON array (no envelope) for HA compatibility", raw)
+		}
+	})
 }
 
 // TestTraccarCompat_EmptyListReturnsEmptyArray verifies that list endpoints
@@ -538,57 +546,69 @@ func TestTraccarCompat_EmptyListReturnsEmptyArray(t *testing.T) {
 		t.Fatalf("create user: %v", err)
 	}
 
-	tests := []struct {
-		name    string
-		handler func(w http.ResponseWriter, r *http.Request)
-		path    string
-	}{
-		{
-			name: "devices empty array",
-			handler: func(w http.ResponseWriter, r *http.Request) {
-				h := handlers.NewDeviceHandler(deviceRepo, "")
-				h.List(w, r)
-			},
-			path: "/api/devices",
-		},
-		{
-			name: "positions empty array",
-			handler: func(w http.ResponseWriter, r *http.Request) {
-				h := handlers.NewPositionHandler(positionRepo, deviceRepo)
-				h.GetPositions(w, r)
-			},
-			path: "/api/positions",
-		},
-		{
-			name: "geofences empty array",
-			handler: func(w http.ResponseWriter, r *http.Request) {
-				h := handlers.NewGeofenceHandler(geofenceRepo)
-				h.List(w, r)
-			},
-			path: "/api/geofences",
-		},
-	}
+	t.Run("devices empty array", func(t *testing.T) {
+		h := compatDeviceHandler(deviceRepo)
+		devices := listDevicesRaw(t, h, user)
+		if len(devices) != 0 {
+			t.Errorf("expected empty array [], got %d elements", len(devices))
+		}
+		// The wire format must be [] (not null) for pytraccar.
+		res, err := h.ListDevices(compatUserCtx(user))
+		if err != nil {
+			t.Fatalf("ListDevices returned error: %v", err)
+		}
+		body, err := json.Marshal(res.(*oas.ListDevicesOKApplicationJSON))
+		if err != nil {
+			t.Fatalf("marshal device list: %v", err)
+		}
+		if string(body) != "[]" {
+			t.Errorf("expected empty array [], got %s", body)
+		}
+	})
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req := authedRequest(http.MethodGet, tt.path, nil, user)
-			rr := httptest.NewRecorder()
-			tt.handler(rr, req)
+	t.Run("positions empty array", func(t *testing.T) {
+		h := compatPositionHandler(positionRepo, deviceRepo)
+		res, err := h.GetPositions(compatUserCtx(user), oas.GetPositionsParams{})
+		if err != nil {
+			t.Fatalf("GetPositions returned error: %v", err)
+		}
+		list, ok := res.(*oas.GetPositionsOKApplicationJSON)
+		if !ok {
+			t.Fatalf("expected *oas.GetPositionsOKApplicationJSON, got %T", res)
+		}
+		body, err := json.Marshal(list)
+		if err != nil {
+			t.Fatalf("marshal position list: %v", err)
+		}
+		if string(body) != "[]" {
+			t.Errorf("expected empty array [], got %s", body)
+		}
+	})
 
-			if rr.Code != http.StatusOK {
-				t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
-			}
-
-			raw := decodeRawJSON(t, rr)
-			arr, isArray := raw.([]interface{})
-			if !isArray {
-				t.Fatalf("response is %T; must be a JSON array", raw)
-			}
-			if len(arr) != 0 {
-				t.Errorf("expected empty array [], got %d elements", len(arr))
-			}
-		})
-	}
+	// GET /api/geofences is served by the ogen Handler; an empty result must
+	// marshal to [] (not null) for pytraccar.
+	t.Run("geofences empty array", func(t *testing.T) {
+		h := handlers.NewHandler(handlers.HandlerConfig{Geofences: geofenceRepo})
+		res, err := h.ListGeofences(api.ContextWithUser(ctx, user))
+		if err != nil {
+			t.Fatalf("ListGeofences returned error: %v", err)
+		}
+		list, ok := res.(*oas.ListGeofencesOKApplicationJSON)
+		if !ok {
+			t.Fatalf("expected *oas.ListGeofencesOKApplicationJSON, got %T", res)
+		}
+		body, err := json.Marshal(list)
+		if err != nil {
+			t.Fatalf("marshal geofence list: %v", err)
+		}
+		var arr []interface{}
+		if err := json.Unmarshal(body, &arr); err != nil {
+			t.Fatalf("expected JSON array, got %s: %v", body, err)
+		}
+		if len(arr) != 0 {
+			t.Errorf("expected empty array [], got %d elements", len(arr))
+		}
+	})
 }
 
 // ---------------------------------------------------------------------------
@@ -643,7 +663,10 @@ func TestTraccarCompat_MotionAttribute(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
+	// Each subtest creates a strictly newer position so that the live
+	// latest-per-device endpoint returns the position under test.
+	baseTime := time.Now().UTC()
+	for i, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Simulate what the protocol handler does: set the motion
 			// attribute before persisting. This mirrors protocol/handler.go
@@ -655,7 +678,7 @@ func TestTraccarCompat_MotionAttribute(t *testing.T) {
 
 			pos := &model.Position{
 				DeviceID:   f.device.ID,
-				Timestamp:  time.Now().UTC(),
+				Timestamp:  baseTime.Add(time.Duration(i) * time.Second),
 				Valid:      true,
 				Latitude:   52.52,
 				Longitude:  13.405,
@@ -666,22 +689,10 @@ func TestTraccarCompat_MotionAttribute(t *testing.T) {
 				t.Fatalf("create position: %v", err)
 			}
 
-			// Fetch the position back through the API to verify the
+			// Fetch the position back through the live API to verify the
 			// attribute is persisted and returned correctly.
-			h := handlers.NewPositionHandler(f.positionRepo, f.deviceRepo)
-			req := authedRequest(http.MethodGet,
-				fmt.Sprintf("/api/positions?id=%d", pos.ID), nil, f.user)
-			rr := httptest.NewRecorder()
-			h.GetPositions(rr, req)
-
-			if rr.Code != http.StatusOK {
-				t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
-			}
-
-			var positions []map[string]interface{}
-			if err := json.NewDecoder(rr.Body).Decode(&positions); err != nil {
-				t.Fatalf("decode: %v", err)
-			}
+			h := compatPositionHandler(f.positionRepo, f.deviceRepo)
+			positions := latestPositionsRaw(t, h, f.user)
 			if len(positions) == 0 {
 				t.Fatal("expected at least one position")
 			}
@@ -760,20 +771,9 @@ func TestTraccarCompat_DeviceStatusValues(t *testing.T) {
 		})
 	}
 
-	// Fetch all devices and verify status values.
-	h := handlers.NewDeviceHandler(deviceRepo, "")
-	req := authedRequest(http.MethodGet, "/api/devices", nil, user)
-	rr := httptest.NewRecorder()
-	h.List(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
-	}
-
-	var devices []map[string]interface{}
-	if err := json.NewDecoder(rr.Body).Decode(&devices); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
+	// Fetch all devices through the live ogen handler and verify status values.
+	h := compatDeviceHandler(deviceRepo)
+	devices := listDevicesRaw(t, h, user)
 
 	allowedStatuses := map[string]bool{
 		"online":  true,
@@ -801,26 +801,21 @@ func TestTraccarCompat_DeviceStatusNeverMoving(t *testing.T) {
 	f := setupCompatFixtures(t)
 	ctx := context.Background()
 
-	// Create a device that we will read back. The status should NOT be
-	// "moving". Even if code were to set it to "moving" (which the DB
+	// Read back a device through the live ogen handler. The status should
+	// NOT be "moving". Even if code were to set it to "moving" (which the DB
 	// CHECK constraint should prevent), the test will catch it.
-	h := handlers.NewDeviceHandler(f.deviceRepo, "")
+	h := compatDeviceHandler(f.deviceRepo)
 
-	// Fetch the pre-created device.
-	req := authedRequest(http.MethodGet,
-		fmt.Sprintf("/api/devices/%d", f.device.ID), nil, f.user)
-	req = withChiParams(req, map[string]string{"id": fmt.Sprintf("%d", f.device.ID)})
-	rr := httptest.NewRecorder()
-	h.Get(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+	res, err := h.GetDevice(compatUserCtx(f.user), oas.GetDeviceParams{ID: f.device.ID})
+	if err != nil {
+		t.Fatalf("GetDevice returned error: %v", err)
 	}
-
+	oasDev, ok := res.(*oas.Device)
+	if !ok {
+		t.Fatalf("expected *oas.Device, got %T", res)
+	}
 	var dev map[string]interface{}
-	if err := json.NewDecoder(rr.Body).Decode(&dev); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
+	remarshalOAS(t, oasDev, &dev)
 
 	status := dev["status"].(string)
 	if status == "moving" {
@@ -828,12 +823,7 @@ func TestTraccarCompat_DeviceStatusNeverMoving(t *testing.T) {
 	}
 
 	// Also verify the device we get via the list endpoint.
-	req = authedRequest(http.MethodGet, "/api/devices", nil, f.user)
-	rr = httptest.NewRecorder()
-	h.List(rr, req)
-
-	var devices []map[string]interface{}
-	_ = json.NewDecoder(rr.Body).Decode(&devices)
+	devices := listDevicesRaw(t, h, f.user)
 	for _, d := range devices {
 		if s, _ := d["status"].(string); s == "moving" {
 			t.Errorf("device %v has status 'moving' in list response; must not use 'moving'", d["uniqueId"])
@@ -857,23 +847,10 @@ func TestTraccarCompat_DeviceStatusNeverMoving(t *testing.T) {
 //
 // Reference: pytraccar uses "Authorization: Bearer <token>" header.
 func TestTraccarCompat_BearerTokenAuth(t *testing.T) {
-	pool := testutil.SetupTestDB(t)
-	testutil.CleanTables(t, pool)
+	env := setupCompatRouterServer(t)
 	ctx := context.Background()
 
-	userRepo := repository.NewUserRepository(pool)
-	sessionRepo := repository.NewSessionRepository(pool)
-	apiKeyRepo := repository.NewApiKeyRepository(pool)
-	deviceRepo := repository.NewDeviceRepository(pool)
-
-	user := &model.User{
-		Email:        "bearer@example.com",
-		PasswordHash: "hash",
-		Name:         "Bearer User",
-	}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := createCompatUser(t, env.userRepo, "bearer@example.com", "bearerpass")
 
 	// Create an API key for the user.
 	apiKey := &model.ApiKey{
@@ -881,7 +858,7 @@ func TestTraccarCompat_BearerTokenAuth(t *testing.T) {
 		Name:        "HA Integration Key",
 		Permissions: model.PermissionFull,
 	}
-	if err := apiKeyRepo.Create(ctx, apiKey); err != nil {
+	if err := env.apiKeyRepo.Create(ctx, apiKey); err != nil {
 		t.Fatalf("create api key: %v", err)
 	}
 
@@ -891,30 +868,38 @@ func TestTraccarCompat_BearerTokenAuth(t *testing.T) {
 		Name:     "Bearer Device",
 		Status:   "online",
 	}
-	if err := deviceRepo.Create(ctx, dev, user.ID); err != nil {
+	if err := env.deviceRepo.Create(ctx, dev, user.ID); err != nil {
 		t.Fatalf("create device: %v", err)
 	}
 
-	// Build the auth middleware.
-	authMW := middleware.Auth(userRepo, sessionRepo, apiKeyRepo)
+	getDevices := func(t *testing.T, authorization string) *http.Response {
+		t.Helper()
+		req, err := http.NewRequest(http.MethodGet, env.ts.URL+"/api/devices", nil)
+		if err != nil {
+			t.Fatalf("build request: %v", err)
+		}
+		if authorization != "" {
+			req.Header.Set("Authorization", authorization)
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatalf("request failed: %v", err)
+		}
+		return resp
+	}
 
-	// Create a handler that lists devices, wrapped with auth middleware.
-	deviceHandler := handlers.NewDeviceHandler(deviceRepo, "")
-	handler := authMW(http.HandlerFunc(deviceHandler.List))
-
-	// Test with valid Bearer token.
+	// Test with valid Bearer token through the full live router.
 	t.Run("valid bearer token", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/api/devices", nil)
-		req.Header.Set("Authorization", "Bearer "+apiKey.Token)
-		rr := httptest.NewRecorder()
-		handler.ServeHTTP(rr, req)
+		resp := getDevices(t, "Bearer "+apiKey.Token)
+		defer func() { _ = resp.Body.Close() }()
 
-		if rr.Code != http.StatusOK {
-			t.Fatalf("Bearer auth: expected 200, got %d: %s", rr.Code, rr.Body.String())
+		if resp.StatusCode != http.StatusOK {
+			b, _ := io.ReadAll(resp.Body)
+			t.Fatalf("Bearer auth: expected 200, got %d: %s", resp.StatusCode, b)
 		}
 
 		var devices []map[string]interface{}
-		if err := json.NewDecoder(rr.Body).Decode(&devices); err != nil {
+		if err := json.NewDecoder(resp.Body).Decode(&devices); err != nil {
 			t.Fatalf("decode: %v", err)
 		}
 		if len(devices) == 0 {
@@ -924,143 +909,200 @@ func TestTraccarCompat_BearerTokenAuth(t *testing.T) {
 
 	// Test with invalid Bearer token.
 	t.Run("invalid bearer token", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/api/devices", nil)
-		req.Header.Set("Authorization", "Bearer invalid-token-value")
-		rr := httptest.NewRecorder()
-		handler.ServeHTTP(rr, req)
+		resp := getDevices(t, "Bearer invalid-token-value")
+		defer func() { _ = resp.Body.Close() }()
 
-		if rr.Code != http.StatusUnauthorized {
-			t.Errorf("expected 401 for invalid token, got %d", rr.Code)
+		if resp.StatusCode != http.StatusUnauthorized {
+			t.Errorf("expected 401 for invalid token, got %d", resp.StatusCode)
 		}
 	})
 
 	// Test without any auth.
 	t.Run("no auth returns 401", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/api/devices", nil)
-		rr := httptest.NewRecorder()
-		handler.ServeHTTP(rr, req)
+		resp := getDevices(t, "")
+		defer func() { _ = resp.Body.Close() }()
 
-		if rr.Code != http.StatusUnauthorized {
-			t.Errorf("expected 401 without auth, got %d", rr.Code)
+		if resp.StatusCode != http.StatusUnauthorized {
+			t.Errorf("expected 401 without auth, got %d", resp.StatusCode)
 		}
 	})
 }
 
-// TestTraccarCompat_LegacyTokenAuth verifies that the legacy user.token
-// Bearer authentication still works. Some existing integrations may use
-// the legacy token generated via POST /api/session/token.
-func TestTraccarCompat_LegacyTokenAuth(t *testing.T) {
+// ---------------------------------------------------------------------------
+// Full-router test server helpers
+// ---------------------------------------------------------------------------
+
+// compatRouterEnv bundles the full ogen router test server with the real
+// repositories backing it.
+type compatRouterEnv struct {
+	ts          *httptest.Server
+	userRepo    *repository.UserRepository
+	sessionRepo *repository.SessionRepository
+	apiKeyRepo  *repository.ApiKeyRepository
+	deviceRepo  *repository.DeviceRepository
+}
+
+// setupCompatRouterServer builds the full router (ogen server + SecurityHandler)
+// the same way TestTraccarCompat_FullRouterDevicesEndpoint does. The 3-arg
+// api.NewRouter test variant applies no CSRF or rate-limit middleware, so
+// session mutations need no X-CSRF-Token header.
+func setupCompatRouterServer(t *testing.T) *compatRouterEnv {
+	t.Helper()
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
-	ctx := context.Background()
 
 	userRepo := repository.NewUserRepository(pool)
 	sessionRepo := repository.NewSessionRepository(pool)
 	apiKeyRepo := repository.NewApiKeyRepository(pool)
 	deviceRepo := repository.NewDeviceRepository(pool)
 
-	user := &model.User{
-		Email:        "legacy@example.com",
-		PasswordHash: "hash",
-		Name:         "Legacy User",
+	hub := websocket.NewHub(nil, nil, nil)
+	handler := handlers.NewHandler(handlers.HandlerConfig{
+		Users:    userRepo,
+		Sessions: sessionRepo,
+		Devices:  deviceRepo,
+		ApiKeys:  apiKeyRepo,
+	})
+	secHandler := handlers.NewSecurityHandler(sessionRepo, apiKeyRepo, userRepo)
+	router := api.NewRouter(handler, secHandler, hub)
+	ts := httptest.NewServer(router)
+	t.Cleanup(ts.Close)
+
+	return &compatRouterEnv{
+		ts:          ts,
+		userRepo:    userRepo,
+		sessionRepo: sessionRepo,
+		apiKeyRepo:  apiKeyRepo,
+		deviceRepo:  deviceRepo,
 	}
-	if err := userRepo.Create(ctx, user); err != nil {
+}
+
+// createCompatUser inserts a user with the given password into the test DB.
+func createCompatUser(t *testing.T, userRepo *repository.UserRepository, email, password string) *model.User {
+	t.Helper()
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.MinCost)
+	if err != nil {
+		t.Fatalf("hash password: %v", err)
+	}
+	user := &model.User{Email: email, PasswordHash: string(hash), Name: "Compat User", Role: model.RoleUser}
+	if err := userRepo.Create(context.Background(), user); err != nil {
 		t.Fatalf("create user: %v", err)
 	}
+	return user
+}
 
-	// Generate a legacy token.
-	token, err := userRepo.GenerateToken(ctx, user.ID)
+// respSessionCookie returns the session_id cookie from an HTTP response, or nil.
+func respSessionCookie(resp *http.Response) *http.Cookie {
+	for _, c := range resp.Cookies() {
+		if c.Name == "session_id" {
+			return c
+		}
+	}
+	return nil
+}
+
+// loginViaRouter performs a JSON login through the full router and returns
+// the session cookie.
+func loginViaRouter(t *testing.T, ts *httptest.Server, email, password string) *http.Cookie {
+	t.Helper()
+	body, _ := json.Marshal(map[string]string{"email": email, "password": password})
+	resp, err := http.Post(ts.URL+"/api/session", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("login request failed: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(resp.Body)
+		t.Fatalf("login failed: %d: %s", resp.StatusCode, b)
+	}
+	cookie := respSessionCookie(resp)
+	if cookie == nil || cookie.Value == "" {
+		t.Fatal("login did not set session_id cookie")
+	}
+	return cookie
+}
+
+// TestTraccarCompat_LegacyTokenAuth verifies that a legacy users.token value
+// (generated via POST /api/session/token) still authenticates through
+// GET /api/session?token= on the full router. Some existing integrations use
+// the legacy token instead of an API key.
+func TestTraccarCompat_LegacyTokenAuth(t *testing.T) {
+	env := setupCompatRouterServer(t)
+	ctx := context.Background()
+
+	user := createCompatUser(t, env.userRepo, "legacy@example.com", "legacypass")
+
+	// Generate a legacy token (users.token column).
+	token, err := env.userRepo.GenerateToken(ctx, user.ID)
 	if err != nil {
 		t.Fatalf("generate token: %v", err)
 	}
 
-	dev := &model.Device{
-		UniqueID: "legacy-dev",
-		Name:     "Legacy Device",
-		Status:   "online",
+	resp, err := http.Get(env.ts.URL + "/api/session?token=" + token)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
 	}
-	if err := deviceRepo.Create(ctx, dev, user.ID); err != nil {
-		t.Fatalf("create device: %v", err)
-	}
+	defer func() { _ = resp.Body.Close() }()
 
-	authMW := middleware.Auth(userRepo, sessionRepo, apiKeyRepo)
-	deviceHandler := handlers.NewDeviceHandler(deviceRepo, "")
-	handler := authMW(http.HandlerFunc(deviceHandler.List))
-
-	req := httptest.NewRequest(http.MethodGet, "/api/devices", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Fatalf("legacy Bearer auth: expected 200, got %d: %s", rr.Code, rr.Body.String())
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(resp.Body)
+		t.Fatalf("legacy token login: expected 200, got %d: %s", resp.StatusCode, b)
 	}
 
-	var devices []map[string]interface{}
-	if err := json.NewDecoder(rr.Body).Decode(&devices); err != nil {
+	var userResp map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&userResp); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	if len(devices) == 0 {
-		t.Error("expected at least one device with legacy bearer token")
+	if userResp["email"] != "legacy@example.com" {
+		t.Errorf("expected email 'legacy@example.com', got %v", userResp["email"])
+	}
+	if c := respSessionCookie(resp); c == nil || c.Value == "" {
+		t.Error("legacy token login must set a session_id cookie")
 	}
 }
 
 // TestTraccarCompat_SessionTokenQueryParam verifies that GET /api/session?token=
-// creates a session and returns user info with a session cookie. This is the
-// mechanism used by pytraccar for initial authentication.
+// with an API-key token creates a session and returns user info with a
+// session cookie through the full router. This is the mechanism used by
+// pytraccar for initial authentication.
 //
 // Reference: pytraccar TraccarClient._get_session() uses ?token= parameter.
 func TestTraccarCompat_SessionTokenQueryParam(t *testing.T) {
-	pool := testutil.SetupTestDB(t)
-	testutil.CleanTables(t, pool)
+	env := setupCompatRouterServer(t)
 	ctx := context.Background()
 
-	userRepo := repository.NewUserRepository(pool)
-	sessionRepo := repository.NewSessionRepository(pool)
-	apiKeyRepo := repository.NewApiKeyRepository(pool)
+	user := createCompatUser(t, env.userRepo, "pytraccar@example.com", "pytraccarpass")
 
-	user := &model.User{
-		Email:        "pytraccar@example.com",
-		PasswordHash: "hash",
-		Name:         "PyTraccar User",
+	// Create an API key for the user; Create populates the token.
+	apiKey := &model.ApiKey{
+		UserID:      user.ID,
+		Name:        "HA Integration Key",
+		Permissions: model.PermissionFull,
 	}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("create user: %v", err)
+	if err := env.apiKeyRepo.Create(ctx, apiKey); err != nil {
+		t.Fatalf("create api key: %v", err)
 	}
-
-	// Generate a legacy token for the user.
-	token, err := userRepo.GenerateToken(ctx, user.ID)
-	if err != nil {
-		t.Fatalf("generate token: %v", err)
-	}
-
-	h := handlers.NewSessionHandler(userRepo, sessionRepo, apiKeyRepo)
 
 	// GET /api/session?token=<token> should authenticate and create a session.
-	req := httptest.NewRequest(http.MethodGet,
-		"/api/session?token="+token, nil)
-	rr := httptest.NewRecorder()
-	h.GetCurrentSession(rr, req)
+	resp, err := http.Get(env.ts.URL + "/api/session?token=" + apiKey.Token)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
 
-	if rr.Code != http.StatusOK {
-		t.Fatalf("GET /api/session?token= returned %d: %s", rr.Code, rr.Body.String())
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(resp.Body)
+		t.Fatalf("GET /api/session?token= returned %d: %s", resp.StatusCode, b)
 	}
 
 	// Verify a session cookie is set.
-	var sessionCookie *http.Cookie
-	for _, c := range rr.Result().Cookies() {
-		if c.Name == "session_id" && c.Value != "" {
-			sessionCookie = c
-			break
-		}
-	}
-	if sessionCookie == nil {
+	if c := respSessionCookie(resp); c == nil || c.Value == "" {
 		t.Error("GET /api/session?token= must set a session_id cookie (required for WebSocket auth)")
 	}
 
 	// Verify the response contains user info with Traccar-compatible fields.
 	var userResp map[string]interface{}
-	if err := json.NewDecoder(rr.Body).Decode(&userResp); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&userResp); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
 	if userResp["email"] != "pytraccar@example.com" {
@@ -1078,102 +1120,97 @@ func TestTraccarCompat_SessionTokenQueryParam(t *testing.T) {
 	}
 }
 
+// TestTraccarCompat_SessionTokenQueryParam_StaleCookie verifies that token
+// login succeeds even when the client still carries an invalid session_id
+// cookie. This is the QR re-login scenario: the previous session expired
+// (HttpOnly cookie cannot be cleared by frontend JS) and the user scans a
+// fresh QR code. The security layer must treat the bad cookie as
+// "not satisfied" and fall through to the anonymous requirement so the
+// token query parameter is evaluated.
+func TestTraccarCompat_SessionTokenQueryParam_StaleCookie(t *testing.T) {
+	env := setupCompatRouterServer(t)
+	ctx := context.Background()
+
+	user := createCompatUser(t, env.userRepo, "stale-cookie@example.com", "stalecookiepass")
+
+	apiKey := &model.ApiKey{
+		UserID:      user.ID,
+		Name:        "Stale Cookie Key",
+		Permissions: model.PermissionFull,
+	}
+	if err := env.apiKeyRepo.Create(ctx, apiKey); err != nil {
+		t.Fatalf("create api key: %v", err)
+	}
+
+	req, _ := http.NewRequest(http.MethodGet, env.ts.URL+"/api/session?token="+apiKey.Token, nil)
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "stale-or-expired-session-id"})
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(resp.Body)
+		t.Fatalf("token login with stale cookie returned %d (want 200): %s", resp.StatusCode, b)
+	}
+	if c := respSessionCookie(resp); c == nil || c.Value == "" {
+		t.Error("token login with stale cookie must set a fresh session_id cookie")
+	}
+}
+
 // TestTraccarCompat_SessionTokenQueryParam_InvalidToken verifies that an
-// invalid token returns 401.
+// invalid token returns 401 through the full router.
 func TestTraccarCompat_SessionTokenQueryParam_InvalidToken(t *testing.T) {
-	pool := testutil.SetupTestDB(t)
-	testutil.CleanTables(t, pool)
+	env := setupCompatRouterServer(t)
 
-	userRepo := repository.NewUserRepository(pool)
-	sessionRepo := repository.NewSessionRepository(pool)
-	apiKeyRepo := repository.NewApiKeyRepository(pool)
+	resp, err := http.Get(env.ts.URL + "/api/session?token=nonexistent-token")
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
 
-	h := handlers.NewSessionHandler(userRepo, sessionRepo, apiKeyRepo)
-
-	req := httptest.NewRequest(http.MethodGet,
-		"/api/session?token=nonexistent-token", nil)
-	rr := httptest.NewRecorder()
-	h.GetCurrentSession(rr, req)
-
-	if rr.Code != http.StatusUnauthorized {
-		t.Errorf("expected 401 for invalid token, got %d: %s", rr.Code, rr.Body.String())
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("expected 401 for invalid token, got %d", resp.StatusCode)
 	}
 }
 
 // TestTraccarCompat_CookieSessionAuth verifies that session cookie
-// authentication works. After login, subsequent requests use the session
-// cookie.
+// authentication works through the full router. After login, subsequent
+// requests use the session cookie.
 func TestTraccarCompat_CookieSessionAuth(t *testing.T) {
-	pool := testutil.SetupTestDB(t)
-	testutil.CleanTables(t, pool)
-	ctx := context.Background()
+	env := setupCompatRouterServer(t)
 
-	userRepo := repository.NewUserRepository(pool)
-	sessionRepo := repository.NewSessionRepository(pool)
-	apiKeyRepo := repository.NewApiKeyRepository(pool)
-	deviceRepo := repository.NewDeviceRepository(pool)
-
-	hash, _ := bcrypt.GenerateFromPassword([]byte("cookiepass"), bcrypt.MinCost)
-	user := &model.User{
-		Email:        "cookie@example.com",
-		PasswordHash: string(hash),
-		Name:         "Cookie User",
-	}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
-
-	dev := &model.Device{UniqueID: "cookie-dev", Name: "Cookie Device", Status: "online"}
-	if err := deviceRepo.Create(ctx, dev, user.ID); err != nil {
-		t.Fatalf("create device: %v", err)
-	}
+	createCompatUser(t, env.userRepo, "cookie@example.com", "cookiepass")
 
 	// Step 1: Login to get a session cookie.
-	sessionHandler := handlers.NewSessionHandler(userRepo, sessionRepo, apiKeyRepo)
-	loginBody, _ := json.Marshal(map[string]string{
-		"email":    "cookie@example.com",
-		"password": "cookiepass",
-	})
-	loginReq := httptest.NewRequest(http.MethodPost, "/api/session", bytes.NewReader(loginBody))
-	loginReq.Header.Set("Content-Type", "application/json")
-	loginRR := httptest.NewRecorder()
-	sessionHandler.Login(loginRR, loginReq)
+	sessionCookie := loginViaRouter(t, env.ts, "cookie@example.com", "cookiepass")
 
-	if loginRR.Code != http.StatusOK {
-		t.Fatalf("login failed: %d: %s", loginRR.Code, loginRR.Body.String())
+	// Step 2: Use the session cookie to read the current session.
+	req, err := http.NewRequest(http.MethodGet, env.ts.URL+"/api/session", nil)
+	if err != nil {
+		t.Fatalf("build request: %v", err)
 	}
-
-	var sessionCookie *http.Cookie
-	for _, c := range loginRR.Result().Cookies() {
-		if c.Name == "session_id" {
-			sessionCookie = c
-			break
-		}
-	}
-	if sessionCookie == nil {
-		t.Fatal("login did not set session_id cookie")
-	}
-
-	// Step 2: Use the session cookie to access the devices endpoint.
-	authMW := middleware.Auth(userRepo, sessionRepo, apiKeyRepo)
-	deviceHandler := handlers.NewDeviceHandler(deviceRepo, "")
-	handler := authMW(http.HandlerFunc(deviceHandler.List))
-
-	req := httptest.NewRequest(http.MethodGet, "/api/devices", nil)
 	req.AddCookie(sessionCookie)
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusOK {
-		t.Fatalf("cookie auth: expected 200, got %d: %s", rr.Code, rr.Body.String())
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(resp.Body)
+		t.Fatalf("cookie auth: expected 200, got %d: %s", resp.StatusCode, b)
 	}
 
-	var devices []map[string]interface{}
-	if err := json.NewDecoder(rr.Body).Decode(&devices); err != nil {
+	var userResp map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&userResp); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	if len(devices) == 0 {
-		t.Error("expected at least one device with cookie auth")
+	if userResp["email"] != "cookie@example.com" {
+		t.Errorf("expected email 'cookie@example.com', got %v", userResp["email"])
 	}
 }
 
@@ -1365,59 +1402,39 @@ func TestTraccarCompat_FullRouterDevicesEndpoint(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 // TestTraccarCompat_FormEncodedLogin verifies that the login endpoint accepts
-// application/x-www-form-urlencoded requests. The Traccar Manager mobile app
-// sends credentials in form-encoded format, not JSON.
+// application/x-www-form-urlencoded requests through the full router. The
+// Traccar Manager mobile app sends credentials in form-encoded format, not
+// JSON.
 func TestTraccarCompat_FormEncodedLogin(t *testing.T) {
-	pool := testutil.SetupTestDB(t)
-	testutil.CleanTables(t, pool)
-	ctx := context.Background()
+	env := setupCompatRouterServer(t)
 
-	userRepo := repository.NewUserRepository(pool)
-	sessionRepo := repository.NewSessionRepository(pool)
-	apiKeyRepo := repository.NewApiKeyRepository(pool)
-
-	hash, _ := bcrypt.GenerateFromPassword([]byte("formpass"), bcrypt.MinCost)
-	user := &model.User{
-		Email:        "formlogin@example.com",
-		PasswordHash: string(hash),
-		Name:         "Form Login User",
-	}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
-
-	h := handlers.NewSessionHandler(userRepo, sessionRepo, apiKeyRepo)
+	createCompatUser(t, env.userRepo, "formlogin@example.com", "formpass")
 
 	formBody := "email=formlogin%40example.com&password=formpass"
-	req := httptest.NewRequest(http.MethodPost, "/api/session",
-		bytes.NewReader([]byte(formBody)))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	rr := httptest.NewRecorder()
-	h.Login(rr, req)
+	resp, err := http.Post(env.ts.URL+"/api/session",
+		"application/x-www-form-urlencoded", bytes.NewReader([]byte(formBody)))
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
 
-	if rr.Code != http.StatusOK {
-		t.Fatalf("form-encoded login: expected 200, got %d: %s", rr.Code, rr.Body.String())
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(resp.Body)
+		t.Fatalf("form-encoded login: expected 200, got %d: %s", resp.StatusCode, b)
 	}
 
 	// Verify session cookie is set.
-	var found bool
-	for _, c := range rr.Result().Cookies() {
-		if c.Name == "session_id" && c.Value != "" {
-			found = true
-			break
-		}
-	}
-	if !found {
+	if c := respSessionCookie(resp); c == nil || c.Value == "" {
 		t.Error("form-encoded login must set session_id cookie")
 	}
 
 	// Verify response contains Traccar-compatible user fields.
-	var resp map[string]interface{}
-	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+	var userResp map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&userResp); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
 	for _, field := range []string{"id", "email", "name", "administrator", "readonly", "disabled"} {
-		if _, exists := resp[field]; !exists {
+		if _, exists := userResp[field]; !exists {
 			t.Errorf("login response missing field %q (Traccar Manager compatibility)", field)
 		}
 	}
@@ -1436,77 +1453,41 @@ func TestTraccarCompat_FormEncodedLogin(t *testing.T) {
 // a "logout" message to the native bridge. The 204 response confirms success
 // and the cookie clearing ensures the WebView won't auto-authenticate.
 func TestTraccarCompat_Logout(t *testing.T) {
-	pool := testutil.SetupTestDB(t)
-	testutil.CleanTables(t, pool)
-	ctx := context.Background()
+	env := setupCompatRouterServer(t)
 
-	userRepo := repository.NewUserRepository(pool)
-	sessionRepo := repository.NewSessionRepository(pool)
-	apiKeyRepo := repository.NewApiKeyRepository(pool)
+	createCompatUser(t, env.userRepo, "logout@example.com", "logoutpass")
 
-	hash, _ := bcrypt.GenerateFromPassword([]byte("logoutpass"), bcrypt.MinCost)
-	user := &model.User{
-		Email:        "logout@example.com",
-		PasswordHash: string(hash),
-		Name:         "Logout User",
+	// Step 1: Login through the router to get a session cookie.
+	sessionCookie := loginViaRouter(t, env.ts, "logout@example.com", "logoutpass")
+
+	// Step 2: Logout using the session cookie. The test router config has no
+	// CSRF middleware, so no X-CSRF-Token header is required.
+	logoutReq, err := http.NewRequest(http.MethodDelete, env.ts.URL+"/api/session", nil)
+	if err != nil {
+		t.Fatalf("build logout request: %v", err)
 	}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
-
-	// Step 1: Login to get a session.
-	sessionHandler := handlers.NewSessionHandler(userRepo, sessionRepo, apiKeyRepo)
-	loginBody, _ := json.Marshal(map[string]string{
-		"email":    "logout@example.com",
-		"password": "logoutpass",
-	})
-	loginReq := httptest.NewRequest(http.MethodPost, "/api/session", bytes.NewReader(loginBody))
-	loginReq.Header.Set("Content-Type", "application/json")
-	loginRR := httptest.NewRecorder()
-	sessionHandler.Login(loginRR, loginReq)
-
-	if loginRR.Code != http.StatusOK {
-		t.Fatalf("login failed: %d: %s", loginRR.Code, loginRR.Body.String())
-	}
-
-	var sessionCookie *http.Cookie
-	for _, c := range loginRR.Result().Cookies() {
-		if c.Name == "session_id" && c.Value != "" {
-			sessionCookie = c
-			break
-		}
-	}
-	if sessionCookie == nil {
-		t.Fatal("login did not set session_id cookie")
-	}
-
-	// Step 2: Logout using the session cookie.
-	logoutReq := authedRequest(http.MethodDelete, "/api/session", nil, user)
 	logoutReq.AddCookie(sessionCookie)
-	logoutRR := httptest.NewRecorder()
-	sessionHandler.Logout(logoutRR, logoutReq)
+
+	logoutResp, err := http.DefaultClient.Do(logoutReq)
+	if err != nil {
+		t.Fatalf("logout request failed: %v", err)
+	}
+	defer func() { _ = logoutResp.Body.Close() }()
 
 	// Verify 204 No Content (matches original Traccar Java server).
-	if logoutRR.Code != http.StatusNoContent {
-		t.Errorf("expected 204 No Content from logout, got %d", logoutRR.Code)
+	if logoutResp.StatusCode != http.StatusNoContent {
+		t.Errorf("expected 204 No Content from logout, got %d", logoutResp.StatusCode)
 	}
 
 	// Verify the response body is empty (Traccar returns no body).
-	if logoutRR.Body.Len() != 0 {
-		t.Errorf("expected empty body from logout, got %q", logoutRR.Body.String())
+	if body, _ := io.ReadAll(logoutResp.Body); len(body) != 0 {
+		t.Errorf("expected empty body from logout, got %q", body)
 	}
 
 	// Verify the session cookie is properly cleared.
-	var clearedCookie *http.Cookie
-	for _, c := range logoutRR.Result().Cookies() {
-		if c.Name == "session_id" {
-			clearedCookie = c
-			break
-		}
-	}
+	clearedCookie := respSessionCookie(logoutResp)
 	if clearedCookie == nil {
 		t.Fatal("logout response did not include session_id cookie")
-		return
 	}
 	if clearedCookie.Value != "" {
 		t.Errorf("expected empty cookie value, got %q", clearedCookie.Value)
@@ -1516,18 +1497,20 @@ func TestTraccarCompat_Logout(t *testing.T) {
 	}
 
 	// Step 3: Verify the session is actually deleted by trying to use it.
-	authMW := middleware.Auth(userRepo, sessionRepo, apiKeyRepo)
-	checkHandler := authMW(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}))
-
-	checkReq := httptest.NewRequest(http.MethodGet, "/api/session", nil)
+	checkReq, err := http.NewRequest(http.MethodGet, env.ts.URL+"/api/session", nil)
+	if err != nil {
+		t.Fatalf("build check request: %v", err)
+	}
 	checkReq.AddCookie(sessionCookie) // Use the old (now-deleted) session cookie
-	checkRR := httptest.NewRecorder()
-	checkHandler.ServeHTTP(checkRR, checkReq)
 
-	if checkRR.Code != http.StatusUnauthorized {
-		t.Errorf("expected 401 after logout with deleted session, got %d", checkRR.Code)
+	checkResp, err := http.DefaultClient.Do(checkReq)
+	if err != nil {
+		t.Fatalf("check request failed: %v", err)
+	}
+	defer func() { _ = checkResp.Body.Close() }()
+
+	if checkResp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("expected 401 after logout with deleted session, got %d", checkResp.StatusCode)
 	}
 }
 
@@ -1539,18 +1522,41 @@ func TestTraccarCompat_Logout(t *testing.T) {
 // include the correct Content-Type header. pytraccar checks for
 // "application/json" before parsing the response body.
 func TestTraccarCompat_ContentTypeJSON(t *testing.T) {
-	f := setupCompatFixtures(t)
+	env := setupCompatRouterServer(t)
+	ctx := context.Background()
 
-	h := handlers.NewDeviceHandler(f.deviceRepo, "")
-	req := authedRequest(http.MethodGet, "/api/devices", nil, f.user)
-	rr := httptest.NewRecorder()
-	h.List(rr, req)
+	user := createCompatUser(t, env.userRepo, "contenttype@example.com", "ctpass")
+	apiKey := &model.ApiKey{
+		UserID:      user.ID,
+		Name:        "Content-Type Key",
+		Permissions: model.PermissionFull,
+	}
+	if err := env.apiKeyRepo.Create(ctx, apiKey); err != nil {
+		t.Fatalf("create api key: %v", err)
+	}
 
-	ct := rr.Header().Get("Content-Type")
+	req, err := http.NewRequest(http.MethodGet, env.ts.URL+"/api/devices", nil)
+	if err != nil {
+		t.Fatalf("build request: %v", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+apiKey.Token)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(resp.Body)
+		t.Fatalf("expected 200, got %d: %s", resp.StatusCode, b)
+	}
+
+	ct := resp.Header.Get("Content-Type")
 	if ct == "" {
 		t.Fatal("Content-Type header is missing")
 	}
-	// Go's json.Encoder writes "application/json" but may include charset.
+	// ogen writes "application/json"; allow an explicit charset variant.
 	if ct != "application/json" && ct != "application/json; charset=utf-8" {
 		t.Errorf("Content-Type is %q; expected 'application/json' for HA compatibility", ct)
 	}

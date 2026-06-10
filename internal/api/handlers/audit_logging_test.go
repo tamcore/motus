@@ -1,26 +1,21 @@
 package handlers_test
 
 import (
-	"bytes"
 	"context"
 	"errors"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/tamcore/motus/internal/api"
 	"github.com/tamcore/motus/internal/api/handlers"
+	oas "github.com/tamcore/motus/internal/api/oas"
 	"github.com/tamcore/motus/internal/audit"
 	"github.com/tamcore/motus/internal/model"
 	"github.com/tamcore/motus/internal/storage/repository"
 )
 
-// --- Mock repos that do NOT already exist in other *_mock_test.go files ---
-// mockDeviceRepo, mockApiKeyRepo, mockUserRepo, mockSessionRepo are
-// defined in device_mock_test.go, apikey_mock_test.go, session_mock_test.go
-// respectively and are reused here.
+// --- Mock repos that do NOT already exist in mocks_test.go ---
+// mockDeviceRepo, mockApiKeyRepo, mockUserRepo, mockSessionRepo are defined
+// in mocks_test.go (shared across test files) and are reused here.
 
 // auditMockNotificationRepo is a test double for repository.NotificationRepo.
 type auditMockNotificationRepo struct {
@@ -88,50 +83,6 @@ func (m *auditMockNotificationRepo) GetLogsByRule(ctx context.Context, ruleID in
 
 func (m *auditMockNotificationRepo) GetAll(_ context.Context) ([]*model.NotificationRule, error) {
 	return nil, nil
-}
-
-// auditMockDeviceShareRepo is a test double for repository.DeviceShareRepo.
-type auditMockDeviceShareRepo struct {
-	createFn       func(ctx context.Context, share *model.DeviceShare) error
-	getByIDFn      func(ctx context.Context, id int64) (*model.DeviceShare, error)
-	getByTokenFn   func(ctx context.Context, token string) (*model.DeviceShare, error)
-	listByDeviceFn func(ctx context.Context, deviceID int64) ([]*model.DeviceShare, error)
-	deleteFn       func(ctx context.Context, id int64) error
-}
-
-var _ repository.DeviceShareRepo = (*auditMockDeviceShareRepo)(nil)
-
-func (m *auditMockDeviceShareRepo) Create(ctx context.Context, share *model.DeviceShare) error {
-	if m.createFn != nil {
-		return m.createFn(ctx, share)
-	}
-	share.ID = 1
-	share.Token = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
-	return nil
-}
-func (m *auditMockDeviceShareRepo) GetByID(ctx context.Context, id int64) (*model.DeviceShare, error) {
-	if m.getByIDFn != nil {
-		return m.getByIDFn(ctx, id)
-	}
-	return nil, errors.New("not found")
-}
-func (m *auditMockDeviceShareRepo) GetByToken(ctx context.Context, token string) (*model.DeviceShare, error) {
-	if m.getByTokenFn != nil {
-		return m.getByTokenFn(ctx, token)
-	}
-	return nil, errors.New("not found")
-}
-func (m *auditMockDeviceShareRepo) ListByDevice(ctx context.Context, deviceID int64) ([]*model.DeviceShare, error) {
-	if m.listByDeviceFn != nil {
-		return m.listByDeviceFn(ctx, deviceID)
-	}
-	return nil, nil
-}
-func (m *auditMockDeviceShareRepo) Delete(ctx context.Context, id int64) error {
-	if m.deleteFn != nil {
-		return m.deleteFn(ctx, id)
-	}
-	return nil
 }
 
 // auditMockPositionRepo is a minimal test double for repository.PositionRepo.
@@ -320,251 +271,50 @@ func (m *auditMockCalendarRepo) GetAll(_ context.Context) ([]*model.Calendar, er
 	return nil, nil
 }
 
-// --- SetAuditLogger tests ---
+// NOTE: the SetAuditLogger and CRUD audit tests for the deleted chi Device/
+// Calendar/Geofence/Notification/Share/User handlers were removed with those
+// handlers. The ogen Handler equivalents exercise their audit paths via the
+// AuditLogger configured in device_oas_test.go, calendar_oas_test.go,
+// geofence_oas_test.go, notification_oas_test.go, share_oas_test.go, and
+// users_oas_test.go (the latter asserts persisted entries for
+// AdminAssignDevice/AdminUnassignDevice).
 
-// TestDeviceHandler_SetAuditLogger verifies the setter method works.
-func TestDeviceHandler_SetAuditLogger(t *testing.T) {
-	h := handlers.NewDeviceHandler(&mockDeviceRepo{}, "")
+// --- Session failed login with audit logger (ogen Handler) ---
 
-	// Should not panic with nil.
-	h.SetAuditLogger(nil)
-
-	// Should accept a real logger (even with nil pool).
-	h.SetAuditLogger(audit.NewLogger(nil))
-}
-
-// TestGeofenceHandler_SetAuditLogger verifies the setter method works.
-func TestGeofenceHandler_SetAuditLogger(t *testing.T) {
-	h := handlers.NewGeofenceHandler(&auditMockGeofenceRepo{})
-
-	h.SetAuditLogger(nil)
-	h.SetAuditLogger(audit.NewLogger(nil))
-}
-
-// TestCalendarHandler_SetAuditLogger verifies the setter method works.
-func TestCalendarHandler_SetAuditLogger(t *testing.T) {
-	h := handlers.NewCalendarHandler(&auditMockCalendarRepo{})
-
-	h.SetAuditLogger(nil)
-	h.SetAuditLogger(audit.NewLogger(nil))
-}
-
-// TestNotificationHandler_SetAuditLogger verifies the setter method works.
-func TestNotificationHandler_SetAuditLogger(t *testing.T) {
-	h := handlers.NewNotificationHandler(&auditMockNotificationRepo{}, nil)
-
-	h.SetAuditLogger(nil)
-	h.SetAuditLogger(audit.NewLogger(nil))
-}
-
-// TestApiKeyHandler_SetAuditLogger verifies the setter method works.
-func TestApiKeyHandler_SetAuditLogger(t *testing.T) {
-	h := handlers.NewApiKeyHandler(&mockApiKeyRepo{})
-
-	h.SetAuditLogger(nil)
-	h.SetAuditLogger(audit.NewLogger(nil))
-}
-
-// TestShareHandler_SetAuditLogger verifies the setter method works.
-func TestShareHandler_SetAuditLogger(t *testing.T) {
-	h := handlers.NewShareHandler(&auditMockDeviceShareRepo{}, &mockDeviceRepo{}, &auditMockPositionRepo{}, "")
-
-	h.SetAuditLogger(nil)
-	h.SetAuditLogger(audit.NewLogger(nil))
-}
-
-// TestUserHandler_SetAuditLogger verifies the setter method works.
-func TestUserHandler_SetAuditLogger(t *testing.T) {
-	h := handlers.NewUserHandler(&mockUserRepo{}, &mockDeviceRepo{}, "")
-
-	h.SetAuditLogger(nil)
-	h.SetAuditLogger(audit.NewLogger(nil))
-}
-
-// --- Device CRUD with audit logger ---
-
-// TestDeviceHandler_Create_WithNilAudit verifies Create works with nil audit logger.
-func TestDeviceHandler_Create_WithNilAudit(t *testing.T) {
-	mock := &mockDeviceRepo{
-		createFn: func(_ context.Context, d *model.Device, _ int64) error {
-			d.ID = 1
-			return nil
-		},
-	}
-	h := handlers.NewDeviceHandler(mock, "")
-	// Do NOT set audit logger -- it stays nil.
-
-	user := &model.User{ID: 1, Email: "test@example.com"}
-	body := `{"uniqueId":"test-001","name":"Test Device"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/devices", bytes.NewReader([]byte(body)))
-	req.Header.Set("Content-Type", "application/json")
-	req = req.WithContext(api.ContextWithUser(req.Context(), user))
-	rr := httptest.NewRecorder()
-
-	h.Create(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("expected 200, got %d; body: %s", rr.Code, rr.Body.String())
-	}
-}
-
-// TestDeviceHandler_Create_WithAuditLogger verifies Create runs with audit logger set
-// (audit logger has nil pool, so actual write is a no-op but code path is exercised).
-func TestDeviceHandler_Create_WithAuditLogger(t *testing.T) {
-	mock := &mockDeviceRepo{
-		createFn: func(_ context.Context, d *model.Device, _ int64) error {
-			d.ID = 42
-			return nil
-		},
-	}
-	h := handlers.NewDeviceHandler(mock, "")
-	h.SetAuditLogger(audit.NewLogger(nil))
-
-	user := &model.User{ID: 5, Email: "creator@example.com"}
-	body := `{"uniqueId":"new-dev","name":"New Device","protocol":"h02"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/devices", bytes.NewReader([]byte(body)))
-	req.Header.Set("Content-Type", "application/json")
-	req = req.WithContext(api.ContextWithUser(req.Context(), user))
-	rr := httptest.NewRecorder()
-
-	h.Create(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("expected 200, got %d; body: %s", rr.Code, rr.Body.String())
-	}
-}
-
-// TestDeviceHandler_Update_WithAuditLogger exercises the update audit code path.
-func TestDeviceHandler_Update_WithAuditLogger(t *testing.T) {
-	mock := &mockDeviceRepo{
-		userHasAccessFn: func(_ context.Context, _ *model.User, _ int64) bool { return true },
-		getByIDFn: func(_ context.Context, id int64) (*model.Device, error) {
-			return &model.Device{ID: id, UniqueID: "dev-1", Name: "Old Name", Protocol: "h02"}, nil
-		},
-		updateFn: func(_ context.Context, _ *model.Device) error { return nil },
-	}
-	h := handlers.NewDeviceHandler(mock, "")
-	h.SetAuditLogger(audit.NewLogger(nil))
-
-	user := &model.User{ID: 1, Email: "test@example.com"}
-	body := `{"name":"New Name","protocol":"watch"}`
-	req := httptest.NewRequest(http.MethodPut, "/api/devices/10", bytes.NewReader([]byte(body)))
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", "10")
-	req = req.WithContext(context.WithValue(api.ContextWithUser(req.Context(), user), chi.RouteCtxKey, rctx))
-	rr := httptest.NewRecorder()
-
-	h.Update(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("expected 200, got %d; body: %s", rr.Code, rr.Body.String())
-	}
-}
-
-// TestDeviceHandler_Delete_WithAuditLogger exercises the delete audit code path.
-func TestDeviceHandler_Delete_WithAuditLogger(t *testing.T) {
-	mock := &mockDeviceRepo{
-		userHasAccessFn: func(_ context.Context, _ *model.User, _ int64) bool { return true },
-		deleteFn:        func(_ context.Context, _ int64) error { return nil },
-	}
-	h := handlers.NewDeviceHandler(mock, "")
-	h.SetAuditLogger(audit.NewLogger(nil))
-
-	user := &model.User{ID: 1, Email: "test@example.com"}
-	req := httptest.NewRequest(http.MethodDelete, "/api/devices/10", nil)
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", "10")
-	req = req.WithContext(context.WithValue(api.ContextWithUser(req.Context(), user), chi.RouteCtxKey, rctx))
-	rr := httptest.NewRecorder()
-
-	h.Delete(rr, req)
-
-	if rr.Code != http.StatusNoContent {
-		t.Errorf("expected 204, got %d", rr.Code)
-	}
-}
-
-// --- API key CRUD with audit logger ---
-
-// TestApiKeyHandler_Create_WithAuditLogger exercises the API key create audit path.
-func TestApiKeyHandler_Create_WithAuditLogger(t *testing.T) {
-	mock := &mockApiKeyRepo{
-		createFn: func(_ context.Context, key *model.ApiKey) error {
-			key.ID = 1
-			key.Token = "test-token-0123456789abcdef0123456789abcdef"
-			return nil
-		},
-	}
-	h := handlers.NewApiKeyHandler(mock)
-	h.SetAuditLogger(audit.NewLogger(nil))
-
-	user := &model.User{ID: 1, Email: "test@example.com"}
-	body := `{"name":"My Key","permissions":"full"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/keys", bytes.NewReader([]byte(body)))
-	req.Header.Set("Content-Type", "application/json")
-	req = req.WithContext(api.ContextWithUser(req.Context(), user))
-	rr := httptest.NewRecorder()
-
-	h.Create(rr, req)
-
-	if rr.Code != http.StatusCreated {
-		t.Errorf("expected 201, got %d; body: %s", rr.Code, rr.Body.String())
-	}
-}
-
-// TestApiKeyHandler_Delete_WithAuditLogger exercises the API key delete audit path.
-func TestApiKeyHandler_Delete_WithAuditLogger(t *testing.T) {
-	mock := &mockApiKeyRepo{
-		getByIDFn: func(_ context.Context, id int64) (*model.ApiKey, error) {
-			return &model.ApiKey{ID: id, UserID: 1, Name: "My Key"}, nil
-		},
-		deleteFn: func(_ context.Context, _ int64) error { return nil },
-	}
-	h := handlers.NewApiKeyHandler(mock)
-	h.SetAuditLogger(audit.NewLogger(nil))
-
-	user := &model.User{ID: 1, Email: "test@example.com", Role: model.RoleUser}
-	req := httptest.NewRequest(http.MethodDelete, "/api/keys/5", nil)
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", "5")
-	req = req.WithContext(context.WithValue(api.ContextWithUser(req.Context(), user), chi.RouteCtxKey, rctx))
-	rr := httptest.NewRecorder()
-
-	h.Delete(rr, req)
-
-	if rr.Code != http.StatusNoContent {
-		t.Errorf("expected 204, got %d; body: %s", rr.Code, rr.Body.String())
-	}
-}
-
-// --- Session failed login with audit logger ---
-
-// TestSessionHandler_LoginFailed_UnknownEmail exercises the failed login audit path.
-func TestSessionHandler_LoginFailed_UnknownEmail(t *testing.T) {
+// TestLogin_AuditFailedLogin_UnknownEmail exercises the failed login audit
+// path. The audit logger has a nil pool, so the write is a no-op but the
+// unconditional AuditLogger.Log call in Login is exercised. The persisted
+// audit entries are asserted in TestLogin_NonexistentUser_Integration
+// (session_oas_test.go).
+func TestLogin_AuditFailedLogin_UnknownEmail(t *testing.T) {
 	users := &mockUserRepo{
 		getByEmailFn: func(_ context.Context, _ string) (*model.User, error) {
 			return nil, errors.New("not found")
 		},
 	}
-	h := handlers.NewSessionHandler(users, &mockSessionRepo{}, &mockApiKeyRepo{})
-	h.SetAuditLogger(audit.NewLogger(nil))
+	h := handlers.NewHandler(handlers.HandlerConfig{
+		Users:       users,
+		Sessions:    &mockSessionRepo{},
+		ApiKeys:     &mockApiKeyRepo{},
+		AuditLogger: audit.NewLogger(nil),
+	})
 
-	body := `{"email":"unknown@example.com","password":"wrong"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/session", bytes.NewReader([]byte(body)))
-	req.Header.Set("Content-Type", "application/json")
-	req.RemoteAddr = "192.168.1.1:12345"
-	rr := httptest.NewRecorder()
-
-	h.Login(rr, req)
-
-	if rr.Code != http.StatusUnauthorized {
-		t.Errorf("expected 401, got %d", rr.Code)
+	res, err := h.Login(context.Background(), &oas.LoginApplicationJSON{
+		Email:    "unknown@example.com",
+		Password: "wrong",
+	})
+	if err != nil {
+		t.Fatalf("Login returned error: %v", err)
+	}
+	if _, ok := res.(*oas.LoginUnauthorized); !ok {
+		t.Errorf("expected *oas.LoginUnauthorized, got %T", res)
 	}
 }
 
-// TestSessionHandler_LoginFailed_WrongPassword exercises the wrong password audit path.
-func TestSessionHandler_LoginFailed_WrongPassword(t *testing.T) {
-	// bcrypt hash for "correctpassword"
+// TestLogin_AuditFailedLogin_WrongPassword exercises the wrong password audit
+// path. The persisted audit entries are asserted in
+// TestLogin_WrongPassword_Integration (session_oas_test.go).
+func TestLogin_AuditFailedLogin_WrongPassword(t *testing.T) {
 	users := &mockUserRepo{
 		getByEmailFn: func(_ context.Context, _ string) (*model.User, error) {
 			return &model.User{
@@ -574,151 +324,22 @@ func TestSessionHandler_LoginFailed_WrongPassword(t *testing.T) {
 			}, nil
 		},
 	}
-	h := handlers.NewSessionHandler(users, &mockSessionRepo{}, &mockApiKeyRepo{})
-	h.SetAuditLogger(audit.NewLogger(nil))
+	h := handlers.NewHandler(handlers.HandlerConfig{
+		Users:       users,
+		Sessions:    &mockSessionRepo{},
+		ApiKeys:     &mockApiKeyRepo{},
+		AuditLogger: audit.NewLogger(nil),
+	})
 
-	body := `{"email":"test@example.com","password":"wrongpassword"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/session", bytes.NewReader([]byte(body)))
-	req.Header.Set("Content-Type", "application/json")
-	req.RemoteAddr = "10.0.0.1:54321"
-	rr := httptest.NewRecorder()
-
-	h.Login(rr, req)
-
-	if rr.Code != http.StatusUnauthorized {
-		t.Errorf("expected 401, got %d", rr.Code)
+	res, err := h.Login(context.Background(), &oas.LoginApplicationJSON{
+		Email:    "test@example.com",
+		Password: "wrongpassword",
+	})
+	if err != nil {
+		t.Fatalf("Login returned error: %v", err)
 	}
-}
-
-// --- User CRUD with audit logger ---
-
-// TestUserHandler_Create_WithAuditLogger exercises the user create audit path.
-func TestUserHandler_Create_WithAuditLogger(t *testing.T) {
-	users := &mockUserRepo{
-		createFn: func(_ context.Context, u *model.User) error {
-			u.ID = 10
-			return nil
-		},
-	}
-	h := handlers.NewUserHandler(users, &mockDeviceRepo{}, "")
-	h.SetAuditLogger(audit.NewLogger(nil))
-
-	admin := &model.User{ID: 1, Email: "admin@example.com", Role: model.RoleAdmin}
-	body := `{"email":"newuser@example.com","password":"StrongPass123!","name":"New User","role":"user"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/users", bytes.NewReader([]byte(body)))
-	req.Header.Set("Content-Type", "application/json")
-	req = req.WithContext(api.ContextWithUser(req.Context(), admin))
-	rr := httptest.NewRecorder()
-
-	h.Create(rr, req)
-
-	if rr.Code != http.StatusCreated {
-		t.Errorf("expected 201, got %d; body: %s", rr.Code, rr.Body.String())
-	}
-}
-
-// TestUserHandler_Update_WithAuditLogger exercises the user update audit path with change tracking.
-func TestUserHandler_Update_WithAuditLogger(t *testing.T) {
-	users := &mockUserRepo{
-		getByIDFn: func(_ context.Context, id int64) (*model.User, error) {
-			return &model.User{ID: id, Email: "old@example.com", Name: "Old Name", Role: model.RoleUser}, nil
-		},
-		updateFn: func(_ context.Context, _ *model.User) error { return nil },
-	}
-	h := handlers.NewUserHandler(users, &mockDeviceRepo{}, "")
-	h.SetAuditLogger(audit.NewLogger(nil))
-
-	admin := &model.User{ID: 1, Email: "admin@example.com", Role: model.RoleAdmin}
-	body := `{"email":"new@example.com","name":"New Name","role":"admin"}`
-	req := httptest.NewRequest(http.MethodPut, "/api/users/5", bytes.NewReader([]byte(body)))
-	req.Header.Set("Content-Type", "application/json")
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", "5")
-	req = req.WithContext(context.WithValue(api.ContextWithUser(req.Context(), admin), chi.RouteCtxKey, rctx))
-	rr := httptest.NewRecorder()
-
-	h.Update(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("expected 200, got %d; body: %s", rr.Code, rr.Body.String())
-	}
-}
-
-// TestUserHandler_Delete_WithAuditLogger exercises the user delete audit path.
-func TestUserHandler_Delete_WithAuditLogger(t *testing.T) {
-	users := &mockUserRepo{
-		deleteFn: func(_ context.Context, _ int64) error { return nil },
-	}
-	h := handlers.NewUserHandler(users, &mockDeviceRepo{}, "")
-	h.SetAuditLogger(audit.NewLogger(nil))
-
-	admin := &model.User{ID: 1, Email: "admin@example.com", Role: model.RoleAdmin}
-	req := httptest.NewRequest(http.MethodDelete, "/api/users/5", nil)
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", "5")
-	req = req.WithContext(context.WithValue(api.ContextWithUser(req.Context(), admin), chi.RouteCtxKey, rctx))
-	rr := httptest.NewRecorder()
-
-	h.Delete(rr, req)
-
-	if rr.Code != http.StatusNoContent {
-		t.Errorf("expected 204, got %d; body: %s", rr.Code, rr.Body.String())
-	}
-}
-
-// --- Device assign/unassign with audit logger ---
-
-// TestDeviceAssign_WithAuditLogger exercises the device assign audit path.
-func TestDeviceAssign_WithAuditLogger(t *testing.T) {
-	users := &mockUserRepo{
-		getByIDFn: func(_ context.Context, _ int64) (*model.User, error) {
-			return &model.User{ID: 5, Email: "user@example.com"}, nil
-		},
-		assignDeviceFn: func(_ context.Context, _, _ int64) error { return nil },
-	}
-	devices := &mockDeviceRepo{
-		getByIDFn: func(_ context.Context, id int64) (*model.Device, error) {
-			return &model.Device{ID: id, UniqueID: "dev-1", Name: "Test"}, nil
-		},
-	}
-	h := handlers.NewUserHandler(users, devices, "")
-	h.SetAuditLogger(audit.NewLogger(nil))
-
-	admin := &model.User{ID: 1, Email: "admin@example.com", Role: model.RoleAdmin}
-	req := httptest.NewRequest(http.MethodPost, "/api/users/5/devices/10", nil)
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", "5")
-	rctx.URLParams.Add("deviceId", "10")
-	req = req.WithContext(context.WithValue(api.ContextWithUser(req.Context(), admin), chi.RouteCtxKey, rctx))
-	rr := httptest.NewRecorder()
-
-	h.AssignDevice(rr, req)
-
-	if rr.Code != http.StatusNoContent {
-		t.Errorf("expected 204, got %d; body: %s", rr.Code, rr.Body.String())
-	}
-}
-
-// TestDeviceUnassign_WithAuditLogger exercises the device unassign audit path.
-func TestDeviceUnassign_WithAuditLogger(t *testing.T) {
-	users := &mockUserRepo{
-		unassignDeviceFn: func(_ context.Context, _, _ int64) error { return nil },
-	}
-	h := handlers.NewUserHandler(users, &mockDeviceRepo{}, "")
-	h.SetAuditLogger(audit.NewLogger(nil))
-
-	admin := &model.User{ID: 1, Email: "admin@example.com", Role: model.RoleAdmin}
-	req := httptest.NewRequest(http.MethodDelete, "/api/users/5/devices/10", nil)
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", "5")
-	rctx.URLParams.Add("deviceId", "10")
-	req = req.WithContext(context.WithValue(api.ContextWithUser(req.Context(), admin), chi.RouteCtxKey, rctx))
-	rr := httptest.NewRecorder()
-
-	h.UnassignDevice(rr, req)
-
-	if rr.Code != http.StatusNoContent {
-		t.Errorf("expected 204, got %d; body: %s", rr.Code, rr.Body.String())
+	if _, ok := res.(*oas.LoginUnauthorized); !ok {
+		t.Errorf("expected *oas.LoginUnauthorized, got %T", res)
 	}
 }
 

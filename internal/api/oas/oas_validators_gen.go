@@ -899,6 +899,22 @@ func (s ListSharesOKApplicationJSON) Validate() error {
 	return nil
 }
 
+func (s *LoginApplicationJSON) Validate() error {
+	alias := (*LoginRequest)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *LoginApplicationXWwwFormUrlencoded) Validate() error {
+	alias := (*LoginRequest)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *LoginRequest) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer

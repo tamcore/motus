@@ -282,10 +282,12 @@ type Invoker interface {
 	GetServer(ctx context.Context) (*ServerInfo, error)
 	// GetSession invokes getSession operation.
 	//
-	// Get current session / validate credentials.
+	// With a `token` query parameter, performs a token login (QR code / Traccar Manager / pytraccar):
+	// the token is resolved against API keys (with legacy users.token fallback) and a session cookie is
+	// set. Without it, validates the current session credentials.
 	//
 	// GET /api/session
-	GetSession(ctx context.Context) (GetSessionRes, error)
+	GetSession(ctx context.Context, params GetSessionParams) (GetSessionRes, error)
 	// GetSharedDevice invokes getSharedDevice operation.
 	//
 	// Get device info via public share token.
@@ -369,7 +371,7 @@ type Invoker interface {
 	// Login with email + password.
 	//
 	// POST /api/session
-	Login(ctx context.Context, request *LoginRequest) (LoginRes, error)
+	Login(ctx context.Context, request LoginReq) (LoginRes, error)
 	// Logout invokes logout operation.
 	//
 	// Logout (delete current session).
@@ -6416,15 +6418,17 @@ func (c *Client) sendGetServer(ctx context.Context) (res *ServerInfo, err error)
 
 // GetSession invokes getSession operation.
 //
-// Get current session / validate credentials.
+// With a `token` query parameter, performs a token login (QR code / Traccar Manager / pytraccar):
+// the token is resolved against API keys (with legacy users.token fallback) and a session cookie is
+// set. Without it, validates the current session credentials.
 //
 // GET /api/session
-func (c *Client) GetSession(ctx context.Context) (GetSessionRes, error) {
-	res, err := c.sendGetSession(ctx)
+func (c *Client) GetSession(ctx context.Context, params GetSessionParams) (GetSessionRes, error) {
+	res, err := c.sendGetSession(ctx, params)
 	return res, err
 }
 
-func (c *Client) sendGetSession(ctx context.Context) (res GetSessionRes, err error) {
+func (c *Client) sendGetSession(ctx context.Context, params GetSessionParams) (res GetSessionRes, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getSession"),
 		semconv.HTTPRequestMethodKey.String("GET"),
@@ -6464,6 +6468,27 @@ func (c *Client) sendGetSession(ctx context.Context) (res GetSessionRes, err err
 	var pathParts [1]string
 	pathParts[0] = "/api/session"
 	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeQueryParams"
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "token" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "token",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Token.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
 
 	stage = "EncodeRequest"
 	r, err := ht.NewRequest(ctx, "GET", u)
@@ -6514,6 +6539,7 @@ func (c *Client) sendGetSession(ctx context.Context) (res GetSessionRes, err err
 				{0b00000001},
 				{0b00000010},
 				{0b00000100},
+				{},
 			} {
 				for i, mask := range requirement {
 					if satisfied[i]&mask != mask {
@@ -8291,12 +8317,12 @@ func (c *Client) sendListShares(ctx context.Context, params ListSharesParams) (r
 // Login with email + password.
 //
 // POST /api/session
-func (c *Client) Login(ctx context.Context, request *LoginRequest) (LoginRes, error) {
+func (c *Client) Login(ctx context.Context, request LoginReq) (LoginRes, error) {
 	res, err := c.sendLogin(ctx, request)
 	return res, err
 }
 
-func (c *Client) sendLogin(ctx context.Context, request *LoginRequest) (res LoginRes, err error) {
+func (c *Client) sendLogin(ctx context.Context, request LoginReq) (res LoginRes, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("login"),
 		semconv.HTTPRequestMethodKey.String("POST"),

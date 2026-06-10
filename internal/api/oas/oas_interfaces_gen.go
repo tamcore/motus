@@ -213,6 +213,10 @@ type ListSharesRes interface {
 	listSharesRes()
 }
 
+type LoginReq interface {
+	loginReq()
+}
+
 type LoginRes interface {
 	loginRes()
 }

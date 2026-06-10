@@ -11,8 +11,10 @@ import (
 
 	"github.com/go-faster/errors"
 	"github.com/go-faster/jx"
+	"github.com/ogen-go/ogen/conv"
 	ht "github.com/ogen-go/ogen/http"
 	"github.com/ogen-go/ogen/ogenerrors"
+	"github.com/ogen-go/ogen/uri"
 	"github.com/ogen-go/ogen/validate"
 )
 
@@ -785,7 +787,7 @@ func (s *Server) decodeImportGPXRequest(r *http.Request) (
 }
 
 func (s *Server) decodeLoginRequest(r *http.Request) (
-	req *LoginRequest,
+	req LoginReq,
 	rawBody []byte,
 	close func() error,
 	rerr error,
@@ -832,7 +834,7 @@ func (s *Server) decodeLoginRequest(r *http.Request) (
 		rawBody = append(rawBody, buf...)
 		d := jx.DecodeBytes(buf)
 
-		var request LoginRequest
+		var request LoginApplicationJSON
 		if err := func() error {
 			if err := request.Decode(d); err != nil {
 				return err
@@ -856,6 +858,128 @@ func (s *Server) decodeLoginRequest(r *http.Request) (
 			return nil
 		}(); err != nil {
 			return req, rawBody, close, errors.Wrap(err, "validate")
+		}
+		return &request, rawBody, close, nil
+	case ct == "application/x-www-form-urlencoded":
+		if r.ContentLength == 0 {
+			return req, rawBody, close, validate.ErrBodyRequired
+		}
+		form, err := ht.ParseForm(r)
+		if err != nil {
+			return req, rawBody, close, errors.Wrap(err, "parse form")
+		}
+
+		var request LoginApplicationXWwwFormUrlencoded
+		{
+			var unwrapped LoginRequest
+			q := uri.NewQueryDecoder(form)
+			{
+				cfg := uri.QueryParameterDecodingConfig{
+					Name:    "email",
+					Style:   uri.QueryStyleForm,
+					Explode: true,
+				}
+				if err := q.HasParam(cfg); err == nil {
+					if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+						val, err := d.DecodeValue()
+						if err != nil {
+							return err
+						}
+
+						c, err := conv.ToString(val)
+						if err != nil {
+							return err
+						}
+
+						unwrapped.Email = c
+						return nil
+					}); err != nil {
+						return req, rawBody, close, errors.Wrap(err, "decode \"email\"")
+					}
+					if err := func() error {
+						if err := (validate.String{
+							MinLength:     0,
+							MinLengthSet:  false,
+							MaxLength:     0,
+							MaxLengthSet:  false,
+							Email:         true,
+							Hostname:      false,
+							Regex:         nil,
+							MinNumeric:    0,
+							MinNumericSet: false,
+							MaxNumeric:    0,
+							MaxNumericSet: false,
+						}).Validate(string(unwrapped.Email)); err != nil {
+							return errors.Wrap(err, "string")
+						}
+						return nil
+					}(); err != nil {
+						return req, rawBody, close, errors.Wrap(err, "validate")
+					}
+				} else {
+					return req, rawBody, close, errors.Wrap(err, "query")
+				}
+			}
+			{
+				cfg := uri.QueryParameterDecodingConfig{
+					Name:    "password",
+					Style:   uri.QueryStyleForm,
+					Explode: true,
+				}
+				if err := q.HasParam(cfg); err == nil {
+					if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+						val, err := d.DecodeValue()
+						if err != nil {
+							return err
+						}
+
+						c, err := conv.ToString(val)
+						if err != nil {
+							return err
+						}
+
+						unwrapped.Password = c
+						return nil
+					}); err != nil {
+						return req, rawBody, close, errors.Wrap(err, "decode \"password\"")
+					}
+				} else {
+					return req, rawBody, close, errors.Wrap(err, "query")
+				}
+			}
+			{
+				cfg := uri.QueryParameterDecodingConfig{
+					Name:    "remember",
+					Style:   uri.QueryStyleForm,
+					Explode: true,
+				}
+				if err := q.HasParam(cfg); err == nil {
+					if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+						var unwrappedDotRememberVal bool
+						if err := func() error {
+							val, err := d.DecodeValue()
+							if err != nil {
+								return err
+							}
+
+							c, err := conv.ToBool(val)
+							if err != nil {
+								return err
+							}
+
+							unwrappedDotRememberVal = c
+							return nil
+						}(); err != nil {
+							return err
+						}
+						unwrapped.Remember.SetTo(unwrappedDotRememberVal)
+						return nil
+					}); err != nil {
+						return req, rawBody, close, errors.Wrap(err, "decode \"remember\"")
+					}
+				}
+			}
+			request = LoginApplicationXWwwFormUrlencoded(unwrapped)
 		}
 		return &request, rawBody, close, nil
 	default:

@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"regexp"
+	"strings"
 	"time"
 
 	gooidc "github.com/coreos/go-oidc/v3/oidc"
@@ -111,7 +112,10 @@ func (h *Handler) OidcCallback(ctx context.Context, params oas.OidcCallbackParam
 	var allClaims map[string]interface{}
 	_ = idToken.Claims(&allClaims)
 
-	user, err := h.resolveOIDCUserFromCtx(ctx, idToken.Subject, stdClaims.Email, stdClaims.Name)
+	// email_verified is read from the raw claims map because some IdPs emit
+	// it as the string "true" rather than a JSON boolean.
+	emailVerified := claimBool(allClaims, "email_verified")
+	user, err := h.resolveOIDCUserFromCtx(ctx, idToken.Subject, stdClaims.Email, stdClaims.Name, emailVerified)
 	if errors.Is(err, errSignupDisabled) {
 		if w := api.ResponseWriterFromContext(ctx); w != nil {
 			w.Header().Set("Location", "/login?error=signup_disabled")
@@ -193,18 +197,47 @@ func (h *Handler) buildOIDCOAuth2Config(ctx context.Context) (*gooidc.Provider, 
 		return nil, oauth2.Config{}, fmt.Errorf("oidc: fetch provider: %w", err)
 	}
 
+	scopes := []string{gooidc.ScopeOpenID, "email", "profile"}
+	// MOTUS_OIDC_SCOPES: space-separated additional scopes (e.g. "groups").
+	scopes = append(scopes, strings.Fields(cfg.Scopes)...)
+
 	oauth2Cfg := oauth2.Config{
 		ClientID:     cfg.ClientID,
 		ClientSecret: cfg.ClientSecret,
 		RedirectURL:  cfg.RedirectURL,
 		Endpoint:     provider.Endpoint(),
-		Scopes:       []string{gooidc.ScopeOpenID, "email", "profile"},
+		Scopes:       scopes,
 	}
 	return provider, oauth2Cfg, nil
 }
 
-// resolveOIDCUserFromCtx mirrors OIDCHandler.resolveOIDCUser for context-based calls.
-func (h *Handler) resolveOIDCUserFromCtx(ctx context.Context, subject, email, name string) (*model.User, error) {
+// errSignupDisabled is returned when a new OIDC user cannot be created
+// because signup is disabled.
+var errSignupDisabled = errors.New("oidc signup disabled")
+
+// claimBool reads a boolean claim from a raw claims map. It accepts both a
+// JSON boolean and the string forms "true"/"false" (used by some IdPs, e.g.
+// Azure AD B2C). Missing or unrecognised values return false.
+func claimBool(claims map[string]interface{}, key string) bool {
+	switch v := claims[key].(type) {
+	case bool:
+		return v
+	case string:
+		return v == "true"
+	default:
+		return false
+	}
+}
+
+// resolveOIDCUserFromCtx finds an existing user by OIDC subject, falls back
+// to email lookup and links the subject, or creates a new account when
+// signup is enabled.
+//
+// The email fallback only links when the IdP asserts the email is verified
+// (or TrustUnverifiedEmail is configured): linking on an unverified email
+// would let an attacker take over a local account by registering the same
+// address at a lax IdP.
+func (h *Handler) resolveOIDCUserFromCtx(ctx context.Context, subject, email, name string, emailVerified bool) (*model.User, error) {
 	issuer := h.cfg.OIDCConfig.Issuer
 
 	user, err := h.cfg.Users.GetByOIDCSubject(ctx, subject, issuer)
@@ -212,7 +245,7 @@ func (h *Handler) resolveOIDCUserFromCtx(ctx context.Context, subject, email, na
 		return user, nil
 	}
 
-	if email != "" {
+	if email != "" && (emailVerified || h.cfg.OIDCConfig.TrustUnverifiedEmail) {
 		user, err = h.cfg.Users.GetByEmail(ctx, email)
 		if err == nil {
 			if linkErr := h.cfg.Users.SetOIDCSubject(ctx, user.ID, subject, issuer); linkErr != nil {

@@ -1,22 +1,21 @@
 package handlers
 
-// White-box tests for OIDCHandler. Being in package handlers (not handlers_test)
-// lets us access unexported fields and methods (resolveOIDCUser, errSignupDisabled).
+// White-box tests for the live ogen OIDC implementation in oidc_oas.go.
+// Being in package handlers (not handlers_test) lets us access unexported
+// methods (resolveOIDCUserFromCtx, oidcIsAdminByFilter, claimBool) and
+// errSignupDisabled.
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
-	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 
+	oas "github.com/tamcore/motus/internal/api/oas"
 	"github.com/tamcore/motus/internal/config"
 	"github.com/tamcore/motus/internal/model"
 	"github.com/tamcore/motus/internal/storage/repository"
-	"golang.org/x/oauth2"
 )
 
 // TestOidcLogin_Disabled_Returns404 verifies that calling OidcLogin when OIDC
@@ -167,282 +166,134 @@ func (m *oidcTestStateRepo) Consume(ctx context.Context, state string) (bool, er
 	return true, nil
 }
 
-// ── GetConfig ────────────────────────────────────────────────────────────────
+// ── GetOIDCConfig ────────────────────────────────────────────────────────────
 
-func TestOIDCHandler_GetConfig_Disabled(t *testing.T) {
-	h := &OIDCHandler{cfg: config.OIDCConfig{Enabled: false}}
-	req := httptest.NewRequest(http.MethodGet, "/api/auth/oidc/config", nil)
-	rr := httptest.NewRecorder()
-	h.GetConfig(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", rr.Code)
+func TestGetOIDCConfig_Disabled(t *testing.T) {
+	h := NewHandler(HandlerConfig{OIDCConfig: config.OIDCConfig{Enabled: false}})
+	cfg, err := h.GetOIDCConfig(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-	var resp map[string]bool
-	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
-		t.Fatalf("decode response: %v", err)
+	if cfg.Enabled {
+		t.Error("expected Enabled=false")
 	}
-	if resp["enabled"] {
-		t.Error("expected enabled=false")
+	if cfg.Issuer.Set {
+		t.Error("expected issuer to be unset when disabled")
 	}
 }
 
-func TestOIDCHandler_GetConfig_Enabled(t *testing.T) {
-	h := &OIDCHandler{cfg: config.OIDCConfig{Enabled: true}}
-	req := httptest.NewRequest(http.MethodGet, "/api/auth/oidc/config", nil)
-	rr := httptest.NewRecorder()
-	h.GetConfig(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", rr.Code)
+func TestGetOIDCConfig_Enabled(t *testing.T) {
+	h := NewHandler(HandlerConfig{OIDCConfig: config.OIDCConfig{
+		Enabled: true,
+		Issuer:  "https://issuer.example.com",
+	}})
+	cfg, err := h.GetOIDCConfig(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-	var resp map[string]bool
-	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
-		t.Fatalf("decode response: %v", err)
+	if !cfg.Enabled {
+		t.Error("expected Enabled=true")
 	}
-	if !resp["enabled"] {
-		t.Error("expected enabled=true")
-	}
-}
-
-// ── Login ─────────────────────────────────────────────────────────────────────
-
-func TestOIDCHandler_Login_Disabled(t *testing.T) {
-	h := &OIDCHandler{cfg: config.OIDCConfig{Enabled: false}}
-	req := httptest.NewRequest(http.MethodGet, "/api/auth/oidc/login", nil)
-	rr := httptest.NewRecorder()
-	h.Login(rr, req)
-
-	if rr.Code != http.StatusNotFound {
-		t.Errorf("expected 404, got %d", rr.Code)
+	if got, _ := cfg.Issuer.Get(); got != "https://issuer.example.com" {
+		t.Errorf("expected issuer to be set, got %q", got)
 	}
 }
 
-func TestOIDCHandler_Login_Enabled(t *testing.T) {
-	states := &oidcTestStateRepo{
-		createFn: func(_ context.Context, _ string) error { return nil },
+// ── OidcCallback (live ogen handler) ─────────────────────────────────────────
+
+func TestOidcCallback_Disabled(t *testing.T) {
+	h := NewHandler(HandlerConfig{OIDCConfig: config.OIDCConfig{Enabled: false}})
+	res, err := h.OidcCallback(context.Background(), oas.OidcCallbackParams{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-	h := &OIDCHandler{
-		cfg:    config.OIDCConfig{Enabled: true},
-		states: states,
-		oauth2Config: oauth2.Config{
-			ClientID: "test-client",
-			Endpoint: oauth2.Endpoint{
-				AuthURL: "https://provider.example.com/auth",
+	if e, ok := res.(*oas.Error); !ok || e.Error == "" {
+		t.Fatalf("expected *oas.Error for disabled OIDC, got %T", res)
+	}
+}
+
+func TestOidcCallback_MissingStateOrCode(t *testing.T) {
+	h := NewHandler(HandlerConfig{OIDCConfig: config.OIDCConfig{Enabled: true}})
+
+	res, err := h.OidcCallback(context.Background(), oas.OidcCallbackParams{
+		Code: oas.NewOptString("some-code"),
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if _, ok := res.(*oas.Error); !ok {
+		t.Fatalf("expected *oas.Error for missing state, got %T", res)
+	}
+
+	res, err = h.OidcCallback(context.Background(), oas.OidcCallbackParams{
+		State: oas.NewOptString("some-state"),
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if _, ok := res.(*oas.Error); !ok {
+		t.Fatalf("expected *oas.Error for missing code, got %T", res)
+	}
+}
+
+func TestOidcCallback_StateConsumeError(t *testing.T) {
+	h := NewHandler(HandlerConfig{
+		OIDCConfig: config.OIDCConfig{Enabled: true},
+		OIDCStateRepo: &oidcTestStateRepo{
+			consumeFn: func(_ context.Context, _ string) (bool, error) {
+				return false, errors.New("redis down")
 			},
 		},
+	})
+	res, err := h.OidcCallback(context.Background(), oas.OidcCallbackParams{
+		State: oas.NewOptString("st"), Code: oas.NewOptString("co"),
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-	req := httptest.NewRequest(http.MethodGet, "/api/auth/oidc/login", nil)
-	rr := httptest.NewRecorder()
-	h.Login(rr, req)
-
-	if rr.Code != http.StatusFound {
-		t.Fatalf("expected 302, got %d", rr.Code)
-	}
-	loc := rr.Header().Get("Location")
-	if !strings.HasPrefix(loc, "https://provider.example.com/auth") {
-		t.Errorf("expected redirect to provider auth URL, got %q", loc)
+	if _, ok := res.(*oas.Error); !ok {
+		t.Fatalf("expected *oas.Error on state consume failure, got %T", res)
 	}
 }
 
-func TestOIDCHandler_Login_StateStoreFails(t *testing.T) {
-	states := &oidcTestStateRepo{
-		createFn: func(_ context.Context, _ string) error { return errors.New("db error") },
-	}
-	h := &OIDCHandler{
-		cfg:    config.OIDCConfig{Enabled: true},
-		states: states,
-	}
-	req := httptest.NewRequest(http.MethodGet, "/api/auth/oidc/login", nil)
-	rr := httptest.NewRecorder()
-	h.Login(rr, req)
-
-	if rr.Code != http.StatusInternalServerError {
-		t.Errorf("expected 500, got %d", rr.Code)
-	}
-}
-
-// ── Callback ──────────────────────────────────────────────────────────────────
-
-func TestOIDCHandler_Callback_Disabled(t *testing.T) {
-	h := &OIDCHandler{cfg: config.OIDCConfig{Enabled: false}}
-	req := httptest.NewRequest(http.MethodGet, "/api/auth/oidc/callback?state=s&code=c", nil)
-	rr := httptest.NewRecorder()
-	h.Callback(rr, req)
-
-	if rr.Code != http.StatusFound {
-		t.Fatalf("expected 302, got %d", rr.Code)
-	}
-	if loc := rr.Header().Get("Location"); !strings.Contains(loc, "provider_error") {
-		t.Errorf("expected redirect with provider_error, got %q", loc)
-	}
-}
-
-func TestOIDCHandler_Callback_ProviderErrorParam(t *testing.T) {
-	h := &OIDCHandler{cfg: config.OIDCConfig{Enabled: true}}
-	req := httptest.NewRequest(http.MethodGet, "/api/auth/oidc/callback?error=access_denied&error_description=user+denied", nil)
-	rr := httptest.NewRecorder()
-	h.Callback(rr, req)
-
-	if rr.Code != http.StatusFound {
-		t.Fatalf("expected 302, got %d", rr.Code)
-	}
-	if loc := rr.Header().Get("Location"); !strings.Contains(loc, "provider_error") {
-		t.Errorf("expected redirect with provider_error, got %q", loc)
-	}
-}
-
-func TestOIDCHandler_Callback_MissingState(t *testing.T) {
-	h := &OIDCHandler{cfg: config.OIDCConfig{Enabled: true}}
-	req := httptest.NewRequest(http.MethodGet, "/api/auth/oidc/callback?code=mycode", nil)
-	rr := httptest.NewRecorder()
-	h.Callback(rr, req)
-
-	if rr.Code != http.StatusFound {
-		t.Fatalf("expected 302, got %d", rr.Code)
-	}
-	if loc := rr.Header().Get("Location"); !strings.Contains(loc, "provider_error") {
-		t.Errorf("expected redirect with provider_error, got %q", loc)
-	}
-}
-
-func TestOIDCHandler_Callback_MissingCode(t *testing.T) {
-	h := &OIDCHandler{cfg: config.OIDCConfig{Enabled: true}}
-	req := httptest.NewRequest(http.MethodGet, "/api/auth/oidc/callback?state=mystate", nil)
-	rr := httptest.NewRecorder()
-	h.Callback(rr, req)
-
-	if rr.Code != http.StatusFound {
-		t.Fatalf("expected 302, got %d", rr.Code)
-	}
-	if loc := rr.Header().Get("Location"); !strings.Contains(loc, "provider_error") {
-		t.Errorf("expected redirect with provider_error, got %q", loc)
-	}
-}
-
-func TestOIDCHandler_Callback_StateConsumeError(t *testing.T) {
-	states := &oidcTestStateRepo{
-		consumeFn: func(_ context.Context, _ string) (bool, error) {
-			return false, errors.New("db error")
+func TestOidcCallback_StateConsumeReturnsFalse(t *testing.T) {
+	h := NewHandler(HandlerConfig{
+		OIDCConfig: config.OIDCConfig{Enabled: true},
+		OIDCStateRepo: &oidcTestStateRepo{
+			consumeFn: func(_ context.Context, _ string) (bool, error) {
+				return false, nil
+			},
 		},
+	})
+	res, err := h.OidcCallback(context.Background(), oas.OidcCallbackParams{
+		State: oas.NewOptString("expired"), Code: oas.NewOptString("co"),
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-	h := &OIDCHandler{
-		cfg:    config.OIDCConfig{Enabled: true},
-		states: states,
-	}
-	req := httptest.NewRequest(http.MethodGet, "/api/auth/oidc/callback?state=s&code=c", nil)
-	rr := httptest.NewRecorder()
-	h.Callback(rr, req)
-
-	if rr.Code != http.StatusFound {
-		t.Fatalf("expected 302, got %d", rr.Code)
-	}
-	if loc := rr.Header().Get("Location"); !strings.Contains(loc, "provider_error") {
-		t.Errorf("expected redirect with provider_error, got %q", loc)
+	if _, ok := res.(*oas.Error); !ok {
+		t.Fatalf("expected *oas.Error on expired/unknown state, got %T", res)
 	}
 }
 
-func TestOIDCHandler_Callback_StateConsumeReturnsFalse(t *testing.T) {
-	states := &oidcTestStateRepo{
-		consumeFn: func(_ context.Context, _ string) (bool, error) { return false, nil },
-	}
-	h := &OIDCHandler{
-		cfg:    config.OIDCConfig{Enabled: true},
-		states: states,
-	}
-	req := httptest.NewRequest(http.MethodGet, "/api/auth/oidc/callback?state=expired&code=c", nil)
-	rr := httptest.NewRecorder()
-	h.Callback(rr, req)
+// ── resolveOIDCUserFromCtx ───────────────────────────────────────────────────
 
-	if rr.Code != http.StatusFound {
-		t.Fatalf("expected 302, got %d", rr.Code)
+func newOIDCTestHandler(users repository.UserRepo, cfg config.OIDCConfig) *Handler {
+	if cfg.Issuer == "" {
+		cfg.Issuer = "https://issuer.example.com"
 	}
-	if loc := rr.Header().Get("Location"); !strings.Contains(loc, "provider_error") {
-		t.Errorf("expected redirect with provider_error, got %q", loc)
-	}
+	return NewHandler(HandlerConfig{Users: users, OIDCConfig: cfg})
 }
 
-func TestOIDCHandler_Callback_OAuth2ExchangeFails(t *testing.T) {
-	// Mock token endpoint that returns 400 / invalid_grant.
-	tokenSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		_, _ = w.Write([]byte(`{"error":"invalid_grant"}`))
-	}))
-	defer tokenSrv.Close()
-
-	states := &oidcTestStateRepo{
-		consumeFn: func(_ context.Context, _ string) (bool, error) { return true, nil },
-	}
-	h := &OIDCHandler{
-		cfg:    config.OIDCConfig{Enabled: true},
-		states: states,
-		oauth2Config: oauth2.Config{
-			ClientID:     "test-client",
-			ClientSecret: "test-secret",
-			Endpoint:     oauth2.Endpoint{TokenURL: tokenSrv.URL},
-		},
-	}
-
-	req := httptest.NewRequest(http.MethodGet, "/api/auth/oidc/callback?state=validstate&code=validcode", nil)
-	rr := httptest.NewRecorder()
-	h.Callback(rr, req)
-
-	if rr.Code != http.StatusFound {
-		t.Fatalf("expected 302, got %d", rr.Code)
-	}
-	if loc := rr.Header().Get("Location"); !strings.Contains(loc, "provider_error") {
-		t.Errorf("expected redirect with provider_error, got %q", loc)
-	}
-}
-
-func TestOIDCHandler_Callback_NoIDToken(t *testing.T) {
-	// Mock token endpoint that returns a valid access token but no id_token.
-	tokenSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"access_token":"at-1","token_type":"bearer","expires_in":3600}`))
-	}))
-	defer tokenSrv.Close()
-
-	states := &oidcTestStateRepo{
-		consumeFn: func(_ context.Context, _ string) (bool, error) { return true, nil },
-	}
-	h := &OIDCHandler{
-		cfg:    config.OIDCConfig{Enabled: true},
-		states: states,
-		oauth2Config: oauth2.Config{
-			ClientID:     "test-client",
-			ClientSecret: "test-secret",
-			Endpoint:     oauth2.Endpoint{TokenURL: tokenSrv.URL},
-		},
-	}
-
-	req := httptest.NewRequest(http.MethodGet, "/api/auth/oidc/callback?state=validstate&code=validcode", nil)
-	rr := httptest.NewRecorder()
-	h.Callback(rr, req)
-
-	if rr.Code != http.StatusFound {
-		t.Fatalf("expected 302, got %d", rr.Code)
-	}
-	if loc := rr.Header().Get("Location"); !strings.Contains(loc, "provider_error") {
-		t.Errorf("expected redirect with provider_error (no id_token), got %q", loc)
-	}
-}
-
-// ── resolveOIDCUser ───────────────────────────────────────────────────────────
-
-func TestOIDCHandler_resolveOIDCUser_SubjectFound(t *testing.T) {
+func TestResolveOIDCUser_SubjectFound(t *testing.T) {
 	existing := &model.User{ID: 1, Email: "user@example.com", Role: model.RoleUser}
 	users := &oidcTestUserRepo{
 		getByOIDCSubjectFn: func(_ context.Context, _, _ string) (*model.User, error) {
 			return existing, nil
 		},
 	}
-	h := &OIDCHandler{
-		cfg:   config.OIDCConfig{Issuer: "https://issuer.example.com"},
-		users: users,
-	}
-	user, err := h.resolveOIDCUser(context.Background(), "sub-1", "user@example.com", "User", true)
+	h := newOIDCTestHandler(users, config.OIDCConfig{})
+	user, err := h.resolveOIDCUserFromCtx(context.Background(), "sub-1", "user@example.com", "User", true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -451,7 +302,7 @@ func TestOIDCHandler_resolveOIDCUser_SubjectFound(t *testing.T) {
 	}
 }
 
-func TestOIDCHandler_resolveOIDCUser_EmailFallback(t *testing.T) {
+func TestResolveOIDCUser_EmailFallback(t *testing.T) {
 	existing := &model.User{ID: 2, Email: "fallback@example.com", Role: model.RoleUser}
 	linked := false
 	users := &oidcTestUserRepo{
@@ -469,11 +320,8 @@ func TestOIDCHandler_resolveOIDCUser_EmailFallback(t *testing.T) {
 			return nil
 		},
 	}
-	h := &OIDCHandler{
-		cfg:   config.OIDCConfig{Issuer: "https://issuer.example.com"},
-		users: users,
-	}
-	user, err := h.resolveOIDCUser(context.Background(), "sub-2", "fallback@example.com", "Fallback", true)
+	h := newOIDCTestHandler(users, config.OIDCConfig{})
+	user, err := h.resolveOIDCUserFromCtx(context.Background(), "sub-2", "fallback@example.com", "Fallback", true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -485,7 +333,7 @@ func TestOIDCHandler_resolveOIDCUser_EmailFallback(t *testing.T) {
 	}
 }
 
-func TestOIDCHandler_resolveOIDCUser_EmailFallback_UnverifiedEmail_NotLinked(t *testing.T) {
+func TestResolveOIDCUser_EmailFallback_UnverifiedEmail_NotLinked(t *testing.T) {
 	// An unverified email must never link an OIDC subject to an existing
 	// account: an IdP that does not verify emails could otherwise be used
 	// to take over a local account with a matching address.
@@ -503,14 +351,8 @@ func TestOIDCHandler_resolveOIDCUser_EmailFallback_UnverifiedEmail_NotLinked(t *
 			return nil
 		},
 	}
-	h := &OIDCHandler{
-		cfg: config.OIDCConfig{
-			Issuer:        "https://issuer.example.com",
-			SignupEnabled: false,
-		},
-		users: users,
-	}
-	_, err := h.resolveOIDCUser(context.Background(), "sub-attacker", "victim@example.com", "Attacker", false)
+	h := newOIDCTestHandler(users, config.OIDCConfig{SignupEnabled: false})
+	_, err := h.resolveOIDCUserFromCtx(context.Background(), "sub-attacker", "victim@example.com", "Attacker", false)
 	if !errors.Is(err, errSignupDisabled) {
 		t.Errorf("expected errSignupDisabled for unverified email, got %v", err)
 	}
@@ -519,7 +361,7 @@ func TestOIDCHandler_resolveOIDCUser_EmailFallback_UnverifiedEmail_NotLinked(t *
 	}
 }
 
-func TestOIDCHandler_resolveOIDCUser_EmailFallback_TrustUnverifiedEmail_ConfigOverride(t *testing.T) {
+func TestResolveOIDCUser_EmailFallback_TrustUnverifiedEmail_ConfigOverride(t *testing.T) {
 	existing := &model.User{ID: 2, Email: "legacy@example.com", Role: model.RoleUser}
 	linked := false
 	users := &oidcTestUserRepo{
@@ -534,14 +376,8 @@ func TestOIDCHandler_resolveOIDCUser_EmailFallback_TrustUnverifiedEmail_ConfigOv
 			return nil
 		},
 	}
-	h := &OIDCHandler{
-		cfg: config.OIDCConfig{
-			Issuer:               "https://issuer.example.com",
-			TrustUnverifiedEmail: true,
-		},
-		users: users,
-	}
-	user, err := h.resolveOIDCUser(context.Background(), "sub-legacy", "legacy@example.com", "Legacy", false)
+	h := newOIDCTestHandler(users, config.OIDCConfig{TrustUnverifiedEmail: true})
+	user, err := h.resolveOIDCUserFromCtx(context.Background(), "sub-legacy", "legacy@example.com", "Legacy", false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -553,7 +389,90 @@ func TestOIDCHandler_resolveOIDCUser_EmailFallback_TrustUnverifiedEmail_ConfigOv
 	}
 }
 
-func TestOIDCHandler_claimBool(t *testing.T) {
+func TestResolveOIDCUser_SignupDisabled(t *testing.T) {
+	// Both lookups fail; signup is disabled.
+	h := newOIDCTestHandler(&oidcTestUserRepo{}, config.OIDCConfig{SignupEnabled: false})
+	_, err := h.resolveOIDCUserFromCtx(context.Background(), "sub-3", "new@example.com", "New", true)
+	if !errors.Is(err, errSignupDisabled) {
+		t.Errorf("expected errSignupDisabled, got %v", err)
+	}
+}
+
+func TestResolveOIDCUser_NewUser(t *testing.T) {
+	newUser := &model.User{ID: 3, Email: "new@example.com", Role: model.RoleUser}
+	users := &oidcTestUserRepo{
+		createOIDCUserFn: func(_ context.Context, _, _, _, _, _ string) (*model.User, error) {
+			return newUser, nil
+		},
+	}
+	h := newOIDCTestHandler(users, config.OIDCConfig{SignupEnabled: true})
+	user, err := h.resolveOIDCUserFromCtx(context.Background(), "sub-4", "new@example.com", "New", true)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if user.ID != newUser.ID {
+		t.Errorf("expected user ID %d, got %d", newUser.ID, user.ID)
+	}
+}
+
+func TestResolveOIDCUser_EmptyName_FallsBackToEmail(t *testing.T) {
+	var capturedName string
+	users := &oidcTestUserRepo{
+		createOIDCUserFn: func(_ context.Context, _, name, _, _, _ string) (*model.User, error) {
+			capturedName = name
+			return &model.User{ID: 4, Email: "noname@example.com", Role: model.RoleUser}, nil
+		},
+	}
+	h := newOIDCTestHandler(users, config.OIDCConfig{SignupEnabled: true})
+	_, err := h.resolveOIDCUserFromCtx(context.Background(), "sub-5", "noname@example.com", "" /* no name */, true)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if capturedName != "noname@example.com" {
+		t.Errorf("expected display name to fall back to email, got %q", capturedName)
+	}
+}
+
+func TestResolveOIDCUser_CreateFails(t *testing.T) {
+	users := &oidcTestUserRepo{
+		createOIDCUserFn: func(_ context.Context, _, _, _, _, _ string) (*model.User, error) {
+			return nil, errors.New("db error")
+		},
+	}
+	h := newOIDCTestHandler(users, config.OIDCConfig{SignupEnabled: true})
+	_, err := h.resolveOIDCUserFromCtx(context.Background(), "sub-6", "fail@example.com", "Fail", true)
+	if err == nil {
+		t.Error("expected error when CreateOIDCUser fails")
+	}
+}
+
+func TestResolveOIDCUser_SetLinkFails_StillReturnsUser(t *testing.T) {
+	// If SetOIDCSubject fails, the handler logs a warning but still returns the user.
+	existing := &model.User{ID: 5, Email: "linkfail@example.com", Role: model.RoleUser}
+	users := &oidcTestUserRepo{
+		getByOIDCSubjectFn: func(_ context.Context, _, _ string) (*model.User, error) {
+			return nil, errors.New("not found")
+		},
+		getByEmailFn: func(_ context.Context, _ string) (*model.User, error) {
+			return existing, nil
+		},
+		setOIDCSubjectFn: func(_ context.Context, _ int64, _, _ string) error {
+			return errors.New("db error during link")
+		},
+	}
+	h := newOIDCTestHandler(users, config.OIDCConfig{})
+	user, err := h.resolveOIDCUserFromCtx(context.Background(), "sub-7", "linkfail@example.com", "LinkFail", true)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if user.ID != existing.ID {
+		t.Errorf("expected user ID %d, got %d", existing.ID, user.ID)
+	}
+}
+
+// ── claimBool ────────────────────────────────────────────────────────────────
+
+func TestClaimBool(t *testing.T) {
 	tests := []struct {
 		name   string
 		claims map[string]interface{}
@@ -576,110 +495,123 @@ func TestOIDCHandler_claimBool(t *testing.T) {
 	}
 }
 
-func TestOIDCHandler_resolveOIDCUser_SignupDisabled(t *testing.T) {
-	// Both lookups fail; signup is disabled.
-	h := &OIDCHandler{
-		cfg: config.OIDCConfig{
-			Issuer:        "https://issuer.example.com",
-			SignupEnabled: false,
-		},
-		users: &oidcTestUserRepo{},
-	}
-	_, err := h.resolveOIDCUser(context.Background(), "sub-3", "new@example.com", "New", true)
-	if !errors.Is(err, errSignupDisabled) {
-		t.Errorf("expected errSignupDisabled, got %v", err)
-	}
-}
+// ── oidcIsAdminByFilter ──────────────────────────────────────────────────────
 
-func TestOIDCHandler_resolveOIDCUser_NewUser(t *testing.T) {
-	newUser := &model.User{ID: 3, Email: "new@example.com", Role: model.RoleUser}
-	users := &oidcTestUserRepo{
-		createOIDCUserFn: func(_ context.Context, _, _, _, _, _ string) (*model.User, error) {
-			return newUser, nil
+// TestOidcIsAdminByFilter checks every combination of email regex and
+// claim-based admin filter on the live ogen handler.
+func TestOidcIsAdminByFilter(t *testing.T) {
+	tests := []struct {
+		name      string
+		cfg       config.OIDCConfig
+		email     string
+		allClaims map[string]interface{}
+		wantAdmin bool
+	}{
+		{
+			name:      "no filters configured",
+			email:     "user@example.com",
+			allClaims: map[string]interface{}{},
+			wantAdmin: false,
+		},
+		{
+			name:      "email regex matches",
+			cfg:       config.OIDCConfig{AdminEmailRegex: `@example\.com$`},
+			email:     "admin@example.com",
+			allClaims: map[string]interface{}{},
+			wantAdmin: true,
+		},
+		{
+			name:      "email regex does not match",
+			cfg:       config.OIDCConfig{AdminEmailRegex: `@example\.com$`},
+			email:     "admin@other.com",
+			allClaims: map[string]interface{}{},
+			wantAdmin: false,
+		},
+		{
+			name:  "claim string value matches",
+			email: "user@other.com",
+			cfg: config.OIDCConfig{
+				AdminClaim:      "role",
+				AdminClaimValue: "admin",
+			},
+			allClaims: map[string]interface{}{"role": "admin"},
+			wantAdmin: true,
+		},
+		{
+			name:  "claim string value does not match",
+			email: "user@other.com",
+			cfg: config.OIDCConfig{
+				AdminClaim:      "role",
+				AdminClaimValue: "admin",
+			},
+			allClaims: map[string]interface{}{"role": "viewer"},
+			wantAdmin: false,
+		},
+		{
+			name:  "claim array contains value",
+			email: "user@other.com",
+			cfg: config.OIDCConfig{
+				AdminClaim:      "groups",
+				AdminClaimValue: "motus-admin",
+			},
+			allClaims: map[string]interface{}{
+				"groups": []interface{}{"viewers", "motus-admin", "editors"},
+			},
+			wantAdmin: true,
+		},
+		{
+			name:  "claim array does not contain value",
+			email: "user@other.com",
+			cfg: config.OIDCConfig{
+				AdminClaim:      "groups",
+				AdminClaimValue: "motus-admin",
+			},
+			allClaims: map[string]interface{}{
+				"groups": []interface{}{"viewers", "editors"},
+			},
+			wantAdmin: false,
+		},
+		{
+			name:  "claim missing from token",
+			email: "user@other.com",
+			cfg: config.OIDCConfig{
+				AdminClaim:      "groups",
+				AdminClaimValue: "motus-admin",
+			},
+			allClaims: map[string]interface{}{},
+			wantAdmin: false,
+		},
+		{
+			name:  "email regex matches - claim also set but does not match",
+			email: "admin@example.com",
+			cfg: config.OIDCConfig{
+				AdminEmailRegex: `@example\.com$`,
+				AdminClaim:      "groups",
+				AdminClaimValue: "motus-admin",
+			},
+			allClaims: map[string]interface{}{"groups": []interface{}{"viewers"}},
+			wantAdmin: true, // email regex is sufficient
+		},
+		{
+			name:  "neither filter matches",
+			email: "admin@other.com",
+			cfg: config.OIDCConfig{
+				AdminEmailRegex: `@example\.com$`,
+				AdminClaim:      "groups",
+				AdminClaimValue: "motus-admin",
+			},
+			allClaims: map[string]interface{}{"groups": []interface{}{"viewers"}},
+			wantAdmin: false,
 		},
 	}
-	h := &OIDCHandler{
-		cfg: config.OIDCConfig{
-			Issuer:        "https://issuer.example.com",
-			SignupEnabled: true,
-		},
-		users: users,
-	}
-	user, err := h.resolveOIDCUser(context.Background(), "sub-4", "new@example.com", "New", true)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if user.ID != newUser.ID {
-		t.Errorf("expected user ID %d, got %d", newUser.ID, user.ID)
-	}
-}
 
-func TestOIDCHandler_resolveOIDCUser_EmptyName_FallsBackToEmail(t *testing.T) {
-	var capturedName string
-	users := &oidcTestUserRepo{
-		createOIDCUserFn: func(_ context.Context, _, name, _, _, _ string) (*model.User, error) {
-			capturedName = name
-			return &model.User{ID: 4, Email: "noname@example.com", Role: model.RoleUser}, nil
-		},
-	}
-	h := &OIDCHandler{
-		cfg: config.OIDCConfig{
-			Issuer:        "https://issuer.example.com",
-			SignupEnabled: true,
-		},
-		users: users,
-	}
-	_, err := h.resolveOIDCUser(context.Background(), "sub-5", "noname@example.com", "" /* no name */, true)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if capturedName != "noname@example.com" {
-		t.Errorf("expected display name to fall back to email, got %q", capturedName)
-	}
-}
-
-func TestOIDCHandler_resolveOIDCUser_CreateFails(t *testing.T) {
-	users := &oidcTestUserRepo{
-		createOIDCUserFn: func(_ context.Context, _, _, _, _, _ string) (*model.User, error) {
-			return nil, errors.New("db error")
-		},
-	}
-	h := &OIDCHandler{
-		cfg: config.OIDCConfig{
-			Issuer:        "https://issuer.example.com",
-			SignupEnabled: true,
-		},
-		users: users,
-	}
-	_, err := h.resolveOIDCUser(context.Background(), "sub-6", "fail@example.com", "Fail", true)
-	if err == nil {
-		t.Error("expected error when CreateOIDCUser fails")
-	}
-}
-
-func TestOIDCHandler_resolveOIDCUser_SetLinkFails_StillReturnsUser(t *testing.T) {
-	// If SetOIDCSubject fails, the handler logs a warning but still returns the user.
-	existing := &model.User{ID: 5, Email: "linkfail@example.com", Role: model.RoleUser}
-	users := &oidcTestUserRepo{
-		getByOIDCSubjectFn: func(_ context.Context, _, _ string) (*model.User, error) {
-			return nil, errors.New("not found")
-		},
-		getByEmailFn: func(_ context.Context, _ string) (*model.User, error) {
-			return existing, nil
-		},
-		setOIDCSubjectFn: func(_ context.Context, _ int64, _, _ string) error {
-			return errors.New("db error during link")
-		},
-	}
-	h := &OIDCHandler{
-		cfg:   config.OIDCConfig{Issuer: "https://issuer.example.com"},
-		users: users,
-	}
-	user, err := h.resolveOIDCUser(context.Background(), "sub-7", "linkfail@example.com", "LinkFail", true)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if user.ID != existing.ID {
-		t.Errorf("expected user ID %d, got %d", existing.ID, user.ID)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := NewHandler(HandlerConfig{OIDCConfig: tt.cfg})
+			got := h.oidcIsAdminByFilter(tt.email, tt.allClaims)
+			if got != tt.wantAdmin {
+				t.Errorf("oidcIsAdminByFilter(%q, %v) = %v, want %v", tt.email, tt.allClaims, got, tt.wantAdmin)
+			}
+		})
 	}
 }

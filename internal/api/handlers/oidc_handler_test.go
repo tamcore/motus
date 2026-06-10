@@ -442,7 +442,7 @@ func TestOIDCHandler_resolveOIDCUser_SubjectFound(t *testing.T) {
 		cfg:   config.OIDCConfig{Issuer: "https://issuer.example.com"},
 		users: users,
 	}
-	user, err := h.resolveOIDCUser(context.Background(), "sub-1", "user@example.com", "User")
+	user, err := h.resolveOIDCUser(context.Background(), "sub-1", "user@example.com", "User", true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -473,7 +473,7 @@ func TestOIDCHandler_resolveOIDCUser_EmailFallback(t *testing.T) {
 		cfg:   config.OIDCConfig{Issuer: "https://issuer.example.com"},
 		users: users,
 	}
-	user, err := h.resolveOIDCUser(context.Background(), "sub-2", "fallback@example.com", "Fallback")
+	user, err := h.resolveOIDCUser(context.Background(), "sub-2", "fallback@example.com", "Fallback", true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -482,6 +482,97 @@ func TestOIDCHandler_resolveOIDCUser_EmailFallback(t *testing.T) {
 	}
 	if !linked {
 		t.Error("expected SetOIDCSubject to be called to link the subject")
+	}
+}
+
+func TestOIDCHandler_resolveOIDCUser_EmailFallback_UnverifiedEmail_NotLinked(t *testing.T) {
+	// An unverified email must never link an OIDC subject to an existing
+	// account: an IdP that does not verify emails could otherwise be used
+	// to take over a local account with a matching address.
+	existing := &model.User{ID: 2, Email: "victim@example.com", Role: model.RoleUser}
+	linked := false
+	users := &oidcTestUserRepo{
+		getByOIDCSubjectFn: func(_ context.Context, _, _ string) (*model.User, error) {
+			return nil, errors.New("not found")
+		},
+		getByEmailFn: func(_ context.Context, _ string) (*model.User, error) {
+			return existing, nil
+		},
+		setOIDCSubjectFn: func(_ context.Context, _ int64, _, _ string) error {
+			linked = true
+			return nil
+		},
+	}
+	h := &OIDCHandler{
+		cfg: config.OIDCConfig{
+			Issuer:        "https://issuer.example.com",
+			SignupEnabled: false,
+		},
+		users: users,
+	}
+	_, err := h.resolveOIDCUser(context.Background(), "sub-attacker", "victim@example.com", "Attacker", false)
+	if !errors.Is(err, errSignupDisabled) {
+		t.Errorf("expected errSignupDisabled for unverified email, got %v", err)
+	}
+	if linked {
+		t.Error("SetOIDCSubject must not be called for an unverified email")
+	}
+}
+
+func TestOIDCHandler_resolveOIDCUser_EmailFallback_TrustUnverifiedEmail_ConfigOverride(t *testing.T) {
+	existing := &model.User{ID: 2, Email: "legacy@example.com", Role: model.RoleUser}
+	linked := false
+	users := &oidcTestUserRepo{
+		getByOIDCSubjectFn: func(_ context.Context, _, _ string) (*model.User, error) {
+			return nil, errors.New("not found")
+		},
+		getByEmailFn: func(_ context.Context, _ string) (*model.User, error) {
+			return existing, nil
+		},
+		setOIDCSubjectFn: func(_ context.Context, _ int64, _, _ string) error {
+			linked = true
+			return nil
+		},
+	}
+	h := &OIDCHandler{
+		cfg: config.OIDCConfig{
+			Issuer:               "https://issuer.example.com",
+			TrustUnverifiedEmail: true,
+		},
+		users: users,
+	}
+	user, err := h.resolveOIDCUser(context.Background(), "sub-legacy", "legacy@example.com", "Legacy", false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if user.ID != existing.ID {
+		t.Errorf("expected user ID %d, got %d", existing.ID, user.ID)
+	}
+	if !linked {
+		t.Error("expected SetOIDCSubject to be called when TrustUnverifiedEmail is set")
+	}
+}
+
+func TestOIDCHandler_claimBool(t *testing.T) {
+	tests := []struct {
+		name   string
+		claims map[string]interface{}
+		want   bool
+	}{
+		{"bool true", map[string]interface{}{"email_verified": true}, true},
+		{"bool false", map[string]interface{}{"email_verified": false}, false},
+		{"string true", map[string]interface{}{"email_verified": "true"}, true},
+		{"string false", map[string]interface{}{"email_verified": "false"}, false},
+		{"missing", map[string]interface{}{}, false},
+		{"nil claims", nil, false},
+		{"unrelated type", map[string]interface{}{"email_verified": 1}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := claimBool(tt.claims, "email_verified"); got != tt.want {
+				t.Errorf("claimBool(%v) = %v, want %v", tt.claims, got, tt.want)
+			}
+		})
 	}
 }
 
@@ -494,7 +585,7 @@ func TestOIDCHandler_resolveOIDCUser_SignupDisabled(t *testing.T) {
 		},
 		users: &oidcTestUserRepo{},
 	}
-	_, err := h.resolveOIDCUser(context.Background(), "sub-3", "new@example.com", "New")
+	_, err := h.resolveOIDCUser(context.Background(), "sub-3", "new@example.com", "New", true)
 	if !errors.Is(err, errSignupDisabled) {
 		t.Errorf("expected errSignupDisabled, got %v", err)
 	}
@@ -514,7 +605,7 @@ func TestOIDCHandler_resolveOIDCUser_NewUser(t *testing.T) {
 		},
 		users: users,
 	}
-	user, err := h.resolveOIDCUser(context.Background(), "sub-4", "new@example.com", "New")
+	user, err := h.resolveOIDCUser(context.Background(), "sub-4", "new@example.com", "New", true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -538,7 +629,7 @@ func TestOIDCHandler_resolveOIDCUser_EmptyName_FallsBackToEmail(t *testing.T) {
 		},
 		users: users,
 	}
-	_, err := h.resolveOIDCUser(context.Background(), "sub-5", "noname@example.com", "" /* no name */)
+	_, err := h.resolveOIDCUser(context.Background(), "sub-5", "noname@example.com", "" /* no name */, true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -560,7 +651,7 @@ func TestOIDCHandler_resolveOIDCUser_CreateFails(t *testing.T) {
 		},
 		users: users,
 	}
-	_, err := h.resolveOIDCUser(context.Background(), "sub-6", "fail@example.com", "Fail")
+	_, err := h.resolveOIDCUser(context.Background(), "sub-6", "fail@example.com", "Fail", true)
 	if err == nil {
 		t.Error("expected error when CreateOIDCUser fails")
 	}
@@ -584,7 +675,7 @@ func TestOIDCHandler_resolveOIDCUser_SetLinkFails_StillReturnsUser(t *testing.T)
 		cfg:   config.OIDCConfig{Issuer: "https://issuer.example.com"},
 		users: users,
 	}
-	user, err := h.resolveOIDCUser(context.Background(), "sub-7", "linkfail@example.com", "LinkFail")
+	user, err := h.resolveOIDCUser(context.Background(), "sub-7", "linkfail@example.com", "LinkFail", true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

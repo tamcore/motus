@@ -80,6 +80,13 @@ type OIDCConfig struct {
 	// When false, only pre-existing accounts can authenticate via OIDC.
 	// Loaded from MOTUS_OIDC_SIGNUP_ENABLED. Default: false.
 	SignupEnabled bool
+	// TrustUnverifiedEmail allows linking an OIDC subject to an existing local
+	// account even when the IdP does not assert email_verified. Leave false
+	// unless the IdP is known to only issue verified addresses; otherwise an
+	// attacker-controlled IdP account could take over a local account with a
+	// matching email.
+	// Loaded from MOTUS_OIDC_TRUST_UNVERIFIED_EMAIL. Default: false.
+	TrustUnverifiedEmail bool
 	// AdminEmailRegex is an optional regular expression matched against the user's
 	// email address. A match grants the admin role on login.
 	// Loaded from MOTUS_OIDC_ADMIN_EMAIL_REGEX.
@@ -373,16 +380,17 @@ func LoadFromEnv() (*Config, error) {
 			RateLimit: getEnvFloat("MOTUS_GEOCODING_RATE_LIMIT", 1.0),
 		},
 		OIDC: OIDCConfig{
-			Enabled:         getEnvBool("MOTUS_OIDC_ENABLED", false),
-			Issuer:          getEnv("MOTUS_OIDC_ISSUER", ""),
-			ClientID:        getEnv("MOTUS_OIDC_CLIENT_ID", ""),
-			ClientSecret:    getEnv("MOTUS_OIDC_CLIENT_SECRET", ""),
-			RedirectURL:     getEnv("MOTUS_OIDC_REDIRECT_URL", ""),
-			SignupEnabled:   getEnvBool("MOTUS_OIDC_SIGNUP_ENABLED", false),
-			AdminEmailRegex: getEnv("MOTUS_OIDC_ADMIN_EMAIL_REGEX", ""),
-			AdminClaim:      getEnv("MOTUS_OIDC_ADMIN_CLAIM", ""),
-			AdminClaimValue: getEnv("MOTUS_OIDC_ADMIN_CLAIM_VALUE", ""),
-			Scopes:          getEnv("MOTUS_OIDC_SCOPES", ""),
+			Enabled:              getEnvBool("MOTUS_OIDC_ENABLED", false),
+			Issuer:               getEnv("MOTUS_OIDC_ISSUER", ""),
+			ClientID:             getEnv("MOTUS_OIDC_CLIENT_ID", ""),
+			ClientSecret:         getEnv("MOTUS_OIDC_CLIENT_SECRET", ""),
+			RedirectURL:          getEnv("MOTUS_OIDC_REDIRECT_URL", ""),
+			SignupEnabled:        getEnvBool("MOTUS_OIDC_SIGNUP_ENABLED", false),
+			TrustUnverifiedEmail: getEnvBool("MOTUS_OIDC_TRUST_UNVERIFIED_EMAIL", false),
+			AdminEmailRegex:      getEnv("MOTUS_OIDC_ADMIN_EMAIL_REGEX", ""),
+			AdminClaim:           getEnv("MOTUS_OIDC_ADMIN_CLAIM", ""),
+			AdminClaimValue:      getEnv("MOTUS_OIDC_ADMIN_CLAIM_VALUE", ""),
+			Scopes:               getEnv("MOTUS_OIDC_SCOPES", ""),
 		},
 		AI: AIConfig{
 			Enabled:      getEnvBool("MOTUS_AI_ENABLED", false),

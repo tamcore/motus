@@ -27,6 +27,9 @@
 	let selectedGeofence: Geofence | null = null;
 	let showCreateModal = false;
 	let showEditModal = false;
+	let showDeleteConfirm = false;
+	let deleteTarget: Geofence | null = null;
+	let deleting = false;
 	let newGeofenceName = '';
 	let newGeofenceCalendarId: number | null = null;
 	let editGeofenceName = '';
@@ -621,6 +624,23 @@
 		}
 	}
 
+	function openDeleteConfirm(geofence: Geofence) {
+		deleteTarget = geofence;
+		showDeleteConfirm = true;
+	}
+
+	async function confirmDelete() {
+		if (!deleteTarget) return;
+		deleting = true;
+		try {
+			await removeGeofence(deleteTarget);
+		} finally {
+			deleting = false;
+			showDeleteConfirm = false;
+			deleteTarget = null;
+		}
+	}
+
 	/**
 	 * Delete a geofence from the backend and remove it from the map.
 	 */
@@ -745,7 +765,7 @@
 						</button>
 						<button
 							class="fence-delete"
-							on:click={() => removeGeofence(fence)}
+							on:click={() => openDeleteConfirm(fence)}
 							aria-label="Delete {fence.name}"
 						>
 							&#x2715;
@@ -901,6 +921,21 @@
 			<Button variant="primary" on:click={saveEdit} disabled={!editGeofenceName.trim() || saving} loading={saving}>
 				Save Changes
 			</Button>
+		</div>
+	</svelte:fragment>
+</Modal>
+
+<!-- Delete Confirmation Modal -->
+<Modal bind:open={showDeleteConfirm} title="Delete Geofence">
+	<p class="delete-message">
+		Are you sure you want to delete <strong>{deleteTarget?.name}</strong>?
+		This action cannot be undone.
+	</p>
+
+	<svelte:fragment slot="footer">
+		<div class="modal-actions">
+			<Button variant="secondary" on:click={() => (showDeleteConfirm = false)}>Cancel</Button>
+			<Button variant="danger" loading={deleting} on:click={confirmDelete}>Delete</Button>
 		</div>
 	</svelte:fragment>
 </Modal>
@@ -1333,6 +1368,15 @@
 		outline: none;
 		border-color: var(--accent-primary);
 		box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
+	}
+
+	.delete-message {
+		color: var(--text-secondary);
+		line-height: 1.6;
+	}
+
+	.delete-message strong {
+		color: var(--text-primary);
 	}
 
 	.modal-actions {

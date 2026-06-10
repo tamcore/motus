@@ -285,3 +285,78 @@ authTest.describe('Geofences Page', () => {
     await expect(drawTooltip).toHaveCount(0, { timeout: 3000 });
   });
 });
+
+test.describe('Geofence delete confirmation', () => {
+  const fenceName = 'PW Delete Confirm Fence';
+  let fenceId: number;
+
+  test.beforeEach(async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: '.auth/user.json' });
+    const page = await ctx.newPage();
+    const csrf = await getCSRF(page.request);
+    const res = await page.request.post('/api/geofences', {
+      headers: { 'X-CSRF-Token': csrf },
+      data: {
+        name: fenceName,
+        area: 'POLYGON((11.40 48.05,11.43 48.05,11.43 48.08,11.40 48.08,11.40 48.05))',
+      },
+    });
+    expect(res.status()).toBe(201);
+    fenceId = (await res.json()).id;
+    await ctx.close();
+  });
+
+  test.afterEach(async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: '.auth/user.json' });
+    const page = await ctx.newPage();
+    const csrf = await getCSRF(page.request);
+    // Best-effort cleanup; the fence may already be deleted by the test.
+    await page.request.delete(`/api/geofences/${fenceId}`, { headers: { 'X-CSRF-Token': csrf } });
+    await ctx.close();
+  });
+
+  test('delete button opens a confirmation; cancel keeps the geofence', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: '.auth/user.json' });
+    const page = await ctx.newPage();
+    const geofencesPage = new GeofencesPage(page);
+    await geofencesPage.goto();
+
+    const item = page.locator('.fence-item', { hasText: fenceName });
+    await expect(item).toBeVisible();
+    await item.locator('.fence-delete').click();
+
+    const dialog = page.locator('[role="dialog"]', { hasText: 'Delete Geofence' });
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toContainText(fenceName);
+
+    await dialog.locator('button:has-text("Cancel")').click();
+    await expect(dialog).not.toBeVisible();
+    await expect(item).toBeVisible();
+
+    const res = await page.request.get(`/api/geofences/${fenceId}`);
+    expect(res.status()).toBe(200);
+    await ctx.close();
+  });
+
+  test('confirming delete removes the geofence', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: '.auth/user.json' });
+    const page = await ctx.newPage();
+    const geofencesPage = new GeofencesPage(page);
+    await geofencesPage.goto();
+
+    const item = page.locator('.fence-item', { hasText: fenceName });
+    await expect(item).toBeVisible();
+    await item.locator('.fence-delete').click();
+
+    const dialog = page.locator('[role="dialog"]', { hasText: 'Delete Geofence' });
+    await expect(dialog).toBeVisible();
+    await dialog.locator('button:has-text("Delete")').last().click();
+
+    await expect(dialog).not.toBeVisible();
+    await expect(item).toHaveCount(0);
+
+    const res = await page.request.get(`/api/geofences/${fenceId}`);
+    expect(res.status()).toBe(404);
+    await ctx.close();
+  });
+});

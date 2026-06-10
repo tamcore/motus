@@ -21,6 +21,7 @@
 	}
 
 	let loading = true;
+	let loadError = '';
 	let devices: Device[] = [];
 	let positionMap: Map<number, Position> = new Map();
 	let positionsToday = 0;
@@ -77,14 +78,20 @@
 		positionsToday = todayPositions.length;
 	}
 
-	onMount(async () => {
+	async function loadDashboardWithErrorState() {
+		loadError = '';
 		try {
 			await loadDashboard();
 		} catch (error) {
 			console.error('Failed to load dashboard:', error);
+			loadError = 'Failed to load dashboard. Check your connection and try again.';
 		} finally {
 			loading = false;
 		}
+	}
+
+	onMount(async () => {
+		await loadDashboardWithErrorState();
 		$refreshHandler = loadDashboard;
 	});
 
@@ -119,6 +126,20 @@
 <div class="dashboard">
 	<div class="container">
 		<h1 class="page-title">Dashboard</h1>
+
+		{#if loadError}
+			<div class="error-banner" role="alert">
+				<span>{loadError}</span>
+				<div class="error-actions">
+					<button class="retry-btn" on:click={() => { loading = true; loadDashboardWithErrorState(); }}>
+						Retry
+					</button>
+					<button class="dismiss-btn" on:click={() => (loadError = '')} aria-label="Dismiss error">
+						&#x2715;
+					</button>
+				</div>
+			</div>
+		{/if}
 
 		<div class="stats-grid">
 			<button class="stat-card" class:active={statusFilter === 'all'} on:click={() => setFilter('all')}>
@@ -218,7 +239,7 @@
 					</div>
 				{/each}
 			</div>
-		{:else if filteredDevices.length === 0}
+		{:else if filteredDevices.length === 0 && !loadError}
 			<div class="empty-state">
 				<svg viewBox="0 0 24 24" width="64" height="64" fill="none" stroke="var(--text-tertiary)" stroke-width="1">
 					<rect x="5" y="2" width="14" height="20" rx="2"/>
@@ -292,6 +313,44 @@
 		font-weight: var(--font-bold);
 		color: var(--text-primary);
 		margin-bottom: var(--space-6);
+	}
+
+	.error-banner {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: var(--space-3) var(--space-4);
+		background-color: rgba(255, 59, 48, 0.15);
+		border: 1px solid var(--error);
+		border-radius: var(--radius-md);
+		color: var(--error);
+		margin-bottom: var(--space-4);
+		font-size: var(--text-sm);
+	}
+
+	.error-actions {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+	}
+
+	.retry-btn {
+		background: none;
+		border: 1px solid var(--error);
+		border-radius: var(--radius-sm);
+		color: var(--error);
+		padding: var(--space-1) var(--space-3);
+		cursor: pointer;
+		font-size: var(--text-sm);
+	}
+
+	.dismiss-btn {
+		background: none;
+		border: none;
+		color: var(--error);
+		cursor: pointer;
+		padding: 0 var(--space-1);
+		font-size: var(--text-base);
 	}
 
 	.stats-grid {

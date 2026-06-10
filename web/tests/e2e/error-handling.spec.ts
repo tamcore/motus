@@ -2,16 +2,25 @@ import { test, expect } from '../fixtures/auth-fixture';
 
 test.describe('Error Handling', () => {
   test('should show error on dashboard when API returns 500', async ({ authedPage }) => {
-    await authedPage.route('**/api/devices', (route) => {
-      route.fulfill({ status: 500, body: 'Internal Server Error' });
-    });
-    await authedPage.route('**/api/positions*', (route) => {
-      route.fulfill({ status: 500, body: 'Internal Server Error' });
+    // addInitScript intercepts fetch at JS level (page.route is unreliable with SvelteKit)
+    await authedPage.addInitScript(() => {
+      const origFetch = window.fetch;
+      window.fetch = async function (input: RequestInfo | URL, init?: RequestInit) {
+        const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+        if (url.includes('/api/devices') && !url.includes('/api/devices/')) {
+          return new Response('Internal Server Error', { status: 500 });
+        }
+        return origFetch.apply(globalThis, [input, init] as Parameters<typeof fetch>);
+      } as typeof fetch;
     });
     await authedPage.goto('/');
-    await authedPage.waitForTimeout(2000);
     // App should not crash - dashboard should still render
     await expect(authedPage.locator('h1:has-text("Dashboard")')).toBeVisible();
+    // The user must see that loading failed, distinct from the empty state
+    const banner = authedPage.locator('.error-banner[role="alert"]');
+    await expect(banner).toBeVisible();
+    await expect(banner).toContainText(/failed to load/i);
+    await expect(authedPage.locator('text=No devices yet')).not.toBeVisible();
   });
 
   test('should handle devices API 500 gracefully', async ({ authedPage }) => {

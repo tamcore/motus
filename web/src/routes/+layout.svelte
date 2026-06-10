@@ -9,6 +9,7 @@
 	import { pwa } from '$lib/stores/pwa';
 	import { api, APIError } from '$lib/api/client';
 	import { hydrateAuthToken, setAuthToken } from '$lib/auth-token-store';
+	import { buildLoginUrl } from '$lib/utils/returnTo';
 	import PullToRefresh from '$lib/components/PullToRefresh.svelte';
 	import {
 		initNativeTokenHandler,
@@ -104,7 +105,9 @@
 				currentUser.set(null);
 				isAuthenticated.set(false);
 				if (!isPublicRoute) {
-					goto('/login');
+					// Preserve the current location so login can return the
+					// user to where their session expired.
+					goto(buildLoginUrl(window.location.pathname, window.location.search));
 				}
 			}
 		} finally {

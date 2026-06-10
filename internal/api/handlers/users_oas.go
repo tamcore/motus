@@ -162,6 +162,13 @@ func (h *Handler) AdminUpdateUser(ctx context.Context, req *oas.UserInput, param
 			return &oas.AdminUpdateUserForbidden{Error: "failed to update password"}, nil
 		}
 		changes["passwordChanged"] = true
+
+		// Revoke all of the target user's sessions: an admin password reset
+		// must log out whoever holds the old credentials.
+		if err := h.cfg.Sessions.DeleteAllByUser(ctx, existing.ID, ""); err != nil {
+			return &oas.AdminUpdateUserForbidden{Error: "failed to revoke sessions"}, nil
+		}
+		changes["sessionsRevoked"] = true
 	}
 
 	if h.cfg.AuditLogger != nil {

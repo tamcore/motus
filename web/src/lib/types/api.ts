@@ -58,7 +58,7 @@ export interface UpdateProfilePayload {
   name?: string;
   email?: string;
   currentPassword?: string;
-  newPassword?: string;
+  password?: string;
 }
 
 // ---------------------------------------------------------------------------

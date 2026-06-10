@@ -1145,3 +1145,76 @@ func TestAdminDeleteUserSession_NonAdminForbidden(t *testing.T) {
 		t.Errorf("expected *oas.AdminDeleteUserSessionForbidden for unauthenticated request, got %T", res)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// LogoutAll
+// ---------------------------------------------------------------------------
+
+func TestLogoutAll_Unauthenticated(t *testing.T) {
+	h := newSessionTestHandler(&mockUserRepo{}, &mockSessionRepo{}, &mockApiKeyRepo{})
+	res, err := h.LogoutAll(context.Background())
+	if err != nil {
+		t.Fatalf("LogoutAll returned error: %v", err)
+	}
+	if _, ok := res.(*oas.Error); !ok {
+		t.Errorf("expected *oas.Error for unauthenticated request, got %T", res)
+	}
+}
+
+func TestLogoutAll_NoSessionInContext(t *testing.T) {
+	h := newSessionTestHandler(&mockUserRepo{}, &mockSessionRepo{}, &mockApiKeyRepo{})
+	ctx := api.ContextWithUser(context.Background(), &model.User{ID: 1, Email: "a@b.c"})
+	res, err := h.LogoutAll(ctx)
+	if err != nil {
+		t.Fatalf("LogoutAll returned error: %v", err)
+	}
+	if _, ok := res.(*oas.Error); !ok {
+		t.Errorf("expected *oas.Error without a current session, got %T", res)
+	}
+}
+
+func TestLogoutAll_RevokesOtherSessionsExceptCurrent(t *testing.T) {
+	var gotUserID int64
+	var gotExceptID string
+	sessions := &mockSessionRepo{
+		deleteAllByUserFn: func(_ context.Context, userID int64, exceptID string) error {
+			gotUserID = userID
+			gotExceptID = exceptID
+			return nil
+		},
+	}
+	h := newSessionTestHandler(&mockUserRepo{}, sessions, &mockApiKeyRepo{})
+	user := &model.User{ID: 7, Email: "a@b.c"}
+	ctx := api.ContextWithUser(context.Background(), user)
+	ctx = api.ContextWithSession(ctx, &model.Session{ID: "current-session", UserID: user.ID})
+
+	res, err := h.LogoutAll(ctx)
+	if err != nil {
+		t.Fatalf("LogoutAll returned error: %v", err)
+	}
+	if _, ok := res.(*oas.LogoutAllNoContent); !ok {
+		t.Fatalf("expected *oas.LogoutAllNoContent, got %T", res)
+	}
+	if gotUserID != user.ID || gotExceptID != "current-session" {
+		t.Errorf("DeleteAllByUser called with (%d, %q), want (%d, %q)", gotUserID, gotExceptID, user.ID, "current-session")
+	}
+}
+
+func TestLogoutAll_RepoError(t *testing.T) {
+	sessions := &mockSessionRepo{
+		deleteAllByUserFn: func(_ context.Context, _ int64, _ string) error {
+			return errors.New("db down")
+		},
+	}
+	h := newSessionTestHandler(&mockUserRepo{}, sessions, &mockApiKeyRepo{})
+	ctx := api.ContextWithUser(context.Background(), &model.User{ID: 1, Email: "a@b.c"})
+	ctx = api.ContextWithSession(ctx, &model.Session{ID: "s", UserID: 1})
+
+	res, err := h.LogoutAll(ctx)
+	if err != nil {
+		t.Fatalf("LogoutAll returned error: %v", err)
+	}
+	if _, ok := res.(*oas.Error); !ok {
+		t.Errorf("expected *oas.Error on repo failure, got %T", res)
+	}
+}

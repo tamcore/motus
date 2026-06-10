@@ -1,0 +1,69 @@
+name: Security
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  gosec:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: go.mod
+
+      - name: Run gosec
+        # gosec is a go.mod tool dependency — its version is managed there.
+        # Exclusions (see security-reports triage 2026-06-09):
+        # - internal/api/oas: generated ogen code
+        # - internal/demo: demo/simulation tooling (math/rand jitter is intentional)
+        # - G124: cookie Secure flags are intentionally conditional on MOTUS_ENV
+        #   (isSecureEnvironment() — always true in production); HttpOnly and
+        #   SameSite are set on every cookie. Inline #nosec annotations cover
+        #   the remaining per-line false positives.
+        run: go tool gosec -exclude-generated -exclude=G124 -exclude-dir=internal/api/oas -exclude-dir=internal/demo ./...
+
+  govulncheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: go.mod
+
+      - name: Run govulncheck
+        # govulncheck is a go.mod tool dependency — its version is managed
+        # there. The vulnerability DB is fetched live at scan time, so a
+        # pinned binary still sees the freshest advisories.
+        run: go tool govulncheck ./...
+
+  semgrep:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install semgrep
+        run: pipx install semgrep==1.165.0
+
+      - name: Run semgrep
+        # Path excludes live in .semgrepignore; inline `nosemgrep` comments
+        # cover per-line false positives (websocket origin check, attribute
+        # map deserialization). cookie-missing-secure is excluded as a rule
+        # for the same reason as gosec G124 above.
+        run: >-
+          semgrep scan
+          --config p/golang
+          --config p/owasp-top-ten
+          --exclude-rule go.lang.security.audit.net.cookie-missing-secure.cookie-missing-secure
+          --metrics=off
+          --error

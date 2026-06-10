@@ -57,7 +57,7 @@ func newSSRFSafeTransport() *http.Transport {
 			host, _, _ := net.SplitHostPort(addr)
 			tlsConfig := &tls.Config{
 				ServerName:         host,
-				InsecureSkipVerify: isHostAllowed(host), //nolint:gosec // intentional: only allowlisted hosts skip verify
+				InsecureSkipVerify: isHostAllowed(host), // #nosec G402 -- intentional: only allowlisted hosts skip verify //nolint:gosec
 				MinVersion:         tls.VersionTLS12,
 			}
 			tlsConn := tls.Client(rawConn, tlsConfig)

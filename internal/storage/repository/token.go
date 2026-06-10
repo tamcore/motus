@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	tokenHashSalt           = "motus-token-hash-v1"
+	tokenHashSalt           = "motus-token-hash-v1" // #nosec G101 -- fixed Argon2id salt for deterministic token lookup, not a credential
 	tokenHashTime    uint32 = 1
 	tokenHashMemory  uint32 = 8 * 1024
 	tokenHashThreads uint8  = 1

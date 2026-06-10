@@ -132,6 +132,30 @@ IMEIs are silently dropped. Demo device IMEIs must be numeric (default: `9000000
 `9000000000002`). The relay is fail-open: if the relay target is unreachable or drops,
 motus continues serving devices normally.
 
+### GPS protocols have no device authentication (by design)
+H02 and Watch are plaintext TCP protocols; device identity is the **self-reported
+IMEI** in each message. There is no handshake, shared secret, or signature — this is
+inherent to the protocols and cannot be fixed in motus. Consequences:
+
+- Anyone who can reach the GPS ports can inject positions for any known IMEI
+  (spoofing) or, when device auto-creation is enabled, register new devices that
+  land in the default user's account (`resolveOrCreateDevice` in
+  `internal/protocol/server.go`).
+- **Mitigation is network isolation**: firewall the GPS ports (`MOTUS_GPS_H02_PORT`,
+  `MOTUS_GPS_WATCH_PORT`) to carrier/APN source ranges, or expose them only on a
+  VPN/private interface. Do not expose them to the open internet unless spoofed
+  positions are an accepted risk.
+- Read deadlines, a connection limit, and bounded line buffers protect against
+  resource exhaustion, not against spoofing.
+
+### OIDC email linking requires a verified email
+On first OIDC login the handler links the OIDC subject to an existing local account
+by email **only when the IdP asserts `email_verified`** (boolean `true` or string
+`"true"`). IdPs that omit the claim entirely will not link — set
+`MOTUS_OIDC_TRUST_UNVERIFIED_EMAIL=true` only if the IdP is known to verify email
+addresses; otherwise an attacker-controlled IdP account with a victim's address
+could take over the local account.
+
 ### Demo device cleanup uses configured IMEIs
 `demo.Reset()` accepts a `deviceIMEIs []string` parameter and uses `unique_id = ANY($1)`
 to identify demo devices for cleanup. The default IMEIs are exported as

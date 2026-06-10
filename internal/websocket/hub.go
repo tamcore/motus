@@ -318,6 +318,7 @@ func (h *Hub) HandleConnect(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// nosemgrep: go.gorilla.security.audit.websocket-missing-origin-check.websocket-missing-origin-check -- CheckOrigin is configured on the Upgrader (see newUpgrader)
 	conn, err := h.upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		h.log().Error("WebSocket upgrade error", slog.Any("error", err))

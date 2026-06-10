@@ -1,0 +1,16 @@
+# Defaults are replaced when this file exists — re-add the important ones.
+.git/
+node_modules/
+web/build/
+web/.svelte-kit/
+
+# Generated ogen code (never edited by hand; see make generate).
+internal/api/oas/
+
+# Demo/simulation tooling: math/rand jitter is intentional (triage FP1/FP7).
+internal/demo/
+
+# Test code: httptest cookies and ephemeral :0 listeners are not attack surface.
+*_test.go
+web/tests/
+internal/storage/repository/testutil/

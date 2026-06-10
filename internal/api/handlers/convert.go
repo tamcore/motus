@@ -19,6 +19,7 @@ func rawToAttrs(raw map[string]jx.Raw) map[string]interface{} {
 	}
 	out := make(map[string]interface{}, len(raw))
 	for k, v := range raw {
+		// nosemgrep: go.lang.security.deserialization.unsafe-deserialization-interface.go-unsafe-deserialization-interface -- decodes pre-validated jx.Raw JSON for attribute maps, not arbitrary user input
 		var x interface{}
 		if err := json.Unmarshal(v, &x); err == nil {
 			out[k] = x

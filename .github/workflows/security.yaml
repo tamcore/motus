@@ -20,10 +20,8 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Install gosec
-        run: go install github.com/securego/gosec/v2/cmd/gosec@v2.27.1
-
       - name: Run gosec
+        # gosec is a go.mod tool dependency — its version is managed there.
         # Exclusions (see security-reports triage 2026-06-09):
         # - internal/api/oas: generated ogen code
         # - internal/demo: demo/simulation tooling (math/rand jitter is intentional)
@@ -31,7 +29,7 @@ jobs:
         #   (isSecureEnvironment() — always true in production); HttpOnly and
         #   SameSite are set on every cookie. Inline #nosec annotations cover
         #   the remaining per-line false positives.
-        run: gosec -exclude-generated -exclude=G124 -exclude-dir=internal/api/oas -exclude-dir=internal/demo ./...
+        run: go tool gosec -exclude-generated -exclude=G124 -exclude-dir=internal/api/oas -exclude-dir=internal/demo ./...
 
   govulncheck:
     runs-on: ubuntu-latest
@@ -43,13 +41,11 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Install govulncheck
-        # @latest on purpose: the value of this job is the freshest vuln DB,
-        # not reproducibility.
-        run: go install golang.org/x/vuln/cmd/govulncheck@latest
-
       - name: Run govulncheck
-        run: govulncheck ./...
+        # govulncheck is a go.mod tool dependency — its version is managed
+        # there. The vulnerability DB is fetched live at scan time, so a
+        # pinned binary still sees the freshest advisories.
+        run: go tool govulncheck ./...
 
   semgrep:
     runs-on: ubuntu-latest

@@ -88,6 +88,13 @@ use a PostGIS-enabled image (e.g., `postgis/postgis:16-3.5-alpine`), not plain p
 Migrations are a separate step: `motus db-migrate` (uses goose). In docker-compose, this
 runs as a oneshot init container before the main service starts.
 
+### The go.mod `go` directive pins the CI toolchain
+All workflows use `setup-go` with `go-version-file: go.mod`, so the `go` directive
+selects the **exact** toolchain CI builds with. Keep it at the latest patch release
+(e.g. `go 1.26.4`, not `go 1.26.0`) — otherwise the Security workflow's govulncheck
+fails on already-patched Go standard library CVEs, and release binaries ship the
+vulnerable stdlib.
+
 ### Pre-commit hooks run Go tests (short mode)
 `.pre-commit-config.yaml` runs `go test -short`, `go vet`, `go fmt`, `golangci-lint`, and
 a `generate-check` hook. The `-short` flag skips integration tests that need Docker
@@ -123,6 +130,11 @@ The motus binary is at `/motus` (not `/app/motus`). ENTRYPOINT is `["/motus"]`, 
   refuses to start without it. Generate with `openssl rand -hex 32`. All pods in a
   multi-pod deployment must share the same secret. Development mode (`MOTUS_ENV=development`)
   allows an empty secret and falls back to a per-restart random key.
+- Session-expiry redirects carry `?returnTo=<path>`; the login page navigates there
+  after auth. **Any** redirect-target logic in the frontend must go through
+  `sanitizeReturnTo` in `web/src/lib/utils/returnTo.ts` — it is the open-redirect
+  guard (rejects `//host`, backslashes, absolute URLs, schemes). The OIDC callback
+  does not honor `returnTo` (would need threading through the OIDC state record).
 
 ### H02 relay requires numeric-only device IMEIs
 The H02 protocol server supports an optional relay mode (`MOTUS_GPS_H02_RELAY_TARGET`)
@@ -155,6 +167,13 @@ by email **only when the IdP asserts `email_verified`** (boolean `true` or strin
 `MOTUS_OIDC_TRUST_UNVERIFIED_EMAIL=true` only if the IdP is known to verify email
 addresses; otherwise an attacker-controlled IdP account with a victim's address
 could take over the local account.
+
+### Demo accounts are write-protected
+When demo mode is enabled, `demo.IsDemoAccount(email)` blocks profile and user
+modification (`"demo accounts cannot be modified"`). On the dev K8s instance even
+`admin@motus.local` counts as a demo account — to exercise flows like password
+change, create a throwaway user first (`POST /api/users` as admin) and delete it
+afterwards.
 
 ### Demo device cleanup uses configured IMEIs
 `demo.Reset()` accepts a `deviceIMEIs []string` parameter and uses `unique_id = ANY($1)`
@@ -262,6 +281,11 @@ func TestMyHandler_NewBehaviour(t *testing.T) {
 #### SvelteKit Frontend
 
 - **Unit tests**: Vitest + jsdom + `@testing-library/svelte` in `web/src/tests/`.
+- **Component tests**: rendering Svelte components in Vitest works via the
+  `svelteTesting()` plugin in `web/vite.config.ts` (without it, the Svelte server
+  build is resolved and `render()` fails with `lifecycle_function_unavailable`).
+  See `web/src/tests/modal-focus.test.ts` + `helpers/ModalFocusHost.svelte` for the
+  pattern (host component for slot-based testing).
 - **E2E tests**: Playwright in `web/tests/e2e/` with page objects in `web/tests/page-objects/`.
 - **Mocking**: `vi.mock()` for API client, stores, and SvelteKit modules (`$app/environment`, etc.).
 - **Run unit tests**: `cd web && npm run test:unit`
@@ -306,9 +330,30 @@ make lint                     # All linters
 
 | Workflow | Trigger | What it does |
 |----------|---------|--------------|
-| `test.yml` (Unit Tests) | push to master, PRs | `go test -race ./...` + Codecov |
-| `e2e.yml` (E2E Tests) | push to master, PRs | Docker Compose stack → Playwright |
-| `commit-lint.yml` | PRs only | Commitlint on PR commits |
+| `test.yaml` (Unit Tests) | push to master, PRs | `go test -race ./...` + Codecov |
+| `e2e.yaml` (E2E Tests) | push to master, PRs | Docker Compose stack → Playwright |
+| `commit-lint.yaml` | PRs only | Commitlint on PR commits |
+| `security.yaml` (Security) | push to master, PRs | gosec, govulncheck, semgrep |
+| CodeQL (GitHub default setup) | PRs | `Analyze (go/javascript-typescript/actions)` checks |
+
+CodeQL default-setup checks occasionally fail with GitHub-side
+"Requires authentication" errors during SARIF upload/init. These runs cannot be
+re-run via `gh run rerun` — push an empty commit to re-trigger.
+
+### Security scanning conventions
+
+- gosec and govulncheck are **go.mod `tool` directives** (like ogen) and are invoked
+  as `go tool gosec` / `go tool govulncheck` — manage versions in go.mod, not in the
+  workflow. semgrep is pinned in `security.yaml` (`pipx install semgrep==<version>`).
+- Standalone gosec honors `#nosec G<rule>` comments, **not** `//nolint:gosec`
+  (golangci-lint is the reverse). Per-line false positives get inline `#nosec` /
+  `nosemgrep: <full-rule-id>` comments with a `--` justification.
+- Excluded wholesale, with reasons in `security.yaml`: gosec `G124` and semgrep
+  `cookie-missing-secure` (the cookie `Secure` flag is intentionally conditional on
+  `MOTUS_ENV` via `isSecureEnvironment()`; HttpOnly/SameSite are always set).
+- Path excludes live in `.semgrepignore` (generated `internal/api/oas/`, demo
+  tooling, `*_test.go`, `web/build/`). Note: when `.semgrepignore` exists, semgrep's
+  built-in default ignores are replaced — keep `.git/`, `node_modules/` listed.
 
 ## E2E Test Patterns
 

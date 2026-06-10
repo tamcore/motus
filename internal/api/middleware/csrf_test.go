@@ -294,9 +294,11 @@ func TestCSRF_POSTWithXAuthToken_InvalidSession_Rejected(t *testing.T) {
 	}
 }
 
-func TestCSRF_POSTWithXAuthToken_NilValidator_Exempt(t *testing.T) {
-	// When ValidateXAuthToken is nil (existing behaviour), any non-empty
-	// X-Auth-Token grants the CSRF exemption without a session lookup.
+func TestCSRF_POSTWithXAuthToken_NilValidator_NotExempt(t *testing.T) {
+	// When ValidateXAuthToken is nil, the X-Auth-Token header must NOT grant
+	// a CSRF exemption: failing open would let any client skip CSRF checks
+	// by sending an arbitrary header value if the validator is ever left
+	// unconfigured.
 	mw := csrfMiddleware() // nil ValidateXAuthToken
 	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -307,8 +309,8 @@ func TestCSRF_POSTWithXAuthToken_NilValidator_Exempt(t *testing.T) {
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusOK {
-		t.Errorf("POST with X-Auth-Token and nil validator: expected 200, got %d", rr.Code)
+	if rr.Code != http.StatusForbidden {
+		t.Errorf("POST with X-Auth-Token and nil validator: expected 403, got %d", rr.Code)
 	}
 }
 

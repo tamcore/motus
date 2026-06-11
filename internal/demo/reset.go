@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/tamcore/motus/internal/storage/repository"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -239,13 +240,16 @@ func Reset(ctx context.Context, pool *pgxpool.Pool, accounts []DemoAccount, devi
 			token = acct.Email[:idx]
 		}
 
+		// Store the hashed token so it matches what GetByToken looks up
+		// (the lookup hashes the supplied token); storing plaintext here
+		// would make the legacy ?token= login silently fail.
 		var userID int64
 		err = tx.QueryRow(ctx,
 			`INSERT INTO users (email, password_hash, name, role, token)
 			 VALUES ($1, $2, $3, $4, $5)
 			 ON CONFLICT (email) DO UPDATE SET password_hash = $2, name = $3, role = $4, token = $5
 			 RETURNING id`,
-			acct.Email, string(hash), acct.Name, acct.Role, token, // token = username part (demo@motus.local → "demo")
+			acct.Email, string(hash), acct.Name, acct.Role, repository.HashToken(token), // token = username part (demo@motus.local → "demo")
 		).Scan(&userID)
 		if err != nil {
 			return nil, fmt.Errorf("upsert user %s: %w", acct.Email, err)
@@ -273,7 +277,7 @@ func Reset(ctx context.Context, pool *pgxpool.Pool, accounts []DemoAccount, devi
 		_, err = tx.Exec(ctx,
 			`INSERT INTO api_keys (user_id, token, name, permissions)
 			 VALUES ($1, $2, $3, 'readonly')`,
-			userID, token, acct.Name+" API Key",
+			userID, repository.HashToken(token), acct.Name+" API Key",
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create readonly api key for %s: %w", acct.Email, err)

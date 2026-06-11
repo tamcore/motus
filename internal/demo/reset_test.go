@@ -9,6 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/tamcore/motus/internal/demo"
+	"github.com/tamcore/motus/internal/storage/repository"
 	"github.com/tamcore/motus/internal/storage/repository/testutil"
 )
 
@@ -67,13 +68,18 @@ func TestReset_CreatesAllResources(t *testing.T) {
 		  AND permissions = 'full'
 	`, 0)
 
-	// Verify demo token matches the username part of the email.
+	// Verify the demo tokens are stored hashed (matching GetByToken lookups),
+	// derived from the username part of the email.
 	assertRowCount(t, pool, `
-		SELECT COUNT(*) FROM api_keys WHERE token = 'demo' AND permissions = 'readonly'
-	`, 1)
+		SELECT COUNT(*) FROM api_keys WHERE token = $1 AND permissions = 'readonly'
+	`, 1, repository.HashToken("demo"))
 	assertRowCount(t, pool, `
-		SELECT COUNT(*) FROM api_keys WHERE token = 'admin' AND permissions = 'readonly'
-	`, 1)
+		SELECT COUNT(*) FROM api_keys WHERE token = $1 AND permissions = 'readonly'
+	`, 1, repository.HashToken("admin"))
+	// And the plaintext form must NOT be present (regression guard).
+	assertRowCount(t, pool, `
+		SELECT COUNT(*) FROM api_keys WHERE token IN ('demo', 'admin')
+	`, 0)
 
 	// Verify user-geofence associations (only demo user, not admin).
 	assertRowCount(t, pool, `

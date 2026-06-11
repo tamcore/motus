@@ -20,3 +20,9 @@ func hashToken(raw string) string {
 	h := argon2.IDKey([]byte(raw), []byte(tokenHashSalt), tokenHashTime, tokenHashMemory, tokenHashThreads, tokenHashLen)
 	return hex.EncodeToString(h)
 }
+
+// HashToken exposes hashToken for callers that seed token columns directly
+// (e.g. demo data reset), so the stored value matches what GetByToken looks up.
+func HashToken(raw string) string {
+	return hashToken(raw)
+}

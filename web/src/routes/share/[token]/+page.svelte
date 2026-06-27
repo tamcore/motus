@@ -421,7 +421,7 @@
 		await leafletMap.initialize(mapContainer, {
 			center: [51.505, -0.09],
 			zoom: 13,
-			tileAttribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+			tileAttribution: '&copy; <a href="https://www.bkg.bund.de">BKG</a> TopPlusOpen',
 		});
 
 		const L = leafletMap.getLeaflet()!;

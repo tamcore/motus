@@ -357,10 +357,13 @@
 
 		L.control.zoom({ position: 'topright' }).addTo(map);
 
-		L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-			attribution: '&copy; OpenStreetMap contributors',
-			maxZoom: 19
-		}).addTo(map);
+		L.tileLayer(
+			'https://sgx.geodatenzentrum.de/wmts_topplus_open/tile/1.0.0/web/default/WEBMERCATOR/{z}/{y}/{x}.png',
+			{
+				attribution: '&copy; <a href="https://www.bkg.bund.de">BKG</a> TopPlusOpen',
+				maxZoom: 18
+			}
+		).addTo(map);
 
 		drawnItems = new L.FeatureGroup().addTo(map);
 

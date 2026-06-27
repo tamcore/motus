@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/didip/tollbooth/v7"
-	"github.com/didip/tollbooth/v7/limiter"
+	"github.com/didip/tollbooth/v8"
+	"github.com/didip/tollbooth/v8/limiter"
 )
 
 // RateLimitConfig holds rate limiting parameters.

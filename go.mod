@@ -6,7 +6,7 @@ require (
 	github.com/alicebob/miniredis/v2 v2.38.0
 	github.com/arran4/golang-ical v0.3.4
 	github.com/coreos/go-oidc/v3 v3.17.0
-	github.com/didip/tollbooth/v7 v7.0.2
+	github.com/didip/tollbooth/v8 v8.0.1
 	github.com/go-chi/chi/v5 v5.2.5
 	github.com/go-faster/errors v0.7.1
 	github.com/go-faster/jx v1.2.0

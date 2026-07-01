@@ -129,7 +129,7 @@ func TestRedisLoginRateLimit_DifferentIPsAreIndependent(t *testing.T) {
 	_ = client.FlushDB(context.Background())
 
 	// Exhaust ip1.
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		req := httptest.NewRequest(http.MethodPost, "/api/session", nil)
 		req.RemoteAddr = "10.0.1.1:1234"
 		rr := httptest.NewRecorder()

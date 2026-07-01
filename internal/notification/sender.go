@@ -154,7 +154,7 @@ func (s *Sender) sendWebhook(ctx context.Context, rule *model.NotificationRule, 
 	req.Header.Set("Content-Type", "application/json")
 
 	// Apply custom headers from config.
-	if headers, ok := rule.Config["headers"].(map[string]interface{}); ok {
+	if headers, ok := rule.Config["headers"].(map[string]any); ok {
 		for key, value := range headers {
 			if strVal, ok := value.(string); ok {
 				req.Header.Set(key, strVal)

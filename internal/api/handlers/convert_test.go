@@ -11,8 +11,6 @@ import (
 	"github.com/tamcore/motus/internal/model"
 )
 
-func ptr[T any](v T) *T { return &v }
-
 func TestRawToAttrs(t *testing.T) {
 	raw := map[string]jx.Raw{
 		"foo": jx.Raw(`"bar"`),
@@ -34,7 +32,7 @@ func TestRawToAttrs_Nil(t *testing.T) {
 }
 
 func TestAttrsToRaw(t *testing.T) {
-	attrs := map[string]interface{}{"key": "value", "n": float64(7)}
+	attrs := map[string]any{"key": "value", "n": float64(7)}
 	raw := attrsToRaw(attrs)
 	if string(raw["key"]) != `"value"` {
 		t.Errorf("key = %s, want %q", raw["key"], `"value"`)
@@ -63,7 +61,7 @@ func TestPtrToOptStr(t *testing.T) {
 	if o := ptrToOptStr(nil); !o.Set || !o.Null {
 		t.Errorf("nil ptr should be {Set:true Null:true}, got %+v", o)
 	}
-	if o := ptrToOptStr(ptr("x")); !o.Set || o.Null || o.Value != "x" {
+	if o := ptrToOptStr(new("x")); !o.Set || o.Null || o.Value != "x" {
 		t.Errorf("got %+v, want {Value:x Set:true}", o)
 	}
 }
@@ -72,7 +70,7 @@ func TestPtrToOptInt64(t *testing.T) {
 	if o := ptrToOptInt64(nil); !o.Set || !o.Null {
 		t.Errorf("nil should be null, got %+v", o)
 	}
-	if o := ptrToOptInt64(ptr(int64(99))); !o.Set || o.Null || o.Value != 99 {
+	if o := ptrToOptInt64(new(int64(99))); !o.Set || o.Null || o.Value != 99 {
 		t.Errorf("got %+v, want {Value:99 Set:true}", o)
 	}
 }
@@ -91,7 +89,7 @@ func TestDerefFloat64(t *testing.T) {
 	if derefFloat64(nil) != 0 {
 		t.Error("nil should return 0")
 	}
-	if derefFloat64(ptr(3.14)) != 3.14 {
+	if derefFloat64(new(3.14)) != 3.14 {
 		t.Error("should return pointed-to value")
 	}
 }
@@ -104,9 +102,9 @@ func TestDeviceToOAS(t *testing.T) {
 		Name:       "Tracker",
 		Status:     "online",
 		Disabled:   false,
-		PositionID: ptr(int64(7)),
-		Phone:      ptr("555-1234"),
-		Attributes: map[string]interface{}{"color": "red"},
+		PositionID: new(int64(7)),
+		Phone:      new("555-1234"),
+		Attributes: map[string]any{"color": "red"},
 		CreatedAt:  now,
 		UpdatedAt:  now,
 	}
@@ -153,7 +151,7 @@ func TestUserToOAS(t *testing.T) {
 }
 
 func TestPositionAttrsToOAS(t *testing.T) {
-	attrs := map[string]interface{}{
+	attrs := map[string]any{
 		"motion":     true,
 		"ignition":   false,
 		"flags":      "0x0001",
@@ -194,7 +192,7 @@ func TestPositionAttrsToOAS(t *testing.T) {
 }
 
 func TestPositionAttrsToOAS_Empty(t *testing.T) {
-	got := positionAttrsToOAS(map[string]interface{}{})
+	got := positionAttrsToOAS(map[string]any{})
 	if got.Motion.Set || got.Ignition.Set || got.Satellites.Set {
 		t.Error("empty attrs should produce zero-value struct")
 	}
@@ -212,12 +210,12 @@ func TestPositionToOAS(t *testing.T) {
 		Valid:      true,
 		Latitude:   48.1,
 		Longitude:  11.5,
-		Altitude:   ptr(500.0),
-		Speed:      ptr(30.0),
-		Course:     ptr(90.0),
-		Address:    ptr("Main St"),
+		Altitude:   new(500.0),
+		Speed:      new(30.0),
+		Course:     new(90.0),
+		Address:    new("Main St"),
 		Accuracy:   5.0,
-		Attributes: map[string]interface{}{},
+		Attributes: map[string]any{},
 	}
 	got := positionToOAS(p)
 	if got.Altitude != 500.0 {
@@ -233,7 +231,7 @@ func TestPositionToOAS_NilPointers(t *testing.T) {
 		ID:         1,
 		DeviceID:   2,
 		Timestamp:  time.Now(),
-		Attributes: map[string]interface{}{},
+		Attributes: map[string]any{},
 	}
 	got := positionToOAS(p)
 	if got.Altitude != 0 || got.Speed != 0 || got.Course != 0 {
@@ -300,7 +298,7 @@ func TestGeofenceToOAS(t *testing.T) {
 		Description: "test zone",
 		Area:        "POLYGON((0 0,1 0,1 1,0 1,0 0))",
 		Geometry:    `{"type":"Polygon","coordinates":[]}`,
-		CalendarID:  ptr(int64(2)),
+		CalendarID:  new(int64(2)),
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
@@ -321,7 +319,7 @@ func TestCommandToOAS(t *testing.T) {
 		Type:       "custom",
 		Status:     "pending",
 		CreatedAt:  now,
-		Attributes: map[string]interface{}{"text": "AT+GPSON"},
+		Attributes: map[string]any{"text": "AT+GPSON"},
 	}
 	got := commandToOAS(c)
 	if got.Type != "custom" {
@@ -359,7 +357,7 @@ func TestEventToOAS(t *testing.T) {
 		ID:         9,
 		DeviceID:   3,
 		Type:       "geofenceEnter",
-		GeofenceID: ptr(int64(7)),
+		GeofenceID: new(int64(7)),
 		Timestamp:  now,
 	}
 	got := eventToOAS(e)
@@ -375,7 +373,7 @@ func TestEventToOAS(t *testing.T) {
 }
 
 func TestBuildEventAttributes_Ignition(t *testing.T) {
-	attrs := map[string]interface{}{"ignition": true}
+	attrs := map[string]any{"ignition": true}
 	got := buildEventAttributes("ignitionOn", attrs)
 	if !got.Set {
 		t.Fatal("expected Attributes to be set")
@@ -390,7 +388,7 @@ func TestBuildEventAttributes_Ignition(t *testing.T) {
 }
 
 func TestBuildEventAttributes_Alarm(t *testing.T) {
-	attrs := map[string]interface{}{"alarm": "sos"}
+	attrs := map[string]any{"alarm": "sos"}
 	got := buildEventAttributes("alarm", attrs)
 	if !got.Set || !got.Value.IsEventAttrAlarm() {
 		t.Fatal("expected EventAttrAlarm variant set")
@@ -402,7 +400,7 @@ func TestBuildEventAttributes_Alarm(t *testing.T) {
 }
 
 func TestBuildEventAttributes_Motion(t *testing.T) {
-	attrs := map[string]interface{}{"speed": 60.0, "previousSpeed": 0.0}
+	attrs := map[string]any{"speed": 60.0, "previousSpeed": 0.0}
 	got := buildEventAttributes("motion", attrs)
 	if !got.Set || !got.Value.IsEventAttrMotion() {
 		t.Fatal("expected EventAttrMotion variant set")
@@ -414,7 +412,7 @@ func TestBuildEventAttributes_Motion(t *testing.T) {
 }
 
 func TestBuildEventAttributes_Trip(t *testing.T) {
-	attrs := map[string]interface{}{"distance": 1234.5, "mileage": 50000.0}
+	attrs := map[string]any{"distance": 1234.5, "mileage": 50000.0}
 	got := buildEventAttributes("tripCompleted", attrs)
 	if !got.Set || !got.Value.IsEventAttrTrip() {
 		t.Fatal("expected EventAttrTrip variant set")
@@ -426,7 +424,7 @@ func TestBuildEventAttributes_Trip(t *testing.T) {
 }
 
 func TestBuildEventAttributes_Idle(t *testing.T) {
-	attrs := map[string]interface{}{"idleDuration": 15.5}
+	attrs := map[string]any{"idleDuration": 15.5}
 	got := buildEventAttributes("deviceIdle", attrs)
 	if !got.Set || !got.Value.IsEventAttrIdle() {
 		t.Fatal("expected EventAttrIdle variant set")
@@ -438,7 +436,7 @@ func TestBuildEventAttributes_Idle(t *testing.T) {
 }
 
 func TestBuildEventAttributes_Unknown(t *testing.T) {
-	got := buildEventAttributes("unknownType", map[string]interface{}{"foo": "bar"})
+	got := buildEventAttributes("unknownType", map[string]any{"foo": "bar"})
 	if got.Set {
 		t.Error("unknown event type should produce unset OptEventAttributes")
 	}
@@ -474,11 +472,11 @@ func TestAuditEntryToOAS(t *testing.T) {
 	e := audit.Entry{
 		ID:           1,
 		Timestamp:    now,
-		UserID:       ptr(int64(5)),
+		UserID:       new(int64(5)),
 		Action:       "user.create",
-		ResourceType: ptr("user"),
-		ResourceID:   ptr(int64(10)),
-		IPAddress:    ptr("192.168.1.1"),
+		ResourceType: new("user"),
+		ResourceID:   new(int64(10)),
+		IPAddress:    new("192.168.1.1"),
 	}
 	got := auditEntryToOAS(e)
 	if got.UserId != 5 {
@@ -515,9 +513,9 @@ func TestNotificationRuleToOAS_Webhook(t *testing.T) {
 		Name:       "My Webhook",
 		EventTypes: []string{"geofenceEnter"},
 		Channel:    "webhook",
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"webhookUrl": "https://example.com/hook",
-			"headers":    map[string]interface{}{"X-Token": "abc"},
+			"headers":    map[string]any{"X-Token": "abc"},
 		},
 		Template:  "{{.Type}}",
 		Enabled:   true,
@@ -593,7 +591,7 @@ func TestBuildAuditMetadata_Unknown(t *testing.T) {
 }
 
 func TestBuildAuditMetadata_SessionLogin(t *testing.T) {
-	got := buildAuditMetadata("session.login", map[string]interface{}{"email": "user@example.com"})
+	got := buildAuditMetadata("session.login", map[string]any{"email": "user@example.com"})
 	if !got.Set || !got.Value.IsAuditMetaSessionLogin() {
 		t.Fatal("expected AuditMetaSessionLogin variant")
 	}
@@ -604,7 +602,7 @@ func TestBuildAuditMetadata_SessionLogin(t *testing.T) {
 }
 
 func TestBuildAuditMetadata_SessionLoginFailed(t *testing.T) {
-	got := buildAuditMetadata("session.login_failed", map[string]interface{}{
+	got := buildAuditMetadata("session.login_failed", map[string]any{
 		"email": "bad@example.com", "reason": "wrong_password",
 	})
 	if !got.Set || !got.Value.IsAuditMetaSessionLoginFailed() {
@@ -618,7 +616,7 @@ func TestBuildAuditMetadata_SessionLoginFailed(t *testing.T) {
 
 func TestBuildAuditMetadata_SessionSudo(t *testing.T) {
 	for _, action := range []string{"session.sudo", "session.sudo_end"} {
-		got := buildAuditMetadata(action, map[string]interface{}{
+		got := buildAuditMetadata(action, map[string]any{
 			"adminEmail": "admin@example.com", "targetEmail": "target@example.com",
 		})
 		if !got.Set || !got.Value.IsAuditMetaSessionSudo() {
@@ -632,7 +630,7 @@ func TestBuildAuditMetadata_SessionSudo(t *testing.T) {
 }
 
 func TestBuildAuditMetadata_SessionRevoke_Bulk(t *testing.T) {
-	got := buildAuditMetadata("session.revoke", map[string]interface{}{"scope": "all_other_sessions"})
+	got := buildAuditMetadata("session.revoke", map[string]any{"scope": "all_other_sessions"})
 	if !got.Set || !got.Value.IsAuditMetaSessionRevoke() {
 		t.Fatal("expected AuditMetaSessionRevoke variant")
 	}
@@ -646,7 +644,7 @@ func TestBuildAuditMetadata_SessionRevoke_Bulk(t *testing.T) {
 }
 
 func TestBuildAuditMetadata_SessionRevoke_Specific(t *testing.T) {
-	got := buildAuditMetadata("session.revoke", map[string]interface{}{
+	got := buildAuditMetadata("session.revoke", map[string]any{
 		"revokedSessionId": "abc123", "sessionOwnerUserId": float64(42),
 	})
 	if !got.Set || !got.Value.IsAuditMetaSessionRevoke() {
@@ -662,7 +660,7 @@ func TestBuildAuditMetadata_SessionRevoke_Specific(t *testing.T) {
 }
 
 func TestBuildAuditMetadata_UserCreate(t *testing.T) {
-	got := buildAuditMetadata("user.create", map[string]interface{}{"email": "new@example.com", "role": "user"})
+	got := buildAuditMetadata("user.create", map[string]any{"email": "new@example.com", "role": "user"})
 	if !got.Set || !got.Value.IsAuditMetaUserCreate() {
 		t.Fatal("expected AuditMetaUserCreate variant")
 	}
@@ -673,7 +671,7 @@ func TestBuildAuditMetadata_UserCreate(t *testing.T) {
 }
 
 func TestBuildAuditMetadata_UserUpdate(t *testing.T) {
-	got := buildAuditMetadata("user.update", map[string]interface{}{
+	got := buildAuditMetadata("user.update", map[string]any{
 		"email": "user@example.com", "oldEmail": "old@example.com", "newEmail": "new@example.com",
 		"oldRole": "user", "newRole": "admin",
 	})
@@ -693,7 +691,7 @@ func TestBuildAuditMetadata_UserUpdate(t *testing.T) {
 }
 
 func TestBuildAuditMetadata_DeviceCreate(t *testing.T) {
-	got := buildAuditMetadata("device.create", map[string]interface{}{"name": "Truck 1", "uniqueId": "IMEI123"})
+	got := buildAuditMetadata("device.create", map[string]any{"name": "Truck 1", "uniqueId": "IMEI123"})
 	if !got.Set || !got.Value.IsAuditMetaDeviceCreate() {
 		t.Fatal("expected AuditMetaDeviceCreate variant")
 	}
@@ -704,7 +702,7 @@ func TestBuildAuditMetadata_DeviceCreate(t *testing.T) {
 }
 
 func TestBuildAuditMetadata_DeviceAssign_UserId(t *testing.T) {
-	got := buildAuditMetadata("device.assign", map[string]interface{}{"userId": float64(7)})
+	got := buildAuditMetadata("device.assign", map[string]any{"userId": float64(7)})
 	if !got.Set || !got.Value.IsAuditMetaDeviceAssign() {
 		t.Fatal("expected AuditMetaDeviceAssign variant")
 	}
@@ -716,7 +714,7 @@ func TestBuildAuditMetadata_DeviceAssign_UserId(t *testing.T) {
 
 func TestBuildAuditMetadata_DeviceUnassign_TargetUserId(t *testing.T) {
 	// Fallback key "targetUserId" used by the old handler.
-	got := buildAuditMetadata("device.unassign", map[string]interface{}{"targetUserId": float64(9)})
+	got := buildAuditMetadata("device.unassign", map[string]any{"targetUserId": float64(9)})
 	if !got.Set || !got.Value.IsAuditMetaDeviceAssign() {
 		t.Fatal("expected AuditMetaDeviceAssign variant")
 	}
@@ -727,7 +725,7 @@ func TestBuildAuditMetadata_DeviceUnassign_TargetUserId(t *testing.T) {
 }
 
 func TestBuildAuditMetadata_GpxImport(t *testing.T) {
-	got := buildAuditMetadata("device.gpx_import", map[string]interface{}{"deviceId": float64(3), "positions": float64(150)})
+	got := buildAuditMetadata("device.gpx_import", map[string]any{"deviceId": float64(3), "positions": float64(150)})
 	if !got.Set || !got.Value.IsAuditMetaDeviceGpxImport() {
 		t.Fatal("expected AuditMetaDeviceGpxImport variant")
 	}
@@ -739,7 +737,7 @@ func TestBuildAuditMetadata_GpxImport(t *testing.T) {
 
 func TestBuildAuditMetadata_NamedResource(t *testing.T) {
 	for _, action := range []string{"geofence.create", "geofence.update", "calendar.create", "calendar.update"} {
-		got := buildAuditMetadata(action, map[string]interface{}{"name": "Home Zone"})
+		got := buildAuditMetadata(action, map[string]any{"name": "Home Zone"})
 		if !got.Set || !got.Value.IsAuditMetaNamedResource() {
 			t.Errorf("action %s: expected AuditMetaNamedResource variant", action)
 			continue
@@ -752,8 +750,8 @@ func TestBuildAuditMetadata_NamedResource(t *testing.T) {
 }
 
 func TestBuildAuditMetadata_NotificationRule(t *testing.T) {
-	details := map[string]interface{}{
-		"name": "Speed Alert", "eventTypes": []interface{}{"geofenceEnter", "alarm"}, "channel": "webhook",
+	details := map[string]any{
+		"name": "Speed Alert", "eventTypes": []any{"geofenceEnter", "alarm"}, "channel": "webhook",
 	}
 	got := buildAuditMetadata("notification.create", details)
 	if !got.Set || !got.Value.IsAuditMetaNotificationRule() {
@@ -769,7 +767,7 @@ func TestBuildAuditMetadata_NotificationRule(t *testing.T) {
 }
 
 func TestBuildAuditMetadata_NotifDelivery_Sent(t *testing.T) {
-	details := map[string]interface{}{
+	details := map[string]any{
 		"ruleName": "Speed Alert", "eventType": "alarm", "channel": "webhook",
 		"deviceId": float64(5), "responseCode": float64(200),
 	}
@@ -787,7 +785,7 @@ func TestBuildAuditMetadata_NotifDelivery_Sent(t *testing.T) {
 }
 
 func TestBuildAuditMetadata_NotifDelivery_Failed(t *testing.T) {
-	details := map[string]interface{}{
+	details := map[string]any{
 		"ruleName": "Speed Alert", "eventType": "alarm", "channel": "webhook",
 		"deviceId": float64(5), "error": "connection refused",
 	}
@@ -802,7 +800,7 @@ func TestBuildAuditMetadata_NotifDelivery_Failed(t *testing.T) {
 }
 
 func TestBuildAuditMetadata_ApiKeyCreate(t *testing.T) {
-	got := buildAuditMetadata("apikey.create", map[string]interface{}{"name": "CI Key", "permissions": "read"})
+	got := buildAuditMetadata("apikey.create", map[string]any{"name": "CI Key", "permissions": "read"})
 	if !got.Set || !got.Value.IsAuditMetaApiKeyCreate() {
 		t.Fatal("expected AuditMetaApiKeyCreate variant")
 	}
@@ -813,7 +811,7 @@ func TestBuildAuditMetadata_ApiKeyCreate(t *testing.T) {
 }
 
 func TestBuildAuditMetadata_ApiKeyDelete(t *testing.T) {
-	got := buildAuditMetadata("apikey.delete", map[string]interface{}{"name": "Old Key", "keyOwnerUserId": float64(11)})
+	got := buildAuditMetadata("apikey.delete", map[string]any{"name": "Old Key", "keyOwnerUserId": float64(11)})
 	if !got.Set || !got.Value.IsAuditMetaApiKeyDelete() {
 		t.Fatal("expected AuditMetaApiKeyDelete variant")
 	}
@@ -825,7 +823,7 @@ func TestBuildAuditMetadata_ApiKeyDelete(t *testing.T) {
 
 func TestBuildAuditMetadata_Share(t *testing.T) {
 	for _, action := range []string{"share.create", "share.delete"} {
-		got := buildAuditMetadata(action, map[string]interface{}{"deviceId": float64(8)})
+		got := buildAuditMetadata(action, map[string]any{"deviceId": float64(8)})
 		if !got.Set || !got.Value.IsAuditMetaShare() {
 			t.Errorf("action %s: expected AuditMetaShare variant", action)
 			continue
@@ -838,7 +836,7 @@ func TestBuildAuditMetadata_Share(t *testing.T) {
 }
 
 func TestBuildAuditMetadata_CommandSend(t *testing.T) {
-	got := buildAuditMetadata("command.send", map[string]interface{}{
+	got := buildAuditMetadata("command.send", map[string]any{
 		"commandType": "custom", "commandStatus": "sent", "deviceName": "Truck 1",
 	})
 	if !got.Set || !got.Value.IsAuditMetaCommandSend() {
@@ -862,7 +860,7 @@ func TestBuildAuditMetadata_AuditEntryToOAS(t *testing.T) {
 		Action:       "session.login",
 		ResourceType: &resType,
 		ResourceID:   &resID,
-		Details:      map[string]interface{}{"email": "user@example.com"},
+		Details:      map[string]any{"email": "user@example.com"},
 		IPAddress:    &ip,
 		Timestamp:    now,
 	}

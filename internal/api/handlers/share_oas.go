@@ -64,7 +64,7 @@ func (h *Handler) CreateShare(ctx context.Context, req oas.OptCreateShareRequest
 
 	if h.cfg.AuditLogger != nil {
 		h.cfg.AuditLogger.Log(ctx, &user.ID, audit.ActionShareCreate, audit.ResourceShare, &share.ID,
-			map[string]interface{}{"deviceId": params.ID}, "", "")
+			map[string]any{"deviceId": params.ID}, "", "")
 	}
 
 	result := deviceShareToOAS(share)
@@ -94,7 +94,7 @@ func (h *Handler) DeleteShare(ctx context.Context, params oas.DeleteShareParams)
 
 	if h.cfg.AuditLogger != nil {
 		h.cfg.AuditLogger.Log(ctx, &user.ID, audit.ActionShareDelete, audit.ResourceShare, &params.ID,
-			map[string]interface{}{"deviceId": share.DeviceID}, "", "")
+			map[string]any{"deviceId": share.DeviceID}, "", "")
 	}
 
 	return &oas.DeleteShareNoContent{}, nil

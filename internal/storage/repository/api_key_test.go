@@ -580,7 +580,7 @@ func TestApiKeyRepository_UniqueTokens(t *testing.T) {
 
 	// Create multiple keys and verify they all have different tokens.
 	tokens := make(map[string]bool)
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		key := &model.ApiKey{
 			UserID:      user.ID,
 			Name:        "Key",

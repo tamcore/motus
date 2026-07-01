@@ -20,7 +20,7 @@ func TestBackoff_ExponentialGrowth(t *testing.T) {
 
 	// Collect delays and verify exponential growth.
 	var delays []time.Duration
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		delays = append(delays, b.next())
 		b.increment()
 	}
@@ -37,7 +37,7 @@ func TestBackoff_CapsAtMaximum(t *testing.T) {
 	b := newBackoff()
 
 	// Increment many times past the cap.
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		b.increment()
 	}
 
@@ -50,7 +50,7 @@ func TestBackoff_CapsAtMaximum(t *testing.T) {
 func TestBackoff_Reset(t *testing.T) {
 	b := newBackoff()
 	// Increment several times.
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		b.increment()
 	}
 	// Verify it grew.
@@ -333,7 +333,7 @@ func TestConnectWithBackoff_ResetsBackoffOnSuccess(t *testing.T) {
 
 	// Pre-increment backoff to simulate prior failures.
 	b := newBackoff()
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		b.increment()
 	}
 	if b.next() <= initialBackoff {
@@ -387,7 +387,7 @@ func TestBackoff_JitterRange(t *testing.T) {
 	b := newBackoff()
 
 	// Run many iterations to check jitter stays within bounds.
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		base := b.next()
 		jittered := b.withJitter()
 		// Jitter should be within [0.5*base, 1.5*base].

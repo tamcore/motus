@@ -83,7 +83,7 @@ func (r *GeofenceRepository) GetByID(ctx context.Context, id int64) (*model.Geof
 			slog.Warn("failed to unmarshal geofence attributes",
 				slog.Int64("geofenceID", g.ID),
 				slog.Any("error", err))
-			g.Attributes = make(map[string]interface{})
+			g.Attributes = make(map[string]any)
 		}
 	}
 	return &g, nil
@@ -115,7 +115,7 @@ func (r *GeofenceRepository) GetByUser(ctx context.Context, userID int64) ([]*mo
 				slog.Warn("failed to unmarshal geofence attributes",
 					slog.Int64("geofenceID", g.ID),
 					slog.Any("error", err))
-				g.Attributes = make(map[string]interface{})
+				g.Attributes = make(map[string]any)
 			}
 		}
 		geofences = append(geofences, &g)
@@ -147,7 +147,7 @@ func (r *GeofenceRepository) GetAll(ctx context.Context) ([]*model.Geofence, err
 				slog.Warn("failed to unmarshal geofence attributes",
 					slog.Int64("geofenceID", g.ID),
 					slog.Any("error", err))
-				g.Attributes = make(map[string]interface{})
+				g.Attributes = make(map[string]any)
 			}
 		}
 		geofences = append(geofences, &g)
@@ -184,7 +184,7 @@ func (r *GeofenceRepository) GetAllWithOwners(ctx context.Context) ([]*model.Geo
 				slog.Warn("failed to unmarshal geofence attributes",
 					slog.Int64("geofenceID", g.ID),
 					slog.Any("error", err))
-				g.Attributes = make(map[string]interface{})
+				g.Attributes = make(map[string]any)
 			}
 		}
 		geofences = append(geofences, &g)

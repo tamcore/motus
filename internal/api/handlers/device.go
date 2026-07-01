@@ -84,7 +84,7 @@ func (h *Handler) CreateDevice(ctx context.Context, req *oas.DeviceInput) (oas.C
 	}
 	h.cfg.AuditLogger.Log(ctx, &user.ID,
 		audit.ActionDeviceCreate, audit.ResourceDevice, &device.ID,
-		map[string]interface{}{"name": device.Name, "uniqueId": device.UniqueID},
+		map[string]any{"name": device.Name, "uniqueId": device.UniqueID},
 		"", "")
 	prefix := effectivePrefixCtx(ctx, h.cfg.UniqueIDPrefix)
 	model.ApplyUniqueIDPrefix([]*model.Device{device}, prefix)
@@ -146,7 +146,7 @@ func (h *Handler) UpdateDevice(ctx context.Context, req *oas.DeviceInput, params
 	}
 	h.cfg.AuditLogger.Log(ctx, &user.ID,
 		audit.ActionDeviceUpdate, audit.ResourceDevice, &device.ID,
-		map[string]interface{}{"name": device.Name},
+		map[string]any{"name": device.Name},
 		"", "")
 	prefix := effectivePrefixCtx(ctx, h.cfg.UniqueIDPrefix)
 	model.ApplyUniqueIDPrefix([]*model.Device{device}, prefix)
@@ -224,7 +224,7 @@ func (h *Handler) AdminAssignDevice(ctx context.Context, params oas.AdminAssignD
 	}
 	h.cfg.AuditLogger.Log(ctx, &admin.ID,
 		audit.ActionDeviceAssign, audit.ResourceDevice, &params.DeviceId,
-		map[string]interface{}{"userId": params.ID},
+		map[string]any{"userId": params.ID},
 		"", "")
 	return &oas.AdminAssignDeviceNoContent{}, nil
 }
@@ -245,7 +245,7 @@ func (h *Handler) AdminUnassignDevice(ctx context.Context, params oas.AdminUnass
 	}
 	h.cfg.AuditLogger.Log(ctx, &admin.ID,
 		audit.ActionDeviceUnassign, audit.ResourceDevice, &params.DeviceId,
-		map[string]interface{}{"userId": params.ID},
+		map[string]any{"userId": params.ID},
 		"", "")
 	return &oas.AdminUnassignDeviceNoContent{}, nil
 }

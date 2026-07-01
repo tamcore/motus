@@ -128,9 +128,9 @@ func newUserListCmd() *cobra.Command {
 
 			switch output {
 			case "json":
-				items := make([]map[string]interface{}, len(users))
+				items := make([]map[string]any, len(users))
 				for i, u := range users {
-					items[i] = map[string]interface{}{
+					items[i] = map[string]any{
 						"id":        u.ID,
 						"email":     u.Email,
 						"name":      u.Name,

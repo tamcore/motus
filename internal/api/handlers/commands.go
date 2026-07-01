@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"slices"
 
 	"github.com/tamcore/motus/internal/api"
 	oas "github.com/tamcore/motus/internal/api/oas"
@@ -11,12 +12,7 @@ import (
 
 // isValidCommandType checks if a command type is in the supported allowlist.
 func isValidCommandType(t string) bool {
-	for _, valid := range model.SupportedCommandTypes() {
-		if t == valid {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(model.SupportedCommandTypes(), t)
 }
 
 // --- ogen Handler methods ---
@@ -168,7 +164,7 @@ func (h *Handler) SendCommand(ctx context.Context, req *oas.SendCommandRequest) 
 	}
 
 	if h.cfg.AuditLogger != nil {
-		details := map[string]interface{}{
+		details := map[string]any{
 			"commandType":   cmd.Type,
 			"commandStatus": cmd.Status,
 			"deviceName":    device.Name,

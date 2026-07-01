@@ -149,7 +149,7 @@ func (s *MileageService) commitMileage(ctx context.Context, pos *model.Position,
 		Type:       "tripCompleted",
 		PositionID: &pos.ID,
 		Timestamp:  pos.Timestamp,
-		Attributes: map[string]interface{}{
+		Attributes: map[string]any{
 			"distance": tripDistance,
 			"mileage":  *device.Mileage,
 		},

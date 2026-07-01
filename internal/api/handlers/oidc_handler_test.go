@@ -475,16 +475,16 @@ func TestResolveOIDCUser_SetLinkFails_StillReturnsUser(t *testing.T) {
 func TestClaimBool(t *testing.T) {
 	tests := []struct {
 		name   string
-		claims map[string]interface{}
+		claims map[string]any
 		want   bool
 	}{
-		{"bool true", map[string]interface{}{"email_verified": true}, true},
-		{"bool false", map[string]interface{}{"email_verified": false}, false},
-		{"string true", map[string]interface{}{"email_verified": "true"}, true},
-		{"string false", map[string]interface{}{"email_verified": "false"}, false},
-		{"missing", map[string]interface{}{}, false},
+		{"bool true", map[string]any{"email_verified": true}, true},
+		{"bool false", map[string]any{"email_verified": false}, false},
+		{"string true", map[string]any{"email_verified": "true"}, true},
+		{"string false", map[string]any{"email_verified": "false"}, false},
+		{"missing", map[string]any{}, false},
 		{"nil claims", nil, false},
-		{"unrelated type", map[string]interface{}{"email_verified": 1}, false},
+		{"unrelated type", map[string]any{"email_verified": 1}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -504,27 +504,27 @@ func TestOidcIsAdminByFilter(t *testing.T) {
 		name      string
 		cfg       config.OIDCConfig
 		email     string
-		allClaims map[string]interface{}
+		allClaims map[string]any
 		wantAdmin bool
 	}{
 		{
 			name:      "no filters configured",
 			email:     "user@example.com",
-			allClaims: map[string]interface{}{},
+			allClaims: map[string]any{},
 			wantAdmin: false,
 		},
 		{
 			name:      "email regex matches",
 			cfg:       config.OIDCConfig{AdminEmailRegex: `@example\.com$`},
 			email:     "admin@example.com",
-			allClaims: map[string]interface{}{},
+			allClaims: map[string]any{},
 			wantAdmin: true,
 		},
 		{
 			name:      "email regex does not match",
 			cfg:       config.OIDCConfig{AdminEmailRegex: `@example\.com$`},
 			email:     "admin@other.com",
-			allClaims: map[string]interface{}{},
+			allClaims: map[string]any{},
 			wantAdmin: false,
 		},
 		{
@@ -534,7 +534,7 @@ func TestOidcIsAdminByFilter(t *testing.T) {
 				AdminClaim:      "role",
 				AdminClaimValue: "admin",
 			},
-			allClaims: map[string]interface{}{"role": "admin"},
+			allClaims: map[string]any{"role": "admin"},
 			wantAdmin: true,
 		},
 		{
@@ -544,7 +544,7 @@ func TestOidcIsAdminByFilter(t *testing.T) {
 				AdminClaim:      "role",
 				AdminClaimValue: "admin",
 			},
-			allClaims: map[string]interface{}{"role": "viewer"},
+			allClaims: map[string]any{"role": "viewer"},
 			wantAdmin: false,
 		},
 		{
@@ -554,8 +554,8 @@ func TestOidcIsAdminByFilter(t *testing.T) {
 				AdminClaim:      "groups",
 				AdminClaimValue: "motus-admin",
 			},
-			allClaims: map[string]interface{}{
-				"groups": []interface{}{"viewers", "motus-admin", "editors"},
+			allClaims: map[string]any{
+				"groups": []any{"viewers", "motus-admin", "editors"},
 			},
 			wantAdmin: true,
 		},
@@ -566,8 +566,8 @@ func TestOidcIsAdminByFilter(t *testing.T) {
 				AdminClaim:      "groups",
 				AdminClaimValue: "motus-admin",
 			},
-			allClaims: map[string]interface{}{
-				"groups": []interface{}{"viewers", "editors"},
+			allClaims: map[string]any{
+				"groups": []any{"viewers", "editors"},
 			},
 			wantAdmin: false,
 		},
@@ -578,7 +578,7 @@ func TestOidcIsAdminByFilter(t *testing.T) {
 				AdminClaim:      "groups",
 				AdminClaimValue: "motus-admin",
 			},
-			allClaims: map[string]interface{}{},
+			allClaims: map[string]any{},
 			wantAdmin: false,
 		},
 		{
@@ -589,7 +589,7 @@ func TestOidcIsAdminByFilter(t *testing.T) {
 				AdminClaim:      "groups",
 				AdminClaimValue: "motus-admin",
 			},
-			allClaims: map[string]interface{}{"groups": []interface{}{"viewers"}},
+			allClaims: map[string]any{"groups": []any{"viewers"}},
 			wantAdmin: true, // email regex is sufficient
 		},
 		{
@@ -600,7 +600,7 @@ func TestOidcIsAdminByFilter(t *testing.T) {
 				AdminClaim:      "groups",
 				AdminClaimValue: "motus-admin",
 			},
-			allClaims: map[string]interface{}{"groups": []interface{}{"viewers"}},
+			allClaims: map[string]any{"groups": []any{"viewers"}},
 			wantAdmin: false,
 		},
 	}

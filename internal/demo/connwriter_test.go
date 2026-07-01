@@ -164,11 +164,11 @@ func TestConnWriter_ConcurrentWrite_DoesNotRace(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		for i := 0; i < 5; i++ {
+		for range 5 {
 			_ = w.WriteString("hello from goroutine 1")
 		}
 	}()
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		_ = w.WriteString("hello from goroutine 2")
 	}
 	<-done

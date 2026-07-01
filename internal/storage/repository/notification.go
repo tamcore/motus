@@ -91,7 +91,7 @@ func (r *NotificationRepository) GetByUser(ctx context.Context, userID int64) ([
 				slog.Warn("failed to unmarshal notification config",
 					slog.Int64("ruleID", rule.ID),
 					slog.Any("error", err))
-				rule.Config = make(map[string]interface{})
+				rule.Config = make(map[string]any)
 			}
 		}
 		rules = append(rules, &rule)
@@ -129,7 +129,7 @@ func (r *NotificationRepository) GetAll(ctx context.Context) ([]*model.Notificat
 				slog.Warn("failed to unmarshal notification config",
 					slog.Int64("ruleID", rule.ID),
 					slog.Any("error", err))
-				rule.Config = make(map[string]interface{})
+				rule.Config = make(map[string]any)
 			}
 		}
 		rules = append(rules, &rule)
@@ -164,7 +164,7 @@ func (r *NotificationRepository) GetByEventType(ctx context.Context, userID int6
 				slog.Warn("failed to unmarshal notification config",
 					slog.Int64("ruleID", rule.ID),
 					slog.Any("error", err))
-				rule.Config = make(map[string]interface{})
+				rule.Config = make(map[string]any)
 			}
 		}
 		rules = append(rules, &rule)

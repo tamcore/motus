@@ -426,7 +426,7 @@ func (r *PositionRepository) StreamAllByTimeRange(
 
 // scanPosition scans a single row into a Position.
 func scanPosition(scanner interface {
-	Scan(dest ...interface{}) error
+	Scan(dest ...any) error
 }, p *model.Position) error {
 	var attrs, network []byte
 	// protocol column is nullable (added in migration 00014 without NOT NULL),
@@ -456,7 +456,7 @@ func scanPosition(scanner interface {
 			slog.Warn("failed to unmarshal position attributes",
 				slog.Int64("positionID", p.ID),
 				slog.Any("error", err))
-			p.Attributes = make(map[string]interface{})
+			p.Attributes = make(map[string]any)
 		}
 	}
 	// Always ensure attributes is a non-nil map for Home Assistant
@@ -464,19 +464,19 @@ func scanPosition(scanner interface {
 	// value "null" round-trips through json.Unmarshal as a nil map, so we
 	// must handle that case as well as SQL NULL (empty bytes).
 	if p.Attributes == nil {
-		p.Attributes = make(map[string]interface{})
+		p.Attributes = make(map[string]any)
 	}
 	if len(network) > 0 {
 		if err := json.Unmarshal(network, &p.Network); err != nil {
 			slog.Warn("failed to unmarshal position network",
 				slog.Int64("positionID", p.ID),
 				slog.Any("error", err))
-			p.Network = make(map[string]interface{})
+			p.Network = make(map[string]any)
 		}
 	}
 	// Same treatment for network: must be {} not null for Home Assistant.
 	if p.Network == nil {
-		p.Network = make(map[string]interface{})
+		p.Network = make(map[string]any)
 	}
 	return nil
 }

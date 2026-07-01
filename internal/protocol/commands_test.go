@@ -41,7 +41,7 @@ func TestH02CommandEncoder_PositionPeriodic(t *testing.T) {
 	enc := &protocol.H02CommandEncoder{}
 	cmd := &model.Command{
 		Type:       model.CommandPositionPeriodic,
-		Attributes: map[string]interface{}{"frequency": 30},
+		Attributes: map[string]any{"frequency": 30},
 	}
 
 	data, err := enc.EncodeCommand(cmd, testIMEI)
@@ -78,7 +78,7 @@ func TestH02CommandEncoder_SosNumber(t *testing.T) {
 	enc := &protocol.H02CommandEncoder{}
 	cmd := &model.Command{
 		Type:       model.CommandSosNumber,
-		Attributes: map[string]interface{}{"phoneNumber": "+4915112345"},
+		Attributes: map[string]any{"phoneNumber": "+4915112345"},
 	}
 
 	data, err := enc.EncodeCommand(cmd, testIMEI)
@@ -104,7 +104,7 @@ func TestH02CommandEncoder_SetSpeedAlarm(t *testing.T) {
 	enc := &protocol.H02CommandEncoder{}
 	cmd := &model.Command{
 		Type:       model.CommandSetSpeedAlarm,
-		Attributes: map[string]interface{}{"speed": 120},
+		Attributes: map[string]any{"speed": 120},
 	}
 
 	data, err := enc.EncodeCommand(cmd, testIMEI)

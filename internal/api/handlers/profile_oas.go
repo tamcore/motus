@@ -28,7 +28,7 @@ func (h *Handler) UpdateProfile(ctx context.Context, req *oas.UpdateProfileReque
 		return &oas.UpdateProfileBadRequest{Error: "failed to fetch user"}, nil
 	}
 
-	changes := map[string]interface{}{}
+	changes := map[string]any{}
 
 	if email, ok := req.Email.Get(); ok && email != "" && email != existing.Email {
 		if err := validation.ValidateEmail(email); err != nil {

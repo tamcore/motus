@@ -109,7 +109,7 @@ func (h *Handler) OidcCallback(ctx context.Context, params oas.OidcCallbackParam
 		return &oas.Error{Error: "failed to decode id_token claims"}, nil
 	}
 
-	var allClaims map[string]interface{}
+	var allClaims map[string]any
 	_ = idToken.Claims(&allClaims)
 
 	// email_verified is read from the raw claims map because some IdPs emit
@@ -155,7 +155,7 @@ func (h *Handler) OidcCallback(ctx context.Context, params oas.OidcCallbackParam
 
 	if h.cfg.AuditLogger != nil {
 		h.cfg.AuditLogger.Log(ctx, &user.ID, audit.ActionSessionLogin, audit.ResourceSession, nil,
-			map[string]interface{}{"method": "oidc", "email": user.Email}, "", "")
+			map[string]any{"method": "oidc", "email": user.Email}, "", "")
 	}
 
 	return &oas.OidcCallbackFound{}, nil
@@ -218,7 +218,7 @@ var errSignupDisabled = errors.New("oidc signup disabled")
 // claimBool reads a boolean claim from a raw claims map. It accepts both a
 // JSON boolean and the string forms "true"/"false" (used by some IdPs, e.g.
 // Azure AD B2C). Missing or unrecognised values return false.
-func claimBool(claims map[string]interface{}, key string) bool {
+func claimBool(claims map[string]any, key string) bool {
 	switch v := claims[key].(type) {
 	case bool:
 		return v
@@ -275,7 +275,7 @@ func (h *Handler) resolveOIDCUserFromCtx(ctx context.Context, subject, email, na
 
 // oidcIsAdminByFilter checks if the user should get the admin role
 // based on email regex or claim filter.
-func (h *Handler) oidcIsAdminByFilter(email string, allClaims map[string]interface{}) bool {
+func (h *Handler) oidcIsAdminByFilter(email string, allClaims map[string]any) bool {
 	cfg := h.cfg.OIDCConfig
 
 	if cfg.AdminEmailRegex != "" {
@@ -293,7 +293,7 @@ func (h *Handler) oidcIsAdminByFilter(email string, allClaims map[string]interfa
 				if v == cfg.AdminClaimValue {
 					return true
 				}
-			case []interface{}:
+			case []any:
 				for _, item := range v {
 					if s, ok := item.(string); ok && s == cfg.AdminClaimValue {
 						return true

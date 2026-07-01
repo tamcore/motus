@@ -91,7 +91,7 @@ func (s *IgnitionService) CheckIgnition(ctx context.Context, position *model.Pos
 		Type:       eventType,
 		PositionID: &position.ID,
 		Timestamp:  position.Timestamp,
-		Attributes: map[string]interface{}{
+		Attributes: map[string]any{
 			"ignition": currIgnition,
 		},
 	}
@@ -124,7 +124,7 @@ func (s *IgnitionService) CheckIgnition(ctx context.Context, position *model.Pos
 // ignitionFromAttributes extracts the ignition boolean from a position's
 // attribute map. Returns (value, true) when the key is present, (false, false)
 // when absent or of an unexpected type.
-func ignitionFromAttributes(attrs map[string]interface{}) (bool, bool) {
+func ignitionFromAttributes(attrs map[string]any) (bool, bool) {
 	if attrs == nil {
 		return false, false
 	}

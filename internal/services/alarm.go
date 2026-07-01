@@ -56,7 +56,7 @@ func (s *AlarmService) CheckAlarm(ctx context.Context, position *model.Position)
 		Type:       "alarm",
 		PositionID: &position.ID,
 		Timestamp:  position.Timestamp,
-		Attributes: map[string]interface{}{
+		Attributes: map[string]any{
 			"alarm": alarmType,
 		},
 	}
@@ -88,7 +88,7 @@ func (s *AlarmService) CheckAlarm(ctx context.Context, position *model.Position)
 
 // alarmFromAttributes extracts the alarm type string from a position's
 // attribute map. Returns ("", false) when absent or wrong type.
-func alarmFromAttributes(attrs map[string]interface{}) (string, bool) {
+func alarmFromAttributes(attrs map[string]any) (string, bool) {
 	if attrs == nil {
 		return "", false
 	}

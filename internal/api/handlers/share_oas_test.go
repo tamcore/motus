@@ -173,7 +173,7 @@ func TestListShares_Success_OAS(t *testing.T) {
 	user, device := env.createShareUserAndDevice(t)
 	ctx := context.Background()
 
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		share := &model.DeviceShare{DeviceID: device.ID, CreatedBy: user.ID}
 		if err := env.shareRepo.Create(ctx, share); err != nil {
 			t.Fatalf("create share: %v", err)

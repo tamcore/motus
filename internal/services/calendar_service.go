@@ -55,7 +55,7 @@ func (s *CalendarService) CreateForUser(ctx context.Context, user *model.User, i
 	if s.auditLogger != nil {
 		s.auditLogger.Log(ctx, &user.ID,
 			audit.ActionCalendarCreate, audit.ResourceCalendar, &c.ID,
-			map[string]interface{}{"name": c.Name}, "", "")
+			map[string]any{"name": c.Name}, "", "")
 	}
 	return c, nil
 }

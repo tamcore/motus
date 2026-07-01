@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"log/slog"
+	"slices"
 	"time"
 
 	"github.com/tamcore/motus/internal/calendar"
@@ -237,10 +238,5 @@ func (s *GeofenceEventService) isGeofenceActiveNow(ctx context.Context, geofence
 }
 
 func containsID(ids []int64, target int64) bool {
-	for _, id := range ids {
-		if id == target {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(ids, target)
 }

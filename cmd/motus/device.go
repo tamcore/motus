@@ -111,9 +111,9 @@ func newDeviceListCmd() *cobra.Command {
 
 			switch output {
 			case "json":
-				items := make([]map[string]interface{}, len(devices))
+				items := make([]map[string]any, len(devices))
 				for i, d := range devices {
-					item := map[string]interface{}{
+					item := map[string]any{
 						"id":       d.ID,
 						"uniqueId": d.UniqueID,
 						"name":     d.Name,

@@ -20,13 +20,13 @@ func TestDeviceTimeoutLogic(t *testing.T) {
 		{
 			name:          "online device with recent last_seen stays online",
 			status:        "online",
-			lastSeen:      timePtr(time.Now().UTC()),
+			lastSeen:      new(time.Now().UTC()),
 			shouldTimeout: false,
 		},
 		{
 			name:          "online device with old last_seen times out",
 			status:        "online",
-			lastSeen:      timePtr(cutoff.Add(-1 * time.Minute)),
+			lastSeen:      new(cutoff.Add(-1 * time.Minute)),
 			shouldTimeout: true,
 		},
 		{
@@ -38,13 +38,13 @@ func TestDeviceTimeoutLogic(t *testing.T) {
 		{
 			name:          "moving device with recent last_seen stays moving",
 			status:        "moving",
-			lastSeen:      timePtr(time.Now().UTC()),
+			lastSeen:      new(time.Now().UTC()),
 			shouldTimeout: false,
 		},
 		{
 			name:          "moving device with old last_seen times out",
 			status:        "moving",
-			lastSeen:      timePtr(cutoff.Add(-1 * time.Minute)),
+			lastSeen:      new(cutoff.Add(-1 * time.Minute)),
 			shouldTimeout: true,
 		},
 		{
@@ -56,7 +56,7 @@ func TestDeviceTimeoutLogic(t *testing.T) {
 		{
 			name:          "offline device is skipped",
 			status:        "offline",
-			lastSeen:      timePtr(cutoff.Add(-10 * time.Minute)),
+			lastSeen:      new(cutoff.Add(-10 * time.Minute)),
 			shouldTimeout: false,
 		},
 		{
@@ -68,7 +68,7 @@ func TestDeviceTimeoutLogic(t *testing.T) {
 		{
 			name:          "online device exactly at cutoff does not timeout",
 			status:        "online",
-			lastSeen:      timePtr(cutoff.Add(1 * time.Second)),
+			lastSeen:      new(cutoff.Add(1 * time.Second)),
 			shouldTimeout: false,
 		},
 	}
@@ -92,8 +92,4 @@ func TestDeviceTimeoutLogic(t *testing.T) {
 			}
 		})
 	}
-}
-
-func timePtr(t time.Time) *time.Time {
-	return &t
 }

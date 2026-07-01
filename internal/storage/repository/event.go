@@ -71,7 +71,7 @@ func (r *EventRepository) GetByDevice(ctx context.Context, deviceID int64, limit
 				slog.Warn("failed to unmarshal event attributes",
 					slog.Int64("eventID", e.ID),
 					slog.Any("error", err))
-				e.Attributes = make(map[string]interface{})
+				e.Attributes = make(map[string]any)
 			}
 		}
 		events = append(events, &e)
@@ -110,7 +110,7 @@ func (r *EventRepository) GetRecentByDeviceAndType(ctx context.Context, deviceID
 				slog.Warn("failed to unmarshal event attributes",
 					slog.Int64("eventID", e.ID),
 					slog.Any("error", err))
-				e.Attributes = make(map[string]interface{})
+				e.Attributes = make(map[string]any)
 			}
 		}
 		events = append(events, &e)
@@ -149,7 +149,7 @@ func (r *EventRepository) GetByUser(ctx context.Context, userID int64, limit int
 				slog.Warn("failed to unmarshal event attributes",
 					slog.Int64("eventID", e.ID),
 					slog.Any("error", err))
-				e.Attributes = make(map[string]interface{})
+				e.Attributes = make(map[string]any)
 			}
 		}
 		events = append(events, &e)
@@ -215,7 +215,7 @@ func (r *EventRepository) GetByFilters(ctx context.Context, userID int64, device
 		  AND e.timestamp <= $3
 	`
 
-	args := []interface{}{userID, from, to}
+	args := []any{userID, from, to}
 	argIdx := 4
 
 	if len(deviceIDs) > 0 {
@@ -258,7 +258,7 @@ func (r *EventRepository) GetByFilters(ctx context.Context, userID int64, device
 				slog.Warn("failed to unmarshal event attributes",
 					slog.Int64("eventID", e.ID),
 					slog.Any("error", err))
-				e.Attributes = make(map[string]interface{})
+				e.Attributes = make(map[string]any)
 			}
 		}
 		events = append(events, &e)

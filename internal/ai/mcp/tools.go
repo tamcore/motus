@@ -703,7 +703,7 @@ func handleCreateNotificationRule(ctx context.Context, req mcp.CallToolRequest, 
 
 	if deps.AuditLogger != nil {
 		deps.AuditLogger.Log(ctx, &user.ID, audit.ActionNotifCreate, audit.ResourceNotification, &rule.ID,
-			map[string]interface{}{"name": rule.Name, "channel": rule.Channel}, "", "")
+			map[string]any{"name": rule.Name, "channel": rule.Channel}, "", "")
 	}
 
 	return jsonResult(map[string]any{"id": rule.ID, "name": rule.Name}), nil
@@ -754,7 +754,7 @@ func handleUpdateNotificationRule(ctx context.Context, req mcp.CallToolRequest, 
 			return mcp.NewToolResultError("invalid webhook_url: " + err.Error()), nil
 		}
 		if updated.Config == nil {
-			updated.Config = make(map[string]interface{})
+			updated.Config = make(map[string]any)
 		}
 		updated.Config["webhookUrl"] = wu
 	}
@@ -860,12 +860,12 @@ func handleListEvents(ctx context.Context, req mcp.CallToolRequest, deps Deps) (
 	}
 
 	type entry struct {
-		ID         int64                  `json:"id"`
-		DeviceID   int64                  `json:"deviceId"`
-		Type       string                 `json:"type"`
-		Timestamp  string                 `json:"timestamp"`
-		GeofenceID *int64                 `json:"geofenceId,omitempty"`
-		Attributes map[string]interface{} `json:"attributes,omitempty"`
+		ID         int64          `json:"id"`
+		DeviceID   int64          `json:"deviceId"`
+		Type       string         `json:"type"`
+		Timestamp  string         `json:"timestamp"`
+		GeofenceID *int64         `json:"geofenceId,omitempty"`
+		Attributes map[string]any `json:"attributes,omitempty"`
 	}
 	out := make([]entry, 0, len(events))
 	for _, e := range events {
@@ -922,8 +922,8 @@ func validateChannel(ch string) error {
 	return nil
 }
 
-func buildNotificationConfig(req mcp.CallToolRequest, channel string) (map[string]interface{}, error) {
-	cfg := make(map[string]interface{})
+func buildNotificationConfig(req mcp.CallToolRequest, channel string) (map[string]any, error) {
+	cfg := make(map[string]any)
 	switch channel {
 	case "webhook":
 		wu := req.GetString("webhook_url", "")
@@ -1014,7 +1014,7 @@ func circleGeoJSON(lat, lon, radiusM float64) string {
 	dLon := radiusM / (111320.0 * math.Cos(lat*math.Pi/180.0))
 
 	coords := make([][2]float64, segments+1)
-	for i := 0; i < segments; i++ {
+	for i := range segments {
 		angle := 2 * math.Pi * float64(i) / float64(segments)
 		coords[i] = [2]float64{
 			lon + dLon*math.Cos(angle),

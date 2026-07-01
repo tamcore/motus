@@ -27,7 +27,7 @@ func TestCommandRepository_Create(t *testing.T) {
 	cmd := &model.Command{
 		DeviceID: device.ID,
 		Type:     "rebootDevice",
-		Attributes: map[string]interface{}{
+		Attributes: map[string]any{
 			"reason": "test",
 		},
 		Status: model.CommandStatusPending,
@@ -137,7 +137,7 @@ func TestCommandRepository_ListByDevice(t *testing.T) {
 	_ = deviceRepo.Create(ctx, device, user.ID)
 
 	// Create 3 commands.
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		cmd := &model.Command{DeviceID: device.ID, Type: "rebootDevice", Status: "pending"}
 		_ = cmdRepo.Create(ctx, cmd)
 	}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"slices"
 )
 
 // ValidateWebhookURL checks if a webhook URL is safe to use. It rejects
@@ -57,10 +58,8 @@ func ValidateWebhookURL(urlStr string) error {
 	}
 
 	// Block private/internal IP ranges to prevent SSRF.
-	for _, ip := range ips {
-		if isPrivateIP(ip) {
-			return fmt.Errorf("webhook URL resolves to private IP address")
-		}
+	if slices.ContainsFunc(ips, isPrivateIP) {
+		return fmt.Errorf("webhook URL resolves to private IP address")
 	}
 
 	return nil

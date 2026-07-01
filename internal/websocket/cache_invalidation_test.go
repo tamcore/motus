@@ -19,7 +19,7 @@ type mockInvalidationPubSub struct {
 	publishErr error
 }
 
-func (m *mockInvalidationPubSub) Publish(_ context.Context, message interface{}) error {
+func (m *mockInvalidationPubSub) Publish(_ context.Context, message any) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.publishErr != nil {
@@ -144,8 +144,7 @@ func TestStartInvalidationSubscriber_InvalidatesOnRemoteEvent(t *testing.T) {
 	hub.SetInvalidationPubSub(ps)
 	hub.accessCache.set(7, []int64{10})
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	go hub.StartInvalidationSubscriber(ctx)
 
 	pollUntil(t, func() bool {
@@ -168,8 +167,7 @@ func TestStartInvalidationSubscriber_IgnoresSelfEcho(t *testing.T) {
 	hub.SetInvalidationPubSub(ps)
 	hub.accessCache.set(9, []int64{10})
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	go hub.StartInvalidationSubscriber(ctx)
 
 	pollUntil(t, func() bool {

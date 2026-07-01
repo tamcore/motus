@@ -21,7 +21,7 @@ func newMockPubSub() *mockPubSub {
 	return &mockPubSub{}
 }
 
-func (m *mockPubSub) Publish(_ context.Context, message interface{}) error {
+func (m *mockPubSub) Publish(_ context.Context, message any) error {
 	data, err := json.Marshal(message)
 	if err != nil {
 		return err

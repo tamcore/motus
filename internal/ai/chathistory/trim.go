@@ -28,7 +28,7 @@ func trimKey(ctx context.Context, rdb redis.Cmdable, k string) error {
 			return nil
 		}
 		toDrop := dropCount(vals)
-		for i := 0; i < toDrop; i++ {
+		for range toDrop {
 			if err := rdb.LPop(ctx, k).Err(); err != nil && err != redis.Nil {
 				return err
 			}

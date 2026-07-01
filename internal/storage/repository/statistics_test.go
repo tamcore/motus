@@ -77,7 +77,7 @@ func TestStatisticsRepository_GetPlatformStats_WithData(t *testing.T) {
 
 	// Insert 5 positions.
 	now := time.Now().UTC()
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		pos := &model.Position{
 			DeviceID:  d1.ID,
 			Latitude:  52.5 + float64(i)*0.01,
@@ -90,7 +90,7 @@ func TestStatisticsRepository_GetPlatformStats_WithData(t *testing.T) {
 	}
 
 	// Insert 2 events.
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		e := &model.Event{
 			DeviceID:  d1.ID,
 			Type:      "geofenceEnter",
@@ -197,7 +197,7 @@ func TestStatisticsRepository_GetUserStats_WithData(t *testing.T) {
 
 	// Insert 5 positions for d1.
 	now := time.Now().UTC()
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		pos := &model.Position{
 			DeviceID:  d1.ID,
 			Latitude:  52.5,
@@ -210,7 +210,7 @@ func TestStatisticsRepository_GetUserStats_WithData(t *testing.T) {
 	}
 
 	// Insert 3 events for d1.
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		e := &model.Event{
 			DeviceID:  d1.ID,
 			Type:      "geofenceEnter",

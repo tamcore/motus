@@ -72,7 +72,7 @@ func (h *Handler) ImportGPX(ctx context.Context, req oas.ImportGPXReq, params oa
 		id := params.ID
 		h.cfg.AuditLogger.Log(ctx, &user.ID,
 			audit.ActionGPXImport, audit.ResourceDevice, &id,
-			map[string]interface{}{"deviceId": params.ID, "positions": imported}, "", "")
+			map[string]any{"deviceId": params.ID, "positions": imported}, "", "")
 	}
 
 	return &oas.ImportGPXOK{
@@ -118,7 +118,7 @@ func processGPXPoints(ctx context.Context, positions repository.PositionRepo, de
 					Altitude:   &alt,
 					Speed:      &spd,
 					Course:     &crs,
-					Attributes: map[string]interface{}{"source": "gpx"},
+					Attributes: map[string]any{"source": "gpx"},
 				}
 
 				if err := positions.Create(ctx, pos); err != nil {

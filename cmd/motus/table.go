@@ -49,7 +49,7 @@ func (t *TableWriter) Flush() {
 }
 
 // printJSONTo encodes data as indented JSON to w.
-func printJSONTo(w io.Writer, data interface{}) {
+func printJSONTo(w io.Writer, data any) {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 	if err := enc.Encode(data); err != nil {
@@ -58,7 +58,7 @@ func printJSONTo(w io.Writer, data interface{}) {
 }
 
 // printJSON encodes data as indented JSON to stdout.
-func printJSON(data interface{}) { printJSONTo(os.Stdout, data) }
+func printJSON(data any) { printJSONTo(os.Stdout, data) }
 
 // printCSVTo writes rows as CSV to w.
 func printCSVTo(w io.Writer, headers []string, rows [][]string) {

@@ -213,7 +213,7 @@ func TestGetPositions_DefaultLimitReturnsAll_OAS(t *testing.T) {
 	now := time.Now().UTC()
 	// More than the old default limit of 100, well under the max of 10000.
 	const count = 150
-	for i := 0; i < count; i++ {
+	for i := range count {
 		ts := now.Add(-time.Duration(count-i) * time.Minute)
 		if err := env.posRepo.Create(ctx, &model.Position{
 			DeviceID:  env.device.ID,

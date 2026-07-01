@@ -9,8 +9,6 @@ import (
 	"github.com/tamcore/motus/internal/storage/repository/testutil"
 )
 
-func ptrInt64(v int64) *int64 { return &v }
-
 // createTestUser inserts a user directly into the database and returns the user ID.
 func createTestUser(t *testing.T, pool *pgxpool.Pool, email string) int64 {
 	t.Helper()
@@ -32,10 +30,10 @@ func TestLogger_LogAction(t *testing.T) {
 	ctx := context.Background()
 
 	userID := createTestUser(t, pool, "audit-test@example.com")
-	resourceID := ptrInt64(42)
+	resourceID := new(int64(42))
 
 	logger.Log(ctx, &userID, ActionSessionLogin, ResourceSession, resourceID,
-		map[string]interface{}{"browser": "firefox"},
+		map[string]any{"browser": "firefox"},
 		"10.0.0.1", "Mozilla/5.0")
 
 	// Verify the entry was written.
@@ -175,16 +173,16 @@ func TestLogger_MetadataEncoding(t *testing.T) {
 	logger := NewLogger(pool)
 	ctx := context.Background()
 
-	details := map[string]interface{}{
+	details := map[string]any{
 		"email":    "admin@example.com",
 		"role":     "admin",
 		"count":    float64(42),
-		"nested":   map[string]interface{}{"key": "value"},
-		"list":     []interface{}{"a", "b", "c"},
+		"nested":   map[string]any{"key": "value"},
+		"list":     []any{"a", "b", "c"},
 		"isActive": true,
 	}
 
-	logger.Log(ctx, nil, ActionUserCreate, ResourceUser, ptrInt64(10), details, "10.0.0.1", "")
+	logger.Log(ctx, nil, ActionUserCreate, ResourceUser, new(int64(10)), details, "10.0.0.1", "")
 
 	entries, _, err := logger.Query(ctx, QueryParams{})
 	if err != nil {
@@ -212,7 +210,7 @@ func TestLogger_MetadataEncoding(t *testing.T) {
 	}
 
 	// Nested map should deserialize correctly.
-	nested, ok := d["nested"].(map[string]interface{})
+	nested, ok := d["nested"].(map[string]any)
 	if !ok {
 		t.Fatalf("nested: expected map, got %T", d["nested"])
 	}
@@ -221,7 +219,7 @@ func TestLogger_MetadataEncoding(t *testing.T) {
 	}
 
 	// List should deserialize correctly.
-	list, ok := d["list"].([]interface{})
+	list, ok := d["list"].([]any)
 	if !ok {
 		t.Fatalf("list: expected slice, got %T", d["list"])
 	}
@@ -360,9 +358,9 @@ func TestQuery_Pagination(t *testing.T) {
 	user1 := createTestUser(t, pool, "pagination@example.com")
 
 	// Insert 10 entries.
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		logger.Log(ctx, &user1, ActionSessionLogin, ResourceSession, nil,
-			map[string]interface{}{"seq": i}, "", "")
+			map[string]any{"seq": i}, "", "")
 	}
 
 	// Page 1: limit=3, offset=0.
@@ -474,9 +472,9 @@ func TestQuery_OrderByTimestampDesc(t *testing.T) {
 	ctx := context.Background()
 
 	// Insert entries in order.
-	logger.Log(ctx, nil, ActionSessionLogin, ResourceSession, nil, map[string]interface{}{"order": "first"}, "", "")
-	logger.Log(ctx, nil, ActionSessionLogout, ResourceSession, nil, map[string]interface{}{"order": "second"}, "", "")
-	logger.Log(ctx, nil, ActionSessionSudo, ResourceSession, nil, map[string]interface{}{"order": "third"}, "", "")
+	logger.Log(ctx, nil, ActionSessionLogin, ResourceSession, nil, map[string]any{"order": "first"}, "", "")
+	logger.Log(ctx, nil, ActionSessionLogout, ResourceSession, nil, map[string]any{"order": "second"}, "", "")
+	logger.Log(ctx, nil, ActionSessionSudo, ResourceSession, nil, map[string]any{"order": "third"}, "", "")
 
 	entries, _, err := logger.Query(ctx, QueryParams{})
 	if err != nil {
@@ -550,7 +548,7 @@ func TestLogger_LogAction_DetailsNilVsEmpty(t *testing.T) {
 	// nil details.
 	logger.Log(ctx, nil, ActionSessionLogin, ResourceSession, nil, nil, "", "")
 	// Empty map details.
-	logger.Log(ctx, nil, ActionSessionLogout, ResourceSession, nil, map[string]interface{}{}, "", "")
+	logger.Log(ctx, nil, ActionSessionLogout, ResourceSession, nil, map[string]any{}, "", "")
 
 	entries, _, err := logger.Query(ctx, QueryParams{})
 	if err != nil {

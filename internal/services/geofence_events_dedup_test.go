@@ -36,7 +36,7 @@ func TestGeofenceEvent_BoundaryJitterIsDeduplicated(t *testing.T) {
 	}
 
 	now := time.Now().UTC()
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		var lat, lon float64
 		if i%2 == 0 {
 			lat, lon = 52.52, 13.37 // inside testGeoJSON

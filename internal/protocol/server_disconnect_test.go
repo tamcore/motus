@@ -35,8 +35,7 @@ func TestServer_HandleConnection_NoPanicOnConcurrentCommandDuringDisconnect(t *t
 	srv.listener = listener
 	port := listener.Addr().(*net.TCPAddr).Port
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	go srv.acceptLoop(ctx)
 
@@ -63,10 +62,8 @@ func TestServer_HandleConnection_NoPanicOnConcurrentCommandDuringDisconnect(t *t
 	var wg sync.WaitGroup
 	stop := make(chan struct{})
 
-	for i := 0; i < senders; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range senders {
+		wg.Go(func() {
 			for {
 				select {
 				case <-stop:
@@ -75,7 +72,7 @@ func TestServer_HandleConnection_NoPanicOnConcurrentCommandDuringDisconnect(t *t
 					registry.Send(deviceID, []byte("cmd"))
 				}
 			}
-		}()
+		})
 	}
 
 	// Disconnect — triggers handleConnection teardown (Deregister + close(outCh) on old code).

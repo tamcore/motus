@@ -735,7 +735,7 @@ func TestParseGeofenceWithCalendarID(t *testing.T) {
 			input: strings.Join([]string{
 				"2", "Office Zone", "", "POLYGON((50.0 8.0, 51.0 8.0, 51.0 9.0, 50.0 9.0, 50.0 8.0))", "{}", "5",
 			}, "\t"),
-			wantCalID: int64Ptr(5),
+			wantCalID: new(int64(5)),
 		},
 		{
 			name: "geofence with null calendarid",
@@ -766,10 +766,6 @@ func TestParseGeofenceWithCalendarID(t *testing.T) {
 			}
 		})
 	}
-}
-
-func int64Ptr(v int64) *int64 {
-	return &v
 }
 
 func TestParseDumpWithCalendars(t *testing.T) {

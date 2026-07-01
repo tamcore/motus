@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"maps"
 
 	oas "github.com/tamcore/motus/internal/api/oas"
 )
@@ -29,9 +30,7 @@ func (h *Handler) AdminGetStatistics(ctx context.Context) (oas.AdminGetStatistic
 	}
 
 	devsByStatus := make(oas.PlatformStatsDevicesByStatus, len(stats.DevicesByStatus))
-	for k, v := range stats.DevicesByStatus {
-		devsByStatus[k] = v
-	}
+	maps.Copy(devsByStatus, stats.DevicesByStatus)
 	result.DevicesByStatus = devsByStatus
 
 	return result, nil

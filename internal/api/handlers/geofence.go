@@ -64,7 +64,7 @@ func (h *Handler) CreateGeofence(ctx context.Context, req *oas.GeofenceInput) (o
 	if v, ok := req.CalendarId.Get(); ok {
 		calID = &v
 	}
-	var attrs map[string]interface{}
+	var attrs map[string]any
 	if req.Attributes.Set {
 		attrs = rawToAttrs(map[string]jx.Raw(req.Attributes.Value))
 	}

@@ -206,7 +206,7 @@ func TestIdle_LongParkOnlyOneEvent(t *testing.T) {
 	}
 	_ = posRepo.Create(ctx, pos)
 
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		if err := svc.CheckIdle(ctx); err != nil {
 			t.Fatalf("CheckIdle iter %d failed: %v", i, err)
 		}

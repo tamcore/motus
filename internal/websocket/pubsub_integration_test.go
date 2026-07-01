@@ -22,7 +22,7 @@ type mockPubSub struct {
 	handler   func([]byte)
 }
 
-func (m *mockPubSub) Publish(_ context.Context, message interface{}) error {
+func (m *mockPubSub) Publish(_ context.Context, message any) error {
 	data, err := json.Marshal(message)
 	if err != nil {
 		return err
@@ -218,8 +218,7 @@ func TestStartSubscriber_RelaysRemoteMessages(t *testing.T) {
 	hub := NewHub(nil, checker, func(_ *http.Request) int64 { return 1 })
 	hub.SetPubSub(mock)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	// Start the subscriber (this registers the handler on mock).
 	go hub.StartSubscriber(ctx)
@@ -265,8 +264,7 @@ func TestStartSubscriber_FiltersRemoteByAccess(t *testing.T) {
 	})
 	hub.SetPubSub(mock)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	go hub.StartSubscriber(ctx)
 	time.Sleep(50 * time.Millisecond)
@@ -328,8 +326,7 @@ func TestStartSubscriber_SkipsSelfEcho(t *testing.T) {
 	hub := NewHub(nil, checker, func(_ *http.Request) int64 { return 1 })
 	hub.SetPubSub(mock)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	// Start the subscriber.
 	go hub.StartSubscriber(ctx)
@@ -391,8 +388,7 @@ func TestBroadcastPosition_NoDoubleDelivery(t *testing.T) {
 	hub := NewHub(nil, checker, func(_ *http.Request) int64 { return 1 })
 	hub.SetPubSub(selfEchoMock)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	go hub.StartSubscriber(ctx)
 	time.Sleep(50 * time.Millisecond)
@@ -434,7 +430,7 @@ type selfEchoPubSub struct {
 	handler func([]byte)
 }
 
-func (s *selfEchoPubSub) Publish(_ context.Context, message interface{}) error {
+func (s *selfEchoPubSub) Publish(_ context.Context, message any) error {
 	data, err := json.Marshal(message)
 	if err != nil {
 		return err

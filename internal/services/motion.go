@@ -86,7 +86,7 @@ func (s *MotionService) CheckMotion(ctx context.Context, position *model.Positio
 			Type:       "motion",
 			PositionID: &position.ID,
 			Timestamp:  position.Timestamp,
-			Attributes: map[string]interface{}{
+			Attributes: map[string]any{
 				"speed":         currSpeed,
 				"previousSpeed": prevSpeed,
 			},

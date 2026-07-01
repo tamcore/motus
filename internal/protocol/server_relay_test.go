@@ -76,8 +76,7 @@ func TestRelay_ForwardsMessagesToRelay(t *testing.T) {
 	srv.listener = listener
 	port := listener.Addr().(*net.TCPAddr).Port
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	go srv.acceptLoop(ctx)
 
 	devConn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", port), 2*time.Second)
@@ -141,8 +140,7 @@ func TestRelay_FailOpen_UnreachableRelay(t *testing.T) {
 	srv.listener = listener
 	port := listener.Addr().(*net.TCPAddr).Port
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	go srv.acceptLoop(ctx)
 
 	devConn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", port), 2*time.Second)
@@ -201,8 +199,7 @@ func TestRelay_LazyDial_NoTraccarTouchedForProbe(t *testing.T) {
 	srv.listener = listener
 	port := listener.Addr().(*net.TCPAddr).Port
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	go srv.acceptLoop(ctx)
 
 	// Simulate a probe: connect and immediately close without sending data.
@@ -271,8 +268,7 @@ func TestRelay_RedialsAfterBrokenPipe(t *testing.T) {
 	srv.listener = listener
 	port := listener.Addr().(*net.TCPAddr).Port
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	go srv.acceptLoop(ctx)
 
 	devConn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", port), 2*time.Second)
@@ -346,8 +342,7 @@ func TestRelay_FailOpen_RelayDropsMidSession(t *testing.T) {
 	srv.listener = listener
 	port := listener.Addr().(*net.TCPAddr).Port
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	go srv.acceptLoop(ctx)
 
 	devConn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", port), 2*time.Second)

@@ -144,7 +144,7 @@ func migrationsDir() string {
 
 			// Fallback 2: search upward from cwd
 			current := cwd
-			for i := 0; i < 10; i++ {
+			for range 10 {
 				alt = filepath.Join(current, "migrations")
 				if info, err := os.Stat(alt); err == nil && info.IsDir() {
 					return alt

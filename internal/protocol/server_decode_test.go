@@ -370,7 +370,7 @@ func TestServer_ConcurrentConnections(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(numClients)
 
-	for i := 0; i < numClients; i++ {
+	for i := range numClients {
 		go func(id int) {
 			defer wg.Done()
 			conn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", port), 2*time.Second)

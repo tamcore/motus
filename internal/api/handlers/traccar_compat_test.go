@@ -44,7 +44,7 @@ import (
 
 // compatTestFixtures holds repositories and test data for compat tests.
 type compatTestFixtures struct {
-	pool         interface{} // kept for reference
+	pool         any // kept for reference
 	userRepo     *repository.UserRepository
 	deviceRepo   *repository.DeviceRepository
 	positionRepo *repository.PositionRepository
@@ -117,7 +117,7 @@ func compatUserCtx(user *model.User) context.Context {
 // remarshalOAS encodes an ogen response value with its generated JSON
 // encoder and decodes it into out, so tests can assert the exact wire
 // format the live API produces (field presence, nulls, empty objects).
-func remarshalOAS(t *testing.T, v interface{}, out interface{}) {
+func remarshalOAS(t *testing.T, v any, out any) {
 	t.Helper()
 	b, err := json.Marshal(v)
 	if err != nil {
@@ -140,7 +140,7 @@ func compatPositionHandler(positionRepo repository.PositionRepo, deviceRepo repo
 
 // listDevicesRaw fetches the user's devices through the live ogen handler
 // and returns them in wire format.
-func listDevicesRaw(t *testing.T, h *handlers.Handler, user *model.User) []map[string]interface{} {
+func listDevicesRaw(t *testing.T, h *handlers.Handler, user *model.User) []map[string]any {
 	t.Helper()
 	res, err := h.ListDevices(compatUserCtx(user))
 	if err != nil {
@@ -150,14 +150,14 @@ func listDevicesRaw(t *testing.T, h *handlers.Handler, user *model.User) []map[s
 	if !ok {
 		t.Fatalf("expected *oas.ListDevicesOKApplicationJSON, got %T", res)
 	}
-	var devices []map[string]interface{}
+	var devices []map[string]any
 	remarshalOAS(t, list, &devices)
 	return devices
 }
 
 // latestPositionsRaw fetches the latest positions per device through the
 // live ogen handler and returns them in wire format.
-func latestPositionsRaw(t *testing.T, h *handlers.Handler, user *model.User) []map[string]interface{} {
+func latestPositionsRaw(t *testing.T, h *handlers.Handler, user *model.User) []map[string]any {
 	t.Helper()
 	res, err := h.GetPositions(compatUserCtx(user), oas.GetPositionsParams{})
 	if err != nil {
@@ -167,7 +167,7 @@ func latestPositionsRaw(t *testing.T, h *handlers.Handler, user *model.User) []m
 	if !ok {
 		t.Fatalf("expected *oas.GetPositionsOKApplicationJSON, got %T", res)
 	}
-	var positions []map[string]interface{}
+	var positions []map[string]any
 	remarshalOAS(t, list, &positions)
 	return positions
 }
@@ -231,7 +231,7 @@ func TestTraccarCompat_DeviceFieldPresence(t *testing.T) {
 	}
 	if attrs == nil {
 		t.Error("device.attributes is null; must be {} for HA compatibility")
-	} else if _, isMap := attrs.(map[string]interface{}); !isMap {
+	} else if _, isMap := attrs.(map[string]any); !isMap {
 		t.Errorf("device.attributes is %T; must be a JSON object (map) for HA compatibility", attrs)
 	}
 }
@@ -266,7 +266,7 @@ func TestTraccarCompat_DeviceFieldPresence_NilValues(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected *oas.Device, got %T", res)
 	}
-	var dev map[string]interface{}
+	var dev map[string]any
 	remarshalOAS(t, oasDev, &dev)
 
 	// These nullable fields MUST still be present as JSON null, not omitted.
@@ -380,7 +380,7 @@ func TestTraccarCompat_PositionFieldPresence(t *testing.T) {
 	attrs := p["attributes"]
 	if attrs == nil {
 		t.Error("position.attributes is null; must be {} for HA compatibility")
-	} else if _, isMap := attrs.(map[string]interface{}); !isMap {
+	} else if _, isMap := attrs.(map[string]any); !isMap {
 		t.Errorf("position.attributes is %T; must be a JSON object for HA compatibility", attrs)
 	}
 
@@ -389,7 +389,7 @@ func TestTraccarCompat_PositionFieldPresence(t *testing.T) {
 	network := p["network"]
 	if network == nil {
 		t.Error("position.network is null; must be {} for HA compatibility")
-	} else if _, isMap := network.(map[string]interface{}); !isMap {
+	} else if _, isMap := network.(map[string]any); !isMap {
 		t.Errorf("position.network is %T; must be a JSON object for HA compatibility", network)
 	}
 }
@@ -473,9 +473,9 @@ func TestTraccarCompat_BareArrayResponses(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected *oas.ListDevicesOKApplicationJSON, got %T", res)
 		}
-		var raw interface{}
+		var raw any
 		remarshalOAS(t, list, &raw)
-		if _, isArray := raw.([]interface{}); !isArray {
+		if _, isArray := raw.([]any); !isArray {
 			t.Errorf("response is %T; must be a JSON array (no envelope) for HA compatibility", raw)
 		}
 	})
@@ -490,9 +490,9 @@ func TestTraccarCompat_BareArrayResponses(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected *oas.GetPositionsOKApplicationJSON, got %T", res)
 		}
-		var raw interface{}
+		var raw any
 		remarshalOAS(t, list, &raw)
-		if _, isArray := raw.([]interface{}); !isArray {
+		if _, isArray := raw.([]any); !isArray {
 			t.Errorf("response is %T; must be a JSON array (no envelope) for HA compatibility", raw)
 		}
 	})
@@ -513,11 +513,11 @@ func TestTraccarCompat_BareArrayResponses(t *testing.T) {
 		if err != nil {
 			t.Fatalf("marshal geofence list: %v", err)
 		}
-		var raw interface{}
+		var raw any
 		if err := json.Unmarshal(body, &raw); err != nil {
 			t.Fatalf("unmarshal geofence list: %v", err)
 		}
-		if _, isArray := raw.([]interface{}); !isArray {
+		if _, isArray := raw.([]any); !isArray {
 			t.Errorf("response is %T; must be a JSON array (no envelope) for HA compatibility", raw)
 		}
 	})
@@ -601,7 +601,7 @@ func TestTraccarCompat_EmptyListReturnsEmptyArray(t *testing.T) {
 		if err != nil {
 			t.Fatalf("marshal geofence list: %v", err)
 		}
-		var arr []interface{}
+		var arr []any
 		if err := json.Unmarshal(body, &arr); err != nil {
 			t.Fatalf("expected JSON array, got %s: %v", body, err)
 		}
@@ -638,22 +638,22 @@ func TestTraccarCompat_MotionAttribute(t *testing.T) {
 	}{
 		{
 			name:           "speed above threshold (25 km/h) -> motion=true",
-			speed:          float64Ptr(25.0),
+			speed:          new(25.0),
 			expectedMotion: true,
 		},
 		{
 			name:           "speed at exact threshold (5 km/h) -> motion=true",
-			speed:          float64Ptr(5.0),
+			speed:          new(5.0),
 			expectedMotion: true,
 		},
 		{
 			name:           "speed below threshold (3 km/h) -> motion=false",
-			speed:          float64Ptr(3.0),
+			speed:          new(3.0),
 			expectedMotion: false,
 		},
 		{
 			name:           "speed zero -> motion=false",
-			speed:          float64Ptr(0.0),
+			speed:          new(0.0),
 			expectedMotion: false,
 		},
 		{
@@ -672,7 +672,7 @@ func TestTraccarCompat_MotionAttribute(t *testing.T) {
 			// attribute before persisting. This mirrors protocol/handler.go
 			// HandlePosition() lines 106-114.
 			isMoving := tt.speed != nil && *tt.speed >= 5.0
-			attrs := map[string]interface{}{
+			attrs := map[string]any{
 				"motion": isMoving,
 			}
 
@@ -698,7 +698,7 @@ func TestTraccarCompat_MotionAttribute(t *testing.T) {
 			}
 
 			posJSON := positions[0]
-			attrsJSON, ok := posJSON["attributes"].(map[string]interface{})
+			attrsJSON, ok := posJSON["attributes"].(map[string]any)
 			if !ok {
 				t.Fatalf("position.attributes is not an object: %v", posJSON["attributes"])
 			}
@@ -717,10 +717,6 @@ func TestTraccarCompat_MotionAttribute(t *testing.T) {
 			}
 		})
 	}
-}
-
-func float64Ptr(v float64) *float64 {
-	return &v
 }
 
 // ---------------------------------------------------------------------------
@@ -814,7 +810,7 @@ func TestTraccarCompat_DeviceStatusNeverMoving(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected *oas.Device, got %T", res)
 	}
-	var dev map[string]interface{}
+	var dev map[string]any
 	remarshalOAS(t, oasDev, &dev)
 
 	status := dev["status"].(string)
@@ -898,7 +894,7 @@ func TestTraccarCompat_BearerTokenAuth(t *testing.T) {
 			t.Fatalf("Bearer auth: expected 200, got %d: %s", resp.StatusCode, b)
 		}
 
-		var devices []map[string]interface{}
+		var devices []map[string]any
 		if err := json.NewDecoder(resp.Body).Decode(&devices); err != nil {
 			t.Fatalf("decode: %v", err)
 		}
@@ -1049,7 +1045,7 @@ func TestTraccarCompat_LegacyTokenAuth(t *testing.T) {
 		t.Fatalf("legacy token login: expected 200, got %d: %s", resp.StatusCode, b)
 	}
 
-	var userResp map[string]interface{}
+	var userResp map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&userResp); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
@@ -1101,7 +1097,7 @@ func TestTraccarCompat_SessionTokenQueryParam(t *testing.T) {
 	}
 
 	// Verify the response contains user info with Traccar-compatible fields.
-	var userResp map[string]interface{}
+	var userResp map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&userResp); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
@@ -1205,7 +1201,7 @@ func TestTraccarCompat_CookieSessionAuth(t *testing.T) {
 		t.Fatalf("cookie auth: expected 200, got %d: %s", resp.StatusCode, b)
 	}
 
-	var userResp map[string]interface{}
+	var userResp map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&userResp); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
@@ -1257,7 +1253,7 @@ func TestTraccarCompat_FullRouterDevicesEndpoint(t *testing.T) {
 		Latitude:   52.52,
 		Longitude:  13.405,
 		Speed:      &speed,
-		Attributes: map[string]interface{}{"motion": true},
+		Attributes: map[string]any{"motion": true},
 	}
 	if err := positionRepo.Create(ctx, pos); err != nil {
 		t.Fatalf("create position: %v", err)
@@ -1302,7 +1298,7 @@ func TestTraccarCompat_FullRouterDevicesEndpoint(t *testing.T) {
 			t.Fatalf("expected 200, got %d", resp.StatusCode)
 		}
 
-		var devices []map[string]interface{}
+		var devices []map[string]any
 		if err := json.NewDecoder(resp.Body).Decode(&devices); err != nil {
 			t.Fatalf("decode: %v", err)
 		}
@@ -1334,7 +1330,7 @@ func TestTraccarCompat_FullRouterDevicesEndpoint(t *testing.T) {
 			t.Fatalf("expected 200, got %d", resp.StatusCode)
 		}
 
-		var positions []map[string]interface{}
+		var positions []map[string]any
 		if err := json.NewDecoder(resp.Body).Decode(&positions); err != nil {
 			t.Fatalf("decode: %v", err)
 		}
@@ -1351,7 +1347,7 @@ func TestTraccarCompat_FullRouterDevicesEndpoint(t *testing.T) {
 		}
 
 		// Verify motion attribute exists.
-		if attrs, ok := p["attributes"].(map[string]interface{}); ok {
+		if attrs, ok := p["attributes"].(map[string]any); ok {
 			if _, exists := attrs["motion"]; !exists {
 				t.Error("position.attributes.motion missing through full router")
 			}
@@ -1370,7 +1366,7 @@ func TestTraccarCompat_FullRouterDevicesEndpoint(t *testing.T) {
 			t.Fatalf("expected 200, got %d", resp.StatusCode)
 		}
 
-		var server map[string]interface{}
+		var server map[string]any
 		if err := json.NewDecoder(resp.Body).Decode(&server); err != nil {
 			t.Fatalf("decode: %v", err)
 		}
@@ -1429,7 +1425,7 @@ func TestTraccarCompat_FormEncodedLogin(t *testing.T) {
 	}
 
 	// Verify response contains Traccar-compatible user fields.
-	var userResp map[string]interface{}
+	var userResp map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&userResp); err != nil {
 		t.Fatalf("decode: %v", err)
 	}

@@ -96,7 +96,7 @@ func TestDeviceShareRepository_ListByDevice(t *testing.T) {
 	device := &model.Device{UniqueID: "share-dev-004", Name: "Share Dev 4", Status: "online"}
 	_ = deviceRepo.Create(ctx, device, user.ID)
 
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		share := &model.DeviceShare{DeviceID: device.ID, CreatedBy: user.ID}
 		_ = shareRepo.Create(ctx, share)
 	}

@@ -8,7 +8,7 @@ import "context"
 
 // Publisher can publish messages to a channel.
 type Publisher interface {
-	Publish(ctx context.Context, message interface{}) error
+	Publish(ctx context.Context, message any) error
 }
 
 // Subscriber can subscribe to a channel and receive messages.

@@ -59,9 +59,9 @@ func newUserSessionsListCmd() *cobra.Command {
 
 			switch output {
 			case "json":
-				items := make([]map[string]interface{}, len(sessions))
+				items := make([]map[string]any, len(sessions))
 				for i, s := range sessions {
-					item := map[string]interface{}{
+					item := map[string]any{
 						"id":         s.ID,
 						"rememberMe": s.RememberMe,
 						"isSudo":     s.IsSudo,

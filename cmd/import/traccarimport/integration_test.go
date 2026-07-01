@@ -908,11 +908,3 @@ func TestImportGeofences_InvalidWKT(t *testing.T) {
 		t.Errorf("expected 0 geofences (invalid WKT skipped), got %d", count)
 	}
 }
-
-// min returns the smaller of two ints (needed for string truncation below go1.21).
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}

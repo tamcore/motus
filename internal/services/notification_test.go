@@ -44,7 +44,7 @@ func TestNotificationService_ProcessEvent_FindsMatchingRules(t *testing.T) {
 	// Setup a webhook server to receive notifications.
 	received := make(chan string, 10)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var body map[string]interface{}
+		var body map[string]any
 		_ = json.NewDecoder(r.Body).Decode(&body)
 		received <- "ok"
 		w.WriteHeader(http.StatusOK)
@@ -67,7 +67,7 @@ func TestNotificationService_ProcessEvent_FindsMatchingRules(t *testing.T) {
 		Name:       "Enter Webhook",
 		EventTypes: []string{"geofenceEnter"},
 		Channel:    "webhook",
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"webhookUrl": srv.URL,
 		},
 		Template: `{"text":"Device {{device.name}} entered geofence"}`,
@@ -113,7 +113,7 @@ func TestNotificationService_ProcessEvent_SkipsDisabledRules(t *testing.T) {
 		Name:       "Disabled Rule",
 		EventTypes: []string{"geofenceEnter"},
 		Channel:    "webhook",
-		Config:     map[string]interface{}{"webhookUrl": "https://shouldnot.be.called"},
+		Config:     map[string]any{"webhookUrl": "https://shouldnot.be.called"},
 		Template:   "should not send",
 		Enabled:    false,
 	}
@@ -168,7 +168,7 @@ func TestNotificationService_SendTestNotification(t *testing.T) {
 	rule := &model.NotificationRule{
 		EventTypes: []string{"geofenceEnter"},
 		Channel:    "webhook",
-		Config:     map[string]interface{}{"webhookUrl": srv.URL},
+		Config:     map[string]any{"webhookUrl": srv.URL},
 		Template:   `{"text":"test notification for {{device.name}}"}`,
 	}
 
@@ -194,7 +194,7 @@ func TestNotificationService_SendTestNotification_WebhookError(t *testing.T) {
 	rule := &model.NotificationRule{
 		EventTypes: []string{"geofenceEnter"},
 		Channel:    "webhook",
-		Config:     map[string]interface{}{"webhookUrl": srv.URL},
+		Config:     map[string]any{"webhookUrl": srv.URL},
 		Template:   `{"text":"test"}`,
 	}
 

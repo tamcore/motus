@@ -215,7 +215,7 @@ func TestRedisPublishSubscribe_MultipleMessages(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
-	for i := 0; i < numMessages; i++ {
+	for i := range numMessages {
 		msg := map[string]int{"seq": i}
 		if err := ps.Publish(ctx, msg); err != nil {
 			t.Fatalf("publish error on message %d: %v", i, err)
@@ -433,8 +433,7 @@ func TestRedisClose(t *testing.T) {
 	}
 
 	// Subscribe first so there's a subscription to close.
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	err = ps.Subscribe(ctx, func(data []byte) {})
 	if err != nil {

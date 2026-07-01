@@ -33,21 +33,22 @@ var gpxTrackStart = time.Date(2026, 1, 15, 10, 0, 0, 0, time.UTC)
 // Points are spaced 1 second and ~100 m apart (due north) starting at Berlin,
 // which yields a speed of ~360 km/h and a course of ~0 degrees.
 func minimalGPX(n int) string {
-	base := `<?xml version="1.0" encoding="UTF-8"?>
+	var base strings.Builder
+	base.WriteString(`<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" xmlns="http://www.topografix.com/GPX/1/1">
-  <trk><trkseg>`
-	for i := 0; i < n; i++ {
+  <trk><trkseg>`)
+	for i := range n {
 		lat := 52.520000 + float64(i)*0.0009 // ~100 m north per step
-		base += fmt.Sprintf(`
+		fmt.Fprintf(&base, `
     <trkpt lat="%f" lon="13.404954">
       <ele>35.0</ele>
       <time>%s</time>
     </trkpt>`, lat, gpxTrackStart.Add(time.Duration(i)*time.Second).Format(time.RFC3339))
 	}
-	base += `
+	base.WriteString(`
   </trkseg></trk>
-</gpx>`
-	return base
+</gpx>`)
+	return base.String()
 }
 
 // gpxWithUntimed returns a GPX file with one timed and one untimed point.

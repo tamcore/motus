@@ -260,10 +260,7 @@ func smoothSpeeds(points []RoutePoint) []RoutePoint {
 	window := speedSmoothingWindow
 
 	for i := 1; i < len(out)-1; i++ {
-		lo := i - window
-		if lo < 0 {
-			lo = 0
-		}
+		lo := max(i-window, 0)
 		hi := i + window
 		if hi >= len(out) {
 			hi = len(out) - 1

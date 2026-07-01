@@ -280,7 +280,7 @@ func TestPositionHandler_HandlePosition_MotionAttributePersisted(t *testing.T) {
 		Longitude:  13.37,
 		Speed:      &speed,
 		Timestamp:  time.Now().UTC(),
-		Attributes: map[string]interface{}{"flags": "FFFFFBFF"},
+		Attributes: map[string]any{"flags": "FFFFFBFF"},
 	}
 
 	if err := handler.HandlePosition(ctx, pos); err != nil {

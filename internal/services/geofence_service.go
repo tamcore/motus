@@ -12,14 +12,14 @@ import (
 // UpdateGeofenceInput holds the fields that may be changed. nil pointer fields
 // mean "no change"; CalendarID uses CalendarIDSet as a tri-state flag.
 type UpdateGeofenceInput struct {
-	Name          *string                // nil = keep existing
-	Description   *string                // nil = keep existing
-	Area          *string                // WKT; nil = keep existing
-	Geometry      *string                // GeoJSON; nil = keep existing
-	CalendarID    *int64                 // new calendar ID (ignored unless CalendarIDSet)
-	CalendarIDSet bool                   // true = apply CalendarID change (clear if nil)
-	Attributes    map[string]interface{} // nil = keep existing
-	AttributesSet bool                   // true = apply Attributes change
+	Name          *string        // nil = keep existing
+	Description   *string        // nil = keep existing
+	Area          *string        // WKT; nil = keep existing
+	Geometry      *string        // GeoJSON; nil = keep existing
+	CalendarID    *int64         // new calendar ID (ignored unless CalendarIDSet)
+	CalendarIDSet bool           // true = apply CalendarID change (clear if nil)
+	Attributes    map[string]any // nil = keep existing
+	AttributesSet bool           // true = apply Attributes change
 }
 
 // UpdateForUser applies a partial update to a geofence owned by user and
@@ -67,7 +67,7 @@ func (s *GeofenceService) UpdateForUser(ctx context.Context, user *model.User, g
 	if s.auditLogger != nil {
 		s.auditLogger.Log(ctx, &user.ID,
 			audit.ActionGeofenceUpdate, audit.ResourceGeofence, &updated.ID,
-			map[string]interface{}{"name": updated.Name}, "", "")
+			map[string]any{"name": updated.Name}, "", "")
 	}
 	return &updated, nil
 }
@@ -109,7 +109,7 @@ type CreateGeofenceInput struct {
 	Geometry    string // GeoJSON — used when non-empty (ST_GeomFromGeoJSON path)
 	Area        string // WKT — used when Geometry is empty (ST_GeomFromText path)
 	CalendarID  *int64
-	Attributes  map[string]interface{}
+	Attributes  map[string]any
 }
 
 // CreateForUser validates, persists, and audits a new geofence for user.
@@ -146,7 +146,7 @@ func (s *GeofenceService) CreateForUser(ctx context.Context, user *model.User, i
 	if s.auditLogger != nil {
 		s.auditLogger.Log(ctx, &user.ID,
 			audit.ActionGeofenceCreate, audit.ResourceGeofence, &g.ID,
-			map[string]interface{}{"name": g.Name}, "", "")
+			map[string]any{"name": g.Name}, "", "")
 	}
 	return g, nil
 }

@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"slices"
 	"sync"
 	"time"
 
@@ -257,10 +258,8 @@ func (h *Hub) checkOrigin(r *http.Request) bool {
 
 	// If allowed origins are configured, check against the list.
 	if len(h.allowedOrigins) > 0 {
-		for _, allowed := range h.allowedOrigins {
-			if origin == allowed {
-				return true
-			}
+		if slices.Contains(h.allowedOrigins, origin) {
+			return true
 		}
 	}
 
@@ -635,10 +634,5 @@ func (h *Hub) InvalidateAllDevices() {
 }
 
 func userIDInSlice(id int64, ids []int64) bool {
-	for _, uid := range ids {
-		if uid == id {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(ids, id)
 }

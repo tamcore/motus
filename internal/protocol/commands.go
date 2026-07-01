@@ -24,27 +24,27 @@ func (e *H02CommandEncoder) Protocol() string { return "h02" }
 func (e *H02CommandEncoder) EncodeCommand(cmd *model.Command, deviceID string) ([]byte, error) {
 	switch cmd.Type {
 	case model.CommandRebootDevice:
-		return []byte(fmt.Sprintf("*HQ,%s,reset#", deviceID)), nil
+		return fmt.Appendf(nil, "*HQ,%s,reset#", deviceID), nil
 	case model.CommandPositionSingle:
-		return []byte(fmt.Sprintf("*HQ,%s,locate#", deviceID)), nil
+		return fmt.Appendf(nil, "*HQ,%s,locate#", deviceID), nil
 	case model.CommandPositionPeriodic:
 		interval, ok := cmd.Attributes["frequency"]
 		if !ok {
 			return nil, fmt.Errorf("frequency attribute required for positionPeriodic")
 		}
-		return []byte(fmt.Sprintf("*HQ,%s,time,%v#", deviceID, interval)), nil
+		return fmt.Appendf(nil, "*HQ,%s,time,%v#", deviceID, interval), nil
 	case model.CommandSosNumber:
 		phone, ok := cmd.Attributes["phoneNumber"]
 		if !ok {
 			return nil, fmt.Errorf("phoneNumber attribute required for sosNumber")
 		}
-		return []byte(fmt.Sprintf("setphone,1,%v", phone)), nil
+		return fmt.Appendf(nil, "setphone,1,%v", phone), nil
 	case model.CommandSetSpeedAlarm:
 		speed, ok := cmd.Attributes["speed"]
 		if !ok {
 			return nil, fmt.Errorf("speed attribute required for setSpeedAlarm")
 		}
-		return []byte(fmt.Sprintf("setspeed,%v", speed)), nil
+		return fmt.Appendf(nil, "setspeed,%v", speed), nil
 	case model.CommandFactoryReset:
 		return []byte("FACTORY"), nil
 	default:

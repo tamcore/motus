@@ -230,12 +230,12 @@ func TestDeviceAccessCache_ConcurrentAccess(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(numGoroutines)
 
-	for i := 0; i < numGoroutines; i++ {
+	for i := range numGoroutines {
 		go func(id int) {
 			defer wg.Done()
 			deviceID := int64(id % 10)
 
-			for j := 0; j < numOps; j++ {
+			for j := range numOps {
 				switch j % 4 {
 				case 0:
 					c.set(deviceID, []int64{int64(id), int64(j)})
@@ -263,14 +263,14 @@ func TestDeviceAccessCache_ConcurrentSetAndGet(t *testing.T) {
 
 	go func() {
 		defer wg.Done()
-		for i := 0; i < 10000; i++ {
+		for i := range 10000 {
 			c.set(1, []int64{int64(i)})
 		}
 	}()
 
 	go func() {
 		defer wg.Done()
-		for i := 0; i < 10000; i++ {
+		for range 10000 {
 			ids, ok := c.get(1)
 			if ok && len(ids) != 1 {
 				t.Errorf("unexpected IDs length: %d", len(ids))
@@ -297,7 +297,7 @@ func TestDeviceAccessCache_LazyEvictionRace(t *testing.T) {
 	wg.Add(3)
 
 	// Two goroutines try to read (triggering lazy eviction).
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		go func() {
 			defer wg.Done()
 			c.get(10)

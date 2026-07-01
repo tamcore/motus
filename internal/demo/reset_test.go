@@ -245,7 +245,7 @@ func TestReset_Idempotent(t *testing.T) {
 	ctx := context.Background()
 
 	// Run reset three times in a row.
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		result, err := demo.Reset(ctx, pool, demo.DefaultAccounts, demo.DefaultDeviceIMEIs)
 		if err != nil {
 			t.Fatalf("Reset() iteration %d returned error: %v", i+1, err)
@@ -543,7 +543,7 @@ func TestReset_CleansApiKeys(t *testing.T) {
 }
 
 // assertRowCount verifies a COUNT(*) query returns the expected value.
-func assertRowCount(t *testing.T, pool *pgxpool.Pool, query string, want int, args ...interface{}) {
+func assertRowCount(t *testing.T, pool *pgxpool.Pool, query string, want int, args ...any) {
 	t.Helper()
 	ctx := context.Background()
 	var count int

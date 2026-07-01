@@ -292,8 +292,7 @@ func TestBroadcast_ShareClient_ViaRedis(t *testing.T) {
 	hub.SetShareTokenValidator(validator)
 	hub.SetPubSub(mock)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	go hub.StartSubscriber(ctx)
 	time.Sleep(50 * time.Millisecond)

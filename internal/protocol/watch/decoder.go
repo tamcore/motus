@@ -62,15 +62,15 @@ func Decode(raw string) (*Message, error) {
 
 	// The content is type,data (comma separated).
 	content := parts[3]
-	comma := strings.IndexByte(content, ',')
-	if comma == -1 {
+	before, after, ok := strings.Cut(content, ",")
+	if !ok {
 		// Some messages (like LK responses) have no comma.
 		msg.Type = content
 		return decodeByType(msg, nil)
 	}
 
-	msg.Type = content[:comma]
-	payload := content[comma+1:]
+	msg.Type = before
+	payload := after
 	fields := strings.Split(payload, ",")
 
 	return decodeByType(msg, fields)

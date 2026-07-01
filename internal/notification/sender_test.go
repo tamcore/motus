@@ -31,9 +31,9 @@ func TestSender_SendWebhook(t *testing.T) {
 
 	rule := &model.NotificationRule{
 		Channel: "webhook",
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"webhookUrl": server.URL,
-			"headers": map[string]interface{}{
+			"headers": map[string]any{
 				"X-Custom": "test-value",
 			},
 		},
@@ -74,7 +74,7 @@ func TestSender_SendWebhookError(t *testing.T) {
 
 	rule := &model.NotificationRule{
 		Channel: "webhook",
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"webhookUrl": server.URL,
 		},
 		Template: "test",
@@ -94,7 +94,7 @@ func TestSender_SendWebhookMissingURL(t *testing.T) {
 
 	rule := &model.NotificationRule{
 		Channel:  "webhook",
-		Config:   map[string]interface{}{},
+		Config:   map[string]any{},
 		Template: "test",
 	}
 
@@ -113,7 +113,7 @@ func TestSender_SendWebhookNetworkError(t *testing.T) {
 
 	rule := &model.NotificationRule{
 		Channel:  "webhook",
-		Config:   map[string]interface{}{"webhookUrl": "http://localhost:12345/hook"},
+		Config:   map[string]any{"webhookUrl": "http://localhost:12345/hook"},
 		Template: "test",
 	}
 
@@ -136,7 +136,7 @@ func TestSender_SendWebhookInvalidURL(t *testing.T) {
 
 	rule := &model.NotificationRule{
 		Channel: "webhook",
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"webhookUrl": "http://foo\nbar",
 		},
 		Template: "test",
@@ -153,7 +153,7 @@ func TestSender_NtfyChannelRejected(t *testing.T) {
 
 	rule := &model.NotificationRule{
 		Channel:  "ntfy",
-		Config:   map[string]interface{}{"topic": "test-topic"},
+		Config:   map[string]any{"topic": "test-topic"},
 		Template: "test",
 	}
 
@@ -171,7 +171,7 @@ func TestSender_UnsupportedChannel(t *testing.T) {
 
 	rule := &model.NotificationRule{
 		Channel:  "email",
-		Config:   map[string]interface{}{},
+		Config:   map[string]any{},
 		Template: "test",
 	}
 

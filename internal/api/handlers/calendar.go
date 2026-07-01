@@ -64,7 +64,7 @@ func (h *Handler) CreateCalendar(ctx context.Context, req *oas.CalendarInput) (o
 	if h.cfg.AuditLogger != nil {
 		h.cfg.AuditLogger.Log(ctx, &user.ID,
 			audit.ActionCalendarCreate, audit.ResourceCalendar, &cal.ID,
-			map[string]interface{}{"name": cal.Name}, "", "")
+			map[string]any{"name": cal.Name}, "", "")
 	}
 	out := calendarToOAS(cal)
 	return &out, nil
@@ -105,7 +105,7 @@ func (h *Handler) UpdateCalendar(ctx context.Context, req *oas.CalendarInput, pa
 	if h.cfg.AuditLogger != nil {
 		h.cfg.AuditLogger.Log(ctx, &user.ID,
 			audit.ActionCalendarUpdate, audit.ResourceCalendar, &updated.ID,
-			map[string]interface{}{"name": updated.Name}, "", "")
+			map[string]any{"name": updated.Name}, "", "")
 	}
 	out := calendarToOAS(&updated)
 	return &out, nil

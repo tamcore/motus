@@ -26,7 +26,7 @@ func TestGeofenceRepository_Create(t *testing.T) {
 		Name:        "Test Geofence",
 		Description: "A test area",
 		Geometry:    berlinPolygonGeoJSON,
-		Attributes: map[string]interface{}{
+		Attributes: map[string]any{
 			"color": "red",
 		},
 	}

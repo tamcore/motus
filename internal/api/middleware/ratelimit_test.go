@@ -21,7 +21,7 @@ func TestRateLimit_AllowsWithinBurst(t *testing.T) {
 	handler := mw(http.HandlerFunc(okHandler))
 
 	// All 5 burst requests should succeed.
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		req := httptest.NewRequest(http.MethodGet, "/test", nil)
 		req.RemoteAddr = "192.168.1.100:12345"
 		rr := httptest.NewRecorder()
@@ -40,7 +40,7 @@ func TestRateLimit_BlocksAfterBurstExhausted(t *testing.T) {
 	handler := mw(http.HandlerFunc(okHandler))
 
 	// Exhaust the burst.
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		req := httptest.NewRequest(http.MethodGet, "/test", nil)
 		req.RemoteAddr = "10.0.0.1:12345"
 		rr := httptest.NewRecorder()
@@ -140,7 +140,7 @@ func TestLoginRateLimit_BlocksAfterFiveRequests(t *testing.T) {
 	handler := mw(http.HandlerFunc(okHandler))
 
 	// LoginRateLimit allows 5 requests per minute (burst of 5).
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		req := httptest.NewRequest(http.MethodPost, "/api/session", nil)
 		req.RemoteAddr = "172.16.0.1:12345"
 		rr := httptest.NewRecorder()
@@ -166,7 +166,7 @@ func TestAPIRateLimit_AllowsManyRequests(t *testing.T) {
 
 	// APIRateLimit allows 100 requests per minute (burst of 100).
 	// First 50 should all succeed easily.
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		req := httptest.NewRequest(http.MethodGet, "/api/devices", nil)
 		req.RemoteAddr = "172.16.0.2:12345"
 		rr := httptest.NewRecorder()

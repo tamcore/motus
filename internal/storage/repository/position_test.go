@@ -10,9 +10,7 @@ import (
 	"github.com/tamcore/motus/internal/storage/repository/testutil"
 )
 
-func createTestDevice(t *testing.T, pool interface {
-	// We use the pool directly via repos.
-}, deviceRepo *repository.DeviceRepository, userRepo *repository.UserRepository) (*model.User, *model.Device) {
+func createTestDevice(t *testing.T, pool any, deviceRepo *repository.DeviceRepository, userRepo *repository.UserRepository) (*model.User, *model.Device) {
 	t.Helper()
 	user := createTestUser(t, userRepo)
 	device := &model.Device{
@@ -47,7 +45,7 @@ func TestPositionRepository_Create(t *testing.T) {
 		Altitude:  &altitude,
 		Course:    &course,
 		Timestamp: time.Now().UTC(),
-		Attributes: map[string]interface{}{
+		Attributes: map[string]any{
 			"protocol": "h02",
 			"flags":    "F",
 		},
@@ -284,7 +282,7 @@ func TestPositionRepository_GetByID(t *testing.T) {
 		Latitude:  52.520008,
 		Longitude: 13.404954,
 		Timestamp: time.Now().UTC(),
-		Attributes: map[string]interface{}{
+		Attributes: map[string]any{
 			"key": "value",
 		},
 	}

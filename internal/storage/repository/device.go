@@ -29,7 +29,7 @@ const deviceColumns = `id, unique_id, name, protocol, status, speed_limit, last_
 
 // scanDevice scans a device row into a model.Device.
 func scanDevice(scanner interface {
-	Scan(dest ...interface{}) error
+	Scan(dest ...any) error
 }, d *model.Device) error {
 	var attrs []byte
 	err := scanner.Scan(
@@ -47,7 +47,7 @@ func scanDevice(scanner interface {
 			slog.Warn("failed to unmarshal device attributes",
 				slog.Int64("deviceID", d.ID),
 				slog.Any("error", err))
-			d.Attributes = make(map[string]interface{})
+			d.Attributes = make(map[string]any)
 		}
 	}
 	// Always ensure attributes is a non-nil map for Home Assistant
@@ -55,7 +55,7 @@ func scanDevice(scanner interface {
 	// value "null" round-trips through json.Unmarshal as a nil map, so we
 	// must handle that case as well as SQL NULL (empty bytes).
 	if d.Attributes == nil {
-		d.Attributes = make(map[string]interface{})
+		d.Attributes = make(map[string]any)
 	}
 	return nil
 }
@@ -181,11 +181,11 @@ func (r *DeviceRepository) GetAllWithOwners(ctx context.Context) ([]model.Device
 				slog.Warn("failed to unmarshal device attributes",
 					slog.Int64("deviceID", d.ID),
 					slog.Any("error", err))
-				d.Attributes = make(map[string]interface{})
+				d.Attributes = make(map[string]any)
 			}
 		}
 		if d.Attributes == nil {
-			d.Attributes = make(map[string]interface{})
+			d.Attributes = make(map[string]any)
 		}
 		devices = append(devices, d)
 	}

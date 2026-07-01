@@ -46,7 +46,7 @@ func (h *Handler) AdminStartSudo(ctx context.Context, params oas.AdminStartSudoP
 
 	if h.cfg.AuditLogger != nil {
 		h.cfg.AuditLogger.Log(ctx, &currentUser.ID, audit.ActionSessionSudo, audit.ResourceUser, &targetUser.ID,
-			map[string]interface{}{
+			map[string]any{
 				"targetEmail": targetUser.Email,
 				"adminEmail":  currentUser.Email,
 			}, "", "")
@@ -103,7 +103,7 @@ func (h *Handler) EndSudo(ctx context.Context) (oas.EndSudoRes, error) {
 
 	if h.cfg.AuditLogger != nil {
 		h.cfg.AuditLogger.Log(ctx, &originalUser.ID, audit.ActionSessionSudoEnd, audit.ResourceUser, &currentUser.ID,
-			map[string]interface{}{
+			map[string]any{
 				"adminEmail":  originalUser.Email,
 				"targetEmail": currentUser.Email,
 			}, "", "")

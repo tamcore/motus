@@ -77,7 +77,7 @@ func TestLogin_LockedAfterMaxFailures(t *testing.T) {
 	ctx := context.Background()
 
 	// First 10 attempts should all be unauthorized.
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		res := doOASLogin(t, ctx, h, email, "wrong")
 		if _, ok := res.(*oas.LoginUnauthorized); !ok {
 			t.Fatalf("attempt %d: expected *oas.LoginUnauthorized, got %T", i+1, res)
@@ -110,7 +110,7 @@ func TestLogin_ResetOnSuccess(t *testing.T) {
 	ctx := context.Background()
 
 	// 5 failures.
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		doOASLogin(t, ctx, h, email, "wrong")
 	}
 
@@ -121,7 +121,7 @@ func TestLogin_ResetOnSuccess(t *testing.T) {
 	}
 
 	// Another 9 failures after reset should NOT trigger lockout (counter is reset).
-	for i := 0; i < 9; i++ {
+	for i := range 9 {
 		res := doOASLogin(t, ctx, h, email, "wrong")
 		if _, ok := res.(*oas.LoginUnauthorized); !ok {
 			t.Fatalf("post-reset attempt %d: expected *oas.LoginUnauthorized, got %T", i+1, res)
@@ -140,7 +140,7 @@ func TestLogin_UnknownEmailCountedTowardLockout(t *testing.T) {
 	h := newSessionTestHandler(users, &mockSessionRepo{}, &mockApiKeyRepo{})
 	ctx := context.Background()
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		doOASLogin(t, ctx, h, email, "x")
 	}
 

@@ -15,18 +15,18 @@ import (
 func TestAlarmFromAttributes(t *testing.T) {
 	tests := []struct {
 		name      string
-		attrs     map[string]interface{}
+		attrs     map[string]any
 		wantVal   string
 		wantFound bool
 	}{
 		{"nil map", nil, "", false},
-		{"empty map", map[string]interface{}{}, "", false},
-		{"sos alarm", map[string]interface{}{"alarm": "sos"}, "sos", true},
-		{"powerCut alarm", map[string]interface{}{"alarm": "powerCut"}, "powerCut", true},
-		{"vibration alarm", map[string]interface{}{"alarm": "vibration"}, "vibration", true},
-		{"empty string", map[string]interface{}{"alarm": ""}, "", false},
-		{"wrong type int", map[string]interface{}{"alarm": 1}, "", false},
-		{"other keys only", map[string]interface{}{"ignition": true}, "", false},
+		{"empty map", map[string]any{}, "", false},
+		{"sos alarm", map[string]any{"alarm": "sos"}, "sos", true},
+		{"powerCut alarm", map[string]any{"alarm": "powerCut"}, "powerCut", true},
+		{"vibration alarm", map[string]any{"alarm": "vibration"}, "vibration", true},
+		{"empty string", map[string]any{"alarm": ""}, "", false},
+		{"wrong type int", map[string]any{"alarm": 1}, "", false},
+		{"other keys only", map[string]any{"ignition": true}, "", false},
 	}
 
 	for _, tt := range tests {
@@ -82,7 +82,7 @@ func TestCheckAlarm_NoAlarmAttribute(t *testing.T) {
 		ID:         1,
 		DeviceID:   42,
 		Timestamp:  time.Now(),
-		Attributes: map[string]interface{}{"ignition": true},
+		Attributes: map[string]any{"ignition": true},
 	}
 
 	if err := svc.CheckAlarm(context.Background(), pos); err != nil {
@@ -115,7 +115,7 @@ func TestCheckAlarm_SOSAlarm(t *testing.T) {
 		ID:        1,
 		DeviceID:  42,
 		Timestamp: time.Now(),
-		Attributes: map[string]interface{}{
+		Attributes: map[string]any{
 			"alarm": "sos",
 		},
 	}
@@ -150,7 +150,7 @@ func TestCheckAlarm_PowerCutAlarm(t *testing.T) {
 		ID:         1,
 		DeviceID:   7,
 		Timestamp:  time.Now(),
-		Attributes: map[string]interface{}{"alarm": "powerCut"},
+		Attributes: map[string]any{"alarm": "powerCut"},
 	}
 
 	if err := svc.CheckAlarm(context.Background(), pos); err != nil {
@@ -176,7 +176,7 @@ func TestCheckAlarm_EachAlarmFiresImmediately(t *testing.T) {
 			ID:         i,
 			DeviceID:   5,
 			Timestamp:  ts.Add(time.Duration(i) * time.Second),
-			Attributes: map[string]interface{}{"alarm": "vibration"},
+			Attributes: map[string]any{"alarm": "vibration"},
 		}
 		if err := svc.CheckAlarm(context.Background(), pos); err != nil {
 			t.Fatalf("pos %d: unexpected error: %v", i, err)
@@ -199,7 +199,7 @@ func TestCheckAlarm_WithHub(t *testing.T) {
 		ID:        10,
 		DeviceID:  42,
 		Timestamp: time.Now(),
-		Attributes: map[string]interface{}{
+		Attributes: map[string]any{
 			"alarm": "sos",
 		},
 	}
@@ -243,7 +243,7 @@ func TestCheckAlarm_WithNotificationService(t *testing.T) {
 		ID:        1,
 		DeviceID:  device.ID,
 		Timestamp: time.Now().UTC(),
-		Attributes: map[string]interface{}{
+		Attributes: map[string]any{
 			"alarm": "vibration",
 		},
 	}

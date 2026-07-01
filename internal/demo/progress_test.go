@@ -65,12 +65,12 @@ func TestRouteProgress_FullCycle(t *testing.T) {
 	p := newRouteProgress()
 
 	// Simulate a full forward + reverse cycle.
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		p.Advance()
 	}
 	p.FinishDirection() // Forward done.
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		p.Advance()
 	}
 	p.FinishDirection() // Reverse done.

@@ -474,7 +474,7 @@ func webhookTestRuleRepo(ownerID int64, webhookURL string) *auditMockNotificatio
 				Name:       "Test Rule",
 				EventTypes: []string{"geofenceEnter"},
 				Channel:    "webhook",
-				Config:     map[string]interface{}{"webhookUrl": webhookURL},
+				Config:     map[string]any{"webhookUrl": webhookURL},
 				Template:   `{"text":"test notification"}`,
 				Enabled:    true,
 			}, nil

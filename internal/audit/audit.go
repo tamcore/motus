@@ -102,15 +102,15 @@ const (
 
 // Entry represents a single audit log entry.
 type Entry struct {
-	ID           int64                  `json:"id"`
-	Timestamp    time.Time              `json:"timestamp"`
-	UserID       *int64                 `json:"userId,omitempty"`
-	Action       string                 `json:"action"`
-	ResourceType *string                `json:"resourceType,omitempty"`
-	ResourceID   *int64                 `json:"resourceId,omitempty"`
-	Details      map[string]interface{} `json:"details,omitempty"`
-	IPAddress    *string                `json:"ipAddress,omitempty"`
-	UserAgent    *string                `json:"userAgent,omitempty"`
+	ID           int64          `json:"id"`
+	Timestamp    time.Time      `json:"timestamp"`
+	UserID       *int64         `json:"userId,omitempty"`
+	Action       string         `json:"action"`
+	ResourceType *string        `json:"resourceType,omitempty"`
+	ResourceID   *int64         `json:"resourceId,omitempty"`
+	Details      map[string]any `json:"details,omitempty"`
+	IPAddress    *string        `json:"ipAddress,omitempty"`
+	UserAgent    *string        `json:"userAgent,omitempty"`
 }
 
 // Logger provides audit logging backed by a PostgreSQL table.
@@ -133,7 +133,7 @@ func (l *Logger) SetLogger(sl *slog.Logger) {
 
 // Log records an audit event. Errors are logged but never returned to
 // callers, because audit logging must not break application flow.
-func (l *Logger) Log(ctx context.Context, userID *int64, action, resourceType string, resourceID *int64, details map[string]interface{}, ip, userAgent string) {
+func (l *Logger) Log(ctx context.Context, userID *int64, action, resourceType string, resourceID *int64, details map[string]any, ip, userAgent string) {
 	if l == nil || l.pool == nil {
 		return
 	}
@@ -206,7 +206,7 @@ func (l *Logger) Log(ctx context.Context, userID *int64, action, resourceType st
 
 // LogFromRequest is a convenience method that extracts IP and User-Agent
 // from an HTTP request.
-func (l *Logger) LogFromRequest(r *http.Request, userID *int64, action, resourceType string, resourceID *int64, details map[string]interface{}) {
+func (l *Logger) LogFromRequest(r *http.Request, userID *int64, action, resourceType string, resourceID *int64, details map[string]any) {
 	ip := ExtractIP(r)
 	ua := r.UserAgent()
 	l.Log(r.Context(), userID, action, resourceType, resourceID, details, ip, ua)

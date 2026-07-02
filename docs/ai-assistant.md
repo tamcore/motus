@@ -82,7 +82,7 @@ activate it.
 | `MOTUS_AI_TIMEOUT` | `90s` | Wall-clock budget for one chat request, including all tool iterations. |
 | `MOTUS_AI_MAX_TOOL_LOOPS` | `8` | Maximum number of tool-call iterations per turn. |
 | `MOTUS_AI_SYSTEM_PROMPT` | _(built-in)_ | When non-empty, replaces the built-in system prompt entirely. The built-in prompt describes available tool categories, instructs the model to call `get_server_time` before resolving relative dates, restricts the assistant to motus topics (with refusal and prompt-injection-resistance instructions), and appends today's date. |
-| `MOTUS_AI_GUARDRAIL_ENABLED` | `true` | Pre-flight topic classifier. Before the main model runs, a cheap non-streaming completion (temperature 0, 4 max tokens) classifies the latest user message as on/off-topic using the last 6 text turns for context. Off-topic messages receive a canned refusal without invoking the main model or tools; each refusal is logged (INFO, first 120 chars of the message). Classifier errors fail open (the request proceeds). |
+| `MOTUS_AI_GUARDRAIL_ENABLED` | `true` | Pre-flight topic classifier. Before the main model runs, a cheap non-streaming completion (temperature 0) classifies the latest user message as on/off-topic using the last 6 text turns for context. Off-topic messages receive a canned refusal without invoking the main model or tools; each refusal is logged (INFO, first 120 chars of the message). Classifier errors or unparseable verdicts fail open (the request proceeds) and are logged as warnings. |
 | `MOTUS_AI_GUARDRAIL_MODEL` | _(same as `MOTUS_AI_MODEL`)_ | Model used for the guardrail classification call. Point it at a smaller/cheaper model to cut guardrail cost. |
 
 Sources: `internal/config/config.go`, `internal/config/validate.go`.

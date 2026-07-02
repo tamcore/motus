@@ -168,6 +168,17 @@ by email **only when the IdP asserts `email_verified`** (boolean `true` or strin
 addresses; otherwise an attacker-controlled IdP account with a victim's address
 could take over the local account.
 
+### Demo instance credentials
+Login is by **email**, not username (`POST /api/session` rejects strings without `@`).
+The demo accounts (seeded in `internal/demo/service.go`) are:
+
+| Email | Password | Role |
+|---|---|---|
+| `demo@motus.local` | `demo` | user |
+| `admin@motus.local` | `admin` | admin |
+
+Legacy `?token=` login uses the username part of the email (`demo`, `admin`).
+
 ### Demo accounts are write-protected
 When demo mode is enabled, `demo.IsDemoAccount(email)` blocks profile and user
 modification (`"demo accounts cannot be modified"`). On the dev K8s instance even

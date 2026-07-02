@@ -49,7 +49,8 @@ func TestClassifyTopic(t *testing.T) {
 		{name: "on topic", status: http.StatusOK, reply: "ON_TOPIC", wantOffTopic: false},
 		{name: "off topic", status: http.StatusOK, reply: "OFF_TOPIC", wantOffTopic: true},
 		{name: "off topic lowercase", status: http.StatusOK, reply: "off_topic", wantOffTopic: true},
-		{name: "garbage reply fails open", status: http.StatusOK, reply: "banana", wantOffTopic: false},
+		{name: "garbage reply is an error", status: http.StatusOK, reply: "banana", wantErr: true},
+		{name: "empty reply is an error", status: http.StatusOK, reply: "", wantErr: true},
 		{name: "upstream error", status: http.StatusInternalServerError, reply: "", wantErr: true},
 	}
 

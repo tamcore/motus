@@ -214,6 +214,12 @@ spec:
           value: {{ .Values.ai.timeout | quote }}
         - name: MOTUS_AI_MAX_TOOL_LOOPS
           value: {{ .Values.ai.maxToolLoops | quote }}
+        - name: MOTUS_AI_GUARDRAIL_ENABLED
+          value: {{ .Values.ai.guardrailEnabled | quote }}
+        {{- if .Values.ai.guardrailModel }}
+        - name: MOTUS_AI_GUARDRAIL_MODEL
+          value: {{ .Values.ai.guardrailModel | quote }}
+        {{- end }}
         {{- if .Values.ai.systemPrompt }}
         - name: MOTUS_AI_SYSTEM_PROMPT
           value: {{ .Values.ai.systemPrompt | quote }}

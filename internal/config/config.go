@@ -56,6 +56,13 @@ type AIConfig struct {
 	// SystemPrompt overrides the built-in system prompt when non-empty.
 	// Loaded from MOTUS_AI_SYSTEM_PROMPT.
 	SystemPrompt string
+	// GuardrailEnabled turns on the pre-flight topic classifier that refuses
+	// off-topic chat messages before they reach the main model.
+	// Loaded from MOTUS_AI_GUARDRAIL_ENABLED. Default: true.
+	GuardrailEnabled bool
+	// GuardrailModel is the model used for topic classification.
+	// Loaded from MOTUS_AI_GUARDRAIL_MODEL. Default: same as Model.
+	GuardrailModel string
 }
 
 // OIDCConfig holds OpenID Connect authentication settings.
@@ -393,15 +400,17 @@ func LoadFromEnv() (*Config, error) {
 			Scopes:               getEnv("MOTUS_OIDC_SCOPES", ""),
 		},
 		AI: AIConfig{
-			Enabled:      getEnvBool("MOTUS_AI_ENABLED", false),
-			BaseURL:      getEnv("MOTUS_AI_BASE_URL", "https://api.openai.com/v1"),
-			APIKey:       getEnv("MOTUS_AI_API_KEY", ""),
-			Model:        getEnv("MOTUS_AI_MODEL", "gpt-4o-mini"),
-			MaxTokens:    getEnvInt("MOTUS_AI_MAX_TOKENS", 4096),
-			Temperature:  getEnvFloat("MOTUS_AI_TEMPERATURE", 0.2),
-			Timeout:      getEnvDuration("MOTUS_AI_TIMEOUT", 90*time.Second),
-			MaxToolLoops: getEnvInt("MOTUS_AI_MAX_TOOL_LOOPS", 8),
-			SystemPrompt: getEnv("MOTUS_AI_SYSTEM_PROMPT", ""),
+			Enabled:          getEnvBool("MOTUS_AI_ENABLED", false),
+			BaseURL:          getEnv("MOTUS_AI_BASE_URL", "https://api.openai.com/v1"),
+			APIKey:           getEnv("MOTUS_AI_API_KEY", ""),
+			Model:            getEnv("MOTUS_AI_MODEL", "gpt-4o-mini"),
+			MaxTokens:        getEnvInt("MOTUS_AI_MAX_TOKENS", 4096),
+			Temperature:      getEnvFloat("MOTUS_AI_TEMPERATURE", 0.2),
+			Timeout:          getEnvDuration("MOTUS_AI_TIMEOUT", 90*time.Second),
+			MaxToolLoops:     getEnvInt("MOTUS_AI_MAX_TOOL_LOOPS", 8),
+			SystemPrompt:     getEnv("MOTUS_AI_SYSTEM_PROMPT", ""),
+			GuardrailEnabled: getEnvBool("MOTUS_AI_GUARDRAIL_ENABLED", true),
+			GuardrailModel:   getEnv("MOTUS_AI_GUARDRAIL_MODEL", ""),
 		},
 	}
 	if err := cfg.Validate(); err != nil {

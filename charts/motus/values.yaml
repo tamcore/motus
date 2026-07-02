@@ -205,6 +205,10 @@ ai:
   timeout: "90s"
   maxToolLoops: 8
   systemPrompt: ""
+  # Pre-flight topic classifier that refuses off-topic questions before they
+  # reach the main model. guardrailModel defaults to `model` when empty.
+  guardrailEnabled: true
+  guardrailModel: ""
   # apiKey: plain value (dev only). Prefer apiKeyRef for production.
   apiKey: ""
   apiKeyRef:

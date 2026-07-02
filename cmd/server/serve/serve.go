@@ -317,15 +317,17 @@ func Run() {
 			ForwardGeocoder: forwardGeocoder,
 		})
 		chatSvc := aiChat.NewService(aiChat.Config{
-			BaseURL:      cfg.AI.BaseURL,
-			APIKey:       cfg.AI.APIKey,
-			Model:        cfg.AI.Model,
-			MaxTokens:    cfg.AI.MaxTokens,
-			Temperature:  cfg.AI.Temperature,
-			SystemPrompt: cfg.AI.SystemPrompt,
-			MaxLoops:     cfg.AI.MaxToolLoops,
-			Timeout:      cfg.AI.Timeout,
-			MCPServer:    mcpSrv,
+			BaseURL:          cfg.AI.BaseURL,
+			APIKey:           cfg.AI.APIKey,
+			Model:            cfg.AI.Model,
+			MaxTokens:        cfg.AI.MaxTokens,
+			Temperature:      cfg.AI.Temperature,
+			SystemPrompt:     cfg.AI.SystemPrompt,
+			MaxLoops:         cfg.AI.MaxToolLoops,
+			Timeout:          cfg.AI.Timeout,
+			MCPServer:        mcpSrv,
+			GuardrailEnabled: cfg.AI.GuardrailEnabled,
+			GuardrailModel:   cfg.AI.GuardrailModel,
 		})
 		var histStore *chathistory.Store
 		if redisClient != nil {
@@ -334,7 +336,10 @@ func Run() {
 		}
 		chatHandler = handlers.NewChatHandler(chatSvc, histStore)
 		chatHistoryHandler = handlers.NewChatHistoryHandler(histStore)
-		slog.Info("AI chat enabled", slog.String("model", cfg.AI.Model), slog.String("baseURL", cfg.AI.BaseURL))
+		slog.Info("AI chat enabled",
+			slog.String("model", cfg.AI.Model),
+			slog.String("baseURL", cfg.AI.BaseURL),
+			slog.Bool("guardrail", cfg.AI.GuardrailEnabled))
 	}
 	handler.SetAIEnabled(cfg.AI.Enabled)
 

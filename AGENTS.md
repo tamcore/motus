@@ -177,7 +177,11 @@ The demo accounts (seeded in `internal/demo/service.go`) are:
 | `demo@motus.local` | `demo` | user |
 | `admin@motus.local` | `admin` | admin |
 
-Legacy `?token=` login uses the username part of the email (`demo`, `admin`).
+The Traccar-API-compat token login (`GET /api/session?token=`, used by pytraccar /
+QR code / Traccar Manager / Home Assistant) authenticates with a per-user API token.
+Regular users get a random 32-byte token (`UserRepository.GenerateToken`); **demo
+accounts only** are seeded with their email's username part as token (`demo`,
+`admin`) by `demo.Reset()` — a deliberate demo-instance convenience.
 
 ### Demo accounts are write-protected
 When demo mode is enabled, `demo.IsDemoAccount(email)` blocks profile and user

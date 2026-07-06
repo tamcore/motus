@@ -7,7 +7,7 @@ require (
 	github.com/arran4/golang-ical v0.3.5
 	github.com/coreos/go-oidc/v3 v3.19.0
 	github.com/didip/tollbooth/v7 v7.0.2
-	github.com/go-chi/chi/v5 v5.2.5
+	github.com/go-chi/chi/v5 v5.3.1
 	github.com/go-faster/errors v0.7.1
 	github.com/go-faster/jx v1.2.0
 	github.com/go-redis/redis_rate/v10 v10.0.1

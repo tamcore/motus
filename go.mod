@@ -14,7 +14,7 @@ require (
 	github.com/gorilla/csrf v1.7.3
 	github.com/gorilla/websocket v1.5.3
 	github.com/jackc/pgx/v5 v5.10.0
-	github.com/mark3labs/mcp-go v0.55.1
+	github.com/mark3labs/mcp-go v0.56.0
 	github.com/ogen-go/ogen v1.22.0
 	github.com/openai/openai-go v1.12.0
 	github.com/pressly/goose/v3 v3.27.2

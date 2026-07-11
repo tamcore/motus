@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	openai "github.com/openai/openai-go"
-	"github.com/openai/openai-go/packages/param"
+	openai "github.com/openai/openai-go/v2"
+	"github.com/openai/openai-go/v2/packages/param"
 )
 
 // refusalMessage is streamed verbatim when the guardrail classifies the

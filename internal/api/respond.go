@@ -80,3 +80,20 @@ func ResponseWriterFromContext(ctx context.Context) http.ResponseWriter {
 	w, _ := ctx.Value(responseWriterContextKey).(http.ResponseWriter)
 	return w
 }
+
+const requestContextKey contextKey = "request"
+
+// ContextWithRequest returns a new context with the *http.Request stored in it.
+// This lets ogen handlers (which receive only a context.Context) read request
+// cookies — e.g. the short-lived WebAuthn challenge cookie set during a passkey
+// ceremony.
+func ContextWithRequest(ctx context.Context, r *http.Request) context.Context {
+	return context.WithValue(ctx, requestContextKey, r)
+}
+
+// RequestFromContext extracts the *http.Request from the context.
+// Returns nil when no request has been stored (e.g. in unit tests).
+func RequestFromContext(ctx context.Context) *http.Request {
+	r, _ := ctx.Value(requestContextKey).(*http.Request)
+	return r
+}

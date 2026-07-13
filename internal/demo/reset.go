@@ -44,6 +44,7 @@ type ResetResult struct {
 	AuditLogsDeleted         int
 	ApiKeysDeleted           int
 	ApiKeysCreated           int
+	PasskeysDeleted          int
 }
 
 // Reset performs a comprehensive demo environment reset. It:
@@ -170,6 +171,19 @@ func Reset(ctx context.Context, pool *pgxpool.Pool, accounts []DemoAccount, devi
 		return nil, fmt.Errorf("delete demo api keys: %w", err)
 	}
 	result.ApiKeysDeleted = int(tag.RowsAffected())
+
+	// Delete passkey credentials for demo users. Demo users are upserted (not
+	// deleted) below, so the ON DELETE CASCADE never fires — clean them here so
+	// each demo cycle starts with no registered passkeys.
+	tag, err = tx.Exec(ctx, `
+		DELETE FROM passkey_credentials WHERE user_id IN (
+			SELECT id FROM users WHERE email = ANY($1)
+		)
+	`, demoEmails)
+	if err != nil {
+		return nil, fmt.Errorf("delete demo passkey credentials: %w", err)
+	}
+	result.PasskeysDeleted = int(tag.RowsAffected())
 
 	// -----------------------------------------------------------------------
 	// Phase 3: Delete demo-managed resources.
@@ -382,6 +396,9 @@ func LogResult(result *ResetResult) {
 	}
 	if result.ApiKeysDeleted > 0 {
 		parts = append(parts, fmt.Sprintf("apiKeys=%d", result.ApiKeysDeleted))
+	}
+	if result.PasskeysDeleted > 0 {
+		parts = append(parts, fmt.Sprintf("passkeys=%d", result.PasskeysDeleted))
 	}
 	if result.NotificationRulesDeleted > 0 {
 		parts = append(parts, fmt.Sprintf("rulesDeleted=%d", result.NotificationRulesDeleted))

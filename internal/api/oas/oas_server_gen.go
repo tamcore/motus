@@ -194,6 +194,12 @@ type Handler interface {
 	//
 	// DELETE /api/notifications/{id}
 	DeleteNotification(ctx context.Context, params DeleteNotificationParams) (DeleteNotificationRes, error)
+	// DeletePasskey implements deletePasskey operation.
+	//
+	// Delete one of the authenticated user's passkeys.
+	//
+	// DELETE /api/session/passkey/credentials/{id}
+	DeletePasskey(ctx context.Context, params DeletePasskeyParams) (DeletePasskeyRes, error)
 	// DeleteSession implements deleteSession operation.
 	//
 	// Revoke a specific session.
@@ -262,9 +268,9 @@ type Handler interface {
 	GetServer(ctx context.Context) (*ServerInfo, error)
 	// GetSession implements getSession operation.
 	//
-	// With a `token` query parameter, performs a token login (QR code / Traccar Manager / pytraccar):
-	// the token is resolved against API keys (with legacy users.token fallback) and a session cookie is
-	// set. Without it, validates the current session credentials.
+	// With a `token` query parameter, performs a token login (QR code / Traccar Manager / pytraccar): the
+	// token is resolved against API keys (with legacy users.token fallback) and a session cookie is set.
+	// Without it, validates the current session credentials.
 	//
 	// GET /api/session
 	GetSession(ctx context.Context, params GetSessionParams) (GetSessionRes, error)
@@ -334,6 +340,12 @@ type Handler interface {
 	//
 	// GET /api/notifications
 	ListNotifications(ctx context.Context) (ListNotificationsRes, error)
+	// ListPasskeys implements listPasskeys operation.
+	//
+	// List the authenticated user's registered passkeys.
+	//
+	// GET /api/session/passkey/credentials
+	ListPasskeys(ctx context.Context) (ListPasskeysRes, error)
 	// ListSessions implements listSessions operation.
 	//
 	// List active sessions for the authenticated user.
@@ -382,6 +394,32 @@ type Handler interface {
 	//
 	// GET /api/auth/oidc/login
 	OidcLogin(ctx context.Context) error
+	// PasskeyLoginBegin implements passkeyLoginBegin operation.
+	//
+	// Public endpoint. Returns discoverable-credential request options and sets a short-lived challenge
+	// cookie. No user identifier is required.
+	//
+	// POST /api/session/passkey/login/begin
+	PasskeyLoginBegin(ctx context.Context) (PasskeyLoginBeginRes, error)
+	// PasskeyLoginFinish implements passkeyLoginFinish operation.
+	//
+	// Public endpoint. Verifies the assertion, establishes a session cookie (read-only for demo accounts),
+	// and returns the authenticated user.
+	//
+	// POST /api/session/passkey/login/finish
+	PasskeyLoginFinish(ctx context.Context, req WebAuthnAssertionResponse) (PasskeyLoginFinishRes, error)
+	// PasskeyRegisterBegin implements passkeyRegisterBegin operation.
+	//
+	// Begin passkey registration (returns creation options).
+	//
+	// POST /api/session/passkey/register/begin
+	PasskeyRegisterBegin(ctx context.Context) (PasskeyRegisterBeginRes, error)
+	// PasskeyRegisterFinish implements passkeyRegisterFinish operation.
+	//
+	// Finish passkey registration (verify attestation).
+	//
+	// POST /api/session/passkey/register/finish
+	PasskeyRegisterFinish(ctx context.Context, req WebAuthnAttestationResponse, params PasskeyRegisterFinishParams) (PasskeyRegisterFinishRes, error)
 	// ReportEvents implements reportEvents operation.
 	//
 	// Report events in a time range (same as listEvents, Traccar-compatible path).

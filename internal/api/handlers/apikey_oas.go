@@ -72,7 +72,7 @@ func (h *Handler) CreateApiKey(ctx context.Context, req *oas.ApiKeyInput) (oas.C
 
 	if h.cfg.AuditLogger != nil {
 		h.cfg.AuditLogger.Log(ctx, &user.ID, audit.ActionApiKeyCreate, audit.ResourceApiKey, &key.ID,
-			map[string]interface{}{"name": key.Name, "permissions": key.Permissions}, "", "")
+			map[string]any{"name": key.Name, "permissions": key.Permissions}, "", "")
 	}
 
 	result := apiKeyToOAS(key, true)
@@ -102,7 +102,7 @@ func (h *Handler) DeleteApiKey(ctx context.Context, params oas.DeleteApiKeyParam
 
 	if h.cfg.AuditLogger != nil {
 		h.cfg.AuditLogger.Log(ctx, &user.ID, audit.ActionApiKeyDelete, audit.ResourceApiKey, &params.ID,
-			map[string]interface{}{"name": key.Name, "keyOwnerUserId": key.UserID}, "", "")
+			map[string]any{"name": key.Name, "keyOwnerUserId": key.UserID}, "", "")
 	}
 
 	return &oas.DeleteApiKeyNoContent{}, nil

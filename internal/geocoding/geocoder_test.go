@@ -209,7 +209,7 @@ func TestNominatimGeocoder_ReverseGeocode_RateLimiting(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		_, err := geocoder.ReverseGeocode(ctx, float64(i), float64(i))
 		if err != nil {
 			t.Fatalf("request %d failed: %v", i, err)

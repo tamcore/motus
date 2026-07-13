@@ -151,7 +151,7 @@ func TestSecurityHeaders_UnpkgNotInScriptOrStyleSrc(t *testing.T) {
 // extractCSPDirective returns the value of a named directive from a CSP header string,
 // or an empty string if the directive is not present.
 func extractCSPDirective(csp, directive string) string {
-	for _, part := range strings.Split(csp, ";") {
+	for part := range strings.SplitSeq(csp, ";") {
 		part = strings.TrimSpace(part)
 		if strings.HasPrefix(part, directive+" ") || part == directive {
 			return part

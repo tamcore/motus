@@ -30,7 +30,7 @@ func pushMessages(t *testing.T, rdb *redis.Client, k string, msgs []chat.Message
 
 func buildTurns(n int) []chat.Message {
 	msgs := make([]chat.Message, 0, n*2)
-	for i := 0; i < n; i++ {
+	for range n {
 		msgs = append(msgs,
 			chat.Message{Role: "user", Content: "q"},
 			chat.Message{Role: "assistant", Content: "a"},
@@ -150,7 +150,7 @@ func TestStore_AppendTrimsAutomatically(t *testing.T) {
 	store := NewStore(rdb, time.Hour)
 	ctx := context.Background()
 
-	for i := 0; i < MaxTurns+5; i++ {
+	for range MaxTurns + 5 {
 		_ = store.Append(ctx, 1,
 			chat.Message{Role: "user", Content: "q"},
 			chat.Message{Role: "assistant", Content: "a"},

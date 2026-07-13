@@ -62,7 +62,7 @@ func NewRedisPubSubFromClient(client *redis.Client, channel string) (*RedisPubSu
 }
 
 // Publish serialises message as JSON and publishes it to the Redis channel.
-func (r *RedisPubSub) Publish(ctx context.Context, message interface{}) error {
+func (r *RedisPubSub) Publish(ctx context.Context, message any) error {
 	data, err := json.Marshal(message)
 	if err != nil {
 		return fmt.Errorf("marshal message: %w", err)

@@ -614,7 +614,7 @@ func (s *Server) decodeH02(ctx context.Context, line string) (*model.Position, s
 		Speed:      &speed,
 		Course:     &course,
 		Altitude:   &altitude,
-		Attributes: map[string]interface{}{
+		Attributes: map[string]any{
 			"flags":    msg.Flags,
 			"ignition": msg.Ignition,
 		},
@@ -683,7 +683,7 @@ func (s *Server) decodeWatch(ctx context.Context, line string) (*model.Position,
 		Longitude:  msg.Longitude,
 		Speed:      &speed,
 		Course:     &course,
-		Attributes: map[string]interface{}{
+		Attributes: map[string]any{
 			"satellites": msg.Satellites,
 		},
 	}

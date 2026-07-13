@@ -104,7 +104,7 @@ func TestNew_JSONFormat(t *testing.T) {
 
 	output := buf.String()
 	// Verify it's valid JSON.
-	var parsed map[string]interface{}
+	var parsed map[string]any
 	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &parsed); err != nil {
 		t.Fatalf("expected valid JSON output, got %q: %v", output, err)
 	}
@@ -127,7 +127,7 @@ func TestNew_TextFormat(t *testing.T) {
 
 	output := buf.String()
 	// Text format should NOT be valid JSON.
-	var parsed map[string]interface{}
+	var parsed map[string]any
 	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &parsed); err == nil {
 		t.Error("text format output should not be valid JSON")
 	}
@@ -181,7 +181,7 @@ func TestNew_ContextualFields(t *testing.T) {
 	)
 
 	output := buf.String()
-	var parsed map[string]interface{}
+	var parsed map[string]any
 	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &parsed); err != nil {
 		t.Fatalf("expected valid JSON output: %v", err)
 	}
@@ -207,12 +207,12 @@ func TestNew_WithGroup(t *testing.T) {
 	)
 
 	output := buf.String()
-	var parsed map[string]interface{}
+	var parsed map[string]any
 	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &parsed); err != nil {
 		t.Fatalf("expected valid JSON output: %v", err)
 	}
 	// The group should nest the attributes.
-	reqGroup, ok := parsed["request"].(map[string]interface{})
+	reqGroup, ok := parsed["request"].(map[string]any)
 	if !ok {
 		t.Fatalf("expected 'request' group in JSON output, got %v", parsed)
 	}
@@ -232,7 +232,7 @@ func TestNew_With(t *testing.T) {
 	child.Info("started")
 
 	output := buf.String()
-	var parsed map[string]interface{}
+	var parsed map[string]any
 	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &parsed); err != nil {
 		t.Fatalf("expected valid JSON output: %v", err)
 	}
@@ -300,7 +300,7 @@ func TestNew_EmptyFormatDefaultsBasedOnMOTUS_ENV(t *testing.T) {
 	l.Info("test")
 
 	output := buf.String()
-	var parsed map[string]interface{}
+	var parsed map[string]any
 	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &parsed); err != nil {
 		t.Fatalf("expected JSON output with Format=json, got %q", output)
 	}
@@ -339,7 +339,7 @@ func TestNew_MultipleLogLevelsOutput(t *testing.T) {
 
 	levels := []string{"DEBUG", "INFO", "WARN", "ERROR"}
 	for i, line := range lines {
-		var parsed map[string]interface{}
+		var parsed map[string]any
 		if err := json.Unmarshal([]byte(line), &parsed); err != nil {
 			t.Fatalf("line %d: invalid JSON: %v", i, err)
 		}

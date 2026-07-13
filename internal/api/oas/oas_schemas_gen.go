@@ -1338,7 +1338,8 @@ func (s *AuditMetaUserUpdate) SetReadonly(val OptBool) {
 // Ref: #/components/schemas/AuditMetadata
 // AuditMetadata represents sum type.
 type AuditMetadata struct {
-	Type                        AuditMetadataType // switch on this field
+	// Type selects the active sum variant, switch on this field.
+	Type                        AuditMetadataType
 	AuditMetaEmpty              AuditMetaEmpty
 	AuditMetaSessionLogin       AuditMetaSessionLogin
 	AuditMetaSessionLoginFailed AuditMetaSessionLoginFailed
@@ -2562,7 +2563,8 @@ func (s *CommandAttrSosNumberType) UnmarshalText(data []byte) error {
 // Ref: #/components/schemas/CommandAttributes
 // CommandAttributes represents sum type.
 type CommandAttributes struct {
-	Type                        CommandAttributesType // switch on this field
+	// Type selects the active sum variant, switch on this field.
+	Type                        CommandAttributesType
 	CommandAttrCustom           CommandAttrCustom
 	CommandAttrPositionPeriodic CommandAttrPositionPeriodic
 	CommandAttrSosNumber        CommandAttrSosNumber
@@ -2912,6 +2914,19 @@ func (*DeleteNotificationNotFound) deleteNotificationRes() {}
 type DeleteNotificationUnauthorized Error
 
 func (*DeleteNotificationUnauthorized) deleteNotificationRes() {}
+
+// DeletePasskeyNoContent is response for DeletePasskey operation.
+type DeletePasskeyNoContent struct{}
+
+func (*DeletePasskeyNoContent) deletePasskeyRes() {}
+
+type DeletePasskeyNotFound Error
+
+func (*DeletePasskeyNotFound) deletePasskeyRes() {}
+
+type DeletePasskeyUnauthorized Error
+
+func (*DeletePasskeyUnauthorized) deletePasskeyRes() {}
 
 type DeleteSessionForbidden Error
 
@@ -3418,10 +3433,12 @@ func (*Error) listDevicesRes()       {}
 func (*Error) listEventsRes()        {}
 func (*Error) listGeofencesRes()     {}
 func (*Error) listNotificationsRes() {}
+func (*Error) listPasskeysRes()      {}
 func (*Error) listSessionsRes()      {}
 func (*Error) logoutAllRes()         {}
 func (*Error) logoutRes()            {}
 func (*Error) oidcCallbackRes()      {}
+func (*Error) passkeyLoginBeginRes() {}
 func (*Error) reportEventsRes()      {}
 
 // Ref: #/components/schemas/Event
@@ -3675,7 +3692,8 @@ func (s *EventAttrTrip) SetMileage(val float64) {
 // Ref: #/components/schemas/EventAttributes
 // EventAttributes represents sum type.
 type EventAttributes struct {
-	Type              EventAttributesType // switch on this field
+	// Type selects the active sum variant, switch on this field.
+	Type              EventAttributesType
 	EventAttrEmpty    EventAttrEmpty
 	EventAttrIgnition EventAttrIgnition
 	EventAttrAlarm    EventAttrAlarm
@@ -4273,6 +4291,10 @@ type ListNotificationsOKApplicationJSON []NotificationRule
 
 func (*ListNotificationsOKApplicationJSON) listNotificationsRes() {}
 
+type ListPasskeysOKApplicationJSON []PasskeyCredentialInfo
+
+func (*ListPasskeysOKApplicationJSON) listPasskeysRes() {}
+
 type ListSessionsOKApplicationJSON []Session
 
 func (*ListSessionsOKApplicationJSON) listSessionsRes() {}
@@ -4662,7 +4684,8 @@ func (*NotificationRule) updateNotificationRes() {}
 // Ref: #/components/schemas/NotificationRuleConfig
 // NotificationRuleConfig represents sum type.
 type NotificationRuleConfig struct {
-	Type                      NotificationRuleConfigType // switch on this field
+	// Type selects the active sum variant, switch on this field.
+	Type                      NotificationRuleConfigType
 	NotificationConfigWebhook NotificationConfigWebhook
 }
 
@@ -5400,6 +5423,11 @@ func (o *OptNilDateTime) SetToNull() {
 	o.Value = v
 }
 
+// IsEmpty returns true if the field was omitted from the payload (not Set and not Null).
+func (o OptNilDateTime) IsEmpty() bool {
+	return !o.Set && !o.Null
+}
+
 // Get returns value and boolean that denotes whether value was set.
 func (o OptNilDateTime) Get() (v time.Time, ok bool) {
 	if o.Null {
@@ -5461,6 +5489,11 @@ func (o *OptNilFloat64) SetToNull() {
 	o.Null = true
 	var v float64
 	o.Value = v
+}
+
+// IsEmpty returns true if the field was omitted from the payload (not Set and not Null).
+func (o OptNilFloat64) IsEmpty() bool {
+	return !o.Set && !o.Null
 }
 
 // Get returns value and boolean that denotes whether value was set.
@@ -5526,6 +5559,11 @@ func (o *OptNilInt64) SetToNull() {
 	o.Value = v
 }
 
+// IsEmpty returns true if the field was omitted from the payload (not Set and not Null).
+func (o OptNilInt64) IsEmpty() bool {
+	return !o.Set && !o.Null
+}
+
 // Get returns value and boolean that denotes whether value was set.
 func (o OptNilInt64) Get() (v int64, ok bool) {
 	if o.Null {
@@ -5587,6 +5625,11 @@ func (o *OptNilString) SetToNull() {
 	o.Null = true
 	var v string
 	o.Value = v
+}
+
+// IsEmpty returns true if the field was omitted from the payload (not Set and not Null).
+func (o OptNilString) IsEmpty() bool {
+	return !o.Set && !o.Null
 }
 
 // Get returns value and boolean that denotes whether value was set.
@@ -5745,6 +5788,84 @@ func (o OptUserInputRole) Or(d UserInputRole) UserInputRole {
 	}
 	return d
 }
+
+// Ref: #/components/schemas/PasskeyCredentialInfo
+type PasskeyCredentialInfo struct {
+	ID         int64          `json:"id"`
+	Name       string         `json:"name"`
+	CreatedAt  time.Time      `json:"createdAt"`
+	LastUsedAt OptNilDateTime `json:"lastUsedAt"`
+}
+
+// GetID returns the value of ID.
+func (s *PasskeyCredentialInfo) GetID() int64 {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *PasskeyCredentialInfo) GetName() string {
+	return s.Name
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *PasskeyCredentialInfo) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetLastUsedAt returns the value of LastUsedAt.
+func (s *PasskeyCredentialInfo) GetLastUsedAt() OptNilDateTime {
+	return s.LastUsedAt
+}
+
+// SetID sets the value of ID.
+func (s *PasskeyCredentialInfo) SetID(val int64) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *PasskeyCredentialInfo) SetName(val string) {
+	s.Name = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *PasskeyCredentialInfo) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetLastUsedAt sets the value of LastUsedAt.
+func (s *PasskeyCredentialInfo) SetLastUsedAt(val OptNilDateTime) {
+	s.LastUsedAt = val
+}
+
+func (*PasskeyCredentialInfo) passkeyRegisterFinishRes() {}
+
+type PasskeyLoginFinishNotImplemented Error
+
+func (*PasskeyLoginFinishNotImplemented) passkeyLoginFinishRes() {}
+
+type PasskeyLoginFinishUnauthorized Error
+
+func (*PasskeyLoginFinishUnauthorized) passkeyLoginFinishRes() {}
+
+type PasskeyRegisterBeginNotImplemented Error
+
+func (*PasskeyRegisterBeginNotImplemented) passkeyRegisterBeginRes() {}
+
+type PasskeyRegisterBeginUnauthorized Error
+
+func (*PasskeyRegisterBeginUnauthorized) passkeyRegisterBeginRes() {}
+
+type PasskeyRegisterFinishBadRequest Error
+
+func (*PasskeyRegisterFinishBadRequest) passkeyRegisterFinishRes() {}
+
+type PasskeyRegisterFinishNotImplemented Error
+
+func (*PasskeyRegisterFinishNotImplemented) passkeyRegisterFinishRes() {}
+
+type PasskeyRegisterFinishUnauthorized Error
+
+func (*PasskeyRegisterFinishUnauthorized) passkeyRegisterFinishRes() {}
 
 // Ref: #/components/schemas/PlatformStats
 type PlatformStats struct {
@@ -6065,10 +6186,11 @@ func (s *Position) SetNetwork(val Attributes) {
 }
 
 // Protocol-emitted position metadata. Known keys per protocol:
-// - All: motion (bool)
-// - H02: ignition (bool), flags (string), alarm (string), mcc/mnc/lac/cellId (int), iccid (string)
-// - Watch: satellites (int)
-// Open for forward compatibility with additional protocols.
+//
+//   - All: motion (bool)
+//   - H02: ignition (bool), flags (string), alarm (string), mcc/mnc/lac/cellId (int), iccid (string)
+//   - Watch: satellites (int) Open for forward compatibility with additional protocols.
+//
 // Ref: #/components/schemas/PositionAttributes
 type PositionAttributes struct {
 	Motion          OptBool   `json:"motion"`
@@ -6872,11 +6994,12 @@ func (s *User) SetAttributes(val OptAttributes) {
 	s.Attributes = val
 }
 
-func (*User) adminCreateUserRes() {}
-func (*User) adminUpdateUserRes() {}
-func (*User) getSessionRes()      {}
-func (*User) loginRes()           {}
-func (*User) updateProfileRes()   {}
+func (*User) adminCreateUserRes()    {}
+func (*User) adminUpdateUserRes()    {}
+func (*User) getSessionRes()         {}
+func (*User) loginRes()              {}
+func (*User) passkeyLoginFinishRes() {}
+func (*User) updateProfileRes()      {}
 
 // Ref: #/components/schemas/UserInput
 type UserInput struct {
@@ -7082,6 +7205,62 @@ func (s *VersionInfo) SetCommit(val OptString) {
 func (s *VersionInfo) SetBuildTime(val OptString) {
 	s.BuildTime = val
 }
+
+// Authentication assertion returned by navigator.credentials.get.
+// Ref: #/components/schemas/WebAuthnAssertionResponse
+type WebAuthnAssertionResponse map[string]jx.Raw
+
+func (s *WebAuthnAssertionResponse) init() WebAuthnAssertionResponse {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+// Registration attestation returned by navigator.credentials.create.
+// Ref: #/components/schemas/WebAuthnAttestationResponse
+type WebAuthnAttestationResponse map[string]jx.Raw
+
+func (s *WebAuthnAttestationResponse) init() WebAuthnAttestationResponse {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+// PublicKeyCredentialCreationOptions for navigator.credentials.create.
+// Ref: #/components/schemas/WebAuthnCredentialCreationOptions
+type WebAuthnCredentialCreationOptions map[string]jx.Raw
+
+func (s *WebAuthnCredentialCreationOptions) init() WebAuthnCredentialCreationOptions {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+func (*WebAuthnCredentialCreationOptions) passkeyRegisterBeginRes() {}
+
+// PublicKeyCredentialRequestOptions for navigator.credentials.get.
+// Ref: #/components/schemas/WebAuthnCredentialRequestOptions
+type WebAuthnCredentialRequestOptions map[string]jx.Raw
+
+func (s *WebAuthnCredentialRequestOptions) init() WebAuthnCredentialRequestOptions {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+func (*WebAuthnCredentialRequestOptions) passkeyLoginBeginRes() {}
 
 type XAuthToken struct {
 	APIKey string

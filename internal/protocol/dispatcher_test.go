@@ -176,7 +176,7 @@ func TestCommandDispatcher_CustomCommand(t *testing.T) {
 		ID:         3,
 		DeviceID:   7,
 		Type:       model.CommandCustom,
-		Attributes: map[string]interface{}{"text": "rconf"},
+		Attributes: map[string]any{"text": "rconf"},
 		Status:     model.CommandStatusPending,
 	}
 	cmdRepo.pending[7] = []*model.Command{cmd}

@@ -198,19 +198,19 @@ func TestCache_ConcurrentAccess(t *testing.T) {
 
 	// Run concurrent reads and writes to test thread safety.
 	done := make(chan struct{})
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		go func(n int) {
 			defer func() { done <- struct{}{} }()
 			lat := float64(n)
 			lon := float64(n + 100)
-			for j := 0; j < 100; j++ {
+			for range 100 {
 				cache.Set(lat, lon, "addr")
 				cache.Get(lat, lon)
 			}
 		}(i)
 	}
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		<-done
 	}
 
@@ -234,14 +234,14 @@ func TestCache_LazyExpirationRaceCondition(t *testing.T) {
 
 	// Concurrent reads should all get cache miss without panicking.
 	done := make(chan struct{})
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		go func() {
 			defer func() { done <- struct{}{} }()
 			_, _ = cache.Get(52.5200, 13.4050)
 		}()
 	}
 
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		<-done
 	}
 }

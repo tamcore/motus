@@ -21,14 +21,14 @@ const CommandStatusSent = "sent"
 
 // Command represents a control command to be sent to a device.
 type Command struct {
-	ID         int64                  `json:"id"`
-	DeviceID   int64                  `json:"deviceId"`
-	Type       string                 `json:"type"`
-	Attributes map[string]interface{} `json:"attributes,omitempty"`
-	Status     string                 `json:"status"`
-	Result     *string                `json:"result,omitempty"`
-	CreatedAt  time.Time              `json:"createdAt"`
-	ExecutedAt *time.Time             `json:"executedAt,omitempty"`
+	ID         int64          `json:"id"`
+	DeviceID   int64          `json:"deviceId"`
+	Type       string         `json:"type"`
+	Attributes map[string]any `json:"attributes,omitempty"`
+	Status     string         `json:"status"`
+	Result     *string        `json:"result,omitempty"`
+	CreatedAt  time.Time      `json:"createdAt"`
+	ExecutedAt *time.Time     `json:"executedAt,omitempty"`
 }
 
 // SupportedCommandTypes returns the list of all supported command types.

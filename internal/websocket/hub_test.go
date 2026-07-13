@@ -43,7 +43,7 @@ type errPubSub struct {
 	subscribeHandler func([]byte)
 }
 
-func (e *errPubSub) Publish(_ context.Context, _ interface{}) error {
+func (e *errPubSub) Publish(_ context.Context, _ any) error {
 	return errors.New("redis publish error")
 }
 
@@ -65,7 +65,7 @@ func (e *errPubSub) Close() error { return nil }
 // errSubscribePubSub.Subscribe always returns an error.
 type errSubscribePubSub struct{}
 
-func (e *errSubscribePubSub) Publish(_ context.Context, _ interface{}) error { return nil }
+func (e *errSubscribePubSub) Publish(_ context.Context, _ any) error { return nil }
 func (e *errSubscribePubSub) Subscribe(_ context.Context, _ func([]byte)) error {
 	return errors.New("subscribe error")
 }
@@ -628,8 +628,7 @@ func TestStartSubscriber_UnmarshalError(t *testing.T) {
 	hub := NewHub(nil, checker, func(_ *http.Request) int64 { return 1 })
 	hub.SetPubSub(ps)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	go hub.StartSubscriber(ctx)
 	time.Sleep(50 * time.Millisecond)
 

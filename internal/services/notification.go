@@ -168,7 +168,7 @@ func (s *NotificationService) sendNotification(ctx context.Context, rule *model.
 		if s.audit != nil {
 			uid := userID
 			s.audit.Log(ctx, &uid, audit.ActionNotifFailed, audit.ResourceNotification, &rule.ID,
-				map[string]interface{}{
+				map[string]any{
 					"ruleName":     rule.Name,
 					"eventType":    event.Type,
 					"channel":      rule.Channel,
@@ -189,7 +189,7 @@ func (s *NotificationService) sendNotification(ctx context.Context, rule *model.
 		if s.audit != nil {
 			uid := userID
 			s.audit.Log(ctx, &uid, audit.ActionNotifSent, audit.ResourceNotification, &rule.ID,
-				map[string]interface{}{
+				map[string]any{
 					"ruleName":     rule.Name,
 					"eventType":    event.Type,
 					"channel":      rule.Channel,

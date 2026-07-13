@@ -125,6 +125,10 @@ type DeleteNotificationRes interface {
 	deleteNotificationRes()
 }
 
+type DeletePasskeyRes interface {
+	deletePasskeyRes()
+}
+
 type DeleteSessionRes interface {
 	deleteSessionRes()
 }
@@ -205,6 +209,10 @@ type ListNotificationsRes interface {
 	listNotificationsRes()
 }
 
+type ListPasskeysRes interface {
+	listPasskeysRes()
+}
+
 type ListSessionsRes interface {
 	listSessionsRes()
 }
@@ -235,6 +243,22 @@ type NotificationLogsRes interface {
 
 type OidcCallbackRes interface {
 	oidcCallbackRes()
+}
+
+type PasskeyLoginBeginRes interface {
+	passkeyLoginBeginRes()
+}
+
+type PasskeyLoginFinishRes interface {
+	passkeyLoginFinishRes()
+}
+
+type PasskeyRegisterBeginRes interface {
+	passkeyRegisterBeginRes()
+}
+
+type PasskeyRegisterFinishRes interface {
+	passkeyRegisterFinishRes()
 }
 
 type ReportEventsRes interface {

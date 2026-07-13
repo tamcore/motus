@@ -131,7 +131,7 @@ func (h *PositionHandler) HandlePosition(ctx context.Context, pos *model.Positio
 	// storing it so the attribute is persisted in the database. Home Assistant
 	// and other Traccar clients read this to derive binary_sensor.motion.
 	if pos.Attributes == nil {
-		pos.Attributes = make(map[string]interface{})
+		pos.Attributes = make(map[string]any)
 	}
 	pos.Attributes["motion"] = isMoving
 

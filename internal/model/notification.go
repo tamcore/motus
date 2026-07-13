@@ -4,16 +4,16 @@ import "time"
 
 // NotificationRule defines when and how to send a notification.
 type NotificationRule struct {
-	ID         int64                  `json:"id"`
-	UserID     int64                  `json:"userId"`
-	Name       string                 `json:"name"`
-	EventTypes []string               `json:"eventTypes"`
-	Channel    string                 `json:"channel"`
-	Config     map[string]interface{} `json:"config"`
-	Template   string                 `json:"template"`
-	Enabled    bool                   `json:"enabled"`
-	CreatedAt  time.Time              `json:"createdAt"`
-	UpdatedAt  time.Time              `json:"updatedAt"`
+	ID         int64          `json:"id"`
+	UserID     int64          `json:"userId"`
+	Name       string         `json:"name"`
+	EventTypes []string       `json:"eventTypes"`
+	Channel    string         `json:"channel"`
+	Config     map[string]any `json:"config"`
+	Template   string         `json:"template"`
+	Enabled    bool           `json:"enabled"`
+	CreatedAt  time.Time      `json:"createdAt"`
+	UpdatedAt  time.Time      `json:"updatedAt"`
 
 	// OwnerName is populated only in admin list-all responses.
 	OwnerName string `json:"ownerName,omitempty"`

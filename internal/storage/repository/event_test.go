@@ -29,7 +29,7 @@ func TestEventRepository_Create(t *testing.T) {
 		DeviceID:  device.ID,
 		Type:      "deviceOnline",
 		Timestamp: time.Now().UTC(),
-		Attributes: map[string]interface{}{
+		Attributes: map[string]any{
 			"source": "test",
 		},
 	}
@@ -60,7 +60,7 @@ func TestEventRepository_GetByDevice(t *testing.T) {
 	}
 
 	now := time.Now().UTC()
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		e := &model.Event{
 			DeviceID:  device.ID,
 			Type:      "deviceOnline",

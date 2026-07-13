@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
@@ -27,6 +27,13 @@ repos:
       - id: go-fmt
         name: go fmt
         entry: go fmt ./...
+        language: system
+        types: [go]
+        pass_filenames: false
+
+      - id: go-fix
+        name: go fix
+        entry: go fix ./...
         language: system
         types: [go]
         pass_filenames: false

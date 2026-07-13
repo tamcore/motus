@@ -67,14 +67,14 @@ func (h *Handler) Login(ctx context.Context, req oas.LoginReq) (oas.LoginRes, er
 	if err != nil {
 		h.loginLimiter.recordFailure(email)
 		h.cfg.AuditLogger.Log(ctx, nil, audit.ActionSessionLoginFailed, audit.ResourceSession, nil,
-			map[string]interface{}{"email": email, "reason": "unknown_email"}, "", "")
+			map[string]any{"email": email, "reason": "unknown_email"}, "", "")
 		return &oas.LoginUnauthorized{Error: "invalid credentials"}, nil
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
 		h.loginLimiter.recordFailure(email)
 		h.cfg.AuditLogger.Log(ctx, &user.ID, audit.ActionSessionLoginFailed, audit.ResourceSession, nil,
-			map[string]interface{}{"email": email, "reason": "wrong_password"}, "", "")
+			map[string]any{"email": email, "reason": "wrong_password"}, "", "")
 		return &oas.LoginUnauthorized{Error: "invalid credentials"}, nil
 	}
 
@@ -106,7 +106,7 @@ func (h *Handler) Login(ctx context.Context, req oas.LoginReq) (oas.LoginRes, er
 	}
 
 	h.cfg.AuditLogger.Log(ctx, &user.ID, audit.ActionSessionLogin, audit.ResourceSession, nil,
-		map[string]interface{}{"email": user.Email}, "", "")
+		map[string]any{"email": user.Email}, "", "")
 
 	user.PopulateTraccarFields()
 	out := userToOAS(user)
@@ -158,7 +158,7 @@ func (h *Handler) LogoutAll(ctx context.Context) (oas.LogoutAllRes, error) {
 	}
 
 	h.cfg.AuditLogger.Log(ctx, &user.ID, audit.ActionSessionRevoke, audit.ResourceSession, nil,
-		map[string]interface{}{"scope": "all_other_sessions"}, "", "")
+		map[string]any{"scope": "all_other_sessions"}, "", "")
 
 	return &oas.LogoutAllNoContent{}, nil
 }
@@ -218,7 +218,7 @@ func (h *Handler) tokenLogin(ctx context.Context, token string) (oas.GetSessionR
 	}
 
 	if h.cfg.AuditLogger != nil {
-		details := map[string]interface{}{"method": "token"}
+		details := map[string]any{"method": "token"}
 		if apiKey != nil {
 			details["apiKeyId"] = apiKey.ID
 		}
@@ -317,7 +317,7 @@ func (h *Handler) DeleteSession(ctx context.Context, params oas.DeleteSessionPar
 	}
 
 	h.cfg.AuditLogger.Log(ctx, &user.ID, audit.ActionSessionRevoke, audit.ResourceSession, nil,
-		map[string]interface{}{"revokedSessionId": target.TruncatedID(), "sessionOwnerUserId": target.UserID}, "", "")
+		map[string]any{"revokedSessionId": target.TruncatedID(), "sessionOwnerUserId": target.UserID}, "", "")
 
 	return &oas.DeleteSessionNoContent{}, nil
 }

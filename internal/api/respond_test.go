@@ -13,7 +13,7 @@ func TestRespondJSON(t *testing.T) {
 	tests := []struct {
 		name       string
 		status     int
-		data       interface{}
+		data       any
 		wantStatus int
 		wantBody   bool
 	}{

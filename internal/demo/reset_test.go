@@ -245,7 +245,7 @@ func TestReset_Idempotent(t *testing.T) {
 	ctx := context.Background()
 
 	// Run reset three times in a row.
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		result, err := demo.Reset(ctx, pool, demo.DefaultAccounts, demo.DefaultDeviceIMEIs)
 		if err != nil {
 			t.Fatalf("Reset() iteration %d returned error: %v", i+1, err)
@@ -542,8 +542,56 @@ func TestReset_CleansApiKeys(t *testing.T) {
 	assertRowCount(t, pool, "SELECT COUNT(*) FROM api_keys WHERE user_id = $1", 1, realUserID)
 }
 
+func TestReset_CleansPasskeys(t *testing.T) {
+	pool := setupPool(t)
+	ctx := context.Background()
+
+	// First reset to seed demo users.
+	if _, err := demo.Reset(ctx, pool, demo.DefaultAccounts, demo.DefaultDeviceIMEIs); err != nil {
+		t.Fatalf("first Reset() failed: %v", err)
+	}
+
+	var demoUserID int64
+	if err := pool.QueryRow(ctx, "SELECT id FROM users WHERE email = 'demo@motus.local'").Scan(&demoUserID); err != nil {
+		t.Fatalf("failed to get demo user ID: %v", err)
+	}
+
+	// Create a non-demo user whose passkey must survive the reset.
+	var realUserID int64
+	if err := pool.QueryRow(ctx, `
+		INSERT INTO users (email, password_hash, name, role)
+		VALUES ('real-pk@example.com', 'hash', 'Real User', 'user')
+		RETURNING id
+	`).Scan(&realUserID); err != nil {
+		t.Fatalf("failed to create non-demo user: %v", err)
+	}
+
+	// Register a passkey for the demo user (2 credentials) and the real user (1).
+	_, err := pool.Exec(ctx, `
+		INSERT INTO passkey_credentials (user_id, credential_id, public_key, name) VALUES
+			($1, '\x01', '\xaa', 'Demo Phone'),
+			($1, '\x02', '\xbb', 'Demo Laptop'),
+			($2, '\x03', '\xcc', 'Real Key')
+	`, demoUserID, realUserID)
+	if err != nil {
+		t.Fatalf("failed to insert passkeys: %v", err)
+	}
+
+	// Second reset: should delete both demo passkeys, keep the real one.
+	result, err := demo.Reset(ctx, pool, demo.DefaultAccounts, demo.DefaultDeviceIMEIs)
+	if err != nil {
+		t.Fatalf("second Reset() failed: %v", err)
+	}
+
+	if result.PasskeysDeleted != 2 {
+		t.Errorf("PasskeysDeleted = %d, want 2", result.PasskeysDeleted)
+	}
+	assertRowCount(t, pool, "SELECT COUNT(*) FROM passkey_credentials WHERE user_id = $1", 0, demoUserID)
+	assertRowCount(t, pool, "SELECT COUNT(*) FROM passkey_credentials WHERE user_id = $1", 1, realUserID)
+}
+
 // assertRowCount verifies a COUNT(*) query returns the expected value.
-func assertRowCount(t *testing.T, pool *pgxpool.Pool, query string, want int, args ...interface{}) {
+func assertRowCount(t *testing.T, pool *pgxpool.Pool, query string, want int, args ...any) {
 	t.Helper()
 	ctx := context.Background()
 	var count int

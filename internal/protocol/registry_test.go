@@ -117,7 +117,7 @@ func TestDeviceRegistry_Send_ConcurrentDeregisterAndSend(t *testing.T) {
 	const devices = 50
 	var wg sync.WaitGroup
 
-	for i := 0; i < devices; i++ {
+	for i := range devices {
 		id := fmt.Sprintf("DEV%03d", i)
 		wg.Add(2)
 
@@ -132,7 +132,7 @@ func TestDeviceRegistry_Send_ConcurrentDeregisterAndSend(t *testing.T) {
 		// Sender goroutine: hammer Send while lifecycle races above.
 		go func(id string) {
 			defer wg.Done()
-			for j := 0; j < 20; j++ {
+			for range 20 {
 				r.Send(id, []byte("cmd"))
 			}
 		}(id)

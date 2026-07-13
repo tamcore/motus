@@ -162,14 +162,14 @@ func generateResponse(imei, token string) string {
 	}
 
 	// setphone,1,<phone> — SOS number.
-	if strings.HasPrefix(trimmed, "setphone,1,") {
-		phone := strings.TrimPrefix(trimmed, "setphone,1,")
+	if after, ok := strings.CutPrefix(trimmed, "setphone,1,"); ok {
+		phone := after
 		return buildSMSResponse(imei, "SOS1: "+phone)
 	}
 
 	// setspeed,<n> — speed alarm.
-	if strings.HasPrefix(trimmed, "setspeed,") {
-		val := strings.TrimPrefix(trimmed, "setspeed,")
+	if after, ok := strings.CutPrefix(trimmed, "setspeed,"); ok {
+		val := after
 		if val == "0" {
 			return buildSMSResponse(imei, "Speed alarm: disabled")
 		}

@@ -99,7 +99,7 @@ func (h *Handler) CreateNotification(ctx context.Context, req *oas.NotificationR
 	if h.cfg.AuditLogger != nil {
 		h.cfg.AuditLogger.Log(ctx, &user.ID,
 			audit.ActionNotifCreate, audit.ResourceNotification, &rule.ID,
-			map[string]interface{}{"name": rule.Name, "eventTypes": rule.EventTypes, "channel": rule.Channel},
+			map[string]any{"name": rule.Name, "eventTypes": rule.EventTypes, "channel": rule.Channel},
 			"", "")
 	}
 	out := notificationRuleToOAS(rule)
@@ -159,7 +159,7 @@ func (h *Handler) UpdateNotification(ctx context.Context, req *oas.NotificationR
 	if h.cfg.AuditLogger != nil {
 		h.cfg.AuditLogger.Log(ctx, &user.ID,
 			audit.ActionNotifUpdate, audit.ResourceNotification, &params.ID,
-			map[string]interface{}{"name": rule.Name, "eventTypes": rule.EventTypes, "channel": rule.Channel},
+			map[string]any{"name": rule.Name, "eventTypes": rule.EventTypes, "channel": rule.Channel},
 			"", "")
 	}
 	out := notificationRuleToOAS(rule)
@@ -238,15 +238,15 @@ func (h *Handler) TestNotification(ctx context.Context, params oas.TestNotificat
 }
 
 // oasNotificationConfigToModel converts a typed oas.NotificationRuleConfig to a model attribute map.
-func oasNotificationConfigToModel(config oas.NotificationRuleConfig) (map[string]interface{}, error) {
+func oasNotificationConfigToModel(config oas.NotificationRuleConfig) (map[string]any, error) {
 	if wh, ok := config.GetNotificationConfigWebhook(); ok {
 		webhookURL := wh.WebhookUrl.String()
 		if err := notification.ValidateWebhookURL(webhookURL); err != nil {
 			return nil, fmt.Errorf("invalid webhook URL: %v", err)
 		}
-		cfg := map[string]interface{}{"webhookUrl": webhookURL}
+		cfg := map[string]any{"webhookUrl": webhookURL}
 		if wh.Headers.Set && len(wh.Headers.Value) > 0 {
-			hmap := make(map[string]interface{}, len(wh.Headers.Value))
+			hmap := make(map[string]any, len(wh.Headers.Value))
 			for k, v := range wh.Headers.Value {
 				hmap[k] = v
 			}

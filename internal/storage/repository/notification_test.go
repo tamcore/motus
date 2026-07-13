@@ -27,7 +27,7 @@ func TestNotificationRepository_Create(t *testing.T) {
 		Name:       "Test Rule",
 		EventTypes: []string{"geofenceEnter"},
 		Channel:    "webhook",
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"webhookUrl": "https://example.com/hook",
 		},
 		Template: "Device {{device.name}} entered {{geofence.name}}",
@@ -60,7 +60,7 @@ func TestNotificationRepository_GetByID(t *testing.T) {
 		Name:       "GetByID Rule",
 		EventTypes: []string{"deviceOffline"},
 		Channel:    "webhook",
-		Config:     map[string]interface{}{"webhookUrl": "https://example.com/hook"},
+		Config:     map[string]any{"webhookUrl": "https://example.com/hook"},
 		Template:   "Device {{device.name}} went offline",
 		Enabled:    true,
 	}
@@ -102,11 +102,11 @@ func TestNotificationRepository_GetByUser(t *testing.T) {
 
 	r1 := &model.NotificationRule{
 		UserID: user.ID, Name: "Alpha Rule", EventTypes: []string{"geofenceEnter"},
-		Channel: "webhook", Config: map[string]interface{}{}, Template: "t1", Enabled: true,
+		Channel: "webhook", Config: map[string]any{}, Template: "t1", Enabled: true,
 	}
 	r2 := &model.NotificationRule{
 		UserID: user.ID, Name: "Beta Rule", EventTypes: []string{"geofenceExit"},
-		Channel: "webhook", Config: map[string]interface{}{}, Template: "t2", Enabled: false,
+		Channel: "webhook", Config: map[string]any{}, Template: "t2", Enabled: false,
 	}
 	_ = notifRepo.Create(ctx, r1)
 	_ = notifRepo.Create(ctx, r2)
@@ -137,15 +137,15 @@ func TestNotificationRepository_GetByEventType(t *testing.T) {
 	// Create enabled and disabled rules for the same event type.
 	r1 := &model.NotificationRule{
 		UserID: user.ID, Name: "Enabled Enter", EventTypes: []string{"geofenceEnter"},
-		Channel: "webhook", Config: map[string]interface{}{}, Template: "t", Enabled: true,
+		Channel: "webhook", Config: map[string]any{}, Template: "t", Enabled: true,
 	}
 	r2 := &model.NotificationRule{
 		UserID: user.ID, Name: "Disabled Enter", EventTypes: []string{"geofenceEnter"},
-		Channel: "webhook", Config: map[string]interface{}{}, Template: "t", Enabled: false,
+		Channel: "webhook", Config: map[string]any{}, Template: "t", Enabled: false,
 	}
 	r3 := &model.NotificationRule{
 		UserID: user.ID, Name: "Exit Rule", EventTypes: []string{"geofenceExit"},
-		Channel: "webhook", Config: map[string]interface{}{}, Template: "t", Enabled: true,
+		Channel: "webhook", Config: map[string]any{}, Template: "t", Enabled: true,
 	}
 	_ = notifRepo.Create(ctx, r1)
 	_ = notifRepo.Create(ctx, r2)
@@ -176,7 +176,7 @@ func TestNotificationRepository_Update(t *testing.T) {
 
 	rule := &model.NotificationRule{
 		UserID: user.ID, Name: "Before Update", EventTypes: []string{"deviceOnline"},
-		Channel: "webhook", Config: map[string]interface{}{}, Template: "before", Enabled: true,
+		Channel: "webhook", Config: map[string]any{}, Template: "before", Enabled: true,
 	}
 	_ = notifRepo.Create(ctx, rule)
 
@@ -212,7 +212,7 @@ func TestNotificationRepository_Delete(t *testing.T) {
 
 	rule := &model.NotificationRule{
 		UserID: user.ID, Name: "Delete Me", EventTypes: []string{"deviceOffline"},
-		Channel: "webhook", Config: map[string]interface{}{}, Template: "t", Enabled: true,
+		Channel: "webhook", Config: map[string]any{}, Template: "t", Enabled: true,
 	}
 	_ = notifRepo.Create(ctx, rule)
 
@@ -247,7 +247,7 @@ func TestNotificationRepository_LogDelivery(t *testing.T) {
 
 	rule := &model.NotificationRule{
 		UserID: user.ID, Name: "Log Rule", EventTypes: []string{"geofenceEnter"},
-		Channel: "webhook", Config: map[string]interface{}{}, Template: "t", Enabled: true,
+		Channel: "webhook", Config: map[string]any{}, Template: "t", Enabled: true,
 	}
 	_ = notifRepo.Create(ctx, rule)
 
@@ -288,12 +288,12 @@ func TestNotificationRepository_GetLogsByRule(t *testing.T) {
 
 	rule := &model.NotificationRule{
 		UserID: user.ID, Name: "Logs Rule", EventTypes: []string{"geofenceEnter"},
-		Channel: "webhook", Config: map[string]interface{}{}, Template: "t", Enabled: true,
+		Channel: "webhook", Config: map[string]any{}, Template: "t", Enabled: true,
 	}
 	_ = notifRepo.Create(ctx, rule)
 
 	sentAt := time.Now().UTC()
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		_ = notifRepo.LogDelivery(ctx, &model.NotificationLog{
 			RuleID: rule.ID, EventID: &event.ID, Status: "sent",
 			SentAt: &sentAt, ResponseCode: 200,
@@ -321,7 +321,7 @@ func TestNotificationRepository_GetLogsByRule_LimitCap(t *testing.T) {
 
 	rule := &model.NotificationRule{
 		UserID: user.ID, Name: "Cap Rule", EventTypes: []string{"deviceOnline"},
-		Channel: "webhook", Config: map[string]interface{}{}, Template: "t", Enabled: true,
+		Channel: "webhook", Config: map[string]any{}, Template: "t", Enabled: true,
 	}
 	_ = notifRepo.Create(ctx, rule)
 

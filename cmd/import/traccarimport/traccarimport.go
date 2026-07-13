@@ -584,7 +584,7 @@ func extractFromDB(ctx context.Context, config *Config) ([]TraccarDevice, []Trac
 			disabled, COALESCE(status,'')
 		FROM tc_devices`
 		var conditions []string
-		var devArgs []interface{}
+		var devArgs []any
 		argN := 1
 
 		if config.ExcludeUnknown {
@@ -647,7 +647,7 @@ func extractFromDB(ctx context.Context, config *Config) ([]TraccarDevice, []Trac
 			COALESCE(address,''), COALESCE(attributes,'')
 		FROM tc_positions`
 		var conditions []string
-		var posArgs []interface{}
+		var posArgs []any
 		argN := 1
 
 		if len(allowedIDs) > 0 {
@@ -885,8 +885,8 @@ func parseCalendar(line string) (TraccarCalendar, error) {
 
 	// Decode PostgreSQL bytea hex format (\\x... in COPY format) to readable iCalendar text
 	// Note: COPY format uses backslash escaping, so \\x means \x
-	if strings.HasPrefix(data, "\\\\x") {
-		hexData := strings.TrimPrefix(data, "\\\\x")
+	if after, ok := strings.CutPrefix(data, "\\\\x"); ok {
+		hexData := after
 		decoded, err := hex.DecodeString(hexData)
 		if err != nil {
 			return TraccarCalendar{}, fmt.Errorf("decode bytea hex: %w", err)
@@ -994,10 +994,7 @@ func importPositions(ctx context.Context, pool *pgxpool.Pool, positions []Tracca
 	skipped := 0
 
 	for i := 0; i < len(positions); i += batchSize {
-		end := i + batchSize
-		if end > len(positions) {
-			end = len(positions)
-		}
+		end := min(i+batchSize, len(positions))
 		batch := positions[i:end]
 
 		tx, err := pool.Begin(ctx)
@@ -1654,7 +1651,7 @@ func geocodeRecentPositions(ctx context.Context, pool *pgxpool.Pool, config *Con
 		FROM positions
 		WHERE (address IS NULL OR address = '')
 	`
-	var args []interface{}
+	var args []any
 	argNum := 1
 
 	// If RecentDays is set, only geocode positions within that range (matching import scope)

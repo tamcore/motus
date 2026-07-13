@@ -62,9 +62,9 @@ func TestNotificationService_SendNotification_WithGeofenceAndPosition(t *testing
 	_ = eventRepo.Create(ctx, event)
 
 	// Start a test webhook server that validates the payload.
-	received := make(chan map[string]interface{}, 10)
+	received := make(chan map[string]any, 10)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var body map[string]interface{}
+		var body map[string]any
 		_ = json.NewDecoder(r.Body).Decode(&body)
 		received <- body
 		w.WriteHeader(http.StatusOK)
@@ -77,7 +77,7 @@ func TestNotificationService_SendNotification_WithGeofenceAndPosition(t *testing
 		Name:       "Geofence Webhook",
 		EventTypes: []string{"geofenceEnter"},
 		Channel:    "webhook",
-		Config:     map[string]interface{}{"webhookUrl": srv.URL},
+		Config:     map[string]any{"webhookUrl": srv.URL},
 		Template:   `{"device":"{{device.name}}","geofence":"{{geofence.name}}","lat":"{{position.latitude}}"}`,
 		Enabled:    true,
 	}
@@ -205,7 +205,7 @@ func TestGeofenceEventService_CreateEvent_WithNotificationService(t *testing.T) 
 		Name:       "Enter Webhook",
 		EventTypes: []string{"geofenceEnter"},
 		Channel:    "webhook",
-		Config:     map[string]interface{}{"webhookUrl": srv.URL},
+		Config:     map[string]any{"webhookUrl": srv.URL},
 		Template:   `{"text":"entered"}`,
 		Enabled:    true,
 	}

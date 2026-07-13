@@ -24,6 +24,27 @@ type Config struct {
 	Geocoding GeocodingConfig
 	OIDC      OIDCConfig
 	AI        AIConfig
+	WebAuthn  WebAuthnConfig
+}
+
+// WebAuthnConfig holds passkey (WebAuthn/FIDO2) settings.
+type WebAuthnConfig struct {
+	// Enabled activates passkey registration and login.
+	// Loaded from MOTUS_WEBAUTHN_ENABLED. Default: false.
+	Enabled bool
+	// RPID is the Relying Party ID: the registrable domain the credentials are
+	// bound to, without scheme or port (e.g. "app.example.com"). It must match
+	// the site's effective domain or authentication will fail, and changing it
+	// permanently invalidates existing credentials.
+	// Loaded from MOTUS_WEBAUTHN_RPID. Required when Enabled.
+	RPID string
+	// RPOrigins is the list of full origins (scheme + host + optional port) that
+	// may initiate ceremonies, e.g. "https://app.example.com".
+	// Loaded from MOTUS_WEBAUTHN_ORIGINS (comma-separated). Required when Enabled.
+	RPOrigins []string
+	// RPDisplayName is the human-readable Relying Party name shown by
+	// authenticators. Loaded from MOTUS_WEBAUTHN_DISPLAY_NAME. Default: "Motus".
+	RPDisplayName string
 }
 
 // AIConfig holds settings for the OpenAI-compatible chat/MCP feature.
@@ -56,6 +77,13 @@ type AIConfig struct {
 	// SystemPrompt overrides the built-in system prompt when non-empty.
 	// Loaded from MOTUS_AI_SYSTEM_PROMPT.
 	SystemPrompt string
+	// GuardrailEnabled turns on the pre-flight topic classifier that refuses
+	// off-topic chat messages before they reach the main model.
+	// Loaded from MOTUS_AI_GUARDRAIL_ENABLED. Default: true.
+	GuardrailEnabled bool
+	// GuardrailModel is the model used for topic classification.
+	// Loaded from MOTUS_AI_GUARDRAIL_MODEL. Default: same as Model.
+	GuardrailModel string
 }
 
 // OIDCConfig holds OpenID Connect authentication settings.
@@ -393,15 +421,23 @@ func LoadFromEnv() (*Config, error) {
 			Scopes:               getEnv("MOTUS_OIDC_SCOPES", ""),
 		},
 		AI: AIConfig{
-			Enabled:      getEnvBool("MOTUS_AI_ENABLED", false),
-			BaseURL:      getEnv("MOTUS_AI_BASE_URL", "https://api.openai.com/v1"),
-			APIKey:       getEnv("MOTUS_AI_API_KEY", ""),
-			Model:        getEnv("MOTUS_AI_MODEL", "gpt-4o-mini"),
-			MaxTokens:    getEnvInt("MOTUS_AI_MAX_TOKENS", 4096),
-			Temperature:  getEnvFloat("MOTUS_AI_TEMPERATURE", 0.2),
-			Timeout:      getEnvDuration("MOTUS_AI_TIMEOUT", 90*time.Second),
-			MaxToolLoops: getEnvInt("MOTUS_AI_MAX_TOOL_LOOPS", 8),
-			SystemPrompt: getEnv("MOTUS_AI_SYSTEM_PROMPT", ""),
+			Enabled:          getEnvBool("MOTUS_AI_ENABLED", false),
+			BaseURL:          getEnv("MOTUS_AI_BASE_URL", "https://api.openai.com/v1"),
+			APIKey:           getEnv("MOTUS_AI_API_KEY", ""),
+			Model:            getEnv("MOTUS_AI_MODEL", "gpt-4o-mini"),
+			MaxTokens:        getEnvInt("MOTUS_AI_MAX_TOKENS", 4096),
+			Temperature:      getEnvFloat("MOTUS_AI_TEMPERATURE", 0.2),
+			Timeout:          getEnvDuration("MOTUS_AI_TIMEOUT", 90*time.Second),
+			MaxToolLoops:     getEnvInt("MOTUS_AI_MAX_TOOL_LOOPS", 8),
+			SystemPrompt:     getEnv("MOTUS_AI_SYSTEM_PROMPT", ""),
+			GuardrailEnabled: getEnvBool("MOTUS_AI_GUARDRAIL_ENABLED", true),
+			GuardrailModel:   getEnv("MOTUS_AI_GUARDRAIL_MODEL", ""),
+		},
+		WebAuthn: WebAuthnConfig{
+			Enabled:       getEnvBool("MOTUS_WEBAUTHN_ENABLED", false),
+			RPID:          getEnv("MOTUS_WEBAUTHN_RPID", ""),
+			RPOrigins:     getEnvSlice("MOTUS_WEBAUTHN_ORIGINS"),
+			RPDisplayName: getEnv("MOTUS_WEBAUTHN_DISPLAY_NAME", "Motus"),
 		},
 	}
 	if err := cfg.Validate(); err != nil {

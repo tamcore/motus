@@ -4,6 +4,7 @@ package serve
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	redislib "github.com/redis/go-redis/v9"
@@ -240,6 +242,15 @@ func Run() {
 	protoLogger := appLogger.With(slog.String("component", "protocol"))
 	svcLogger := appLogger.With(slog.String("component", "services"))
 
+	// CSRF secret (loaded early so the passkey challenge-cookie signing key can
+	// be derived from the same shared secret; reused for CSRF below).
+	csrfSecret := loadCSRFSecret(cfg.Security.CSRFSecret, cfg.Security.Env)
+
+	// Passkey (WebAuthn) engine and repository.
+	passkeyRepo := repository.NewPasskeyRepository(pool)
+	webAuthnEngine := buildWebAuthn(cfg.WebAuthn)
+	webAuthnCookieKey := deriveWebAuthnCookieKey(csrfSecret)
+
 	// Unified API handler.
 	handler := handlers.NewHandler(handlers.HandlerConfig{
 		Users:               userRepo,
@@ -255,6 +266,9 @@ func Run() {
 		Calendars:           calendarRepo,
 		Stats:               statsRepo,
 		OIDCStateRepo:       oidcStateRepo,
+		Passkeys:            passkeyRepo,
+		WebAuthn:            webAuthnEngine,
+		WebAuthnCookieKey:   webAuthnCookieKey,
 		NotificationService: notificationService,
 		GeofenceService:     geofenceService,
 		DeviceRegistry:      deviceRegistry,
@@ -266,8 +280,7 @@ func Run() {
 	})
 	secHandler := handlers.NewSecurityHandler(sessionRepo, apiKeyRepo, userRepo)
 
-	// CSRF protection: load or generate the 32-byte secret key.
-	csrfSecret := loadCSRFSecret(cfg.Security.CSRFSecret, cfg.Security.Env)
+	// CSRF protection: the 32-byte secret key was loaded above.
 	csrfSecure := cfg.Security.Env != "development"
 
 	// Login rate limiter: Redis-backed (cluster-wide) when Redis is available,
@@ -317,15 +330,17 @@ func Run() {
 			ForwardGeocoder: forwardGeocoder,
 		})
 		chatSvc := aiChat.NewService(aiChat.Config{
-			BaseURL:      cfg.AI.BaseURL,
-			APIKey:       cfg.AI.APIKey,
-			Model:        cfg.AI.Model,
-			MaxTokens:    cfg.AI.MaxTokens,
-			Temperature:  cfg.AI.Temperature,
-			SystemPrompt: cfg.AI.SystemPrompt,
-			MaxLoops:     cfg.AI.MaxToolLoops,
-			Timeout:      cfg.AI.Timeout,
-			MCPServer:    mcpSrv,
+			BaseURL:          cfg.AI.BaseURL,
+			APIKey:           cfg.AI.APIKey,
+			Model:            cfg.AI.Model,
+			MaxTokens:        cfg.AI.MaxTokens,
+			Temperature:      cfg.AI.Temperature,
+			SystemPrompt:     cfg.AI.SystemPrompt,
+			MaxLoops:         cfg.AI.MaxToolLoops,
+			Timeout:          cfg.AI.Timeout,
+			MCPServer:        mcpSrv,
+			GuardrailEnabled: cfg.AI.GuardrailEnabled,
+			GuardrailModel:   cfg.AI.GuardrailModel,
 		})
 		var histStore *chathistory.Store
 		if redisClient != nil {
@@ -334,7 +349,10 @@ func Run() {
 		}
 		chatHandler = handlers.NewChatHandler(chatSvc, histStore)
 		chatHistoryHandler = handlers.NewChatHistoryHandler(histStore)
-		slog.Info("AI chat enabled", slog.String("model", cfg.AI.Model), slog.String("baseURL", cfg.AI.BaseURL))
+		slog.Info("AI chat enabled",
+			slog.String("model", cfg.AI.Model),
+			slog.String("baseURL", cfg.AI.BaseURL),
+			slog.Bool("guardrail", cfg.AI.GuardrailEnabled))
 	}
 	handler.SetAIEnabled(cfg.AI.Enabled)
 
@@ -644,4 +662,35 @@ func loadCSRFSecret(hexSecret, env string) []byte {
 	}
 	slog.Warn("no MOTUS_CSRF_SECRET set, using random key (tokens will not survive restarts)")
 	return secret
+}
+
+// buildWebAuthn constructs the passkey ceremony engine, or returns nil (with a
+// warning) when passkeys are disabled or the configuration is invalid. A nil
+// engine makes the passkey handlers respond 501.
+func buildWebAuthn(cfg config.WebAuthnConfig) *webauthn.WebAuthn {
+	if !cfg.Enabled {
+		return nil
+	}
+	engine, err := webauthn.New(&webauthn.Config{
+		RPID:          cfg.RPID,
+		RPDisplayName: cfg.RPDisplayName,
+		RPOrigins:     cfg.RPOrigins,
+	})
+	if err != nil {
+		slog.Warn("passkeys disabled: invalid WebAuthn configuration", slog.Any("error", err))
+		return nil
+	}
+	slog.Info("passkey authentication enabled",
+		slog.String("rpID", cfg.RPID),
+		slog.Any("origins", cfg.RPOrigins),
+	)
+	return engine
+}
+
+// deriveWebAuthnCookieKey derives a dedicated key for signing passkey challenge
+// cookies from the shared CSRF secret, so the begin and finish steps of a
+// ceremony can be verified across pods without adding another configured secret.
+func deriveWebAuthnCookieKey(csrfSecret []byte) []byte {
+	sum := sha256.Sum256(append([]byte("motus-webauthn-cookie:"), csrfSecret...))
+	return sum[:]
 }

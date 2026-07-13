@@ -16,6 +16,11 @@
 	import Button from '$lib/components/Button.svelte';
 	import QrScannerDialog from '$lib/components/QrScannerDialog.svelte';
 	import { sanitizeReturnTo } from '$lib/utils/returnTo';
+	import {
+		isPasskeySupported,
+		loginWithPasskey,
+		isPasskeyCancellation,
+	} from '$lib/utils/webauthn';
 
 	/** Navigate to the sanitized returnTo target (or /) after a successful login. */
 	function redirectAfterLogin() {
@@ -30,6 +35,9 @@
 	let error = '';
 	let showScannerDialog = false;
 	let oidcEnabled = false;
+	let passkeyLoading = false;
+	// Evaluated in the browser only; false during SSR.
+	$: passkeySupported = typeof window !== 'undefined' && isPasskeySupported();
 
 	// Check for errors from OIDC callback redirects.
 	function readOIDCError(): string {
@@ -176,6 +184,36 @@
 		}
 	}
 
+	async function handlePasskeyLogin() {
+		error = '';
+		passkeyLoading = true;
+
+		try {
+			const user = await loginWithPasskey();
+
+			// Mirror the handleLogin() store sequence exactly.
+			currentUser.set(user);
+			isAuthenticated.set(true);
+
+			const authToken = (user as { authToken?: string }).authToken;
+			await setAuthToken(authToken ?? null);
+
+			wsManager.connect();
+
+			generateLoginToken();
+
+			redirectAfterLogin();
+		} catch (e: unknown) {
+			// User dismissed the browser prompt: do nothing.
+			if (isPasskeyCancellation(e)) {
+				return;
+			}
+			error = 'Passkey sign-in failed. Please try again or use your password.';
+		} finally {
+			passkeyLoading = false;
+		}
+	}
+
 	function handleChangeServer() {
 		changeServerUrl('https://demo.traccar.org');
 	}
@@ -240,6 +278,21 @@
 				{loading ? 'Logging in...' : 'Login'}
 			</Button>
 		</form>
+
+		{#if passkeySupported}
+			<button
+				type="button"
+				class="sso-button passkey-button"
+				on:click={handlePasskeyLogin}
+				disabled={passkeyLoading}
+			>
+				<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<circle cx="10" cy="8" r="4"/>
+					<path d="M10.85 12.15 21 22l-2 2-2-2-2 2-1-1v-4.5"/>
+				</svg>
+				{passkeyLoading ? 'Waiting for passkey...' : 'Sign in with a passkey'}
+			</button>
+		{/if}
 
 		{#if oidcEnabled}
 			<div class="sso-divider">
@@ -440,5 +493,14 @@
 	.sso-button:focus-visible {
 		outline: 2px solid var(--accent-primary);
 		outline-offset: 2px;
+	}
+
+	.passkey-button {
+		margin-top: var(--space-4);
+	}
+
+	.passkey-button:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
 	}
 </style>

@@ -254,7 +254,7 @@ func TestAddSpeedVariation(t *testing.T) {
 	// Non-zero speed should produce values within +-5% range.
 	base := 100.0
 	min, max := base, base
-	for i := 0; i < 1000; i++ {
+	for range 1000 {
 		v := addSpeedVariation(base)
 		if v < min {
 			min = v

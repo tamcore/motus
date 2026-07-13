@@ -43,7 +43,7 @@ ingress:
 # For PRODUCTION: Set postgres.enabled=false and configure external database below
 postgres:
   enabled: false  # Use external database in production
-  image: postgis/postgis:16-3.4
+  image: postgis/postgis:17-3.4
   storage: 10Gi
   storageClass: ""  # e.g., gp3 (AWS), standard (GKE), managed-premium (AKS)
   database: motus
@@ -114,7 +114,7 @@ redis:
   # Built-in Redis (single StatefulSet, not HA)
   builtin:
     enabled: false
-    image: redis:7-alpine
+    image: redis:8-alpine
     storage: 1Gi
     storageClass: ""
 
@@ -173,6 +173,21 @@ oidc:
   # Extra OAuth2 scopes beyond openid, email, profile (space-separated)
   scopes: ""
 
+# Passkeys / WebAuthn authentication.
+webauthn:
+  # Enable passkey registration and login. When false the passkey endpoints
+  # respond 501 and the frontend hides passkey UI.
+  enabled: false
+  # Relying Party ID: the registrable domain credentials are bound to, without
+  # scheme or port (e.g. "motus.example.com"). Must match the site's effective
+  # domain — changing it permanently invalidates existing passkeys. Required when enabled.
+  rpID: ""
+  # Comma-separated list of full origins (scheme + host + optional port) allowed
+  # to start ceremonies (e.g. "https://motus.example.com"). Required when enabled.
+  origins: ""
+  # Human-readable Relying Party name shown by the authenticator prompt.
+  displayName: "Motus"
+
 # Metrics Configuration
 metrics:
   enabled: false
@@ -205,6 +220,10 @@ ai:
   timeout: "90s"
   maxToolLoops: 8
   systemPrompt: ""
+  # Pre-flight topic classifier that refuses off-topic questions before they
+  # reach the main model. guardrailModel defaults to `model` when empty.
+  guardrailEnabled: true
+  guardrailModel: ""
   # apiKey: plain value (dev only). Prefer apiKeyRef for production.
   apiKey: ""
   apiKeyRef:

@@ -46,5 +46,11 @@ func RequireWriteAccess(next http.Handler) http.Handler {
 func isSessionRoute(path string) bool {
 	return path == "/api/session" ||
 		path == "/api/sessions" ||
-		strings.HasPrefix(path, "/api/sessions/")
+		strings.HasPrefix(path, "/api/sessions/") ||
+		// Passkey ceremonies are self-service auth actions. They must be reachable
+		// by demo users (who authenticate via a read-only API key) so they can
+		// register and log in with a passkey. Registration is scoped to the
+		// authenticated user, and passkey login for a demo account is forced onto
+		// a read-only session, so this exemption does not grant write access.
+		strings.HasPrefix(path, "/api/session/passkey/")
 }

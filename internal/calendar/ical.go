@@ -354,7 +354,7 @@ func isActiveInRecurrence(rrule string, dtstart, dtend time.Time, t time.Time) (
 // parseRRULE splits an RRULE string into key=value pairs.
 func parseRRULE(rrule string) map[string]string {
 	result := make(map[string]string)
-	for _, part := range strings.Split(rrule, ";") {
+	for part := range strings.SplitSeq(rrule, ";") {
 		kv := strings.SplitN(part, "=", 2)
 		if len(kv) == 2 {
 			result[kv[0]] = kv[1]
@@ -376,7 +376,7 @@ func parseBYDAY(val string) []time.Weekday {
 	}
 
 	var days []time.Weekday
-	for _, d := range strings.Split(val, ",") {
+	for d := range strings.SplitSeq(val, ",") {
 		d = strings.TrimSpace(d)
 		// Strip numeric prefix (e.g., "1MO" -> "MO").
 		for len(d) > 2 && d[0] >= '0' && d[0] <= '9' {
@@ -403,7 +403,7 @@ func isActiveInWeeklyByDay(dtstart time.Time, eventDuration time.Duration, byDay
 	// Find the start of the week containing dtstart (Monday-based for iCal default).
 	weekStart := dtstart.AddDate(0, 0, -int(dtstart.Weekday()))
 
-	for i := 0; i < maxExpansions; i++ {
+	for range maxExpansions {
 		if until != nil && weekStart.After(*until) {
 			break
 		}

@@ -176,7 +176,7 @@ func (s *IdleService) CheckIdle(ctx context.Context) error {
 			Type:       "deviceIdle",
 			PositionID: &position.ID,
 			Timestamp:  time.Now().UTC(),
-			Attributes: map[string]interface{}{
+			Attributes: map[string]any{
 				"idleDuration": timeSincePosition.Minutes(),
 			},
 		}

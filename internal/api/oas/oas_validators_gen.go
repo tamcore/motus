@@ -883,6 +883,14 @@ func (s ListNotificationsOKApplicationJSON) Validate() error {
 	return nil
 }
 
+func (s ListPasskeysOKApplicationJSON) Validate() error {
+	alias := ([]PasskeyCredentialInfo)(s)
+	if alias == nil {
+		return errors.New("nil is invalid value")
+	}
+	return nil
+}
+
 func (s ListSessionsOKApplicationJSON) Validate() error {
 	alias := ([]Session)(s)
 	if alias == nil {

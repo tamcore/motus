@@ -168,6 +168,21 @@ by email **only when the IdP asserts `email_verified`** (boolean `true` or strin
 addresses; otherwise an attacker-controlled IdP account with a victim's address
 could take over the local account.
 
+### Demo instance credentials
+Login is by **email**, not username (`POST /api/session` rejects strings without `@`).
+The demo accounts (seeded in `internal/demo/service.go`) are:
+
+| Email | Password | Role |
+|---|---|---|
+| `demo@motus.local` | `demo` | user |
+| `admin@motus.local` | `admin` | admin |
+
+The Traccar-API-compat token login (`GET /api/session?token=`, used by pytraccar /
+QR code / Traccar Manager / Home Assistant) authenticates with a per-user API token.
+Regular users get a random 32-byte token (`UserRepository.GenerateToken`); **demo
+accounts only** are seeded with their email's username part as token (`demo`,
+`admin`) by `demo.Reset()` — a deliberate demo-instance convenience.
+
 ### Demo accounts are write-protected
 When demo mode is enabled, `demo.IsDemoAccount(email)` blocks profile and user
 modification (`"demo accounts cannot be modified"`). On the dev K8s instance even

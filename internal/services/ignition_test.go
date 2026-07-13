@@ -15,17 +15,17 @@ import (
 func TestIgnitionFromAttributes(t *testing.T) {
 	tests := []struct {
 		name      string
-		attrs     map[string]interface{}
+		attrs     map[string]any
 		wantVal   bool
 		wantFound bool
 	}{
 		{"nil map", nil, false, false},
-		{"empty map", map[string]interface{}{}, false, false},
-		{"ignition true", map[string]interface{}{"ignition": true}, true, true},
-		{"ignition false", map[string]interface{}{"ignition": false}, false, true},
-		{"wrong type string", map[string]interface{}{"ignition": "true"}, false, false},
-		{"wrong type int", map[string]interface{}{"ignition": 1}, false, false},
-		{"other keys only", map[string]interface{}{"speed": 50.0}, false, false},
+		{"empty map", map[string]any{}, false, false},
+		{"ignition true", map[string]any{"ignition": true}, true, true},
+		{"ignition false", map[string]any{"ignition": false}, false, true},
+		{"wrong type string", map[string]any{"ignition": "true"}, false, false},
+		{"wrong type int", map[string]any{"ignition": 1}, false, false},
+		{"other keys only", map[string]any{"speed": 50.0}, false, false},
 	}
 
 	for _, tt := range tests {
@@ -118,7 +118,7 @@ func makeIgnitionPos(deviceID int64, ignition bool, ts time.Time) *model.Positio
 		ID:        id,
 		DeviceID:  deviceID,
 		Timestamp: ts,
-		Attributes: map[string]interface{}{
+		Attributes: map[string]any{
 			"ignition": ignition,
 		},
 	}
@@ -195,7 +195,7 @@ func TestCheckIgnition_SkipsWhenNoIgnitionAttribute(t *testing.T) {
 		ID:         99,
 		DeviceID:   1,
 		Timestamp:  time.Now(),
-		Attributes: map[string]interface{}{"speed": 30.0},
+		Attributes: map[string]any{"speed": 30.0},
 	}
 	if err := svc.CheckIgnition(context.Background(), curr); err != nil {
 		t.Fatal(err)

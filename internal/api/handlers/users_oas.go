@@ -81,7 +81,7 @@ func (h *Handler) AdminCreateUser(ctx context.Context, req *oas.UserInput) (oas.
 
 	if h.cfg.AuditLogger != nil {
 		h.cfg.AuditLogger.Log(ctx, &admin.ID, audit.ActionUserCreate, audit.ResourceUser, &user.ID,
-			map[string]interface{}{"email": user.Email, "role": user.Role}, "", "")
+			map[string]any{"email": user.Email, "role": user.Role}, "", "")
 	}
 
 	user.PopulateTraccarFields()
@@ -112,7 +112,7 @@ func (h *Handler) AdminUpdateUser(ctx context.Context, req *oas.UserInput, param
 		}
 	}
 
-	changes := map[string]interface{}{"email": existing.Email}
+	changes := map[string]any{"email": existing.Email}
 
 	if req.Email != "" {
 		if err := validation.ValidateEmail(req.Email); err != nil {
@@ -205,7 +205,7 @@ func (h *Handler) AdminDeleteUser(ctx context.Context, params oas.AdminDeleteUse
 
 	if h.cfg.AuditLogger != nil {
 		h.cfg.AuditLogger.Log(ctx, &admin.ID, audit.ActionUserDelete, audit.ResourceUser, &params.ID,
-			map[string]interface{}{}, "", "")
+			map[string]any{}, "", "")
 	}
 
 	return &oas.AdminDeleteUserNoContent{}, nil

@@ -1,5 +1,7 @@
 package model
 
+import "slices"
+
 import "time"
 
 // Valid user roles.
@@ -16,12 +18,7 @@ func ValidRoles() []string {
 
 // IsValidRole reports whether role is a recognised user role.
 func IsValidRole(role string) bool {
-	for _, r := range ValidRoles() {
-		if r == role {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(ValidRoles(), role)
 }
 
 // User represents a system user with optional API token.
@@ -42,15 +39,15 @@ type User struct {
 	OIDCIssuer *string `json:"-"`
 
 	// Traccar-compatible fields (computed from Role).
-	Administrator    bool                   `json:"administrator"`
-	Readonly         bool                   `json:"readonly"`
-	Disabled         bool                   `json:"disabled"`
-	Map              *string                `json:"map,omitempty"`
-	Latitude         *float64               `json:"latitude,omitempty"`
-	Longitude        *float64               `json:"longitude,omitempty"`
-	Zoom             *int                   `json:"zoom,omitempty"`
-	CoordinateFormat *string                `json:"coordinateFormat,omitempty"`
-	Attributes       map[string]interface{} `json:"attributes,omitempty"`
+	Administrator    bool           `json:"administrator"`
+	Readonly         bool           `json:"readonly"`
+	Disabled         bool           `json:"disabled"`
+	Map              *string        `json:"map,omitempty"`
+	Latitude         *float64       `json:"latitude,omitempty"`
+	Longitude        *float64       `json:"longitude,omitempty"`
+	Zoom             *int           `json:"zoom,omitempty"`
+	CoordinateFormat *string        `json:"coordinateFormat,omitempty"`
+	Attributes       map[string]any `json:"attributes,omitempty"`
 }
 
 // IsAdmin reports whether the user has the admin role.

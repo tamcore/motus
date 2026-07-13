@@ -61,9 +61,9 @@ func newUserKeysListCmd() *cobra.Command {
 
 			switch output {
 			case "json":
-				items := make([]map[string]interface{}, len(keys))
+				items := make([]map[string]any, len(keys))
 				for i, k := range keys {
-					item := map[string]interface{}{
+					item := map[string]any{
 						"id":          k.ID,
 						"name":        k.Name,
 						"permissions": k.Permissions,

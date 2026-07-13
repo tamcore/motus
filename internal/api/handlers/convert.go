@@ -13,14 +13,14 @@ import (
 )
 
 // rawToAttrs converts a jx.Raw attribute map to map[string]interface{}.
-func rawToAttrs(raw map[string]jx.Raw) map[string]interface{} {
+func rawToAttrs(raw map[string]jx.Raw) map[string]any {
 	if raw == nil {
 		return nil
 	}
-	out := make(map[string]interface{}, len(raw))
+	out := make(map[string]any, len(raw))
 	for k, v := range raw {
 		// nosemgrep: go.lang.security.deserialization.unsafe-deserialization-interface.go-unsafe-deserialization-interface -- decodes pre-validated jx.Raw JSON for attribute maps, not arbitrary user input
-		var x interface{}
+		var x any
 		if err := json.Unmarshal(v, &x); err == nil {
 			out[k] = x
 		}
@@ -29,7 +29,7 @@ func rawToAttrs(raw map[string]jx.Raw) map[string]interface{} {
 }
 
 // attrsToRaw converts a map[string]interface{} to a jx.Raw attribute map.
-func attrsToRaw(attrs map[string]interface{}) map[string]jx.Raw {
+func attrsToRaw(attrs map[string]any) map[string]jx.Raw {
 	if attrs == nil {
 		return nil
 	}
@@ -99,7 +99,7 @@ func derefFloat64(f *float64) float64 {
 }
 
 // attrBool extracts a bool value from an attribute map by key.
-func attrBool(attrs map[string]interface{}, key string) oas.OptBool {
+func attrBool(attrs map[string]any, key string) oas.OptBool {
 	v, ok := attrs[key]
 	if !ok {
 		return oas.OptBool{}
@@ -112,7 +112,7 @@ func attrBool(attrs map[string]interface{}, key string) oas.OptBool {
 }
 
 // attrString extracts a string value from an attribute map by key.
-func attrString(attrs map[string]interface{}, key string) oas.OptString {
+func attrString(attrs map[string]any, key string) oas.OptString {
 	v, ok := attrs[key]
 	if !ok {
 		return oas.OptString{}
@@ -126,7 +126,7 @@ func attrString(attrs map[string]interface{}, key string) oas.OptString {
 
 // attrInt extracts an integer value from an attribute map by key.
 // JSON numbers decode as float64, so both float64 and int are handled.
-func attrInt(attrs map[string]interface{}, key string) oas.OptInt {
+func attrInt(attrs map[string]any, key string) oas.OptInt {
 	v, ok := attrs[key]
 	if !ok {
 		return oas.OptInt{}
@@ -150,7 +150,7 @@ var positionKnownKeys = map[string]struct{}{
 
 // positionAttrsToOAS converts a model attribute map to a typed oas.PositionAttributes.
 // The 10 known protocol keys are extracted into typed fields; remaining keys go into AdditionalProps.
-func positionAttrsToOAS(attrs map[string]interface{}) oas.PositionAttributes {
+func positionAttrsToOAS(attrs map[string]any) oas.PositionAttributes {
 	pa := oas.PositionAttributes{
 		Motion:     attrBool(attrs, "motion"),
 		Ignition:   attrBool(attrs, "ignition"),
@@ -315,7 +315,7 @@ func calendarToOAS(c *model.Calendar) oas.Calendar {
 }
 
 // buildCommandAttributes converts a model command type+attrs map to a typed oas.OptCommandAttributes.
-func buildCommandAttributes(cmdType string, modelAttrs map[string]interface{}) oas.OptCommandAttributes {
+func buildCommandAttributes(cmdType string, modelAttrs map[string]any) oas.OptCommandAttributes {
 	if modelAttrs == nil {
 		return oas.OptCommandAttributes{}
 	}
@@ -348,19 +348,19 @@ func buildCommandAttributes(cmdType string, modelAttrs map[string]interface{}) o
 }
 
 // oasCommandAttrsToModel converts a typed oas.OptCommandAttributes to a model attribute map.
-func oasCommandAttrsToModel(attrs oas.OptCommandAttributes) map[string]interface{} {
+func oasCommandAttrsToModel(attrs oas.OptCommandAttributes) map[string]any {
 	if !attrs.Set {
 		return nil
 	}
 	switch {
 	case attrs.Value.IsCommandAttrCustom():
-		return map[string]interface{}{"text": attrs.Value.CommandAttrCustom.Text}
+		return map[string]any{"text": attrs.Value.CommandAttrCustom.Text}
 	case attrs.Value.IsCommandAttrPositionPeriodic():
-		return map[string]interface{}{"frequency": attrs.Value.CommandAttrPositionPeriodic.Frequency}
+		return map[string]any{"frequency": attrs.Value.CommandAttrPositionPeriodic.Frequency}
 	case attrs.Value.IsCommandAttrSosNumber():
-		return map[string]interface{}{"phoneNumber": attrs.Value.CommandAttrSosNumber.PhoneNumber}
+		return map[string]any{"phoneNumber": attrs.Value.CommandAttrSosNumber.PhoneNumber}
 	case attrs.Value.IsCommandAttrSetSpeedAlarm():
-		return map[string]interface{}{"speed": attrs.Value.CommandAttrSetSpeedAlarm.Speed}
+		return map[string]any{"speed": attrs.Value.CommandAttrSetSpeedAlarm.Speed}
 	}
 	return nil
 }
@@ -380,7 +380,7 @@ func commandToOAS(c *model.Command) oas.Command {
 }
 
 // buildEventAttributes converts a model event type+attrs map to a typed oas.OptEventAttributes.
-func buildEventAttributes(evtType string, modelAttrs map[string]interface{}) oas.OptEventAttributes {
+func buildEventAttributes(evtType string, modelAttrs map[string]any) oas.OptEventAttributes {
 	if modelAttrs == nil {
 		return oas.OptEventAttributes{}
 	}
@@ -441,7 +441,7 @@ func notificationRuleToOAS(n *model.NotificationRule) oas.NotificationRule {
 			Channel:    oas.NotificationConfigWebhookChannelWebhook,
 			WebhookUrl: *u,
 		}
-		if h, ok := n.Config["headers"].(map[string]interface{}); ok && len(h) > 0 {
+		if h, ok := n.Config["headers"].(map[string]any); ok && len(h) > 0 {
 			headers := make(oas.NotificationConfigWebhookHeaders, len(h))
 			for k, v := range h {
 				if s, ok := v.(string); ok {
@@ -497,7 +497,7 @@ func deviceShareToOAS(s *model.DeviceShare) oas.DeviceShare {
 }
 
 // detailStr extracts a string value from an audit details map.
-func detailStr(details map[string]interface{}, key string) string {
+func detailStr(details map[string]any, key string) string {
 	if details == nil {
 		return ""
 	}
@@ -507,7 +507,7 @@ func detailStr(details map[string]interface{}, key string) string {
 
 // detailInt64 extracts an int64 value from an audit details map.
 // JSON numbers unmarshal as float64, so both numeric types are handled.
-func detailInt64(details map[string]interface{}, key string) int64 {
+func detailInt64(details map[string]any, key string) int64 {
 	if details == nil {
 		return 0
 	}
@@ -524,7 +524,7 @@ func detailInt64(details map[string]interface{}, key string) int64 {
 
 // detailStringSlice extracts a []string from an audit details map.
 // JSON arrays unmarshal as []interface{}, so each element is type-asserted.
-func detailStringSlice(details map[string]interface{}, key string) []string {
+func detailStringSlice(details map[string]any, key string) []string {
 	if details == nil {
 		return nil
 	}
@@ -535,7 +535,7 @@ func detailStringSlice(details map[string]interface{}, key string) []string {
 	if ss, ok := raw.([]string); ok {
 		return ss
 	}
-	if si, ok := raw.([]interface{}); ok {
+	if si, ok := raw.([]any); ok {
 		out := make([]string, 0, len(si))
 		for _, v := range si {
 			if s, ok := v.(string); ok {
@@ -549,7 +549,7 @@ func detailStringSlice(details map[string]interface{}, key string) []string {
 
 // buildAuditMetadata converts an action string + details map to a typed oas.OptAuditMetadata.
 // Returns an unset optional for unknown actions.
-func buildAuditMetadata(action string, details map[string]interface{}) oas.OptAuditMetadata {
+func buildAuditMetadata(action string, details map[string]any) oas.OptAuditMetadata {
 	var am oas.AuditMetadata
 	switch action {
 	// Empty variants (no payload beyond the action field).

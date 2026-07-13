@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/didip/tollbooth/v7"
-	"github.com/didip/tollbooth/v7/limiter"
+	"github.com/didip/tollbooth/v8"
+	"github.com/didip/tollbooth/v8/limiter"
 )
 
 // RateLimitConfig holds rate limiting parameters.
@@ -57,9 +57,10 @@ func newLimiter(cfg RateLimitConfig) *limiter.Limiter {
 	// Allow a burst equal to the full period quota so that clients can make
 	// up to Max requests immediately before tokens need to refill.
 	lmt.SetBurst(int(math.Max(1, cfg.Max)))
-	// chi's RealIP middleware already rewrites RemoteAddr, but also check
-	// the original headers as a fallback for direct access without proxies.
-	lmt.SetIPLookups([]string{"RemoteAddr", "X-Real-Ip", "X-Forwarded-For"})
+	// chi's RealIP middleware already rewrites RemoteAddr to the client IP,
+	// so key the rate limiter off RemoteAddr. tollbooth v8 accepts a single
+	// lookup instead of an ordered list.
+	lmt.SetIPLookup(limiter.IPLookup{Name: "RemoteAddr", IndexFromRight: 0})
 	return lmt
 }
 

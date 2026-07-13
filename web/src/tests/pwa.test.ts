@@ -408,14 +408,11 @@ describe("Service Worker Caching Strategy", () => {
 
     it("should identify tile requests by hostname", () => {
       const isTileRequest = (hostname: string) =>
-        hostname === "tile.openstreetmap.org" ||
-        hostname.endsWith(".tile.openstreetmap.org");
+        hostname === "sgx.geodatenzentrum.de";
 
-      expect(isTileRequest("tile.openstreetmap.org")).toBe(true);
-      expect(isTileRequest("a.tile.openstreetmap.org")).toBe(true);
-      expect(isTileRequest("b.tile.openstreetmap.org")).toBe(true);
-      expect(isTileRequest("tile.openstreetmap.org.evil.example")).toBe(false);
-      expect(isTileRequest("eviltile.openstreetmap.org")).toBe(false);
+      expect(isTileRequest("sgx.geodatenzentrum.de")).toBe(true);
+      expect(isTileRequest("sgx.geodatenzentrum.de.evil.example")).toBe(false);
+      expect(isTileRequest("tile.openstreetmap.org")).toBe(false);
       expect(isTileRequest("example.com")).toBe(false);
     });
   });

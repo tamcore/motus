@@ -43,7 +43,7 @@ ingress:
 # For PRODUCTION: Set postgres.enabled=false and configure external database below
 postgres:
   enabled: false  # Use external database in production
-  image: postgis/postgis:16-3.4
+  image: postgis/postgis:17-3.4
   storage: 10Gi
   storageClass: ""  # e.g., gp3 (AWS), standard (GKE), managed-premium (AKS)
   database: motus

@@ -162,6 +162,17 @@ func (c *Config) Validate() error {
 		}
 	}
 
+	// WebAuthn validation (only when enabled). RPID/origins cannot be safely
+	// derived from a request, so they must be configured explicitly.
+	if c.WebAuthn.Enabled {
+		if c.WebAuthn.RPID == "" {
+			errs = append(errs, "MOTUS_WEBAUTHN_RPID must be set when passkeys are enabled")
+		}
+		if len(c.WebAuthn.RPOrigins) == 0 {
+			errs = append(errs, "MOTUS_WEBAUTHN_ORIGINS must have at least one origin when passkeys are enabled")
+		}
+	}
+
 	if len(errs) > 0 {
 		return fmt.Errorf("configuration validation failed:\n  - %s", strings.Join(errs, "\n  - "))
 	}

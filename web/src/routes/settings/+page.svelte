@@ -8,6 +8,7 @@
 	import Button from '$lib/components/Button.svelte';
 	import { MAP_OVERLAYS } from '$lib/utils/map-overlays';
 	import ApiKeyManager from '$lib/components/ApiKeyManager.svelte';
+	import PasskeyManager from '$lib/components/PasskeyManager.svelte';
 	import SessionManager from '$lib/components/SessionManager.svelte';
 
 	let loading = true;
@@ -388,6 +389,9 @@
 
 			<!-- API Keys Management Section -->
 			<ApiKeyManager />
+
+			<!-- Passkeys Management Section -->
+			<PasskeyManager />
 
 			<!-- Active Sessions Section -->
 			<SessionManager />

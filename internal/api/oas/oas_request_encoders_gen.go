@@ -250,6 +250,34 @@ func encodeLoginRequest(
 	}
 }
 
+func encodePasskeyLoginFinishRequest(
+	req WebAuthnAssertionResponse,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
+func encodePasskeyRegisterFinishRequest(
+	req WebAuthnAttestationResponse,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
 func encodeSendCommandRequest(
 	req *SendCommandRequest,
 	r *http.Request,

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/tamcore/motus/internal/api"
 	"github.com/tamcore/motus/internal/audit"
 	"github.com/tamcore/motus/internal/config"
@@ -29,6 +30,16 @@ type HandlerConfig struct {
 	Calendars     repository.CalendarRepo
 	Stats         repository.StatisticsRepo
 	OIDCStateRepo repository.OIDCStateRepo
+	Passkeys      repository.PasskeyRepo
+
+	// WebAuthn is the passkey ceremony engine. Nil when passkeys are disabled
+	// or misconfigured; handlers then respond 501.
+	WebAuthn *webauthn.WebAuthn
+	// WebAuthnCookieKey signs the short-lived challenge cookies exchanged
+	// between the begin and finish steps of a passkey ceremony. It should be
+	// derived from the shared CSRF secret so the two steps can land on
+	// different pods.
+	WebAuthnCookieKey []byte
 
 	NotificationService *services.NotificationService
 	GeofenceService     *services.GeofenceService

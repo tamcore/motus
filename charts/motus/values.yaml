@@ -173,6 +173,14 @@ oidc:
   # Extra OAuth2 scopes beyond openid, email, profile (space-separated)
   scopes: ""
 
+# Passkeys / WebAuthn. RPID must be the registrable domain (no scheme/port);
+# origins is a comma-separated list of full origins. Both are required when enabled.
+webauthn:
+  enabled: false
+  rpID: ""
+  origins: ""
+  displayName: "Motus"
+
 # Metrics Configuration
 metrics:
   enabled: false

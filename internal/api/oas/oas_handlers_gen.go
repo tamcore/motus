@@ -71,7 +71,7 @@ func (s *Server) handleAdminAssignDeviceRequest(args [2]string, argsEscaped bool
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -313,7 +313,7 @@ func (s *Server) handleAdminCreateUserRequest(args [0]string, argsEscaped bool, 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -551,7 +551,7 @@ func (s *Server) handleAdminDeleteUserRequest(args [1]string, argsEscaped bool, 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -789,7 +789,7 @@ func (s *Server) handleAdminDeleteUserSessionRequest(args [2]string, argsEscaped
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -1031,7 +1031,7 @@ func (s *Server) handleAdminGetAuditLogRequest(args [0]string, argsEscaped bool,
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -1285,7 +1285,7 @@ func (s *Server) handleAdminGetStatisticsRequest(args [0]string, argsEscaped boo
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -1508,7 +1508,7 @@ func (s *Server) handleAdminGetUserStatisticsRequest(args [1]string, argsEscaped
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -1746,7 +1746,7 @@ func (s *Server) handleAdminListCalendarsRequest(args [0]string, argsEscaped boo
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -1969,7 +1969,7 @@ func (s *Server) handleAdminListDevicesRequest(args [0]string, argsEscaped bool,
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -2192,7 +2192,7 @@ func (s *Server) handleAdminListGeofencesRequest(args [0]string, argsEscaped boo
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -2415,7 +2415,7 @@ func (s *Server) handleAdminListNotificationsRequest(args [0]string, argsEscaped
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -2638,7 +2638,7 @@ func (s *Server) handleAdminListPositionsRequest(args [0]string, argsEscaped boo
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -2861,7 +2861,7 @@ func (s *Server) handleAdminListUserDevicesRequest(args [1]string, argsEscaped b
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -3099,7 +3099,7 @@ func (s *Server) handleAdminListUserKeysRequest(args [1]string, argsEscaped bool
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -3337,7 +3337,7 @@ func (s *Server) handleAdminListUsersRequest(args [0]string, argsEscaped bool, w
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -3560,7 +3560,7 @@ func (s *Server) handleAdminStartSudoRequest(args [1]string, argsEscaped bool, w
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -3798,7 +3798,7 @@ func (s *Server) handleAdminUnassignDeviceRequest(args [2]string, argsEscaped bo
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -4040,7 +4040,7 @@ func (s *Server) handleAdminUpdateUserRequest(args [1]string, argsEscaped bool, 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -4293,7 +4293,7 @@ func (s *Server) handleCheckCalendarRequest(args [1]string, argsEscaped bool, w 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -4531,7 +4531,7 @@ func (s *Server) handleCreateApiKeyRequest(args [0]string, argsEscaped bool, w h
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -4769,7 +4769,7 @@ func (s *Server) handleCreateCalendarRequest(args [0]string, argsEscaped bool, w
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -5007,7 +5007,7 @@ func (s *Server) handleCreateCommandRequest(args [0]string, argsEscaped bool, w 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -5245,7 +5245,7 @@ func (s *Server) handleCreateDeviceRequest(args [0]string, argsEscaped bool, w h
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -5483,7 +5483,7 @@ func (s *Server) handleCreateGeofenceRequest(args [0]string, argsEscaped bool, w
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -5721,7 +5721,7 @@ func (s *Server) handleCreateNotificationRequest(args [0]string, argsEscaped boo
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -5959,7 +5959,7 @@ func (s *Server) handleCreateShareRequest(args [1]string, argsEscaped bool, w ht
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -6212,7 +6212,7 @@ func (s *Server) handleDeleteApiKeyRequest(args [1]string, argsEscaped bool, w h
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -6450,7 +6450,7 @@ func (s *Server) handleDeleteCalendarRequest(args [1]string, argsEscaped bool, w
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -6688,7 +6688,7 @@ func (s *Server) handleDeleteDeviceRequest(args [1]string, argsEscaped bool, w h
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -6926,7 +6926,7 @@ func (s *Server) handleDeleteGeofenceRequest(args [1]string, argsEscaped bool, w
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -7164,7 +7164,7 @@ func (s *Server) handleDeleteNotificationRequest(args [1]string, argsEscaped boo
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -7364,6 +7364,244 @@ func (s *Server) handleDeleteNotificationRequest(args [1]string, argsEscaped boo
 	}
 }
 
+// handleDeletePasskeyRequest handles deletePasskey operation.
+//
+// Delete one of the authenticated user's passkeys.
+//
+// DELETE /api/session/passkey/credentials/{id}
+func (s *Server) handleDeletePasskeyRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("deletePasskey"),
+		semconv.HTTPRequestMethodKey.String("DELETE"),
+		semconv.HTTPRouteKey.String("/api/session/passkey/credentials/{id}"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), DeletePasskeyOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: DeletePasskeyOperation,
+			ID:   "deletePasskey",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityCookieAuth(ctx, DeletePasskeyOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "CookieAuth",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w, span); encodeErr != nil {
+					defer recordError("Security:CookieAuth", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityBearerAuth(ctx, DeletePasskeyOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "BearerAuth",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w, span); encodeErr != nil {
+					defer recordError("Security:BearerAuth", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityXAuthToken(ctx, DeletePasskeyOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "XAuthToken",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w, span); encodeErr != nil {
+					defer recordError("Security:XAuthToken", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w, span); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+	params, err := decodeDeletePasskeyParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response DeletePasskeyRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    DeletePasskeyOperation,
+			OperationSummary: "Delete one of the authenticated user's passkeys",
+			OperationID:      "deletePasskey",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = DeletePasskeyParams
+			Response = DeletePasskeyRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackDeletePasskeyParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.DeletePasskey(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.DeletePasskey(ctx, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*UnexpectedErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w, span); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w, span); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeDeletePasskeyResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleDeleteSessionRequest handles deleteSession operation.
 //
 // Revoke a specific session.
@@ -7402,7 +7640,7 @@ func (s *Server) handleDeleteSessionRequest(args [1]string, argsEscaped bool, w 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -7640,7 +7878,7 @@ func (s *Server) handleDeleteShareRequest(args [1]string, argsEscaped bool, w ht
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -7878,7 +8116,7 @@ func (s *Server) handleEndSudoRequest(args [0]string, argsEscaped bool, w http.R
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -8101,7 +8339,7 @@ func (s *Server) handleGenerateTokenRequest(args [0]string, argsEscaped bool, w 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -8324,7 +8562,7 @@ func (s *Server) handleGetCommandTypesRequest(args [0]string, argsEscaped bool, 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -8547,7 +8785,7 @@ func (s *Server) handleGetDeviceRequest(args [1]string, argsEscaped bool, w http
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -8785,7 +9023,7 @@ func (s *Server) handleGetGeofenceRequest(args [1]string, argsEscaped bool, w ht
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -9023,7 +9261,7 @@ func (s *Server) handleGetHealthRequest(args [0]string, argsEscaped bool, w http
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -9158,7 +9396,7 @@ func (s *Server) handleGetOIDCConfigRequest(args [0]string, argsEscaped bool, w 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -9293,7 +9531,7 @@ func (s *Server) handleGetPositionsRequest(args [0]string, argsEscaped bool, w h
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -9539,7 +9777,7 @@ func (s *Server) handleGetServerRequest(args [0]string, argsEscaped bool, w http
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -9638,9 +9876,9 @@ func (s *Server) handleGetServerRequest(args [0]string, argsEscaped bool, w http
 
 // handleGetSessionRequest handles getSession operation.
 //
-// With a `token` query parameter, performs a token login (QR code / Traccar Manager / pytraccar):
-// the token is resolved against API keys (with legacy users.token fallback) and a session cookie is
-// set. Without it, validates the current session credentials.
+// With a `token` query parameter, performs a token login (QR code / Traccar Manager / pytraccar): the
+// token is resolved against API keys (with legacy users.token fallback) and a session cookie is set.
+// Without it, validates the current session credentials.
 //
 // GET /api/session
 func (s *Server) handleGetSessionRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -9676,7 +9914,7 @@ func (s *Server) handleGetSessionRequest(args [0]string, argsEscaped bool, w htt
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -9915,7 +10153,7 @@ func (s *Server) handleGetSharedDeviceRequest(args [1]string, argsEscaped bool, 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -10069,7 +10307,7 @@ func (s *Server) handleGetSudoStatusRequest(args [0]string, argsEscaped bool, w 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -10292,7 +10530,7 @@ func (s *Server) handleGetVersionRequest(args [0]string, argsEscaped bool, w htt
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -10427,7 +10665,7 @@ func (s *Server) handleImportGPXRequest(args [1]string, argsEscaped bool, w http
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -10680,7 +10918,7 @@ func (s *Server) handleListApiKeysRequest(args [0]string, argsEscaped bool, w ht
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -10903,7 +11141,7 @@ func (s *Server) handleListCalendarsRequest(args [0]string, argsEscaped bool, w 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -11126,7 +11364,7 @@ func (s *Server) handleListCommandsRequest(args [0]string, argsEscaped bool, w h
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -11364,7 +11602,7 @@ func (s *Server) handleListDevicesRequest(args [0]string, argsEscaped bool, w ht
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -11587,7 +11825,7 @@ func (s *Server) handleListEventsRequest(args [0]string, argsEscaped bool, w htt
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -11837,7 +12075,7 @@ func (s *Server) handleListGeofencesRequest(args [0]string, argsEscaped bool, w 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -12060,7 +12298,7 @@ func (s *Server) handleListNotificationsRequest(args [0]string, argsEscaped bool
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -12245,6 +12483,229 @@ func (s *Server) handleListNotificationsRequest(args [0]string, argsEscaped bool
 	}
 }
 
+// handleListPasskeysRequest handles listPasskeys operation.
+//
+// List the authenticated user's registered passkeys.
+//
+// GET /api/session/passkey/credentials
+func (s *Server) handleListPasskeysRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("listPasskeys"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/api/session/passkey/credentials"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), ListPasskeysOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ListPasskeysOperation,
+			ID:   "listPasskeys",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityCookieAuth(ctx, ListPasskeysOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "CookieAuth",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w, span); encodeErr != nil {
+					defer recordError("Security:CookieAuth", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityBearerAuth(ctx, ListPasskeysOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "BearerAuth",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w, span); encodeErr != nil {
+					defer recordError("Security:BearerAuth", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityXAuthToken(ctx, ListPasskeysOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "XAuthToken",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w, span); encodeErr != nil {
+					defer recordError("Security:XAuthToken", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w, span); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+
+	var rawBody []byte
+
+	var response ListPasskeysRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ListPasskeysOperation,
+			OperationSummary: "List the authenticated user's registered passkeys",
+			OperationID:      "listPasskeys",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = ListPasskeysRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ListPasskeys(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ListPasskeys(ctx)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*UnexpectedErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w, span); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w, span); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeListPasskeysResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleListSessionsRequest handles listSessions operation.
 //
 // List active sessions for the authenticated user.
@@ -12283,7 +12744,7 @@ func (s *Server) handleListSessionsRequest(args [0]string, argsEscaped bool, w h
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -12506,7 +12967,7 @@ func (s *Server) handleListSharesRequest(args [1]string, argsEscaped bool, w htt
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -12744,7 +13205,7 @@ func (s *Server) handleLoginRequest(args [0]string, argsEscaped bool, w http.Res
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -12898,7 +13359,7 @@ func (s *Server) handleLogoutRequest(args [0]string, argsEscaped bool, w http.Re
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -13121,7 +13582,7 @@ func (s *Server) handleLogoutAllRequest(args [0]string, argsEscaped bool, w http
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -13344,7 +13805,7 @@ func (s *Server) handleNotificationLogsRequest(args [1]string, argsEscaped bool,
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -13582,7 +14043,7 @@ func (s *Server) handleOidcCallbackRequest(args [0]string, argsEscaped bool, w h
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -13740,7 +14201,7 @@ func (s *Server) handleOidcLoginRequest(args [0]string, argsEscaped bool, w http
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -13837,6 +14298,773 @@ func (s *Server) handleOidcLoginRequest(args [0]string, argsEscaped bool, w http
 	}
 }
 
+// handlePasskeyLoginBeginRequest handles passkeyLoginBegin operation.
+//
+// Public endpoint. Returns discoverable-credential request options and sets a short-lived challenge
+// cookie. No user identifier is required.
+//
+// POST /api/session/passkey/login/begin
+func (s *Server) handlePasskeyLoginBeginRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("passkeyLoginBegin"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.HTTPRouteKey.String("/api/session/passkey/login/begin"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), PasskeyLoginBeginOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err error
+	)
+
+	var rawBody []byte
+
+	var response PasskeyLoginBeginRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    PasskeyLoginBeginOperation,
+			OperationSummary: "Begin passkey login (returns request options)",
+			OperationID:      "passkeyLoginBegin",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = PasskeyLoginBeginRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.PasskeyLoginBegin(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.PasskeyLoginBegin(ctx)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*UnexpectedErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w, span); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w, span); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodePasskeyLoginBeginResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handlePasskeyLoginFinishRequest handles passkeyLoginFinish operation.
+//
+// Public endpoint. Verifies the assertion, establishes a session cookie (read-only for demo accounts),
+// and returns the authenticated user.
+//
+// POST /api/session/passkey/login/finish
+func (s *Server) handlePasskeyLoginFinishRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("passkeyLoginFinish"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.HTTPRouteKey.String("/api/session/passkey/login/finish"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), PasskeyLoginFinishOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: PasskeyLoginFinishOperation,
+			ID:   "passkeyLoginFinish",
+		}
+	)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodePasskeyLoginFinishRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response PasskeyLoginFinishRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    PasskeyLoginFinishOperation,
+			OperationSummary: "Finish passkey login (verify assertion, set session)",
+			OperationID:      "passkeyLoginFinish",
+			Body:             request,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = WebAuthnAssertionResponse
+			Params   = struct{}
+			Response = PasskeyLoginFinishRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.PasskeyLoginFinish(ctx, request)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.PasskeyLoginFinish(ctx, request)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*UnexpectedErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w, span); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w, span); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodePasskeyLoginFinishResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handlePasskeyRegisterBeginRequest handles passkeyRegisterBegin operation.
+//
+// Begin passkey registration (returns creation options).
+//
+// POST /api/session/passkey/register/begin
+func (s *Server) handlePasskeyRegisterBeginRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("passkeyRegisterBegin"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.HTTPRouteKey.String("/api/session/passkey/register/begin"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), PasskeyRegisterBeginOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: PasskeyRegisterBeginOperation,
+			ID:   "passkeyRegisterBegin",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityCookieAuth(ctx, PasskeyRegisterBeginOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "CookieAuth",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w, span); encodeErr != nil {
+					defer recordError("Security:CookieAuth", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityBearerAuth(ctx, PasskeyRegisterBeginOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "BearerAuth",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w, span); encodeErr != nil {
+					defer recordError("Security:BearerAuth", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityXAuthToken(ctx, PasskeyRegisterBeginOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "XAuthToken",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w, span); encodeErr != nil {
+					defer recordError("Security:XAuthToken", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w, span); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+
+	var rawBody []byte
+
+	var response PasskeyRegisterBeginRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    PasskeyRegisterBeginOperation,
+			OperationSummary: "Begin passkey registration (returns creation options)",
+			OperationID:      "passkeyRegisterBegin",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = PasskeyRegisterBeginRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.PasskeyRegisterBegin(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.PasskeyRegisterBegin(ctx)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*UnexpectedErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w, span); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w, span); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodePasskeyRegisterBeginResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handlePasskeyRegisterFinishRequest handles passkeyRegisterFinish operation.
+//
+// Finish passkey registration (verify attestation).
+//
+// POST /api/session/passkey/register/finish
+func (s *Server) handlePasskeyRegisterFinishRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("passkeyRegisterFinish"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.HTTPRouteKey.String("/api/session/passkey/register/finish"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), PasskeyRegisterFinishOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: PasskeyRegisterFinishOperation,
+			ID:   "passkeyRegisterFinish",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityCookieAuth(ctx, PasskeyRegisterFinishOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "CookieAuth",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w, span); encodeErr != nil {
+					defer recordError("Security:CookieAuth", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityBearerAuth(ctx, PasskeyRegisterFinishOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "BearerAuth",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w, span); encodeErr != nil {
+					defer recordError("Security:BearerAuth", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityXAuthToken(ctx, PasskeyRegisterFinishOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "XAuthToken",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w, span); encodeErr != nil {
+					defer recordError("Security:XAuthToken", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w, span); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+	params, err := decodePasskeyRegisterFinishParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodePasskeyRegisterFinishRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response PasskeyRegisterFinishRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    PasskeyRegisterFinishOperation,
+			OperationSummary: "Finish passkey registration (verify attestation)",
+			OperationID:      "passkeyRegisterFinish",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "name",
+					In:   "query",
+				}: params.Name,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = WebAuthnAttestationResponse
+			Params   = PasskeyRegisterFinishParams
+			Response = PasskeyRegisterFinishRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackPasskeyRegisterFinishParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.PasskeyRegisterFinish(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.PasskeyRegisterFinish(ctx, request, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*UnexpectedErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w, span); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w, span); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodePasskeyRegisterFinishResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleReportEventsRequest handles reportEvents operation.
 //
 // Report events in a time range (same as listEvents, Traccar-compatible path).
@@ -13875,7 +15103,7 @@ func (s *Server) handleReportEventsRequest(args [0]string, argsEscaped bool, w h
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -14125,7 +15353,7 @@ func (s *Server) handleSendCommandRequest(args [0]string, argsEscaped bool, w ht
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -14363,7 +15591,7 @@ func (s *Server) handleTestNotificationRequest(args [1]string, argsEscaped bool,
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -14601,7 +15829,7 @@ func (s *Server) handleUpdateCalendarRequest(args [1]string, argsEscaped bool, w
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -14854,7 +16082,7 @@ func (s *Server) handleUpdateDeviceRequest(args [1]string, argsEscaped bool, w h
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -15107,7 +16335,7 @@ func (s *Server) handleUpdateGeofenceRequest(args [1]string, argsEscaped bool, w
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -15360,7 +16588,7 @@ func (s *Server) handleUpdateNotificationRequest(args [1]string, argsEscaped boo
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -15613,7 +16841,7 @@ func (s *Server) handleUpdateProfileRequest(args [0]string, argsEscaped bool, w 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 

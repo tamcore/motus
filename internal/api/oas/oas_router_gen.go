@@ -35,7 +35,7 @@ var (
 	rn14AllowedHeaders = map[string]string{
 		"GET": "Authorization,X-Auth-Token",
 	}
-	rn49AllowedHeaders = map[string]string{
+	rn52AllowedHeaders = map[string]string{
 		"DELETE": "Authorization,X-Auth-Token",
 		"GET":    "Authorization,X-Auth-Token",
 	}
@@ -57,10 +57,10 @@ var (
 		"GET":  "Authorization,X-Auth-Token",
 		"POST": "Authorization,Content-Type,X-Auth-Token",
 	}
-	rn75AllowedHeaders = map[string]string{
+	rn86AllowedHeaders = map[string]string{
 		"POST": "Authorization,Content-Type,X-Auth-Token",
 	}
-	rn52AllowedHeaders = map[string]string{
+	rn55AllowedHeaders = map[string]string{
 		"GET": "Authorization,X-Auth-Token",
 	}
 	rn32AllowedHeaders = map[string]string{
@@ -72,16 +72,16 @@ var (
 		"GET":    "Authorization,X-Auth-Token",
 		"PUT":    "Authorization,Content-Type,X-Auth-Token",
 	}
-	rn64AllowedHeaders = map[string]string{
+	rn67AllowedHeaders = map[string]string{
 		"POST": "Authorization,Content-Type,X-Auth-Token",
 	}
 	rn37AllowedHeaders = map[string]string{
 		"POST": "Authorization,Content-Type,X-Auth-Token",
 	}
-	rn67AllowedHeaders = map[string]string{
+	rn71AllowedHeaders = map[string]string{
 		"GET": "Authorization,X-Auth-Token",
 	}
-	rn65AllowedHeaders = map[string]string{
+	rn68AllowedHeaders = map[string]string{
 		"GET": "Authorization,X-Auth-Token",
 	}
 	rn33AllowedHeaders = map[string]string{
@@ -108,37 +108,52 @@ var (
 		"DELETE": "Authorization,X-Auth-Token",
 		"PUT":    "Authorization,Content-Type,X-Auth-Token",
 	}
-	rn68AllowedHeaders = map[string]string{
+	rn72AllowedHeaders = map[string]string{
 		"GET": "Authorization,X-Auth-Token",
 	}
-	rn77AllowedHeaders = map[string]string{
+	rn88AllowedHeaders = map[string]string{
 		"POST": "Authorization,X-Auth-Token",
 	}
-	rn56AllowedHeaders = map[string]string{
+	rn59AllowedHeaders = map[string]string{
 		"GET": "Authorization,X-Auth-Token",
 	}
-	rn79AllowedHeaders = map[string]string{
+	rn90AllowedHeaders = map[string]string{
 		"PUT": "Authorization,Content-Type,X-Auth-Token",
 	}
-	rn73AllowedHeaders = map[string]string{
+	rn84AllowedHeaders = map[string]string{
 		"GET": "Authorization,X-Auth-Token",
 	}
-	rn50AllowedHeaders = map[string]string{
+	rn46AllowedHeaders = map[string]string{
 		"DELETE": "Authorization,X-Auth-Token",
 		"GET":    "Authorization,X-Auth-Token",
 		"POST":   "Content-Type",
 	}
-	rn51AllowedHeaders = map[string]string{
-		"POST": "Authorization,X-Auth-Token",
-	}
-	rn66AllowedHeaders = map[string]string{
-		"DELETE": "Authorization,X-Auth-Token",
-		"GET":    "Authorization,X-Auth-Token",
+	rn69AllowedHeaders = map[string]string{
+		"GET": "Authorization,X-Auth-Token",
 	}
 	rn45AllowedHeaders = map[string]string{
 		"DELETE": "Authorization,X-Auth-Token",
 	}
+	rn80AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn81AllowedHeaders = map[string]string{
+		"POST": "Authorization,X-Auth-Token",
+	}
+	rn83AllowedHeaders = map[string]string{
+		"POST": "Authorization,Content-Type,X-Auth-Token",
+	}
+	rn54AllowedHeaders = map[string]string{
+		"POST": "Authorization,X-Auth-Token",
+	}
+	rn70AllowedHeaders = map[string]string{
+		"DELETE": "Authorization,X-Auth-Token",
+		"GET":    "Authorization,X-Auth-Token",
+	}
 	rn48AllowedHeaders = map[string]string{
+		"DELETE": "Authorization,X-Auth-Token",
+	}
+	rn51AllowedHeaders = map[string]string{
 		"DELETE": "Authorization,X-Auth-Token",
 	}
 	rn5AllowedHeaders = map[string]string{
@@ -480,7 +495,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "DELETE,GET",
-										allowedHeaders: rn49AllowedHeaders,
+										allowedHeaders: rn52AllowedHeaders,
 										acceptPost:     "",
 										acceptPatch:    "",
 									})
@@ -798,7 +813,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "POST",
-										allowedHeaders: rn75AllowedHeaders,
+										allowedHeaders: rn86AllowedHeaders,
 										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
@@ -823,7 +838,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "GET",
-										allowedHeaders: rn52AllowedHeaders,
+										allowedHeaders: rn55AllowedHeaders,
 										acceptPost:     "",
 										acceptPatch:    "",
 									})
@@ -937,7 +952,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "POST",
-										allowedHeaders: rn64AllowedHeaders,
+										allowedHeaders: rn67AllowedHeaders,
 										acceptPost:     "application/gpx+xml,multipart/form-data",
 										acceptPatch:    "",
 									})
@@ -990,7 +1005,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "GET",
-											allowedHeaders: rn67AllowedHeaders,
+											allowedHeaders: rn71AllowedHeaders,
 											acceptPost:     "",
 											acceptPatch:    "",
 										})
@@ -1023,7 +1038,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					default:
 						s.notAllowed(w, r, notAllowedParams{
 							allowedMethods: "GET",
-							allowedHeaders: rn65AllowedHeaders,
+							allowedHeaders: rn68AllowedHeaders,
 							acceptPost:     "",
 							acceptPatch:    "",
 						})
@@ -1288,7 +1303,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "GET",
-										allowedHeaders: rn68AllowedHeaders,
+										allowedHeaders: rn72AllowedHeaders,
 										acceptPost:     "",
 										acceptPatch:    "",
 									})
@@ -1315,7 +1330,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "POST",
-										allowedHeaders: rn77AllowedHeaders,
+										allowedHeaders: rn88AllowedHeaders,
 										acceptPost:     "",
 										acceptPatch:    "",
 									})
@@ -1358,7 +1373,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						default:
 							s.notAllowed(w, r, notAllowedParams{
 								allowedMethods: "GET",
-								allowedHeaders: rn56AllowedHeaders,
+								allowedHeaders: rn59AllowedHeaders,
 								acceptPost:     "",
 								acceptPatch:    "",
 							})
@@ -1383,7 +1398,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						default:
 							s.notAllowed(w, r, notAllowedParams{
 								allowedMethods: "PUT",
-								allowedHeaders: rn79AllowedHeaders,
+								allowedHeaders: rn90AllowedHeaders,
 								acceptPost:     "",
 								acceptPatch:    "",
 							})
@@ -1410,7 +1425,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					default:
 						s.notAllowed(w, r, notAllowedParams{
 							allowedMethods: "GET",
-							allowedHeaders: rn73AllowedHeaders,
+							allowedHeaders: rn84AllowedHeaders,
 							acceptPost:     "",
 							acceptPatch:    "",
 						})
@@ -1487,7 +1502,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "DELETE,GET,POST",
-									allowedHeaders: rn50AllowedHeaders,
+									allowedHeaders: rn46AllowedHeaders,
 									acceptPost:     "application/json,application/x-www-form-urlencoded",
 									acceptPatch:    "",
 								})
@@ -1496,29 +1511,247 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							return
 						}
 						switch elem[0] {
-						case '/': // Prefix: "/token"
+						case '/': // Prefix: "/"
 
-							if l := len("/token"); len(elem) >= l && elem[0:l] == "/token" {
+							if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 								elem = elem[l:]
 							} else {
 								break
 							}
 
 							if len(elem) == 0 {
-								// Leaf node.
-								switch r.Method {
-								case "POST":
-									s.handleGenerateTokenRequest([0]string{}, elemIsEscaped, w, r)
-								default:
-									s.notAllowed(w, r, notAllowedParams{
-										allowedMethods: "POST",
-										allowedHeaders: rn51AllowedHeaders,
-										acceptPost:     "",
-										acceptPatch:    "",
-									})
+								break
+							}
+							switch elem[0] {
+							case 'p': // Prefix: "passkey/"
+
+								if l := len("passkey/"); len(elem) >= l && elem[0:l] == "passkey/" {
+									elem = elem[l:]
+								} else {
+									break
 								}
 
-								return
+								if len(elem) == 0 {
+									break
+								}
+								switch elem[0] {
+								case 'c': // Prefix: "credentials"
+
+									if l := len("credentials"); len(elem) >= l && elem[0:l] == "credentials" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										switch r.Method {
+										case "GET":
+											s.handleListPasskeysRequest([0]string{}, elemIsEscaped, w, r)
+										default:
+											s.notAllowed(w, r, notAllowedParams{
+												allowedMethods: "GET",
+												allowedHeaders: rn69AllowedHeaders,
+												acceptPost:     "",
+												acceptPatch:    "",
+											})
+										}
+
+										return
+									}
+									switch elem[0] {
+									case '/': // Prefix: "/"
+
+										if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										// Param: "id"
+										// Leaf parameter, slashes are prohibited
+										idx := strings.IndexByte(elem, '/')
+										if idx >= 0 {
+											break
+										}
+										args[0] = elem
+										elem = ""
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch r.Method {
+											case "DELETE":
+												s.handleDeletePasskeyRequest([1]string{
+													args[0],
+												}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, notAllowedParams{
+													allowedMethods: "DELETE",
+													allowedHeaders: rn45AllowedHeaders,
+													acceptPost:     "",
+													acceptPatch:    "",
+												})
+											}
+
+											return
+										}
+
+									}
+
+								case 'l': // Prefix: "login/"
+
+									if l := len("login/"); len(elem) >= l && elem[0:l] == "login/" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										break
+									}
+									switch elem[0] {
+									case 'b': // Prefix: "begin"
+
+										if l := len("begin"); len(elem) >= l && elem[0:l] == "begin" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch r.Method {
+											case "POST":
+												s.handlePasskeyLoginBeginRequest([0]string{}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, notAllowedParams{
+													allowedMethods: "POST",
+													allowedHeaders: nil,
+													acceptPost:     "",
+													acceptPatch:    "",
+												})
+											}
+
+											return
+										}
+
+									case 'f': // Prefix: "finish"
+
+										if l := len("finish"); len(elem) >= l && elem[0:l] == "finish" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch r.Method {
+											case "POST":
+												s.handlePasskeyLoginFinishRequest([0]string{}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, notAllowedParams{
+													allowedMethods: "POST",
+													allowedHeaders: rn80AllowedHeaders,
+													acceptPost:     "application/json",
+													acceptPatch:    "",
+												})
+											}
+
+											return
+										}
+
+									}
+
+								case 'r': // Prefix: "register/"
+
+									if l := len("register/"); len(elem) >= l && elem[0:l] == "register/" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										break
+									}
+									switch elem[0] {
+									case 'b': // Prefix: "begin"
+
+										if l := len("begin"); len(elem) >= l && elem[0:l] == "begin" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch r.Method {
+											case "POST":
+												s.handlePasskeyRegisterBeginRequest([0]string{}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, notAllowedParams{
+													allowedMethods: "POST",
+													allowedHeaders: rn81AllowedHeaders,
+													acceptPost:     "",
+													acceptPatch:    "",
+												})
+											}
+
+											return
+										}
+
+									case 'f': // Prefix: "finish"
+
+										if l := len("finish"); len(elem) >= l && elem[0:l] == "finish" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch r.Method {
+											case "POST":
+												s.handlePasskeyRegisterFinishRequest([0]string{}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, notAllowedParams{
+													allowedMethods: "POST",
+													allowedHeaders: rn83AllowedHeaders,
+													acceptPost:     "application/json",
+													acceptPatch:    "",
+												})
+											}
+
+											return
+										}
+
+									}
+
+								}
+
+							case 't': // Prefix: "token"
+
+								if l := len("token"); len(elem) >= l && elem[0:l] == "token" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch r.Method {
+									case "POST":
+										s.handleGenerateTokenRequest([0]string{}, elemIsEscaped, w, r)
+									default:
+										s.notAllowed(w, r, notAllowedParams{
+											allowedMethods: "POST",
+											allowedHeaders: rn54AllowedHeaders,
+											acceptPost:     "",
+											acceptPatch:    "",
+										})
+									}
+
+									return
+								}
+
 							}
 
 						case 's': // Prefix: "s"
@@ -1538,7 +1771,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "DELETE,GET",
-										allowedHeaders: rn66AllowedHeaders,
+										allowedHeaders: rn70AllowedHeaders,
 										acceptPost:     "",
 										acceptPatch:    "",
 									})
@@ -1574,7 +1807,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "DELETE",
-											allowedHeaders: rn45AllowedHeaders,
+											allowedHeaders: rn48AllowedHeaders,
 											acceptPost:     "",
 											acceptPatch:    "",
 										})
@@ -1664,7 +1897,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "DELETE",
-									allowedHeaders: rn48AllowedHeaders,
+									allowedHeaders: rn51AllowedHeaders,
 									acceptPost:     "",
 									acceptPatch:    "",
 								})
@@ -3367,29 +3600,245 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							}
 						}
 						switch elem[0] {
-						case '/': // Prefix: "/token"
+						case '/': // Prefix: "/"
 
-							if l := len("/token"); len(elem) >= l && elem[0:l] == "/token" {
+							if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 								elem = elem[l:]
 							} else {
 								break
 							}
 
 							if len(elem) == 0 {
-								// Leaf node.
-								switch method {
-								case "POST":
-									r.name = GenerateTokenOperation
-									r.summary = "Generate a long-lived API token for the current session"
-									r.operationID = "generateToken"
-									r.operationGroup = ""
-									r.pathPattern = "/api/session/token"
-									r.args = args
-									r.count = 0
-									return r, true
-								default:
-									return
+								break
+							}
+							switch elem[0] {
+							case 'p': // Prefix: "passkey/"
+
+								if l := len("passkey/"); len(elem) >= l && elem[0:l] == "passkey/" {
+									elem = elem[l:]
+								} else {
+									break
 								}
+
+								if len(elem) == 0 {
+									break
+								}
+								switch elem[0] {
+								case 'c': // Prefix: "credentials"
+
+									if l := len("credentials"); len(elem) >= l && elem[0:l] == "credentials" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										switch method {
+										case "GET":
+											r.name = ListPasskeysOperation
+											r.summary = "List the authenticated user's registered passkeys"
+											r.operationID = "listPasskeys"
+											r.operationGroup = ""
+											r.pathPattern = "/api/session/passkey/credentials"
+											r.args = args
+											r.count = 0
+											return r, true
+										default:
+											return
+										}
+									}
+									switch elem[0] {
+									case '/': // Prefix: "/"
+
+										if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										// Param: "id"
+										// Leaf parameter, slashes are prohibited
+										idx := strings.IndexByte(elem, '/')
+										if idx >= 0 {
+											break
+										}
+										args[0] = elem
+										elem = ""
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch method {
+											case "DELETE":
+												r.name = DeletePasskeyOperation
+												r.summary = "Delete one of the authenticated user's passkeys"
+												r.operationID = "deletePasskey"
+												r.operationGroup = ""
+												r.pathPattern = "/api/session/passkey/credentials/{id}"
+												r.args = args
+												r.count = 1
+												return r, true
+											default:
+												return
+											}
+										}
+
+									}
+
+								case 'l': // Prefix: "login/"
+
+									if l := len("login/"); len(elem) >= l && elem[0:l] == "login/" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										break
+									}
+									switch elem[0] {
+									case 'b': // Prefix: "begin"
+
+										if l := len("begin"); len(elem) >= l && elem[0:l] == "begin" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch method {
+											case "POST":
+												r.name = PasskeyLoginBeginOperation
+												r.summary = "Begin passkey login (returns request options)"
+												r.operationID = "passkeyLoginBegin"
+												r.operationGroup = ""
+												r.pathPattern = "/api/session/passkey/login/begin"
+												r.args = args
+												r.count = 0
+												return r, true
+											default:
+												return
+											}
+										}
+
+									case 'f': // Prefix: "finish"
+
+										if l := len("finish"); len(elem) >= l && elem[0:l] == "finish" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch method {
+											case "POST":
+												r.name = PasskeyLoginFinishOperation
+												r.summary = "Finish passkey login (verify assertion, set session)"
+												r.operationID = "passkeyLoginFinish"
+												r.operationGroup = ""
+												r.pathPattern = "/api/session/passkey/login/finish"
+												r.args = args
+												r.count = 0
+												return r, true
+											default:
+												return
+											}
+										}
+
+									}
+
+								case 'r': // Prefix: "register/"
+
+									if l := len("register/"); len(elem) >= l && elem[0:l] == "register/" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										break
+									}
+									switch elem[0] {
+									case 'b': // Prefix: "begin"
+
+										if l := len("begin"); len(elem) >= l && elem[0:l] == "begin" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch method {
+											case "POST":
+												r.name = PasskeyRegisterBeginOperation
+												r.summary = "Begin passkey registration (returns creation options)"
+												r.operationID = "passkeyRegisterBegin"
+												r.operationGroup = ""
+												r.pathPattern = "/api/session/passkey/register/begin"
+												r.args = args
+												r.count = 0
+												return r, true
+											default:
+												return
+											}
+										}
+
+									case 'f': // Prefix: "finish"
+
+										if l := len("finish"); len(elem) >= l && elem[0:l] == "finish" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch method {
+											case "POST":
+												r.name = PasskeyRegisterFinishOperation
+												r.summary = "Finish passkey registration (verify attestation)"
+												r.operationID = "passkeyRegisterFinish"
+												r.operationGroup = ""
+												r.pathPattern = "/api/session/passkey/register/finish"
+												r.args = args
+												r.count = 0
+												return r, true
+											default:
+												return
+											}
+										}
+
+									}
+
+								}
+
+							case 't': // Prefix: "token"
+
+								if l := len("token"); len(elem) >= l && elem[0:l] == "token" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch method {
+									case "POST":
+										r.name = GenerateTokenOperation
+										r.summary = "Generate a long-lived API token for the current session"
+										r.operationID = "generateToken"
+										r.operationGroup = ""
+										r.pathPattern = "/api/session/token"
+										r.args = args
+										r.count = 0
+										return r, true
+									default:
+										return
+									}
+								}
+
 							}
 
 						case 's': // Prefix: "s"

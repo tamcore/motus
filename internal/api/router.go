@@ -142,7 +142,11 @@ func NewRouter(h oas.Handler, sec oas.SecurityHandler, hub *websocket.Hub, opts 
 		r.Use(cfg.Logger)
 	}
 	r.Use(chimw.Recoverer)
-	r.Use(chimw.RealIP)
+	// RealIP rewrites RemoteAddr from proxy headers so the rate limiter and
+	// access logs see the true client IP. chi v5.3.1 deprecates it over
+	// spoofing risk when directly exposed; motus only runs behind a trusted
+	// reverse proxy / k8s ingress that sets X-Forwarded-For, so it is safe here.
+	r.Use(chimw.RealIP) //nolint:staticcheck // trusted-proxy deployment only
 	r.Use(limitRequestBody)
 	if cfg.SecurityHeaders != nil {
 		r.Use(cfg.SecurityHeaders)

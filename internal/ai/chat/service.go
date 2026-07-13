@@ -41,7 +41,7 @@ type Service struct {
 	maxLoops         int
 	timeout          time.Duration
 	mcpServer        *mcpserver.MCPServer
-	tools            []openai.ChatCompletionToolParam
+	tools            []openai.ChatCompletionToolUnionParam
 	guardrailEnabled bool
 	guardrailModel   string
 }
@@ -90,21 +90,19 @@ func NewService(cfg Config) *Service {
 }
 
 // buildTools converts all registered MCP tools into OpenAI tool params.
-func (s *Service) buildTools() []openai.ChatCompletionToolParam {
+func (s *Service) buildTools() []openai.ChatCompletionToolUnionParam {
 	registered := s.mcpServer.ListTools()
-	tools := make([]openai.ChatCompletionToolParam, 0, len(registered))
+	tools := make([]openai.ChatCompletionToolUnionParam, 0, len(registered))
 	for _, st := range registered {
 		schema := shared.FunctionParameters{}
 		if b, err := json.Marshal(st.Tool.InputSchema); err == nil {
 			_ = json.Unmarshal(b, &schema)
 		}
-		tools = append(tools, openai.ChatCompletionToolParam{
-			Function: shared.FunctionDefinitionParam{
-				Name:        st.Tool.Name,
-				Description: param.NewOpt(st.Tool.Description),
-				Parameters:  schema,
-			},
-		})
+		tools = append(tools, openai.ChatCompletionFunctionTool(shared.FunctionDefinitionParam{
+			Name:        st.Tool.Name,
+			Description: param.NewOpt(st.Tool.Description),
+			Parameters:  schema,
+		}))
 	}
 	return tools
 }
@@ -363,13 +361,15 @@ func (s *Service) buildHistory(msgs []Message) []openai.ChatCompletionMessagePar
 
 // assistantMessageWithCalls builds an assistant message that carries tool_calls.
 func assistantMessageWithCalls(calls []ToolCall) openai.ChatCompletionMessageParamUnion {
-	toolCallParams := make([]openai.ChatCompletionMessageToolCallParam, len(calls))
+	toolCallParams := make([]openai.ChatCompletionMessageToolCallUnionParam, len(calls))
 	for i, tc := range calls {
-		toolCallParams[i] = openai.ChatCompletionMessageToolCallParam{
-			ID: tc.ID,
-			Function: openai.ChatCompletionMessageToolCallFunctionParam{
-				Name:      tc.Name,
-				Arguments: tc.Arguments,
+		toolCallParams[i] = openai.ChatCompletionMessageToolCallUnionParam{
+			OfFunction: &openai.ChatCompletionMessageFunctionToolCallParam{
+				ID: tc.ID,
+				Function: openai.ChatCompletionMessageFunctionToolCallFunctionParam{
+					Name:      tc.Name,
+					Arguments: tc.Arguments,
+				},
 			},
 		}
 	}

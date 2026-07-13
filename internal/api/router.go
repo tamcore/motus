@@ -62,11 +62,28 @@ func injectResponseWriter(next http.Handler) http.Handler {
 	})
 }
 
+// injectRequest stores the *http.Request in its own context so ogen handlers
+// can read request cookies (e.g. the WebAuthn challenge cookie).
+func injectRequest(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r = r.WithContext(ContextWithRequest(r.Context(), r))
+		next.ServeHTTP(w, r)
+	})
+}
+
+// passkeyLoginPaths are the pre-auth passkey ceremony endpoints. Like
+// POST /api/session they are reached before the client holds a CSRF token, so
+// they are CSRF-exempt and share the login rate limiter.
+var passkeyLoginPaths = map[string]bool{
+	"/api/session/passkey/login/begin":  true,
+	"/api/session/passkey/login/finish": true,
+}
+
 // exemptLoginFromCSRF marks POST /api/session as CSRF-exempt so the login
 // endpoint can be reached before the client holds a CSRF token.
 func exemptLoginFromCSRF(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPost && r.URL.Path == "/api/session" {
+		if r.Method == http.MethodPost && (r.URL.Path == "/api/session" || passkeyLoginPaths[r.URL.Path]) {
 			r = csrf.UnsafeSkipCheck(r)
 		}
 		next.ServeHTTP(w, r)
@@ -77,7 +94,7 @@ func exemptLoginFromCSRF(next http.Handler) http.Handler {
 // request so clients can obtain the token both on login and from an existing session.
 func csrfTokenMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/api/session" {
+		if r.URL.Path == "/api/session" || r.URL.Path == "/api/session/passkey/login/finish" {
 			w.Header().Set("X-CSRF-Token", csrf.Token(r))
 		}
 		next.ServeHTTP(w, r)
@@ -206,7 +223,7 @@ func NewRouter(h oas.Handler, sec oas.SecurityHandler, hub *websocket.Hub, opts 
 		apiHandler = func(inner http.Handler) http.Handler {
 			limited := loginRL(inner)
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if r.Method == http.MethodPost && r.URL.Path == "/api/session" {
+				if r.Method == http.MethodPost && (r.URL.Path == "/api/session" || passkeyLoginPaths[r.URL.Path]) {
 					limited.ServeHTTP(w, r)
 					return
 				}
@@ -214,6 +231,9 @@ func NewRouter(h oas.Handler, sec oas.SecurityHandler, hub *websocket.Hub, opts 
 			})
 		}(apiHandler)
 	}
+	// Inject the request into context so handlers can read cookies (e.g. the
+	// WebAuthn challenge cookie).
+	apiHandler = injectRequest(apiHandler)
 	// Inject ResponseWriter into context (outermost layer, runs first).
 	apiHandler = injectResponseWriter(apiHandler)
 

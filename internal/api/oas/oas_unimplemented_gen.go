@@ -292,6 +292,15 @@ func (UnimplementedHandler) DeleteNotification(ctx context.Context, params Delet
 	return r, ht.ErrNotImplemented
 }
 
+// DeletePasskey implements deletePasskey operation.
+//
+// Delete one of the authenticated user's passkeys.
+//
+// DELETE /api/session/passkey/credentials/{id}
+func (UnimplementedHandler) DeletePasskey(ctx context.Context, params DeletePasskeyParams) (r DeletePasskeyRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // DeleteSession implements deleteSession operation.
 //
 // Revoke a specific session.
@@ -393,9 +402,9 @@ func (UnimplementedHandler) GetServer(ctx context.Context) (r *ServerInfo, _ err
 
 // GetSession implements getSession operation.
 //
-// With a `token` query parameter, performs a token login (QR code / Traccar Manager / pytraccar):
-// the token is resolved against API keys (with legacy users.token fallback) and a session cookie is
-// set. Without it, validates the current session credentials.
+// With a `token` query parameter, performs a token login (QR code / Traccar Manager / pytraccar): the
+// token is resolved against API keys (with legacy users.token fallback) and a session cookie is set.
+// Without it, validates the current session credentials.
 //
 // GET /api/session
 func (UnimplementedHandler) GetSession(ctx context.Context, params GetSessionParams) (r GetSessionRes, _ error) {
@@ -501,6 +510,15 @@ func (UnimplementedHandler) ListNotifications(ctx context.Context) (r ListNotifi
 	return r, ht.ErrNotImplemented
 }
 
+// ListPasskeys implements listPasskeys operation.
+//
+// List the authenticated user's registered passkeys.
+//
+// GET /api/session/passkey/credentials
+func (UnimplementedHandler) ListPasskeys(ctx context.Context) (r ListPasskeysRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ListSessions implements listSessions operation.
 //
 // List active sessions for the authenticated user.
@@ -571,6 +589,44 @@ func (UnimplementedHandler) OidcCallback(ctx context.Context, params OidcCallbac
 // GET /api/auth/oidc/login
 func (UnimplementedHandler) OidcLogin(ctx context.Context) error {
 	return ht.ErrNotImplemented
+}
+
+// PasskeyLoginBegin implements passkeyLoginBegin operation.
+//
+// Public endpoint. Returns discoverable-credential request options and sets a short-lived challenge
+// cookie. No user identifier is required.
+//
+// POST /api/session/passkey/login/begin
+func (UnimplementedHandler) PasskeyLoginBegin(ctx context.Context) (r PasskeyLoginBeginRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// PasskeyLoginFinish implements passkeyLoginFinish operation.
+//
+// Public endpoint. Verifies the assertion, establishes a session cookie (read-only for demo accounts),
+// and returns the authenticated user.
+//
+// POST /api/session/passkey/login/finish
+func (UnimplementedHandler) PasskeyLoginFinish(ctx context.Context, req WebAuthnAssertionResponse) (r PasskeyLoginFinishRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// PasskeyRegisterBegin implements passkeyRegisterBegin operation.
+//
+// Begin passkey registration (returns creation options).
+//
+// POST /api/session/passkey/register/begin
+func (UnimplementedHandler) PasskeyRegisterBegin(ctx context.Context) (r PasskeyRegisterBeginRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// PasskeyRegisterFinish implements passkeyRegisterFinish operation.
+//
+// Finish passkey registration (verify attestation).
+//
+// POST /api/session/passkey/register/finish
+func (UnimplementedHandler) PasskeyRegisterFinish(ctx context.Context, req WebAuthnAttestationResponse, params PasskeyRegisterFinishParams) (r PasskeyRegisterFinishRes, _ error) {
+	return r, ht.ErrNotImplemented
 }
 
 // ReportEvents implements reportEvents operation.

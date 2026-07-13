@@ -527,6 +527,18 @@ export interface CreateApiKeyPayload {
 }
 
 // ---------------------------------------------------------------------------
+// Passkeys (WebAuthn)
+// ---------------------------------------------------------------------------
+
+/** A registered WebAuthn passkey credential (metadata only, no secrets). */
+export interface PasskeyCredentialInfo {
+  id: number;
+  name: string;
+  createdAt: string;
+  lastUsedAt?: string | null;
+}
+
+// ---------------------------------------------------------------------------
 // Calendar
 // ---------------------------------------------------------------------------
 

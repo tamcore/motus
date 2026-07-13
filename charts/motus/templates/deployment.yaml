@@ -173,6 +173,18 @@ spec:
           value: {{ .Values.oidc.scopes | quote }}
         {{- end }}
         {{- end }}
+        {{- if .Values.webauthn.enabled }}
+        - name: MOTUS_WEBAUTHN_ENABLED
+          value: "true"
+        - name: MOTUS_WEBAUTHN_RPID
+          value: {{ .Values.webauthn.rpID | quote }}
+        - name: MOTUS_WEBAUTHN_ORIGINS
+          value: {{ .Values.webauthn.origins | quote }}
+        {{- if .Values.webauthn.displayName }}
+        - name: MOTUS_WEBAUTHN_DISPLAY_NAME
+          value: {{ .Values.webauthn.displayName | quote }}
+        {{- end }}
+        {{- end }}
         {{- if .Values.rateLimit.login }}
         - name: MOTUS_LOGIN_RATE_LIMIT
           value: {{ .Values.rateLimit.login | quote }}

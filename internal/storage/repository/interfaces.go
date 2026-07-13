@@ -161,6 +161,17 @@ type ApiKeyRepo interface {
 	UpdateLastUsed(ctx context.Context, id int64) error
 }
 
+// PasskeyRepo defines the operations on the passkey_credentials table used by
+// the WebAuthn registration/login handlers and the demo reset routine.
+type PasskeyRepo interface {
+	Create(ctx context.Context, c *model.PasskeyCredential) error
+	ListByUser(ctx context.Context, userID int64) ([]*model.PasskeyCredential, error)
+	GetByCredentialID(ctx context.Context, credID []byte) (*model.PasskeyCredential, error)
+	UpdateSignCount(ctx context.Context, id int64, count uint32) error
+	Delete(ctx context.Context, id, userID int64) error
+	DeleteAllByUser(ctx context.Context, userID int64) error
+}
+
 // CalendarRepo defines the operations on the calendars table used by
 // handlers and the geofence event service for time-based triggers.
 type CalendarRepo interface {
@@ -195,4 +206,5 @@ var (
 	_ StatisticsRepo   = (*StatisticsRepository)(nil)
 	_ CalendarRepo     = (*CalendarRepository)(nil)
 	_ OIDCStateRepo    = (*OIDCStateRepository)(nil)
+	_ PasskeyRepo      = (*PasskeyRepository)(nil)
 )

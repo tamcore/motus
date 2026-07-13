@@ -557,6 +557,36 @@ components:
       properties:
         token: { type: string }
 
+    # WebAuthn ceremony payloads are opaque JSON produced/consumed by the
+    # browser navigator.credentials API. They are modelled as free-form objects
+    # so ogen passes the bytes through unchanged (map[string]jx.Raw), avoiding
+    # any lossy re-typing of the credential material.
+    WebAuthnCredentialCreationOptions:
+      type: object
+      additionalProperties: true
+      description: PublicKeyCredentialCreationOptions for navigator.credentials.create.
+    WebAuthnCredentialRequestOptions:
+      type: object
+      additionalProperties: true
+      description: PublicKeyCredentialRequestOptions for navigator.credentials.get.
+    WebAuthnAttestationResponse:
+      type: object
+      additionalProperties: true
+      description: Registration attestation returned by navigator.credentials.create.
+    WebAuthnAssertionResponse:
+      type: object
+      additionalProperties: true
+      description: Authentication assertion returned by navigator.credentials.get.
+
+    PasskeyCredentialInfo:
+      type: object
+      required: [id, name, createdAt]
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string }
+        createdAt: { type: string, format: date-time }
+        lastUsedAt: { type: string, format: date-time, nullable: true }
+
     Command:
       type: object
       required: [id, deviceId, type, status, createdAt]
@@ -1020,6 +1050,189 @@ paths:
                 $ref: '#/components/schemas/TokenResponse'
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+
+  /api/session/passkey/register/begin:
+    post:
+      operationId: passkeyRegisterBegin
+      summary: Begin passkey registration (returns creation options)
+      tags: [auth]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      responses:
+        "200":
+          description: Credential creation options; a short-lived challenge cookie is set
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebAuthnCredentialCreationOptions'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "501":
+          description: Passkeys are not enabled on this server
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+
+  /api/session/passkey/register/finish:
+    post:
+      operationId: passkeyRegisterFinish
+      summary: Finish passkey registration (verify attestation)
+      tags: [auth]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      parameters:
+        - name: name
+          in: query
+          required: false
+          description: User-facing label for the new passkey (e.g. "iPhone").
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebAuthnAttestationResponse'
+      responses:
+        "200":
+          description: Passkey registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PasskeyCredentialInfo'
+        "400":
+          description: Invalid or unverifiable attestation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "501":
+          description: Passkeys are not enabled on this server
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+
+  /api/session/passkey/login/begin:
+    post:
+      operationId: passkeyLoginBegin
+      summary: Begin passkey login (returns request options)
+      description: >-
+        Public endpoint. Returns discoverable-credential request options and
+        sets a short-lived challenge cookie. No user identifier is required.
+      tags: [auth]
+      responses:
+        "200":
+          description: Credential request options; a short-lived challenge cookie is set
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebAuthnCredentialRequestOptions'
+        "501":
+          description: Passkeys are not enabled on this server
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+
+  /api/session/passkey/login/finish:
+    post:
+      operationId: passkeyLoginFinish
+      summary: Finish passkey login (verify assertion, set session)
+      description: >-
+        Public endpoint. Verifies the assertion, establishes a session cookie
+        (read-only for demo accounts), and returns the authenticated user.
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebAuthnAssertionResponse'
+      responses:
+        "200":
+          description: Logged in; sets session_id cookie and X-CSRF-Token header
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        "401":
+          description: Invalid or unverifiable assertion
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        "501":
+          description: Passkeys are not enabled on this server
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+
+  /api/session/passkey/credentials:
+    get:
+      operationId: listPasskeys
+      summary: List the authenticated user's registered passkeys
+      tags: [auth]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      responses:
+        "200":
+          description: Passkey list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PasskeyCredentialInfo'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+
+  /api/session/passkey/credentials/{id}:
+    delete:
+      operationId: deletePasskey
+      summary: Delete one of the authenticated user's passkeys
+      tags: [auth]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        "204":
+          description: Passkey deleted
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "404":
+          description: Passkey not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         default:
           $ref: '#/components/responses/UnexpectedError'
 

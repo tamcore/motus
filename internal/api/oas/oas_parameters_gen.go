@@ -1492,6 +1492,71 @@ func decodeDeleteNotificationParams(args [1]string, argsEscaped bool, r *http.Re
 	return params, nil
 }
 
+// DeletePasskeyParams is parameters of deletePasskey operation.
+type DeletePasskeyParams struct {
+	ID int64
+}
+
+func unpackDeletePasskeyParams(packed middleware.Parameters) (params DeletePasskeyParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(int64)
+	}
+	return params
+}
+
+func decodeDeletePasskeyParams(args [1]string, argsEscaped bool, r *http.Request) (params DeletePasskeyParams, _ error) {
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToInt64(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // DeleteSessionParams is parameters of deleteSession operation.
 type DeleteSessionParams struct {
 	ID string
@@ -2631,6 +2696,71 @@ func decodeOidcCallbackParams(args [0]string, argsEscaped bool, r *http.Request)
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "state",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// PasskeyRegisterFinishParams is parameters of passkeyRegisterFinish operation.
+type PasskeyRegisterFinishParams struct {
+	// User-facing label for the new passkey (e.g. "iPhone").
+	Name OptString `json:",omitempty,omitzero"`
+}
+
+func unpackPasskeyRegisterFinishParams(packed middleware.Parameters) (params PasskeyRegisterFinishParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "name",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Name = v.(OptString)
+		}
+	}
+	return params
+}
+
+func decodePasskeyRegisterFinishParams(args [0]string, argsEscaped bool, r *http.Request) (params PasskeyRegisterFinishParams, _ error) {
+	q := uri.NewQueryDecoder(r.URL.Query())
+	// Decode query: name.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "name",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotNameVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotNameVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.Name.SetTo(paramsDotNameVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "name",
 			In:   "query",
 			Err:  err,
 		}

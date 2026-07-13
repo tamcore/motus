@@ -24,6 +24,27 @@ type Config struct {
 	Geocoding GeocodingConfig
 	OIDC      OIDCConfig
 	AI        AIConfig
+	WebAuthn  WebAuthnConfig
+}
+
+// WebAuthnConfig holds passkey (WebAuthn/FIDO2) settings.
+type WebAuthnConfig struct {
+	// Enabled activates passkey registration and login.
+	// Loaded from MOTUS_WEBAUTHN_ENABLED. Default: false.
+	Enabled bool
+	// RPID is the Relying Party ID: the registrable domain the credentials are
+	// bound to, without scheme or port (e.g. "app.example.com"). It must match
+	// the site's effective domain or authentication will fail, and changing it
+	// permanently invalidates existing credentials.
+	// Loaded from MOTUS_WEBAUTHN_RPID. Required when Enabled.
+	RPID string
+	// RPOrigins is the list of full origins (scheme + host + optional port) that
+	// may initiate ceremonies, e.g. "https://app.example.com".
+	// Loaded from MOTUS_WEBAUTHN_ORIGINS (comma-separated). Required when Enabled.
+	RPOrigins []string
+	// RPDisplayName is the human-readable Relying Party name shown by
+	// authenticators. Loaded from MOTUS_WEBAUTHN_DISPLAY_NAME. Default: "Motus".
+	RPDisplayName string
 }
 
 // AIConfig holds settings for the OpenAI-compatible chat/MCP feature.
@@ -411,6 +432,12 @@ func LoadFromEnv() (*Config, error) {
 			SystemPrompt:     getEnv("MOTUS_AI_SYSTEM_PROMPT", ""),
 			GuardrailEnabled: getEnvBool("MOTUS_AI_GUARDRAIL_ENABLED", true),
 			GuardrailModel:   getEnv("MOTUS_AI_GUARDRAIL_MODEL", ""),
+		},
+		WebAuthn: WebAuthnConfig{
+			Enabled:       getEnvBool("MOTUS_WEBAUTHN_ENABLED", false),
+			RPID:          getEnv("MOTUS_WEBAUTHN_RPID", ""),
+			RPOrigins:     getEnvSlice("MOTUS_WEBAUTHN_ORIGINS"),
+			RPDisplayName: getEnv("MOTUS_WEBAUTHN_DISPLAY_NAME", "Motus"),
 		},
 	}
 	if err := cfg.Validate(); err != nil {

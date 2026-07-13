@@ -1,4 +1,10 @@
 import type {
+  AuthenticationResponseJSON,
+  PublicKeyCredentialCreationOptionsJSON,
+  PublicKeyCredentialRequestOptionsJSON,
+  RegistrationResponseJSON,
+} from "@simplewebauthn/browser";
+import type {
   ApiKey,
   AuditLogResponse,
   Calendar,
@@ -15,6 +21,7 @@ import type {
   Geofence,
   NotificationLog,
   NotificationRule,
+  PasskeyCredentialInfo,
   PlatformStats,
   Position,
   Session,
@@ -110,6 +117,69 @@ export const api = {
   /** Generate a new API token for the current user. */
   generateToken: () =>
     request<TokenResponse>("/session/token", { method: "POST" }),
+
+  // ---------------------------------------------------------------------------
+  // Passkeys (WebAuthn)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Begin passkey registration (authed). Returns the raw
+   * PublicKeyCredentialCreationOptions JSON to feed directly into
+   * @simplewebauthn/browser's startRegistration.
+   */
+  passkeyRegisterBegin: () =>
+    request<PublicKeyCredentialCreationOptionsJSON>(
+      "/session/passkey/register/begin",
+      { method: "POST" },
+    ),
+
+  /**
+   * Finish passkey registration (authed). Sends the raw attestation JSON
+   * produced by startRegistration and a human-readable label.
+   */
+  passkeyRegisterFinish: (
+    attestationJSON: RegistrationResponseJSON,
+    name: string,
+  ) =>
+    request<PasskeyCredentialInfo>(
+      `/session/passkey/register/finish?name=${encodeURIComponent(name)}`,
+      {
+        method: "POST",
+        body: JSON.stringify(attestationJSON),
+      },
+    ),
+
+  /**
+   * Begin passkey login (public). Returns the raw
+   * PublicKeyCredentialRequestOptions JSON to feed directly into
+   * @simplewebauthn/browser's startAuthentication.
+   */
+  passkeyLoginBegin: () =>
+    request<PublicKeyCredentialRequestOptionsJSON>(
+      "/session/passkey/login/begin",
+      { method: "POST" },
+    ),
+
+  /**
+   * Finish passkey login (public). Sends the raw assertion JSON produced by
+   * startAuthentication; on success the session cookie is set and the User
+   * is returned.
+   */
+  passkeyLoginFinish: (assertionJSON: AuthenticationResponseJSON) =>
+    request<User>("/session/passkey/login/finish", {
+      method: "POST",
+      body: JSON.stringify(assertionJSON),
+    }),
+
+  /** List all passkeys registered for the current user (authed). */
+  listPasskeys: () =>
+    request<PasskeyCredentialInfo[]>("/session/passkey/credentials"),
+
+  /** Delete a passkey by ID (authed). */
+  deletePasskey: (id: number) =>
+    request<void>(`/session/passkey/credentials/${id}`, {
+      method: "DELETE",
+    }),
 
   // ---------------------------------------------------------------------------
   // Devices

@@ -2,11 +2,16 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/tamcore/motus/internal/model"
 )
+
+// ErrPasskeyNotFound is returned by Delete when no credential matches the given
+// id and owner.
+var ErrPasskeyNotFound = errors.New("passkey not found")
 
 // PasskeyRepository handles WebAuthn passkey credential persistence.
 type PasskeyRepository struct {
@@ -99,12 +104,15 @@ func (r *PasskeyRepository) UpdateSignCount(ctx context.Context, id int64, count
 // Delete removes a passkey credential owned by userID. Scoping the delete by
 // user_id prevents one user from deleting another user's credential.
 func (r *PasskeyRepository) Delete(ctx context.Context, id, userID int64) error {
-	_, err := r.pool.Exec(ctx,
+	tag, err := r.pool.Exec(ctx,
 		`DELETE FROM passkey_credentials WHERE id = $1 AND user_id = $2`,
 		id, userID,
 	)
 	if err != nil {
 		return fmt.Errorf("delete passkey credential: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrPasskeyNotFound
 	}
 	return nil
 }
@@ -139,6 +147,6 @@ func scanPasskey(row rowScanner) (*model.PasskeyCredential, error) {
 	); err != nil {
 		return nil, fmt.Errorf("scan passkey credential: %w", err)
 	}
-	c.SignCount = uint32(signCount)
+	c.SignCount = uint32(signCount) // #nosec G115 -- stored from a uint32 sign counter; always fits
 	return c, nil
 }

@@ -2,6 +2,7 @@ package repository_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/tamcore/motus/internal/model"
@@ -142,9 +143,10 @@ func TestPasskeyRepository_Delete_ScopedByUser(t *testing.T) {
 		t.Fatalf("create: %v", err)
 	}
 
-	// A different user cannot delete it.
-	if err := repo.Delete(ctx, cred.ID, other.ID); err != nil {
-		t.Fatalf("delete (wrong user) returned error: %v", err)
+	// A different user cannot delete it: the scoped DELETE affects 0 rows and
+	// reports not-found rather than silently succeeding.
+	if err := repo.Delete(ctx, cred.ID, other.ID); !errors.Is(err, repository.ErrPasskeyNotFound) {
+		t.Fatalf("delete (wrong user): expected ErrPasskeyNotFound, got %v", err)
 	}
 	if list, _ := repo.ListByUser(ctx, owner.ID); len(list) != 1 {
 		t.Fatal("credential should survive delete by another user")

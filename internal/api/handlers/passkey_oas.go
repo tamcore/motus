@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -23,8 +24,8 @@ import (
 const (
 	// passkeyRegCookie / passkeyLoginCookie carry the signed WebAuthn
 	// SessionData between the begin and finish steps of a ceremony.
-	passkeyRegCookie   = "passkey_reg_session"
-	passkeyLoginCookie = "passkey_login_session"
+	passkeyRegCookie   = "passkey_reg_session"   // #nosec G101 -- cookie name, not a credential
+	passkeyLoginCookie = "passkey_login_session" // #nosec G101 -- cookie name, not a credential
 	// passkeyChallengeTTL bounds how long a ceremony may take.
 	passkeyChallengeTTL = 5 * time.Minute
 	// defaultPasskeyName labels a passkey when the client sends no name.
@@ -68,7 +69,10 @@ func (h *Handler) PasskeyRegisterBegin(ctx context.Context) (oas.PasskeyRegister
 		return &oas.PasskeyRegisterBeginUnauthorized{Error: "failed to start ceremony"}, nil
 	}
 
-	opts, err := toRawObject[oas.WebAuthnCredentialCreationOptions](creation)
+	// Return the inner PublicKeyCredentialCreationOptions (creation.Response),
+	// not the {"publicKey": ...} wrapper: @simplewebauthn/browser's
+	// startRegistration expects the options object directly.
+	opts, err := toRawObject[oas.WebAuthnCredentialCreationOptions](creation.Response)
 	if err != nil {
 		return &oas.PasskeyRegisterBeginUnauthorized{Error: "failed to encode options"}, nil
 	}
@@ -143,7 +147,10 @@ func (h *Handler) PasskeyLoginBegin(ctx context.Context) (oas.PasskeyLoginBeginR
 		return &oas.Error{Error: "failed to start ceremony"}, nil
 	}
 
-	opts, err := toRawObject[oas.WebAuthnCredentialRequestOptions](assertion)
+	// Return the inner PublicKeyCredentialRequestOptions (assertion.Response),
+	// not the {"publicKey": ...} wrapper: @simplewebauthn/browser's
+	// startAuthentication expects the options object directly.
+	opts, err := toRawObject[oas.WebAuthnCredentialRequestOptions](assertion.Response)
 	if err != nil {
 		return &oas.Error{Error: "failed to encode options"}, nil
 	}
@@ -195,9 +202,26 @@ func (h *Handler) PasskeyLoginFinish(ctx context.Context, req oas.WebAuthnAssert
 	}
 	user := wu.user
 
-	// Persist the updated signature counter for clone detection.
-	if stored, err := h.cfg.Passkeys.GetByCredentialID(ctx, cred.ID); err == nil {
-		_ = h.cfg.Passkeys.UpdateSignCount(ctx, stored.ID, cred.Authenticator.SignCount)
+	// Persist the updated signature counter and surface clone-detection warnings.
+	// go-webauthn sets CloneWarning when the authenticator-reported counter did
+	// not increase past the stored value — the WebAuthn signal for a possibly
+	// cloned credential. We do not fail the login (synced passkeys legitimately
+	// report a static 0 counter) but we log and audit it so it is not silent.
+	if stored, err := h.cfg.Passkeys.GetByCredentialID(ctx, cred.ID); err != nil {
+		slog.Warn("passkey: could not load credential to update sign count", slog.Any("error", err))
+	} else {
+		if err := h.cfg.Passkeys.UpdateSignCount(ctx, stored.ID, cred.Authenticator.SignCount); err != nil {
+			slog.Warn("passkey: failed to persist sign count",
+				slog.Int64("credentialId", stored.ID), slog.Any("error", err))
+		}
+		if cred.Authenticator.CloneWarning {
+			slog.Warn("passkey: authenticator clone warning — signature counter did not increase",
+				slog.Int64("userId", user.ID), slog.Int64("credentialId", stored.ID))
+			if h.cfg.AuditLogger != nil {
+				h.cfg.AuditLogger.Log(ctx, &user.ID, audit.ActionSessionLogin, audit.ResourceSession, nil,
+					map[string]any{"method": "passkey", "cloneWarning": true}, "", "")
+			}
+		}
 	}
 
 	session, err := h.createPasskeySession(ctx, user)
@@ -211,6 +235,7 @@ func (h *Handler) PasskeyLoginFinish(ctx context.Context, req oas.WebAuthnAssert
 			Value:    session.ID,
 			Path:     "/",
 			Expires:  session.ExpiresAt,
+			MaxAge:   int(time.Until(session.ExpiresAt).Seconds()),
 			HttpOnly: true,
 			SameSite: http.SameSiteLaxMode,
 			Secure:   isSecureEnvironment(),

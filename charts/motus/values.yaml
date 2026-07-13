@@ -173,12 +173,19 @@ oidc:
   # Extra OAuth2 scopes beyond openid, email, profile (space-separated)
   scopes: ""
 
-# Passkeys / WebAuthn. RPID must be the registrable domain (no scheme/port);
-# origins is a comma-separated list of full origins. Both are required when enabled.
+# Passkeys / WebAuthn authentication.
 webauthn:
+  # Enable passkey registration and login. When false the passkey endpoints
+  # respond 501 and the frontend hides passkey UI.
   enabled: false
+  # Relying Party ID: the registrable domain credentials are bound to, without
+  # scheme or port (e.g. "motus.example.com"). Must match the site's effective
+  # domain — changing it permanently invalidates existing passkeys. Required when enabled.
   rpID: ""
+  # Comma-separated list of full origins (scheme + host + optional port) allowed
+  # to start ceremonies (e.g. "https://motus.example.com"). Required when enabled.
   origins: ""
+  # Human-readable Relying Party name shown by the authenticator prompt.
   displayName: "Motus"
 
 # Metrics Configuration

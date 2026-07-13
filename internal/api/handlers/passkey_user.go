@@ -37,7 +37,7 @@ func (u *webauthnUser) WebAuthnCredentials() []webauthn.Credential {
 // encodeUserHandle encodes a user ID as an 8-byte big-endian WebAuthn handle.
 func encodeUserHandle(id int64) []byte {
 	b := make([]byte, 8)
-	binary.BigEndian.PutUint64(b, uint64(id))
+	binary.BigEndian.PutUint64(b, uint64(id)) // #nosec G115 -- user IDs are positive; round-trips via decodeUserHandle
 	return b
 }
 
@@ -47,7 +47,7 @@ func decodeUserHandle(h []byte) (id int64, ok bool) {
 	if len(h) != 8 {
 		return 0, false
 	}
-	return int64(binary.BigEndian.Uint64(h)), true
+	return int64(binary.BigEndian.Uint64(h)), true // #nosec G115 -- reverses encodeUserHandle for our own positive IDs
 }
 
 // toWebauthnCredential converts a stored credential to the library type.

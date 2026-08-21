@@ -94,6 +94,8 @@ MIT License
 
 Built with Go, SvelteKit, PostgreSQL/PostGIS, Leaflet, Playwright, Helm.
 
+Map tiles: BKG TopPlusOpen © Bundesamt für Kartographie und Geodäsie (dl-de/by-2.0), EU-hosted.
+
 ---
 
 For development setup, API documentation, testing, and project structure, see **[DEVELOPMENT.md](DEVELOPMENT.md)**.

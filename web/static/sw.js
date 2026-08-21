@@ -84,8 +84,8 @@ self.addEventListener("fetch", (event) => {
   }
 
   // Skip all cross-origin requests (let the browser fetch them directly).
-  // Intercepting tile requests caused OSM's CDN to return 404 on first load
-  // because the SW added an Origin header that the browser's native <img>
+  // Intercepting map-tile requests caused the tile CDN to return 404 on first
+  // load because the SW added an Origin header that the browser's native <img>
   // requests don't include, resulting in different CDN cache behaviour.
   if (url.origin !== self.location.origin) {
     return;

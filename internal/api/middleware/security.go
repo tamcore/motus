@@ -24,13 +24,15 @@ func SecurityHeaders(next http.Handler) http.Handler {
 		// and output encoding.
 		// worker-src 'self' allows the PWA service worker to be loaded.
 		// manifest-src 'self' allows the web app manifest for PWA install.
-		// No CDN origins needed: Leaflet JS/CSS and marker icon PNGs are all
-		// bundled at build time and embedded in the binary.
+		// img-src allows BKG TopPlusOpen map tiles (sgx.geodatenzentrum.de), an
+		// EU-hosted German federal tile service, replacing the US-CDN-fronted
+		// OpenStreetMap/CartoDB tiles. Leaflet JS/CSS and marker icon PNGs are
+		// bundled at build time and embedded in the binary (no CDN origins).
 		h.Set("Content-Security-Policy",
 			"default-src 'self'; "+
 				"script-src 'self' 'unsafe-inline'; "+
 				"style-src 'self' 'unsafe-inline'; "+
-				"img-src 'self' data: https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com; "+
+				"img-src 'self' data: https://sgx.geodatenzentrum.de; "+
 				"connect-src 'self' wss:; "+
 				"font-src 'self'; "+
 				"worker-src 'self'; "+

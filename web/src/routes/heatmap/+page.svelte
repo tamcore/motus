@@ -71,32 +71,19 @@
 
 	$: gradient = currentTheme === 'dark' ? darkGradient : lightGradient;
 
-	$: if (mapReady) {
-		updateTileLayer(currentTheme);
-	}
-
-	function updateTileLayer(themeMode: string) {
-		const tileLayer = leafletMap.getTileLayer();
-		if (!tileLayer) return;
-		const url =
-			themeMode === 'dark'
-				? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-				: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-		tileLayer.setUrl(url);
-	}
+	// BKG TopPlusOpen has no dark variant, so the grey "web_grau" layer is used
+	// for both light and dark themes. Only the heat gradient is theme-aware.
+	const HEATMAP_TILE_URL =
+		'https://sgx.geodatenzentrum.de/wmts_topplus_open/tile/1.0.0/web_grau/default/WEBMERCATOR/{z}/{y}/{x}.png';
+	const HEATMAP_TILE_ATTRIBUTION = '&copy; <a href="https://www.bkg.bund.de">BKG</a> TopPlusOpen';
 
 	onMount(async () => {
-		const isDark = currentTheme === 'dark';
-		const tileUrl = isDark
-			? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-			: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-
 		// Initialize map via composable
 		await leafletMap.initialize(mapContainer, {
 			center: [49.79, 9.95],
 			zoom: 12,
-			tileUrl,
-			tileAttribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+			tileUrl: HEATMAP_TILE_URL,
+			tileAttribution: HEATMAP_TILE_ATTRIBUTION,
 		});
 
 		// leaflet.heat is a legacy browser plugin that extends the global `L` object.

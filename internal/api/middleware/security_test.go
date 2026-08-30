@@ -62,7 +62,7 @@ func TestSecurityHeaders_CSPPresent(t *testing.T) {
 		"connect-src 'self' wss:",
 		"worker-src 'self'",
 		"manifest-src 'self'",
-		"img-src 'self' data: https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com",
+		"img-src 'self' data: https://sgx.geodatenzentrum.de",
 	}
 	for _, d := range directives {
 		if !strings.Contains(csp, d) {

@@ -22,18 +22,23 @@ export interface UseLeafletOptions {
   zoom?: number;
   /** Whether to show the zoom control. Defaults to true (positioned topright). */
   zoomControl?: boolean;
-  /** Tile layer URL template. Defaults to OSM. */
+  /** Tile layer URL template. Defaults to BKG TopPlusOpen (web). */
   tileUrl?: string;
-  /** Tile layer attribution. Defaults to OSM attribution. */
+  /** Tile layer attribution. Defaults to BKG TopPlusOpen attribution. */
   tileAttribution?: string;
-  /** Max zoom for the tile layer. Defaults to 19. */
+  /** Max zoom for the tile layer. Defaults to 18 (BKG TopPlusOpen max). */
   maxZoom?: number;
 }
 
 const DEFAULT_CENTER: [number, number] = [51.1657, 10.4515];
 const DEFAULT_ZOOM = 6;
-const DEFAULT_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
-const DEFAULT_TILE_ATTRIBUTION = "&copy; OpenStreetMap contributors";
+// BKG TopPlusOpen (EU-hosted, German federal mapping service, no API key,
+// open license dl-de/by-2.0). WMTS RESTful endpoint: no {s} subdomain and
+// note the {z}/{y}/{x} order. "web" is the full-color base layer.
+const DEFAULT_TILE_URL =
+  "https://sgx.geodatenzentrum.de/wmts_topplus_open/tile/1.0.0/web/default/WEBMERCATOR/{z}/{y}/{x}.png";
+const DEFAULT_TILE_ATTRIBUTION =
+  '&copy; <a href="https://www.bkg.bund.de">BKG</a> TopPlusOpen';
 
 // Leaflet marker icon assets bundled locally via Vite (fixes broken paths in
 // bundled environments without any runtime CDN dependency).
@@ -128,7 +133,7 @@ export function useLeaflet(): UseLeafletReturn {
 // Internal helpers
 // ---------------------------------------------------------------------------
 
-const DEFAULT_TILE_MAX_ZOOM = 19;
+const DEFAULT_TILE_MAX_ZOOM = 18;
 
 /**
  * Fix Leaflet's default marker icon paths which break in bundled

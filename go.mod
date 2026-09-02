@@ -3,7 +3,7 @@ module github.com/tamcore/motus
 go 1.26.7
 
 require (
-	github.com/alicebob/miniredis/v2 v2.38.0
+	github.com/alicebob/miniredis/v2 v2.39.0
 	github.com/arran4/golang-ical v0.3.5
 	github.com/coreos/go-oidc/v3 v3.20.0
 	github.com/didip/tollbooth/v8 v8.0.1

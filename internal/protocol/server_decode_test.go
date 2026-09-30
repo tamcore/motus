@@ -178,7 +178,7 @@ func TestDecodeWatch_FullDecode(t *testing.T) {
 		devices: deviceRepo,
 	}
 
-	raw := "[3G*1234567890*0078*UD,14022026,153045,A,49.814998,N,9.970177,E,15.50,270.0,0.0,8,100,460,0,9527,3661]"
+	raw := "[3G*1234567890*0078*UD,140226,153045,A,49.814998,N,9.970177,E,15.50,270.0,0.0,8,100,85,0,0,00000000,1,255,262,1,21041,9067,121]"
 	pos, devID, resp, err := srv.decodeWatch(ctx, raw)
 	if err != nil {
 		t.Fatalf("decodeWatch error: %v", err)
@@ -258,7 +258,7 @@ func TestDecodeWatch_UnknownDevice(t *testing.T) {
 		devices: deviceRepo,
 	}
 
-	raw := "[3G*0000000000*0078*UD,14022026,153045,A,49.814998,N,9.970177,E,15.50,270.0,0.0,8,100,460,0,9527,3661]"
+	raw := "[3G*0000000000*0078*UD,140226,153045,A,49.814998,N,9.970177,E,15.50,270.0,0.0,8,100,85,0,0,00000000,1,255,262,1,21041,9067,121]"
 	pos, devID, _, err := srv.decodeWatch(context.Background(), raw)
 	if err == nil {
 		t.Fatal("expected error for unknown device")
@@ -268,27 +268,6 @@ func TestDecodeWatch_UnknownDevice(t *testing.T) {
 	}
 	if devID != "0000000000" {
 		t.Errorf("deviceID: got %q, want %q", devID, "0000000000")
-	}
-}
-
-func TestDecodeWatch_InvalidPosition(t *testing.T) {
-	srv := &Server{
-		name:    "watch",
-		devices: nil,
-	}
-
-	// V (invalid) GPS fix -- msg.Valid is false so decodeWatch returns nil position.
-	raw := "[3G*5555555555*0078*UD,14022026,120000,V,0.000000,N,0.000000,E,0.00,0.0,0.0,0,100,460,0,0,0]"
-	pos, devID, _, err := srv.decodeWatch(context.Background(), raw)
-	if err != nil {
-		t.Fatalf("decodeWatch error: %v", err)
-	}
-	// msg.Valid is false, so decodeWatch should return nil position.
-	if pos != nil {
-		t.Error("expected nil position for invalid GPS fix")
-	}
-	if devID != "5555555555" {
-		t.Errorf("deviceID: got %q, want %q", devID, "5555555555")
 	}
 }
 

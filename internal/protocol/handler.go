@@ -122,6 +122,41 @@ func (h *PositionHandler) log() *slog.Logger {
 	return slog.Default()
 }
 
+// MarkOnline records activity from a device that sent a message without a
+// position (e.g. a heartbeat), so it is shown as online and does not time out.
+// Safe to call on a nil handler.
+func (h *PositionHandler) MarkOnline(ctx context.Context, device *model.Device) {
+	if h == nil || h.devices == nil || device == nil {
+		return
+	}
+	now := time.Now().UTC()
+	device.Status = "online"
+	device.LastUpdate = &now
+	if err := h.devices.Update(ctx, device); err != nil {
+		h.log().Error("failed to mark device online",
+			slog.Int64("deviceID", device.ID),
+			slog.Any("error", err),
+		)
+		return
+	}
+	if h.hub != nil {
+		h.hub.BroadcastDeviceStatus(device)
+	}
+}
+
+// LastPosition returns the most recent stored position of a device, or nil
+// if there is none. Safe to call on a nil handler.
+func (h *PositionHandler) LastPosition(ctx context.Context, deviceID int64) *model.Position {
+	if h == nil || h.positions == nil {
+		return nil
+	}
+	pos, err := h.positions.GetLatestByDevice(ctx, deviceID)
+	if err != nil {
+		return nil
+	}
+	return pos
+}
+
 // HandlePosition stores a position and broadcasts it via WebSocket.
 func (h *PositionHandler) HandlePosition(ctx context.Context, pos *model.Position) error {
 	// Determine motion state from position speed.

@@ -75,7 +75,23 @@ type Server struct {
 	// Optional: custom scanner split function for protocol-specific framing.
 	// When nil, the default bufio.ScanLines is used.
 	scannerSplit bufio.SplitFunc
+
+	// Optional: maximum size of a single frame. When zero, defaultMaxFrameSize is used.
+	maxFrameSize int
+
+	// rawFrames disables the CRLF terminator on responses and relayed frames,
+	// for protocols whose frames are self-delimiting (WATCH).
+	rawFrames bool
 }
+
+// defaultMaxFrameSize is the default scanner buffer size. H02 messages are
+// typically under 200 bytes, but a tracker may batch dozens of messages in a
+// single TCP segment.
+const defaultMaxFrameSize = 8192
+
+// watchMaxFrameSize bounds a single WATCH frame. Frames can carry binary voice
+// and image payloads, so they are much larger than position reports.
+const watchMaxFrameSize = 1 << 20
 
 // NewH02Server creates a TCP server for the H02 GPS protocol.
 func NewH02Server(port string, devices repository.DeviceRepo, handler *PositionHandler) *Server {
@@ -101,6 +117,9 @@ func NewWatchServer(port string, devices repository.DeviceRepo, handler *Positio
 		handler:        handler,
 		logger:         slog.Default(),
 		maxConnections: defaultMaxConnections,
+		scannerSplit:   watch.SplitFunc,
+		maxFrameSize:   watchMaxFrameSize,
+		rawFrames:      true,
 	}
 	s.decoder = s.decodeWatch
 	return s
@@ -396,14 +415,16 @@ func (s *Server) handleConnection(ctx context.Context, conn net.Conn) {
 	// on a nil pointer.
 	var relay *relayClient
 	if s.relayTarget != "" {
-		relay = &relayClient{target: s.relayTarget, protocol: s.name, logger: s.log()}
+		relay = &relayClient{target: s.relayTarget, protocol: s.name, logger: s.log(), raw: s.rawFrames}
 		defer relay.close()
 	}
 
 	scanner := bufio.NewScanner(conn)
-	// H02 messages are typically under 200 bytes, but a tracker may batch
-	// dozens of messages in a single TCP segment. Set a generous max.
-	scanner.Buffer(make([]byte, 8192), 8192)
+	maxFrameSize := s.maxFrameSize
+	if maxFrameSize <= 0 {
+		maxFrameSize = defaultMaxFrameSize
+	}
+	scanner.Buffer(make([]byte, min(maxFrameSize, defaultMaxFrameSize)), maxFrameSize)
 	if s.scannerSplit != nil {
 		scanner.Split(s.scannerSplit)
 	}
@@ -491,7 +512,10 @@ func (s *Server) handleConnection(ctx context.Context, conn net.Conn) {
 
 		// Send protocol response/acknowledgment.
 		if response != "" {
-			if _, err := fmt.Fprintf(conn, "%s\r\n", response); err != nil {
+			if !s.rawFrames {
+				response += "\r\n"
+			}
+			if _, err := io.WriteString(conn, response); err != nil {
 				s.log().Error("write response error",
 					slog.String("type", "gps"),
 					slog.String("protocol", s.name),
@@ -644,51 +668,133 @@ func (s *Server) decodeH02(ctx context.Context, line string) (*model.Position, s
 	return position, msg.DeviceID, response, nil
 }
 
-// decodeWatch decodes a WATCH protocol message line.
+// decodeWatch decodes a single WATCH protocol frame.
+//
+// Position reports (UD*, AL*, WT*) look up or auto-create the device. Other
+// messages (LK, INIT, TKQ, ...) are acknowledged and only mark an already
+// known device online. LK heartbeats carrying battery/steps produce a
+// position at the last known location, like Traccar.
 func (s *Server) decodeWatch(ctx context.Context, line string) (*model.Position, string, string, error) {
 	msg, err := watch.Decode(line)
 	if err != nil {
 		return nil, "", "", err
 	}
 
-	// Build response for heartbeats.
-	response := ""
-	if msg.Type == "LK" {
-		response = watch.EncodeResponse(msg.Manufacturer, msg.DeviceID, "LK")
+	if msg.PositionErr != nil {
+		s.log().Warn("watch position decode error",
+			slog.String("type", "gps"),
+			slog.String("protocol", s.name),
+			slog.String("device", msg.DeviceID),
+			slog.String("messageType", msg.Type),
+			slog.Any("error", msg.PositionErr),
+		)
+		metrics.GPSDecodeErrors.WithLabelValues(s.name).Inc()
 	}
 
-	// No position data for heartbeats or unknown types.
-	if !msg.Valid {
-		return nil, msg.DeviceID, response, nil
+	var device *model.Device
+	if msg.HasPosition() {
+		if s.devices == nil {
+			return nil, msg.DeviceID, "", fmt.Errorf("unknown device %s: no device repository", msg.DeviceID)
+		}
+		device, err = s.resolveOrCreateDevice(ctx, msg.DeviceID)
+		if err != nil {
+			return nil, msg.DeviceID, "", err
+		}
+	} else if s.devices != nil {
+		// Non-position messages do not auto-create devices.
+		device, _ = s.devices.GetByUniqueID(ctx, msg.DeviceID)
+	}
+	if device == nil {
+		return nil, msg.DeviceID, msg.Response, nil
 	}
 
-	// Look up or auto-create the device.
-	device, err := s.resolveOrCreateDevice(ctx, msg.DeviceID)
-	if err != nil {
-		return nil, msg.DeviceID, response, err
+	var position *model.Position
+	switch {
+	case msg.Position != nil:
+		position = s.watchPosition(ctx, device, msg.Position)
+	case msg.Attributes != nil:
+		position = s.watchLastKnownPosition(ctx, device, msg.Attributes)
+	}
+	if position == nil {
+		s.handler.MarkOnline(ctx, device)
 	}
 
-	speed := msg.Speed
-	course := msg.Course
-	nowWatch := time.Now().UTC()
+	return position, msg.DeviceID, msg.Response, nil
+}
+
+// watchPosition converts a decoded WATCH position report to a model position.
+//
+// Watches without a fix often report 0,0. Such reports still carry fresh
+// status data (battery, alarms such as SOS), so they are stored at the last
+// known location instead of being dropped or shown at 0,0. Without a last
+// known location they are only stored when they carry an alarm.
+func (s *Server) watchPosition(ctx context.Context, device *model.Device, p *watch.Position) *model.Position {
+	now := time.Now().UTC()
+	deviceTime := p.Timestamp
+	speed, course, altitude := p.Speed, p.Course, p.Altitude
 
 	position := &model.Position{
 		DeviceID:   device.ID,
 		Protocol:   "watch",
-		ServerTime: &nowWatch,
-		DeviceTime: &msg.Timestamp,
-		Timestamp:  msg.Timestamp,
-		Valid:      msg.Valid,
-		Latitude:   msg.Latitude,
-		Longitude:  msg.Longitude,
+		ServerTime: &now,
+		DeviceTime: &deviceTime,
+		Timestamp:  p.Timestamp,
+		Valid:      p.Valid,
+		Latitude:   p.Latitude,
+		Longitude:  p.Longitude,
 		Speed:      &speed,
 		Course:     &course,
-		Attributes: map[string]any{
-			"satellites": msg.Satellites,
-		},
+		Altitude:   &altitude,
+		Network:    p.Network,
+		Attributes: p.Attributes,
 	}
 
-	return position, msg.DeviceID, response, nil
+	if p.Latitude != 0 || p.Longitude != 0 {
+		return position
+	}
+
+	if last := s.handler.LastPosition(ctx, device.ID); last != nil {
+		applyLastLocation(position, last)
+		return position
+	}
+	if p.Alarm() != "" {
+		return position
+	}
+	return nil
+}
+
+// watchLastKnownPosition builds a position at the device's last known
+// location carrying the given attributes (Traccar's getLastLocation). Returns
+// nil when the device has no stored position yet.
+func (s *Server) watchLastKnownPosition(ctx context.Context, device *model.Device, attrs map[string]any) *model.Position {
+	last := s.handler.LastPosition(ctx, device.ID)
+	if last == nil {
+		return nil
+	}
+	now := time.Now().UTC()
+	position := &model.Position{
+		DeviceID:   device.ID,
+		Protocol:   "watch",
+		ServerTime: &now,
+		DeviceTime: &now,
+		Attributes: attrs,
+	}
+	applyLastLocation(position, last)
+	return position
+}
+
+// applyLastLocation copies the fix of a previous position onto p and marks p
+// as outdated.
+func applyLastLocation(p, last *model.Position) {
+	p.Timestamp = last.Timestamp
+	p.Valid = last.Valid
+	p.Latitude = last.Latitude
+	p.Longitude = last.Longitude
+	p.Altitude = last.Altitude
+	p.Speed = last.Speed
+	p.Course = last.Course
+	p.Accuracy = last.Accuracy
+	p.Outdated = true
 }
 
 // markDeviceOffline updates the device status to offline.
@@ -753,9 +859,12 @@ type relayClient struct {
 	protocol string
 	logger   *slog.Logger
 	conn     net.Conn
+	// raw forwards frames verbatim, without appending CRLF.
+	raw bool
 }
 
-// send forwards a single line to the relay target with CRLF termination.
+// send forwards a single line to the relay target with CRLF termination
+// (or verbatim when raw is set).
 // On a write error the stale conn is closed and a redial is attempted once.
 // Safe to call on a nil receiver — that case is a no-op so callers can use a
 // single code path whether relay is configured or not.
@@ -763,7 +872,10 @@ func (r *relayClient) send(line string) {
 	if r == nil {
 		return
 	}
-	data := []byte(line + "\r\n")
+	data := []byte(line)
+	if !r.raw {
+		data = append(data, "\r\n"...)
+	}
 
 	if r.conn != nil {
 		_ = r.conn.SetWriteDeadline(time.Now().Add(relayWriteTimeout))

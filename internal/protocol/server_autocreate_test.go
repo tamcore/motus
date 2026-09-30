@@ -451,7 +451,7 @@ func TestDeviceAutoCreate_Watch_Enabled_UnknownDevice(t *testing.T) {
 
 	// Send a UD position from an unknown watch device.
 	unknownDeviceID := "4444444444"
-	raw := "[3G*4444444444*0078*UD,14022026,153045,A,49.814998,N,9.970177,E,15.50,270.0,0.0,8,100,460,0,9527,3661]"
+	raw := "[3G*4444444444*0078*UD,140226,153045,A,49.814998,N,9.970177,E,15.50,270.0,0.0,8,100,85,0,0,00000000,1,255,262,1,21041,9067,121]"
 
 	pos, devID, _, err := srv.decodeWatch(ctx, raw)
 	if err != nil {
@@ -525,7 +525,7 @@ func TestDeviceAutoCreate_Watch_Disabled_UnknownDevice(t *testing.T) {
 	}, userRepo)
 
 	unknownDeviceID := "3333333333"
-	raw := "[3G*3333333333*0078*UD,14022026,153045,A,49.814998,N,9.970177,E,15.50,270.0,0.0,8,100,460,0,9527,3661]"
+	raw := "[3G*3333333333*0078*UD,140226,153045,A,49.814998,N,9.970177,E,15.50,270.0,0.0,8,100,85,0,0,00000000,1,255,262,1,21041,9067,121]"
 
 	pos, devID, _, err := srv.decodeWatch(ctx, raw)
 

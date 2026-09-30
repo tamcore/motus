@@ -5,6 +5,7 @@
 	import { currentUser } from '$lib/stores/auth';
 	import { refreshHandler } from '$lib/stores/refresh';
 	import { mileageToDisplay, mileageFromDisplay, formatMileage, formatRelative } from '$lib/utils/formatting';
+	import { commandAttributesPayload } from '$lib/utils/commands';
 	import { settings } from '$lib/stores/settings';
 	import AllDevicesToggle from '$lib/components/AllDevicesToggle.svelte';
 	import Button from '$lib/components/Button.svelte';
@@ -129,7 +130,11 @@
 		}
 
 		try {
-			await api.sendCommand({ deviceId: commandDevice.id, type: commandType, attributes });
+			await api.sendCommand({
+				deviceId: commandDevice.id,
+				type: commandType,
+				attributes: commandAttributesPayload(commandType, attributes)
+			});
 
 			// Poll for result up to 5s
 			let resultFound = false;

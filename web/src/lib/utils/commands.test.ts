@@ -1,0 +1,39 @@
+import { describe, it, expect } from "vitest";
+import { commandAttributesPayload } from "./commands";
+
+// The API decodes command attributes as a oneOf discriminated by "type"
+// (docs/openapi.yaml CommandAttributes). Attributes without "type" or an
+// empty object are rejected with "unable to detect sum type variant".
+describe("commandAttributesPayload", () => {
+  it("adds the command type as discriminator", () => {
+    expect(commandAttributesPayload("positionPeriodic", { frequency: 60 })).toEqual({
+      type: "positionPeriodic",
+      frequency: 60,
+    });
+    expect(commandAttributesPayload("sosNumber", { phoneNumber: "+49123" })).toEqual({
+      type: "sosNumber",
+      phoneNumber: "+49123",
+    });
+    expect(commandAttributesPayload("setSpeedAlarm", { speed: 0 })).toEqual({
+      type: "setSpeedAlarm",
+      speed: 0,
+    });
+    expect(commandAttributesPayload("custom", { text: "UPLOAD,60" })).toEqual({
+      type: "custom",
+      text: "UPLOAD,60",
+    });
+  });
+
+  it("omits attributes for commands without parameters", () => {
+    expect(commandAttributesPayload("rebootDevice", {})).toBeUndefined();
+    expect(commandAttributesPayload("positionSingle", {})).toBeUndefined();
+    expect(commandAttributesPayload("factoryReset", {})).toBeUndefined();
+  });
+
+  it("does not let a caller override the discriminator", () => {
+    expect(commandAttributesPayload("custom", { type: "other", text: "x" })).toEqual({
+      type: "custom",
+      text: "x",
+    });
+  });
+});

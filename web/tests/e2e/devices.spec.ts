@@ -103,6 +103,36 @@ test.describe('Devices Page', () => {
     await devicesPage.cancelButton.click();
   });
 
+  test('should send commands with and without parameters', async ({ authedPage }) => {
+    const uniqueId = `pw-cmd-${Date.now()}`;
+    await devicesPage.openCreateModal();
+    await devicesPage.fillDeviceForm({ name: 'PW Command Device', uniqueId, protocol: 'h02' });
+    await devicesPage.saveButton.click();
+    await expect(devicesPage.modal).toHaveCount(0, { timeout: 10000 });
+
+    const row = authedPage.locator('.device-table').locator(`tr:has-text("${uniqueId}")`);
+    await expect(row).toBeVisible({ timeout: 5000 });
+    await row.locator('button:has-text("Commands")').click();
+    await expect(devicesPage.modal).toBeVisible();
+
+    const history = devicesPage.modal.locator('.cmd-history-item');
+    const sendButton = devicesPage.modal.locator('button:has-text("Send")');
+
+    // Command with parameters: "Set Reporting Interval" (positionPeriodic).
+    // The device is offline, so the command is queued as pending.
+    await devicesPage.modal.locator('#cmd-type').selectOption('positionPeriodic');
+    await devicesPage.modal.locator('input[name="frequency"]').fill('60');
+    await sendButton.click();
+    await expect(history.filter({ hasText: 'Set Reporting Interval' })).toHaveCount(1, { timeout: 15000 });
+    await expect(devicesPage.modal.locator('.form-error')).toHaveCount(0);
+
+    // Command without parameters: "Reboot Device".
+    await devicesPage.modal.locator('#cmd-type').selectOption('rebootDevice');
+    await sendButton.click();
+    await expect(history.filter({ hasText: 'Reboot Device' })).toHaveCount(1, { timeout: 15000 });
+    await expect(devicesPage.modal.locator('.form-error')).toHaveCount(0);
+  });
+
   test('should search devices by name', async ({ authedPage }) => {
     // Get initial count
     const initialCount = await devicesPage.tableRows.count();

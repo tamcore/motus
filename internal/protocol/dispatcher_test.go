@@ -374,3 +374,42 @@ func TestCommandDispatcher_EncodeError(t *testing.T) {
 		t.Error("status should not be updated when encode fails")
 	}
 }
+
+// TestCommandDispatcher_WatchCommandsAreFramed verifies that WATCH commands,
+// including custom text, are wrapped in frames matching the device session.
+func TestCommandDispatcher_WatchCommandsAreFramed(t *testing.T) {
+	registry := protocol.NewDeviceRegistry()
+	outCh := make(chan []byte, 4)
+	registry.Register("9705141740", outCh)
+	registry.SetSession("9705141740", protocol.DeviceSession{Manufacturer: "3G"})
+
+	cmdRepo := newMockCommandRepo()
+	cmdRepo.pending[9] = []*model.Command{
+		{ID: 1, DeviceID: 9, Type: model.CommandPositionPeriodic, Attributes: map[string]any{"frequency": float64(60)}, Status: model.CommandStatusPending},
+		{ID: 2, DeviceID: 9, Type: model.CommandCustom, Attributes: map[string]any{"text": "CR"}, Status: model.CommandStatusPending},
+	}
+	devRepo := &mockDeviceRepo{
+		devices: map[string]*model.Device{
+			"9705141740": {ID: 9, UniqueID: "9705141740", Protocol: "watch"},
+		},
+	}
+
+	encoders := protocol.NewEncoderRegistry()
+	encoders.Register(protocol.NewWatchCommandEncoder(registry))
+	d := protocol.NewCommandDispatcher(registry, cmdRepo, devRepo, encoders)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	go d.Start(ctx)
+
+	for _, want := range []string{"[SG*9705141740*0009*UPLOAD,60]", "[SG*9705141740*0002*CR]"} {
+		select {
+		case payload := <-outCh:
+			if string(payload) != want {
+				t.Errorf("got %q, want %q", payload, want)
+			}
+		case <-ctx.Done():
+			t.Fatalf("timed out waiting for %q", want)
+		}
+	}
+}

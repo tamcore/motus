@@ -150,6 +150,11 @@ func Run() {
 	// Device registry (used by protocol servers below).
 	deviceRegistry := protocol.NewDeviceRegistry()
 
+	// Command encoders. The WATCH encoder reads each device's connection
+	// session (manufacturer, frame indexing) from the registry.
+	encoderRegistry := protocol.NewEncoderRegistry()
+	encoderRegistry.Register(protocol.NewWatchCommandEncoder(deviceRegistry))
+
 	if cfg.OIDC.Enabled {
 		slog.Info("OIDC authentication enabled",
 			slog.String("issuer", cfg.OIDC.Issuer),
@@ -272,7 +277,7 @@ func Run() {
 		NotificationService: notificationService,
 		GeofenceService:     geofenceService,
 		DeviceRegistry:      deviceRegistry,
-		EncoderRegistry:     protocol.NewEncoderRegistry(),
+		EncoderRegistry:     encoderRegistry,
 		Hub:                 hub,
 		AuditLogger:         auditLogger,
 		UniqueIDPrefix:      cfg.Device.UniqueIDPrefix,
@@ -466,6 +471,7 @@ func Run() {
 
 	watchServer := protocol.NewWatchServer(cfg.GPS.WatchPort, deviceRepo, gpsHandler)
 	watchServer.SetAutoCreate(autoCreateCfg, userRepo)
+	watchServer.SetRegistry(deviceRegistry)
 	if cfg.GPS.WatchRelayTarget != "" {
 		watchServer.SetRelay(cfg.GPS.WatchRelayTarget)
 		slog.Info("WATCH relay enabled", slog.String("target", cfg.GPS.WatchRelayTarget))
@@ -490,7 +496,7 @@ func Run() {
 	// Background command dispatcher: delivers pending commands to locally online
 	// devices. Runs on every replica so the pod that holds a device's TCP
 	// connection will always pick up commands saved by any pod.
-	dispatcher := protocol.NewCommandDispatcher(deviceRegistry, commandRepo, deviceRepo, protocol.NewEncoderRegistry())
+	dispatcher := protocol.NewCommandDispatcher(deviceRegistry, commandRepo, deviceRepo, encoderRegistry)
 	dispatcher.SetLogger(protoLogger.With(slog.String("component", "dispatcher")))
 	go dispatcher.Start(gpsCtx)
 

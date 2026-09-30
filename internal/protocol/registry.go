@@ -2,16 +2,29 @@ package protocol
 
 import "sync"
 
+// DeviceSession holds protocol details of a live device connection that are
+// needed to encode commands in the format the device speaks.
+type DeviceSession struct {
+	// Manufacturer is the WATCH manufacturer code the device uses (e.g. "3G", "SG", "ZJ").
+	Manufacturer string
+	// Indexed reports whether the WATCH device uses indexed frames.
+	Indexed bool
+}
+
 // DeviceRegistry tracks live device TCP connections by unique device ID.
 // It allows the HTTP command handler to deliver bytes to a connected device.
 type DeviceRegistry struct {
-	mu    sync.RWMutex
-	conns map[string]chan<- []byte
+	mu       sync.RWMutex
+	conns    map[string]chan<- []byte
+	sessions map[string]DeviceSession
 }
 
 // NewDeviceRegistry creates an empty DeviceRegistry.
 func NewDeviceRegistry() *DeviceRegistry {
-	return &DeviceRegistry{conns: make(map[string]chan<- []byte)}
+	return &DeviceRegistry{
+		conns:    make(map[string]chan<- []byte),
+		sessions: make(map[string]DeviceSession),
+	}
 }
 
 // Register associates uniqueID with an outbound write channel.
@@ -26,7 +39,26 @@ func (r *DeviceRegistry) Register(uniqueID string, ch chan<- []byte) {
 func (r *DeviceRegistry) Deregister(uniqueID string) {
 	r.mu.Lock()
 	delete(r.conns, uniqueID)
+	delete(r.sessions, uniqueID)
 	r.mu.Unlock()
+}
+
+// SetSession records the protocol session details of a registered device.
+// It is a no-op for devices without a registered connection.
+func (r *DeviceRegistry) SetSession(uniqueID string, s DeviceSession) {
+	r.mu.Lock()
+	if _, ok := r.conns[uniqueID]; ok {
+		r.sessions[uniqueID] = s
+	}
+	r.mu.Unlock()
+}
+
+// Session returns the protocol session details of a connected device.
+func (r *DeviceRegistry) Session(uniqueID string) (DeviceSession, bool) {
+	r.mu.RLock()
+	s, ok := r.sessions[uniqueID]
+	r.mu.RUnlock()
+	return s, ok
 }
 
 // Send writes data to the outbound channel for uniqueID.

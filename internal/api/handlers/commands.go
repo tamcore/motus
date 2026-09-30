@@ -2,12 +2,14 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"slices"
 
 	"github.com/tamcore/motus/internal/api"
 	oas "github.com/tamcore/motus/internal/api/oas"
 	"github.com/tamcore/motus/internal/audit"
 	"github.com/tamcore/motus/internal/model"
+	"github.com/tamcore/motus/internal/protocol"
 )
 
 // isValidCommandType checks if a command type is in the supported allowlist.
@@ -124,17 +126,15 @@ func (h *Handler) SendCommand(ctx context.Context, req *oas.SendCommandRequest) 
 	}
 
 	// Encode the command payload.
+	// Custom commands are framed by the protocol encoder when there is one
+	// (WATCH) and sent verbatim otherwise.
 	var payload []byte
-	if req.Type == model.CommandCustom {
-		text, _ := attrs["text"].(string)
-		payload = []byte(text)
-	} else if h.cfg.EncoderRegistry != nil {
-		enc := h.cfg.EncoderRegistry.Get(device.Protocol)
-		if enc == nil {
+	if req.Type == model.CommandCustom || h.cfg.EncoderRegistry != nil {
+		modelCmd := &model.Command{Type: req.Type, Attributes: attrs}
+		payload, err = h.cfg.EncoderRegistry.Encode(device.Protocol, modelCmd, device.UniqueID)
+		if errors.Is(err, protocol.ErrNoEncoder) {
 			return &oas.SendCommandBadRequest{Error: "no encoder for device protocol: " + device.Protocol}, nil
 		}
-		modelCmd := &model.Command{Type: req.Type, Attributes: attrs}
-		payload, err = enc.EncodeCommand(modelCmd, device.UniqueID)
 		if err != nil {
 			return &oas.SendCommandBadRequest{Error: "encode command: " + err.Error()}, nil
 		}

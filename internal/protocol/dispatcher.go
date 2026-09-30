@@ -2,6 +2,7 @@ package protocol
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"time"
 
@@ -136,16 +137,13 @@ func (d *CommandDispatcher) sendCommand(ctx context.Context, dev *model.Device, 
 	)
 }
 
-// encodePayload returns the wire bytes for cmd, handling custom (raw text) commands
-// and protocol-encoded commands via the EncoderRegistry.
+// encodePayload returns the wire bytes for cmd via the EncoderRegistry.
+// Commands for protocols without an encoder are skipped silently (nil payload),
+// except custom commands, which are then sent verbatim.
 func (d *CommandDispatcher) encodePayload(dev *model.Device, uniqueID string, cmd *model.Command) ([]byte, error) {
-	if cmd.Type == model.CommandCustom {
-		text, _ := cmd.Attributes["text"].(string)
-		return []byte(text), nil
+	payload, err := d.encoders.Encode(dev.Protocol, cmd, uniqueID)
+	if errors.Is(err, ErrNoEncoder) {
+		return nil, nil
 	}
-	enc := d.encoders.Get(dev.Protocol)
-	if enc == nil {
-		return nil, nil // no encoder — skip silently
-	}
-	return enc.EncodeCommand(cmd, uniqueID)
+	return payload, err
 }

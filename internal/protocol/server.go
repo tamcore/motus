@@ -431,6 +431,11 @@ func (s *Server) handleConnection(ctx context.Context, conn net.Conn) {
 
 	var deviceID string
 
+	// Per-connection protocol session, filled in by decoders that need it.
+	session := &DeviceSession{}
+	var publishedSession DeviceSession
+	decodeCtx := context.WithValue(ctx, connSessionKey{}, session)
+
 	// Always deregister when this connection ends, regardless of exit path
 	// (early return on write error, scanner EOF, context cancel, etc.).
 	// Uses a closure so it captures deviceID by reference; at defer-execution
@@ -474,7 +479,7 @@ func (s *Server) handleConnection(ctx context.Context, conn net.Conn) {
 			slog.String("data", truncate(line, maxLoggedFrame)),
 		)
 
-		position, devID, response, err := s.decoder(ctx, line)
+		position, devID, response, err := s.decoder(decodeCtx, line)
 		if err != nil {
 			s.log().Warn("decode error",
 				slog.String("type", "gps"),
@@ -495,6 +500,13 @@ func (s *Server) handleConnection(ctx context.Context, conn net.Conn) {
 			if s.registry != nil {
 				s.registry.Register(deviceID, outCh)
 			}
+		}
+
+		// Publish protocol session details (e.g. WATCH manufacturer) so
+		// commands are encoded in the format this device speaks.
+		if s.registry != nil && deviceID != "" && *session != publishedSession {
+			s.registry.SetSession(deviceID, *session)
+			publishedSession = *session
 		}
 
 		// Store and broadcast valid positions.
@@ -679,6 +691,15 @@ func (s *Server) decodeWatch(ctx context.Context, line string) (*model.Position,
 	msg, err := watch.Decode(line)
 	if err != nil {
 		return nil, "", "", err
+	}
+
+	// Remember how the device frames its messages, like Traccar's decoder
+	// state, so commands can be sent in the same format.
+	if session, ok := ctx.Value(connSessionKey{}).(*DeviceSession); ok {
+		session.Manufacturer = msg.Manufacturer
+		if msg.Index != "" {
+			session.Indexed = true
+		}
 	}
 
 	if msg.PositionErr != nil {
@@ -960,3 +981,7 @@ func h02SplitFunc(data []byte, atEOF bool) (advance int, token []byte, err error
 // log. WATCH voice and image frames carry up to watchMaxFrameSize bytes of
 // binary data.
 const maxLoggedFrame = 1024
+
+// connSessionKey is the context key under which handleConnection passes the
+// per-connection *DeviceSession to decoders.
+type connSessionKey struct{}

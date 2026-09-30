@@ -519,3 +519,64 @@ func TestWatchServer_VoiceChunksAcknowledged(t *testing.T) {
 		t.Errorf("voice chunks must not store positions, got %d", n)
 	}
 }
+
+// TestWatchServer_RegistersConnectionForCommands verifies that a WATCH device
+// connection is registered for command dispatch together with its session
+// (manufacturer and frame indexing), and that commands reach the device.
+func TestWatchServer_RegistersConnectionForCommands(t *testing.T) {
+	for _, tt := range []struct {
+		name, frame string
+		session     DeviceSession
+		command     string
+	}{
+		{"3G", "[3G*4700186508*0002*LK]", DeviceSession{Manufacturer: "3G"}, "[SG*4700186508*0002*CR]"},
+		{"indexed ZJ", "[ZJ*4700186508*0034*0009*LK,0,0,19]", DeviceSession{Manufacturer: "ZJ", Indexed: true}, "[ZJ*4700186508*0001*0002*CR]"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			env := newWatchTestEnv(t, "4700186508")
+			registry := NewDeviceRegistry()
+			env.srv.SetRegistry(registry)
+
+			listener, err := net.Listen("tcp", "127.0.0.1:0")
+			if err != nil {
+				t.Fatalf("listen: %v", err)
+			}
+			env.srv.listener = listener
+			go env.srv.acceptLoop(t.Context())
+
+			conn, err := net.Dial("tcp", listener.Addr().String())
+			if err != nil {
+				t.Fatalf("dial: %v", err)
+			}
+			defer func() { _ = conn.Close() }()
+			if _, err := io.WriteString(conn, tt.frame); err != nil {
+				t.Fatalf("write: %v", err)
+			}
+			ack := make([]byte, len("[..*4700186508*0002*LK]"))
+			if strings.Contains(tt.frame, "*0034*") {
+				ack = make([]byte, len("[ZJ*4700186508*0034*0002*LK]"))
+			}
+			_ = conn.SetReadDeadline(time.Now().Add(3 * time.Second))
+			if _, err := io.ReadFull(conn, ack); err != nil {
+				t.Fatalf("read ack: %v", err)
+			}
+
+			session, ok := registry.Session("4700186508")
+			if !registry.IsOnline("4700186508") || !ok || session != tt.session {
+				t.Fatalf("registered=%v session=%+v (%v), want %+v", registry.IsOnline("4700186508"), session, ok, tt.session)
+			}
+
+			payload, err := NewWatchCommandEncoder(registry).EncodeCommand(&model.Command{Type: model.CommandPositionSingle}, "4700186508")
+			if err != nil {
+				t.Fatalf("encode: %v", err)
+			}
+			if !registry.Send("4700186508", payload) {
+				t.Fatal("send failed")
+			}
+			got := make([]byte, len(tt.command))
+			if _, err := io.ReadFull(conn, got); err != nil || string(got) != tt.command {
+				t.Fatalf("command: got %q err %v, want %q", got, err, tt.command)
+			}
+		})
+	}
+}

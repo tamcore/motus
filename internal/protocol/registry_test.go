@@ -140,3 +140,24 @@ func TestDeviceRegistry_Send_ConcurrentDeregisterAndSend(t *testing.T) {
 
 	wg.Wait()
 }
+
+func TestDeviceRegistry_Session(t *testing.T) {
+	r := protocol.NewDeviceRegistry()
+
+	// Sessions are only kept for registered connections.
+	r.SetSession("dev", protocol.DeviceSession{Manufacturer: "3G"})
+	if _, ok := r.Session("dev"); ok {
+		t.Fatal("session stored for unregistered device")
+	}
+
+	r.Register("dev", make(chan []byte, 1))
+	r.SetSession("dev", protocol.DeviceSession{Manufacturer: "ZJ", Indexed: true})
+	if s, ok := r.Session("dev"); !ok || s.Manufacturer != "ZJ" || !s.Indexed {
+		t.Fatalf("got %+v, %v", s, ok)
+	}
+
+	r.Deregister("dev")
+	if _, ok := r.Session("dev"); ok {
+		t.Fatal("session kept after deregister")
+	}
+}

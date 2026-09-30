@@ -481,3 +481,49 @@ func TestGetCommandTypes(t *testing.T) {
 		}
 	}
 }
+
+// TestSendCommand_WatchCommandsAreFramed verifies that commands for an online
+// WATCH device, including custom text, are delivered as frames matching the
+// device's connection (3G devices are answered as SG).
+func TestSendCommand_WatchCommandsAreFramed(t *testing.T) {
+	reg := protocol.NewDeviceRegistry()
+	outCh := make(chan []byte, 4)
+	reg.Register("9705141740", outCh)
+	reg.SetSession("9705141740", protocol.DeviceSession{Manufacturer: "3G"})
+	encoders := protocol.NewEncoderRegistry()
+	encoders.Register(protocol.NewWatchCommandEncoder(reg))
+
+	h := newCommandTestHandler(&mockCommandRepo{}, accessGrantingDeviceRepo("9705141740", "watch"), reg, encoders)
+
+	for _, tt := range []struct {
+		req  *oas.SendCommandRequest
+		want string
+	}{
+		{&oas.SendCommandRequest{DeviceId: 5, Type: "positionSingle"}, "[SG*9705141740*0002*CR]"},
+		{&oas.SendCommandRequest{DeviceId: 5, Type: "custom", Attributes: customTextAttrs("POWEROFF")}, "[SG*9705141740*0008*POWEROFF]"},
+	} {
+		res, err := h.SendCommand(commandTestUserCtx(1), tt.req)
+		if err != nil {
+			t.Fatalf("SendCommand returned error: %v", err)
+		}
+		if cmd, ok := res.(*oas.Command); !ok || cmd.Status != model.CommandStatusSent {
+			t.Fatalf("expected sent command, got %#v", res)
+		}
+		if got := string(<-outCh); got != tt.want {
+			t.Errorf("%s: got %q, want %q", tt.req.Type, got, tt.want)
+		}
+	}
+}
+
+func TestSendCommand_WatchUnsupportedCommand(t *testing.T) {
+	h := newCommandTestHandler(&mockCommandRepo{}, accessGrantingDeviceRepo("9705141740", "watch"),
+		nil, protocol.NewEncoderRegistry())
+
+	res, err := h.SendCommand(commandTestUserCtx(1), &oas.SendCommandRequest{DeviceId: 5, Type: "factoryReset"})
+	if err != nil {
+		t.Fatalf("SendCommand returned error: %v", err)
+	}
+	if _, ok := res.(*oas.SendCommandBadRequest); !ok {
+		t.Fatalf("expected *oas.SendCommandBadRequest, got %T", res)
+	}
+}

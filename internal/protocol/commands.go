@@ -1,9 +1,11 @@
 package protocol
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/tamcore/motus/internal/model"
+	"github.com/tamcore/motus/internal/protocol/watch"
 )
 
 // CommandEncoder encodes commands into protocol-specific byte sequences.
@@ -47,9 +49,84 @@ func (e *H02CommandEncoder) EncodeCommand(cmd *model.Command, deviceID string) (
 		return fmt.Appendf(nil, "setspeed,%v", speed), nil
 	case model.CommandFactoryReset:
 		return []byte("FACTORY"), nil
+	case model.CommandCustom:
+		// Custom commands are sent verbatim.
+		text, _ := cmd.Attributes["text"].(string)
+		return []byte(text), nil
 	default:
 		return nil, fmt.Errorf("unsupported command type for H02: %s", cmd.Type)
 	}
+}
+
+// SessionLookup provides the protocol session details of connected devices.
+// It is implemented by DeviceRegistry.
+type SessionLookup interface {
+	Session(uniqueID string) (DeviceSession, bool)
+}
+
+// WatchCommandEncoder encodes commands for the WATCH GPS protocol, mirroring
+// Traccar's WatchProtocolEncoder.
+type WatchCommandEncoder struct {
+	sessions SessionLookup
+}
+
+// NewWatchCommandEncoder creates a WATCH encoder. sessions supplies the
+// manufacturer code and frame indexing of each device's live connection; when
+// nil or unknown, frames use the "CS" manufacturer without an index.
+func NewWatchCommandEncoder(sessions SessionLookup) *WatchCommandEncoder {
+	return &WatchCommandEncoder{sessions: sessions}
+}
+
+// Protocol returns the protocol name.
+func (e *WatchCommandEncoder) Protocol() string { return "watch" }
+
+// EncodeCommand converts a command to a WATCH protocol frame.
+func (e *WatchCommandEncoder) EncodeCommand(cmd *model.Command, deviceID string) ([]byte, error) {
+	var content string
+	switch cmd.Type {
+	case model.CommandCustom:
+		text, _ := cmd.Attributes["text"].(string)
+		if text == "" {
+			return nil, fmt.Errorf("text attribute required for custom")
+		}
+		content = text
+	case model.CommandPositionSingle:
+		content = "CR"
+	case model.CommandPositionPeriodic:
+		frequency, ok := cmd.Attributes["frequency"]
+		if !ok {
+			return nil, fmt.Errorf("frequency attribute required for positionPeriodic")
+		}
+		content = fmt.Sprintf("UPLOAD,%v", frequency)
+	case model.CommandSosNumber:
+		phone, ok := cmd.Attributes["phoneNumber"]
+		if !ok {
+			return nil, fmt.Errorf("phoneNumber attribute required for sosNumber")
+		}
+		index, ok := cmd.Attributes["index"]
+		if !ok {
+			index = 1
+		}
+		content = fmt.Sprintf("SOS%v,%v", index, phone)
+	case model.CommandRebootDevice:
+		content = "RESET"
+	default:
+		return nil, fmt.Errorf("unsupported command type for WATCH: %s", cmd.Type)
+	}
+
+	manufacturer, index := "CS", ""
+	if e.sessions != nil {
+		if s, ok := e.sessions.Session(deviceID); ok && s.Manufacturer != "" {
+			manufacturer = s.Manufacturer
+			if manufacturer == "3G" {
+				manufacturer = "SG"
+			}
+			if s.Indexed {
+				index = "0001"
+			}
+		}
+	}
+	return []byte(watch.EncodeResponse(manufacturer, deviceID, index, content)), nil
 }
 
 // EncoderRegistry maps protocol names to their command encoders.
@@ -61,6 +138,7 @@ type EncoderRegistry struct {
 func NewEncoderRegistry() *EncoderRegistry {
 	r := &EncoderRegistry{encoders: make(map[string]CommandEncoder)}
 	r.Register(&H02CommandEncoder{})
+	r.Register(NewWatchCommandEncoder(nil))
 	return r
 }
 
@@ -72,4 +150,27 @@ func (r *EncoderRegistry) Register(enc CommandEncoder) {
 // Get returns the encoder for the given protocol, or nil if not found.
 func (r *EncoderRegistry) Get(protocol string) CommandEncoder {
 	return r.encoders[protocol]
+}
+
+// ErrNoEncoder is returned by EncoderRegistry.Encode when the device protocol
+// has no command encoder.
+var ErrNoEncoder = errors.New("no command encoder for protocol")
+
+// Encode returns the wire bytes for cmd sent to a device speaking protocol.
+// Custom commands are passed through the protocol's encoder (so WATCH frames
+// them) and sent verbatim when the protocol has no encoder. Safe to call on a
+// nil registry.
+func (r *EncoderRegistry) Encode(protocol string, cmd *model.Command, uniqueID string) ([]byte, error) {
+	var enc CommandEncoder
+	if r != nil {
+		enc = r.Get(protocol)
+	}
+	if enc == nil {
+		if cmd.Type == model.CommandCustom {
+			text, _ := cmd.Attributes["text"].(string)
+			return []byte(text), nil
+		}
+		return nil, fmt.Errorf("%w: %s", ErrNoEncoder, protocol)
+	}
+	return enc.EncodeCommand(cmd, uniqueID)
 }

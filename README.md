@@ -6,7 +6,7 @@ A production-ready GPS tracking system with real-time updates, geofencing, notif
 
 ## Features
 
-- **GPS Tracking** — H02 and WATCH protocol support, real-time WebSocket updates, device status monitoring
+- **GPS Tracking** — H02, WATCH and OsmAnd / Traccar Client (Android/iOS) protocol support, real-time WebSocket updates, device status monitoring
 - **Geofencing** — Draw polygons/rectangles/circles on a map, real-time enter/exit detection via PostGIS
 - **Notifications** — Webhook delivery with template variables, event types: geofence, online/offline, overspeed, motion, idle
 - **Reports** — Trip detection, route playback with animation, heatmaps, distance charts, CSV/GPX export
@@ -56,6 +56,7 @@ All configuration is via environment variables.
 | `MOTUS_SERVER_PORT` | `8080` | HTTP server port |
 | `MOTUS_GPS_H02_PORT` | `5013` | H02 GPS protocol port |
 | `MOTUS_GPS_WATCH_PORT` | `5093` | WATCH GPS protocol port |
+| `MOTUS_GPS_OSMAND_PORT` | `5055` | OsmAnd / Traccar Client HTTP protocol port |
 | `MOTUS_DEVICE_TIMEOUT_MINUTES` | `5` | Device offline timeout |
 | `MOTUS_DEVICE_CHECK_INTERVAL_MINUTES` | `1` | Timeout check interval |
 | `MOTUS_WS_ALLOWED_ORIGINS` | — | Comma-separated WebSocket origins |
@@ -67,6 +68,24 @@ All configuration is via environment variables.
 | `MOTUS_DEMO_ENABLED` | `false` | Enable demo mode with simulated GPS tracks |
 | `MOTUS_DEMO_DEVICE_IMEIS` | — | Comma-separated demo device identifiers |
 | `MOTUS_AI_ENABLED` | `false` | Enable the AI assistant chat feature. See [docs/ai-assistant.md](docs/ai-assistant.md) for the full `MOTUS_AI_*` configuration reference. |
+
+## Smartphone Tracking (Traccar Client)
+
+The [Traccar Client](https://www.traccar.org/client/) apps for Android and iOS report
+positions over the OsmAnd HTTP protocol on `MOTUS_GPS_OSMAND_PORT` (default `5055`).
+Both the query-string format and the JSON format of current app versions are supported.
+
+1. Create a device whose unique ID matches the app's **Device identifier**, or enable
+   `MOTUS_DEVICE_AUTO_CREATE` to create devices on their first report.
+2. In the app, set **Server URL** to `http://<gps-host>:5055` — the same host that serves
+   the H02 and WATCH ports (with Helm, the `serviceGPS` LoadBalancer).
+3. Set the app's reporting **frequency below `MOTUS_DEVICE_TIMEOUT_MINUTES`**. The app
+   has no persistent connection, so devices only go offline via this timeout; with the
+   app default of 300 s and the motus default of 5 minutes, devices flap between online
+   and offline. Use e.g. 60–240 s, or raise the timeout.
+
+Like H02 and WATCH, the port speaks plain HTTP without authentication; see the
+network isolation notes for GPS ports in [AGENTS.md](AGENTS.md).
 
 ## CLI
 

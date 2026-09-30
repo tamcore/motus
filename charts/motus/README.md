@@ -1,6 +1,6 @@
 # Motus Helm Chart
 
-GPS tracking system with Traccar API compatibility for Home Assistant and Traccar Manager mobile apps. Supports H02 and WATCH GPS protocol listeners, real-time WebSocket updates, PostGIS geofencing, and multi-replica deployments with Redis pub/sub.
+GPS tracking system with Traccar API compatibility for Home Assistant and Traccar Manager mobile apps. Supports H02, WATCH and OsmAnd (Traccar Client) GPS protocol listeners, real-time WebSocket updates, PostGIS geofencing, and multi-replica deployments with Redis pub/sub.
 
 ## Prerequisites
 
@@ -82,6 +82,7 @@ No manual migration steps are required.
 | `serviceGPS.loadBalancerIP` | Static IP for GPS LoadBalancer | `""` |
 | `serviceGPS.ports.h02` | H02 listener port | `5013` |
 | `serviceGPS.ports.watch` | WATCH listener port | `5093` |
+| `serviceGPS.ports.osmand` | OsmAnd / Traccar Client HTTP listener port | `5055` |
 
 ### Ingress
 
@@ -274,6 +275,6 @@ Note: Database migrations are forward-only. Rolling back the chart does not reve
 ```
 
 - **HTTP/WebSocket traffic** routes through the ingress controller to Motus pods
-- **GPS device traffic** (H02/WATCH protocols) routes through the LoadBalancer directly to pods
+- **GPS device traffic** (H02/WATCH/OsmAnd protocols) routes through the LoadBalancer directly to pods
 - **Redis** enables real-time WebSocket broadcasts across pods
 - **PostgreSQL** stores all position data, device state, geofences, and user configuration

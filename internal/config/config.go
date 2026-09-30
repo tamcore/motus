@@ -331,6 +331,7 @@ type GPSConfig struct {
 	WatchPort        string
 	H02RelayTarget   string // optional "host:port" to forward raw H02 messages
 	WatchRelayTarget string // optional "host:port" to forward raw WATCH messages
+	OsmAndPort       string // OsmAnd / Traccar Client HTTP protocol port
 }
 
 // LoadFromEnv loads configuration from environment variables with defaults.
@@ -359,6 +360,7 @@ func LoadFromEnv() (*Config, error) {
 			WatchPort:        getEnv("MOTUS_GPS_WATCH_PORT", "5093"),
 			H02RelayTarget:   getEnv("MOTUS_GPS_H02_RELAY_TARGET", ""),
 			WatchRelayTarget: getEnv("MOTUS_GPS_WATCH_RELAY_TARGET", ""),
+			OsmAndPort:       getEnv("MOTUS_GPS_OSMAND_PORT", "5055"),
 		},
 		Device: DeviceConfig{
 			TimeoutMinutes:        getEnvInt("MOTUS_DEVICE_TIMEOUT_MINUTES", 5),

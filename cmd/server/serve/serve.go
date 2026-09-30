@@ -477,6 +477,16 @@ func Run() {
 		}
 	}()
 
+	// OsmAnd / Traccar Client HTTP protocol (Android/iOS tracking apps).
+	osmandServer := protocol.NewOsmAndServer(cfg.GPS.OsmAndPort, deviceRepo, gpsHandler)
+	osmandServer.SetAutoCreate(autoCreateCfg, userRepo)
+	osmandServer.SetLogger(protoLogger.With(slog.String("protocol", "osmand")))
+	go func() {
+		if err := osmandServer.Start(gpsCtx); err != nil {
+			slog.Error("OsmAnd server error", slog.Any("error", err))
+		}
+	}()
+
 	// Background command dispatcher: delivers pending commands to locally online
 	// devices. Runs on every replica so the pod that holds a device's TCP
 	// connection will always pick up commands saved by any pod.

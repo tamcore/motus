@@ -22,5 +22,11 @@ spec:
     protocol: TCP
     name: watch
   {{- end }}
+  {{- if .Values.serviceGPS.ports.osmand.enabled }}
+  - port: {{ .Values.serviceGPS.ports.osmand.port }}
+    targetPort: gps-osmand
+    protocol: TCP
+    name: osmand
+  {{- end }}
   selector:
     {{- include "motus.selectorLabels" . | nindent 4 }}

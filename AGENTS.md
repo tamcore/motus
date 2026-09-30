@@ -3,7 +3,7 @@
 ## Project Overview
 
 GPS tracking platform: Go backend (chi router) + SvelteKit frontend. Receives GPS device
-positions via H02/Watch protocols, stores in PostgreSQL (PostGIS), serves a web UI with
+positions via H02/Watch/OsmAnd protocols, stores in PostgreSQL (PostGIS), serves a web UI with
 maps, geofences, notifications, reports, and device management.
 
 ## Architecture
@@ -16,7 +16,7 @@ internal/
     middleware/     — chi middleware (auth, CSRF, rate limit, write-access, headers)
     oas/            — Generated ogen code (DO NOT edit manually — see make generate)
   config/           — Config loading from env vars, validation
-  protocol/         — GPS protocol servers (H02, Watch)
+  protocol/         — GPS protocol servers (H02, Watch TCP; OsmAnd HTTP)
   model/            — Domain types
   storage/
     repository/     — PostgreSQL data access (pgx); testutil/ for integration test helpers
@@ -78,7 +78,7 @@ ensure ALL required env vars are set or the command will fail.
 Required env vars for ANY CLI command that touches the DB:
 - `MOTUS_DATABASE_HOST`, `MOTUS_DATABASE_PORT`, `MOTUS_DATABASE_USER`,
   `MOTUS_DATABASE_PASSWORD`, `MOTUS_DATABASE_NAME`, `MOTUS_DATABASE_SSLMODE`
-- `MOTUS_SERVER_PORT`, `MOTUS_GPS_H02_PORT`, `MOTUS_GPS_WATCH_PORT`
+- `MOTUS_SERVER_PORT`, `MOTUS_GPS_H02_PORT`, `MOTUS_GPS_WATCH_PORT`, `MOTUS_GPS_OSMAND_PORT`
 
 ### Migrations require PostGIS
 Migration `00008_add_geofences.sql` uses `GEOMETRY(GEOMETRY, 4326)`. The database must
@@ -145,8 +145,8 @@ IMEIs are silently dropped. Demo device IMEIs must be numeric (default: `9000000
 motus continues serving devices normally.
 
 ### GPS protocols have no device authentication (by design)
-H02 and Watch are plaintext TCP protocols; device identity is the **self-reported
-IMEI** in each message. There is no handshake, shared secret, or signature — this is
+H02 and Watch are plaintext TCP protocols and OsmAnd is plain HTTP; device identity
+is the **self-reported IMEI / device identifier** in each message. There is no handshake, shared secret, or signature — this is
 inherent to the protocols and cannot be fixed in motus. Consequences:
 
 - Anyone who can reach the GPS ports can inject positions for any known IMEI
@@ -154,11 +154,18 @@ inherent to the protocols and cannot be fixed in motus. Consequences:
   land in the default user's account (`resolveOrCreateDevice` in
   `internal/protocol/server.go`).
 - **Mitigation is network isolation**: firewall the GPS ports (`MOTUS_GPS_H02_PORT`,
-  `MOTUS_GPS_WATCH_PORT`) to carrier/APN source ranges, or expose them only on a
-  VPN/private interface. Do not expose them to the open internet unless spoofed
-  positions are an accepted risk.
+  `MOTUS_GPS_WATCH_PORT`, `MOTUS_GPS_OSMAND_PORT`) to carrier/APN source ranges, or
+  expose them only on a VPN/private interface. Do not expose them to the open internet
+  unless spoofed positions are an accepted risk.
 - Read deadlines, a connection limit, and bounded line buffers protect against
   resource exhaustion, not against spoofing.
+
+### OsmAnd devices go offline only via the device timeout
+The OsmAnd server (`internal/protocol/osmand_server.go`) is HTTP: every report is a
+separate request, so there is no connection whose close marks the device offline
+(unlike H02/Watch) and no command dispatch. Devices go offline only through the
+device timeout service, so the Traccar Client reporting interval must be shorter than
+`MOTUS_DEVICE_TIMEOUT_MINUTES` (app default 300 s equals the 5-minute default).
 
 ### OIDC email linking requires a verified email
 On first OIDC login the handler links the OIDC subject to an existing local account

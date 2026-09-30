@@ -47,6 +47,10 @@ spec:
         - containerPort: {{ .Values.serviceGPS.ports.watch.port }}
           name: gps-watch
         {{- end }}
+        {{- if .Values.serviceGPS.ports.osmand.enabled }}
+        - containerPort: {{ .Values.serviceGPS.ports.osmand.port }}
+          name: gps-osmand
+        {{- end }}
         env:
         {{- if .Values.postgresUriSecret.enabled }}
         - name: POSTGRES_URI
@@ -106,6 +110,10 @@ spec:
         - name: MOTUS_GPS_WATCH_RELAY_TARGET
           value: {{ .Values.serviceGPS.ports.watch.relayTarget | quote }}
         {{- end }}
+        {{- end }}
+        {{- if .Values.serviceGPS.ports.osmand.enabled }}
+        - name: MOTUS_GPS_OSMAND_PORT
+          value: {{ .Values.serviceGPS.ports.osmand.port | quote }}
         {{- end }}
         {{- if .Values.websocket }}
         - name: MOTUS_WS_ALLOWED_ORIGINS

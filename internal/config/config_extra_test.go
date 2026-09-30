@@ -91,6 +91,7 @@ func TestLoadFromEnv_WebSocketEmptyOrigins(t *testing.T) {
 func TestLoadFromEnv_GPSConfig(t *testing.T) {
 	t.Setenv("MOTUS_GPS_H02_PORT", "6013")
 	t.Setenv("MOTUS_GPS_WATCH_PORT", "6093")
+	t.Setenv("MOTUS_GPS_OSMAND_PORT", "6055")
 
 	cfg, err := config.LoadFromEnv()
 	if err != nil {
@@ -102,6 +103,22 @@ func TestLoadFromEnv_GPSConfig(t *testing.T) {
 	}
 	if cfg.GPS.WatchPort != "6093" {
 		t.Errorf("expected WATCH port 6093, got %q", cfg.GPS.WatchPort)
+	}
+	if cfg.GPS.OsmAndPort != "6055" {
+		t.Errorf("expected OsmAnd port 6055, got %q", cfg.GPS.OsmAndPort)
+	}
+}
+
+func TestLoadFromEnv_OsmAndPortDefault(t *testing.T) {
+	_ = os.Unsetenv("MOTUS_GPS_OSMAND_PORT")
+
+	cfg, err := config.LoadFromEnv()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Traccar Client's default server port.
+	if cfg.GPS.OsmAndPort != "5055" {
+		t.Errorf("expected default OsmAnd port 5055, got %q", cfg.GPS.OsmAndPort)
 	}
 }
 

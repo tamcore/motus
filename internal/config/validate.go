@@ -26,6 +26,9 @@ func (c *Config) Validate() error {
 	if err := validatePort(c.GPS.WatchPort, "MOTUS_GPS_WATCH_PORT"); err != nil {
 		errs = append(errs, err.Error())
 	}
+	if err := validatePort(c.GPS.OsmAndPort, "MOTUS_GPS_OSMAND_PORT"); err != nil {
+		errs = append(errs, err.Error())
+	}
 
 	// Metrics port validation (only when enabled).
 	if c.Metrics.Enabled {

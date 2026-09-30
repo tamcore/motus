@@ -59,6 +59,11 @@ func TestValidate_PortRanges(t *testing.T) {
 			wantErr: "MOTUS_GPS_WATCH_PORT",
 		},
 		{
+			name:    "osmand port invalid",
+			modify:  func(c *Config) { c.GPS.OsmAndPort = "0" },
+			wantErr: "MOTUS_GPS_OSMAND_PORT",
+		},
+		{
 			name:    "metrics port invalid when enabled",
 			modify:  func(c *Config) { c.Metrics.Enabled = true; c.Metrics.Port = "0" },
 			wantErr: "MOTUS_METRICS_PORT",
@@ -400,7 +405,7 @@ func TestValidate_MultipleErrors(t *testing.T) {
 			},
 		},
 		Server:  ServerConfig{Port: "0"},
-		GPS:     GPSConfig{H02Port: "99999", WatchPort: "-1"},
+		GPS:     GPSConfig{H02Port: "99999", WatchPort: "-1", OsmAndPort: "abc"},
 		Device:  DeviceConfig{TimeoutMinutes: 0, CheckIntervalMinutes: -1},
 		Metrics: MetricsConfig{Enabled: false},
 	}
@@ -417,6 +422,7 @@ func TestValidate_MultipleErrors(t *testing.T) {
 		"MOTUS_SERVER_PORT",
 		"MOTUS_GPS_H02_PORT",
 		"MOTUS_GPS_WATCH_PORT",
+		"MOTUS_GPS_OSMAND_PORT",
 		"POSTGRES_URI or MOTUS_DATABASE_HOST",
 		"MOTUS_DEVICE_TIMEOUT_MINUTES",
 		"MOTUS_DEVICE_CHECK_INTERVAL_MINUTES",
@@ -691,7 +697,7 @@ func validConfig() *Config {
 			},
 		},
 		Server:   ServerConfig{Port: "8080"},
-		GPS:      GPSConfig{H02Port: "5013", WatchPort: "5093"},
+		GPS:      GPSConfig{H02Port: "5013", WatchPort: "5093", OsmAndPort: "5055"},
 		Device:   DeviceConfig{TimeoutMinutes: 5, CheckIntervalMinutes: 1},
 		Metrics:  MetricsConfig{Port: "9090", Enabled: true},
 		Security: SecurityConfig{Env: "production", CSRFSecret: "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"},

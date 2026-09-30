@@ -103,6 +103,8 @@ spec:
           value: "15013"  # Not exposed (uses main app's H02 via localhost)
         - name: MOTUS_GPS_WATCH_PORT
           value: "15093"  # Not exposed
+        - name: MOTUS_GPS_OSMAND_PORT
+          value: "15055"  # Not exposed
         - name: MOTUS_DEMO_ENABLED
           value: "true"
         - name: MOTUS_DEMO_POD

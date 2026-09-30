@@ -25,6 +25,9 @@ serviceGPS:
       enabled: true
       port: 5093
       relayTarget: ""  # optional: "traccar.example.com:5093"
+    osmand:  # OsmAnd / Traccar Client HTTP protocol (Android/iOS apps)
+      enabled: true
+      port: 5055
 
 ingress:
   enabled: true

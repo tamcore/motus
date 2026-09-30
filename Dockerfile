@@ -15,7 +15,7 @@ LABEL org.opencontainers.image.licenses="MIT"
 COPY ${TARGETPLATFORM}/motus /motus
 COPY migrations /migrations
 
-EXPOSE 8080 5013 5093
+EXPOSE 8080 5013 5093 5055
 
 USER 65532:65532
 

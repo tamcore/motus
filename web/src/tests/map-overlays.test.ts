@@ -111,11 +111,6 @@ describe("Map Overlays", () => {
       // Clear any prior modules so settings store re-initializes from localStorage
       vi.resetModules();
 
-      // Re-mock dependencies after reset
-      vi.mock("$app/environment", () => ({
-        browser: true,
-      }));
-
       const { settings } = await import("$lib/stores/settings");
       const { get } = await import("svelte/store");
 
@@ -143,10 +138,6 @@ describe("Map Overlays", () => {
 
       vi.resetModules();
 
-      vi.mock("$app/environment", () => ({
-        browser: true,
-      }));
-
       const { settings } = await import("$lib/stores/settings");
       const { get } = await import("svelte/store");
 
@@ -157,10 +148,6 @@ describe("Map Overlays", () => {
 
     it("should reset overlay settings to defaults", async () => {
       vi.resetModules();
-
-      vi.mock("$app/environment", () => ({
-        browser: true,
-      }));
 
       const { settings } = await import("$lib/stores/settings");
       const { get } = await import("svelte/store");

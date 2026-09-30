@@ -5,6 +5,7 @@
 	import { currentUser } from '$lib/stores/auth';
 	import { refreshHandler } from '$lib/stores/refresh';
 	import { mileageToDisplay, mileageFromDisplay, formatMileage, formatRelative } from '$lib/utils/formatting';
+	import { DEVICE_PROTOCOLS } from '$lib/utils/protocols';
 	import { commandAttributesPayload } from '$lib/utils/commands';
 	import { settings } from '$lib/stores/settings';
 	import AllDevicesToggle from '$lib/components/AllDevicesToggle.svelte';
@@ -692,8 +693,9 @@
 			<label for="protocol" class="input-label">Protocol</label>
 			<select id="protocol" name="protocol" class="cmd-select" bind:value={formProtocol}>
 				<option value="">— none —</option>
-				<option value="h02">H02</option>
-				<option value="watch">Watch</option>
+				{#each DEVICE_PROTOCOLS as protocol}
+					<option value={protocol.value}>{protocol.label}</option>
+				{/each}
 			</select>
 		</div>
 		<Input

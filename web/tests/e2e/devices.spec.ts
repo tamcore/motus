@@ -103,6 +103,36 @@ test.describe('Devices Page', () => {
     await devicesPage.cancelButton.click();
   });
 
+  test('should offer the OsmAnd protocol for new and existing devices', async ({ authedPage }) => {
+    const uniqueId = `pw-osmand-${Date.now()}`;
+
+    // New device: OsmAnd (Traccar Client) can be selected on create
+    await devicesPage.openCreateModal();
+    await expect(devicesPage.formProtocolInput.locator('option[value="osmand"]')).toHaveText('OsmAnd (Traccar Client)');
+    await devicesPage.fillDeviceForm({ name: 'PW OsmAnd Device', uniqueId, protocol: 'osmand' });
+    await devicesPage.saveButton.click();
+    await expect(devicesPage.modal).toHaveCount(0, { timeout: 10000 });
+
+    const row = authedPage.locator('.device-table').locator(`tr:has-text("${uniqueId}")`);
+    await expect(row).toBeVisible({ timeout: 5000 });
+    await row.locator('button:has-text("Edit")').click();
+    await expect(devicesPage.formProtocolInput).toHaveValue('osmand');
+
+    // Existing device: switch to H02 and back to OsmAnd
+    await devicesPage.formProtocolInput.selectOption('h02');
+    await devicesPage.saveChangesButton.click();
+    await expect(devicesPage.modal).toHaveCount(0, { timeout: 10000 });
+    await row.locator('button:has-text("Edit")').click();
+    await expect(devicesPage.formProtocolInput).toHaveValue('h02');
+    await devicesPage.formProtocolInput.selectOption('osmand');
+    await devicesPage.saveChangesButton.click();
+    await expect(devicesPage.modal).toHaveCount(0, { timeout: 10000 });
+
+    await row.locator('button:has-text("Edit")').click();
+    await expect(devicesPage.formProtocolInput).toHaveValue('osmand');
+    await devicesPage.cancelButton.click();
+  });
+
   test('should send commands with and without parameters', async ({ authedPage }) => {
     const uniqueId = `pw-cmd-${Date.now()}`;
     await devicesPage.openCreateModal();

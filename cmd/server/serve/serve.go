@@ -472,6 +472,7 @@ func Run() {
 	watchServer := protocol.NewWatchServer(cfg.GPS.WatchPort, deviceRepo, gpsHandler)
 	watchServer.SetAutoCreate(autoCreateCfg, userRepo)
 	watchServer.SetRegistry(deviceRegistry)
+	watchServer.SetCommandRepo(commandRepo)
 	if cfg.GPS.WatchRelayTarget != "" {
 		watchServer.SetRelay(cfg.GPS.WatchRelayTarget)
 		slog.Info("WATCH relay enabled", slog.String("target", cfg.GPS.WatchRelayTarget))

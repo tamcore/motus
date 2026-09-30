@@ -580,3 +580,186 @@ func TestWatchServer_RegistersConnectionForCommands(t *testing.T) {
 		})
 	}
 }
+
+// memCommandRepo is an in-memory CommandRepo for WATCH reply tests.
+type memCommandRepo struct {
+	repository.CommandRepo
+	mu       sync.Mutex
+	commands []*model.Command // oldest first
+	listed   int              // ListByDevice calls
+}
+
+func (r *memCommandRepo) ListByDevice(_ context.Context, deviceID int64, limit int) ([]*model.Command, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.listed++
+	var out []*model.Command
+	for i := len(r.commands) - 1; i >= 0 && len(out) < limit; i-- {
+		if r.commands[i].DeviceID == deviceID {
+			c := *r.commands[i]
+			out = append(out, &c)
+		}
+	}
+	return out, nil
+}
+
+func (r *memCommandRepo) AppendResult(_ context.Context, id int64, chunk string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, c := range r.commands {
+		if c.ID == id {
+			if c.Result == nil {
+				c.Result = &chunk
+				c.Status = "executed"
+			} else {
+				joined := *c.Result + "\n" + chunk
+				c.Result = &joined
+			}
+		}
+	}
+	return nil
+}
+
+func (r *memCommandRepo) get(id int64) *model.Command {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, c := range r.commands {
+		if c.ID == id {
+			cp := *c
+			return &cp
+		}
+	}
+	return nil
+}
+
+func TestWatchCommandKeyword(t *testing.T) {
+	tests := []struct {
+		cmd  *model.Command
+		want string
+	}{
+		{&model.Command{Type: model.CommandPositionPeriodic, Attributes: map[string]any{"frequency": 60}}, "UPLOAD"},
+		{&model.Command{Type: model.CommandPositionSingle}, "CR"},
+		{&model.Command{Type: model.CommandRebootDevice}, "RESET"},
+		{&model.Command{Type: model.CommandSosNumber, Attributes: map[string]any{"phoneNumber": "123"}}, "SOS1"},
+		{&model.Command{Type: model.CommandSosNumber, Attributes: map[string]any{"phoneNumber": "123", "index": 2}}, "SOS2"},
+		{&model.Command{Type: model.CommandCustom, Attributes: map[string]any{"text": "LZ,1,+1"}}, "LZ"},
+		{&model.Command{Type: model.CommandCustom, Attributes: map[string]any{"text": "POWEROFF"}}, "POWEROFF"},
+		{&model.Command{Type: model.CommandSetSpeedAlarm}, ""},
+		{&model.Command{Type: model.CommandPositionPeriodic}, ""},
+	}
+	for _, tt := range tests {
+		if got := watchCommandKeyword(tt.cmd); got != tt.want {
+			t.Errorf("%s %v: got %q, want %q", tt.cmd.Type, tt.cmd.Attributes, got, tt.want)
+		}
+	}
+}
+
+func TestDecodeWatch_RecordsCommandReply(t *testing.T) {
+	sent := func(id int64, deviceID int64, typ string, attrs map[string]any) *model.Command {
+		return &model.Command{ID: id, DeviceID: deviceID, Type: typ, Attributes: attrs, Status: model.CommandStatusSent}
+	}
+
+	t.Run("reply to set reporting interval", func(t *testing.T) {
+		env := newWatchTestEnv(t, "4700186508")
+		cmds := &memCommandRepo{commands: []*model.Command{
+			sent(1, env.device.ID, model.CommandPositionPeriodic, map[string]any{"frequency": 60}),
+		}}
+		env.srv.SetCommandRepo(cmds)
+
+		pos, _, resp, err := env.srv.decodeWatch(context.Background(), "[3G*4700186508*0006*UPLOAD]")
+		if err != nil || pos != nil || resp != "" {
+			t.Fatalf("got pos %+v resp %q err %v", pos, resp, err)
+		}
+		c := cmds.get(1)
+		if c.Status != "executed" || c.Result == nil || *c.Result != "UPLOAD" {
+			t.Errorf("command: status %q result %v", c.Status, c.Result)
+		}
+		if d := env.devices.get("4700186508"); d.Status != "online" {
+			t.Errorf("device should be online: %+v", d)
+		}
+	})
+
+	t.Run("reply content and case-insensitive keyword", func(t *testing.T) {
+		env := newWatchTestEnv(t, "4700186508")
+		cmds := &memCommandRepo{commands: []*model.Command{
+			sent(1, env.device.ID, model.CommandCustom, map[string]any{"text": "PowerOff"}),
+		}}
+		env.srv.SetCommandRepo(cmds)
+
+		_, _, _, _ = env.srv.decodeWatch(context.Background(), "[3G*4700186508*000a*POWEROFF,1]")
+		if c := cmds.get(1); c.Result == nil || *c.Result != "POWEROFF,1" {
+			t.Errorf("result: %v", c.Result)
+		}
+	})
+
+	t.Run("matches the newest sent command with the same keyword", func(t *testing.T) {
+		env := newWatchTestEnv(t, "4700186508")
+		cmds := &memCommandRepo{commands: []*model.Command{
+			sent(1, env.device.ID, model.CommandPositionPeriodic, map[string]any{"frequency": 300}),
+			sent(2, env.device.ID, model.CommandPositionPeriodic, map[string]any{"frequency": 60}),
+			sent(3, env.device.ID, model.CommandPositionSingle, nil),
+		}}
+		env.srv.SetCommandRepo(cmds)
+
+		_, _, _, _ = env.srv.decodeWatch(context.Background(), "[3G*4700186508*0006*UPLOAD]")
+		if c := cmds.get(2); c.Result == nil {
+			t.Error("newest UPLOAD command should get the reply")
+		}
+		if c := cmds.get(1); c.Result != nil {
+			t.Error("older UPLOAD command must not get the reply")
+		}
+		if c := cmds.get(3); c.Result != nil {
+			t.Error("CR command must not get an UPLOAD reply")
+		}
+	})
+
+	t.Run("ignores executed, pending and unrelated commands", func(t *testing.T) {
+		env := newWatchTestEnv(t, "4700186508")
+		executed := "RESET"
+		cmds := &memCommandRepo{commands: []*model.Command{
+			{ID: 1, DeviceID: env.device.ID, Type: model.CommandRebootDevice, Status: "executed", Result: &executed},
+			{ID: 2, DeviceID: env.device.ID, Type: model.CommandRebootDevice, Status: model.CommandStatusPending},
+			sent(3, env.device.ID, model.CommandPositionSingle, nil),
+		}}
+		env.srv.SetCommandRepo(cmds)
+
+		_, _, _, _ = env.srv.decodeWatch(context.Background(), "[3G*4700186508*0005*RESET]")
+		if c := cmds.get(1); *c.Result != "RESET" {
+			t.Errorf("executed command changed: %v", *c.Result)
+		}
+		for _, id := range []int64{2, 3} {
+			if c := cmds.get(id); c.Result != nil {
+				t.Errorf("command %d must not get the reply: %v", id, *c.Result)
+			}
+		}
+	})
+
+	t.Run("device messages do not look up commands", func(t *testing.T) {
+		env := newWatchTestEnv(t, "4700186508")
+		cmds := &memCommandRepo{commands: []*model.Command{
+			sent(1, env.device.ID, model.CommandCustom, map[string]any{"text": "LK"}),
+		}}
+		env.srv.SetCommandRepo(cmds)
+
+		_, _, _, _ = env.srv.decodeWatch(context.Background(), "[3G*4700186508*0002*LK]")
+		_, _, _, _ = env.srv.decodeWatch(context.Background(), "[3G*4700186508*0003*TKQ]")
+		if cmds.listed != 0 || cmds.get(1).Result != nil {
+			t.Errorf("heartbeats must not be treated as replies (listed %d)", cmds.listed)
+		}
+	})
+
+	t.Run("unknown device and missing command repo", func(t *testing.T) {
+		env := newWatchTestEnv(t, "4700186508")
+		// No command repository configured: replies are ignored.
+		if _, _, _, err := env.srv.decodeWatch(context.Background(), "[3G*4700186508*0006*UPLOAD]"); err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+
+		cmds := &memCommandRepo{}
+		env.srv.SetCommandRepo(cmds)
+		_, _, _, _ = env.srv.decodeWatch(context.Background(), "[3G*9999999999*0006*UPLOAD]")
+		if cmds.listed != 0 {
+			t.Error("replies from unknown devices must not look up commands")
+		}
+	})
+}

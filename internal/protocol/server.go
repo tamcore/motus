@@ -730,6 +730,10 @@ func (s *Server) decodeWatch(ctx context.Context, line string) (*model.Position,
 		return nil, msg.DeviceID, msg.Response, nil
 	}
 
+	if !msg.IsDeviceInitiated() {
+		s.recordWatchCommandReply(ctx, device, msg)
+	}
+
 	var position *model.Position
 	switch {
 	case msg.Position != nil:
@@ -742,6 +746,58 @@ func (s *Server) decodeWatch(ctx context.Context, line string) (*model.Position,
 	}
 
 	return position, msg.DeviceID, msg.Response, nil
+}
+
+// watchReplyLookback is how many recent commands are searched for the one a
+// WATCH reply belongs to.
+const watchReplyLookback = 10
+
+// recordWatchCommandReply stores a WATCH command reply as the result of the
+// command it answers. Watches reply by echoing the command keyword (e.g.
+// [3G*id*0006*UPLOAD] for UPLOAD,60), so the reply is attached to the newest
+// command still in "sent" state whose keyword matches the message type; the
+// first result marks the command executed.
+func (s *Server) recordWatchCommandReply(ctx context.Context, device *model.Device, msg *watch.Message) {
+	if s.commands == nil {
+		return
+	}
+	cmds, err := s.commands.ListByDevice(ctx, device.ID, watchReplyLookback)
+	if err != nil {
+		s.log().Warn("command reply: cannot list commands",
+			slog.String("type", "gps"),
+			slog.String("protocol", s.name),
+			slog.String("device", msg.DeviceID),
+			slog.Any("error", err),
+		)
+		return
+	}
+
+	for _, cmd := range cmds { // newest first
+		if cmd.Status != model.CommandStatusSent || !strings.EqualFold(watchCommandKeyword(cmd), msg.Type) {
+			continue
+		}
+		result := msg.Type
+		if msg.Content != "" {
+			result += "," + msg.Content
+		}
+		if err := s.commands.AppendResult(ctx, cmd.ID, result); err != nil {
+			s.log().Warn("command reply: failed to store result",
+				slog.String("type", "gps"),
+				slog.String("protocol", s.name),
+				slog.Int64("commandID", cmd.ID),
+				slog.Any("error", err),
+			)
+			return
+		}
+		s.log().Debug("command reply recorded",
+			slog.String("type", "gps"),
+			slog.String("protocol", s.name),
+			slog.String("device", msg.DeviceID),
+			slog.Int64("commandID", cmd.ID),
+			slog.String("result", truncate(result, maxLoggedFrame)),
+		)
+		return
+	}
 }
 
 // watchPosition converts a decoded WATCH position report to a model position.

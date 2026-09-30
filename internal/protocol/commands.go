@@ -3,6 +3,7 @@ package protocol
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/tamcore/motus/internal/model"
 	"github.com/tamcore/motus/internal/protocol/watch"
@@ -80,38 +81,58 @@ func NewWatchCommandEncoder(sessions SessionLookup) *WatchCommandEncoder {
 // Protocol returns the protocol name.
 func (e *WatchCommandEncoder) Protocol() string { return "watch" }
 
-// EncodeCommand converts a command to a WATCH protocol frame.
-func (e *WatchCommandEncoder) EncodeCommand(cmd *model.Command, deviceID string) ([]byte, error) {
-	var content string
+// watchCommandContent returns the frame content of a WATCH command, e.g.
+// "UPLOAD,60" for positionPeriodic.
+func watchCommandContent(cmd *model.Command) (string, error) {
 	switch cmd.Type {
 	case model.CommandCustom:
 		text, _ := cmd.Attributes["text"].(string)
 		if text == "" {
-			return nil, fmt.Errorf("text attribute required for custom")
+			return "", fmt.Errorf("text attribute required for custom")
 		}
-		content = text
+		return text, nil
 	case model.CommandPositionSingle:
-		content = "CR"
+		return "CR", nil
 	case model.CommandPositionPeriodic:
 		frequency, ok := cmd.Attributes["frequency"]
 		if !ok {
-			return nil, fmt.Errorf("frequency attribute required for positionPeriodic")
+			return "", fmt.Errorf("frequency attribute required for positionPeriodic")
 		}
-		content = fmt.Sprintf("UPLOAD,%v", frequency)
+		return fmt.Sprintf("UPLOAD,%v", frequency), nil
 	case model.CommandSosNumber:
 		phone, ok := cmd.Attributes["phoneNumber"]
 		if !ok {
-			return nil, fmt.Errorf("phoneNumber attribute required for sosNumber")
+			return "", fmt.Errorf("phoneNumber attribute required for sosNumber")
 		}
 		index, ok := cmd.Attributes["index"]
 		if !ok {
 			index = 1
 		}
-		content = fmt.Sprintf("SOS%v,%v", index, phone)
+		return fmt.Sprintf("SOS%v,%v", index, phone), nil
 	case model.CommandRebootDevice:
-		content = "RESET"
+		return "RESET", nil
 	default:
-		return nil, fmt.Errorf("unsupported command type for WATCH: %s", cmd.Type)
+		return "", fmt.Errorf("unsupported command type for WATCH: %s", cmd.Type)
+	}
+}
+
+// watchCommandKeyword returns the keyword a WATCH device echoes when it
+// replies to cmd (the content up to the first comma, e.g. "UPLOAD"), or ""
+// when cmd cannot be encoded for WATCH.
+func watchCommandKeyword(cmd *model.Command) string {
+	content, err := watchCommandContent(cmd)
+	if err != nil {
+		return ""
+	}
+	keyword, _, _ := strings.Cut(content, ",")
+	return keyword
+}
+
+// EncodeCommand converts a command to a WATCH protocol frame.
+func (e *WatchCommandEncoder) EncodeCommand(cmd *model.Command, deviceID string) ([]byte, error) {
+	content, err := watchCommandContent(cmd)
+	if err != nil {
+		return nil, err
 	}
 
 	manufacturer, index := "CS", ""

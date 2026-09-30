@@ -421,3 +421,40 @@ func TestDecode_MediaMessages(t *testing.T) {
 		}
 	}
 }
+
+func TestMessage_IsDeviceInitiated(t *testing.T) {
+	tests := map[string]bool{
+		// Sent by the device on its own.
+		"[3G*1*0002*LK]":          true,
+		"[3G*1*0004*INIT]":        true,
+		"[3G*1*0003*TKQ]":         true,
+		"[3G*1*0004*TKQ2]":        true,
+		"[3G*1*0006*UD,foo]":      true,
+		"[3G*1*0008*UD_LTE,foo]":  true,
+		"[3G*1*0006*AL,foo]":      true,
+		"[3G*1*0006*WT,foo]":      true,
+		"[3G*1*0008*PULSE,72]":    true,
+		"[3G*1*0007*heart,0]":     true,
+		"[3G*1*000b*oxygen,0,98]": true,
+		"[3G*1*000a*JXTK,0,a,1]":  true,
+		"[3G*1*0004*TK,x]":        true,
+		"[3G*1*0005*TK2,x]":       true,
+		"[3G*1*0005*img,x]":       true,
+		// Replies echoing a server command keyword.
+		"[3G*1*0006*UPLOAD]":   false,
+		"[3G*1*0002*CR]":       false,
+		"[3G*1*0005*RESET]":    false,
+		"[3G*1*0004*SOS1]":     false,
+		"[3G*1*0008*POWEROFF]": false,
+		"[3G*1*0008*rcapture]": false,
+	}
+	for raw, want := range tests {
+		msg, err := Decode(raw)
+		if err != nil {
+			t.Fatalf("decode %q: %v", raw, err)
+		}
+		if got := msg.IsDeviceInitiated(); got != want {
+			t.Errorf("%q: IsDeviceInitiated() = %v, want %v", raw, got, want)
+		}
+	}
+}

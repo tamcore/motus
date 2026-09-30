@@ -68,6 +68,21 @@ func (m *Message) HasPosition() bool {
 	return strings.HasPrefix(m.Type, "UD") || strings.HasPrefix(m.Type, "AL") || strings.HasPrefix(m.Type, "WT")
 }
 
+// IsDeviceInitiated reports whether the message type is one the device sends
+// on its own (reports, heartbeats, requests, health and media data). Other
+// types are typically replies to server commands, which echo the command
+// keyword (e.g. UPLOAD, CR, RESET).
+func (m *Message) IsDeviceInitiated() bool {
+	if m.HasPosition() || isHealthType(m.Type) {
+		return true
+	}
+	switch m.Type {
+	case "INIT", "LK", "TKQ", "TKQ2", "JXTK", "TK", "TK2", "img":
+		return true
+	}
+	return false
+}
+
 // Position is a position report decoded from a UD*/AL*/WT* message.
 type Position struct {
 	Timestamp time.Time

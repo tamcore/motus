@@ -372,3 +372,20 @@ func TestPrintCSVTo_Empty(t *testing.T) {
 		t.Errorf("printCSVTo empty rows: output missing header: %q", out)
 	}
 }
+
+// --- deviceOwnerEmail ---
+
+func TestDeviceOwnerEmail(t *testing.T) {
+	t.Setenv("MOTUS_DEVICE_AUTO_CREATE_USER", "")
+	if got := deviceOwnerEmail(""); got != "admin@motus.local" {
+		t.Errorf("default: got %q, want admin@motus.local", got)
+	}
+
+	t.Setenv("MOTUS_DEVICE_AUTO_CREATE_USER", "fleet@example.com")
+	if got := deviceOwnerEmail(""); got != "fleet@example.com" {
+		t.Errorf("env: got %q, want fleet@example.com", got)
+	}
+	if got := deviceOwnerEmail("owner@example.com"); got != "owner@example.com" {
+		t.Errorf("flag: got %q, want owner@example.com", got)
+	}
+}

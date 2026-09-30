@@ -279,11 +279,89 @@ func TestDeviceAdd_Integration(t *testing.T) {
 	if err := cmd.Flags().Set("protocol", "h02"); err != nil {
 		t.Fatal(err)
 	}
+	mustExec(t, pool, ctx, `INSERT INTO users (email, name, password_hash, role, created_at) VALUES ($1,$2,$3,$4,NOW())`,
+		"admin@motus.local", "Admin", "hash", "admin")
 	cmd.Run(cmd, nil)
 
-	var uid string
-	if err := pool.QueryRow(ctx, `SELECT unique_id FROM devices WHERE unique_id = $1`, "DEVICE-ADD-001").Scan(&uid); err != nil {
-		t.Fatalf("device not found in DB: %v", err)
+	// Without --user the device is assigned to the default auto-create user,
+	// so it shows up in that user's device list (the UI reads user_devices).
+	var owner string
+	if err := pool.QueryRow(ctx, `
+		SELECT u.email FROM devices d
+		JOIN user_devices ud ON ud.device_id = d.id
+		JOIN users u ON u.id = ud.user_id
+		WHERE d.unique_id = $1`, "DEVICE-ADD-001").Scan(&owner); err != nil {
+		t.Fatalf("device not assigned to a user: %v", err)
+	}
+	if owner != "admin@motus.local" {
+		t.Errorf("owner = %q, want admin@motus.local", owner)
+	}
+}
+
+func TestDeviceAdd_WithUser_Integration(t *testing.T) {
+	pool := testutil.SetupTestDB(t)
+	defer injectTestDB(t)()
+	testutil.CleanTables(t, pool)
+	ctx := context.Background()
+
+	mustExec(t, pool, ctx, `INSERT INTO users (email, name, password_hash, role, created_at) VALUES ($1,$2,$3,$4,NOW())`,
+		"owner@example.com", "Owner", "hash", "user")
+
+	cmd := newDeviceAddCmd()
+	for flag, value := range map[string]string{"unique-id": "DEVICE-ADD-002", "name": "Owned Device", "protocol": "watch", "user": "owner@example.com"} {
+		if err := cmd.Flags().Set(flag, value); err != nil {
+			t.Fatal(err)
+		}
+	}
+	out := captureStdout(func() { cmd.Run(cmd, nil) })
+	if !strings.Contains(out, "owner=owner@example.com") {
+		t.Errorf("expected owner in output, got %q", out)
+	}
+
+	var owner, protocol, status string
+	if err := pool.QueryRow(ctx, `
+		SELECT u.email, d.protocol, d.status FROM devices d
+		JOIN user_devices ud ON ud.device_id = d.id
+		JOIN users u ON u.id = ud.user_id
+		WHERE d.unique_id = $1`, "DEVICE-ADD-002").Scan(&owner, &protocol, &status); err != nil {
+		t.Fatalf("device not assigned to a user: %v", err)
+	}
+	if owner != "owner@example.com" || protocol != "watch" || status != "offline" {
+		t.Errorf("got owner=%q protocol=%q status=%q", owner, protocol, status)
+	}
+}
+
+func TestDeviceAdd_UnknownUser_Integration(t *testing.T) {
+	pool := testutil.SetupTestDB(t)
+	defer injectTestDB(t)()
+	testutil.CleanTables(t, pool)
+	ctx := context.Background()
+
+	orig := fatalFn
+	fatalFn = func(msg string, args ...any) { panic(msg) }
+	defer func() { fatalFn = orig }()
+
+	cmd := newDeviceAddCmd()
+	for flag, value := range map[string]string{"unique-id": "DEVICE-ADD-003", "name": "Orphan", "user": "nobody@example.com"} {
+		if err := cmd.Flags().Set(flag, value); err != nil {
+			t.Fatal(err)
+		}
+	}
+	func() {
+		defer func() {
+			if recover() == nil {
+				t.Error("expected fatal for unknown user")
+			}
+		}()
+		cmd.Run(cmd, nil)
+	}()
+
+	var n int
+	if err := pool.QueryRow(ctx, `SELECT COUNT(*) FROM devices WHERE unique_id = $1`, "DEVICE-ADD-003").Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	if n != 0 {
+		t.Error("device must not be created for an unknown user")
 	}
 }
 

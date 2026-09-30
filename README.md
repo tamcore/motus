@@ -75,7 +75,7 @@ motus serve                                     # Start HTTP + GPS servers
 motus db-migrate [up|down|status]               # Run database migrations
 motus user add --email --name --password --role  # Create user
 motus user list                                  # List users
-motus device add --uid --name                    # Register device
+motus device add --unique-id --name [--user]     # Register device (assigned to --user)
 motus wait-for-db                                # Block until DB is reachable
 motus import --dump=... --target-host=...        # Import from Traccar dump
 motus replay --input=... --host=... --port=...   # Simulate GPS traffic from logs

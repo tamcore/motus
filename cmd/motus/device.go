@@ -28,12 +28,31 @@ func newDeviceCmd() *cobra.Command {
 	return cmd
 }
 
+// defaultDeviceOwner is the fallback owner of CLI-created devices, matching
+// the default of MOTUS_DEVICE_AUTO_CREATE_USER.
+const defaultDeviceOwner = "admin@motus.local"
+
+// deviceOwnerEmail returns the email of the user a new device is assigned
+// to: the --user flag, else MOTUS_DEVICE_AUTO_CREATE_USER (the owner of
+// auto-created GPS devices), else admin@motus.local.
+func deviceOwnerEmail(flag string) string {
+	if flag != "" {
+		return flag
+	}
+	if env := os.Getenv("MOTUS_DEVICE_AUTO_CREATE_USER"); env != "" {
+		return env
+	}
+	return defaultDeviceOwner
+}
+
 func newDeviceAddCmd() *cobra.Command {
-	var uniqueID, name, protocol string
+	var uniqueID, name, protocol, userEmail string
 
 	cmd := &cobra.Command{
 		Use:   "add",
 		Short: "Register a new device",
+		Long: "Register a new device and assign it to a user. Devices are only " +
+			"visible in the UI to the users they are assigned to.",
 		Run: func(cmd *cobra.Command, args []string) {
 			pool, err := connectDBFn()
 			if err != nil {
@@ -44,21 +63,29 @@ func newDeviceAddCmd() *cobra.Command {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 
-			var deviceID int64
-			err = pool.QueryRow(ctx, `
-				INSERT INTO devices (unique_id, name, protocol, status, created_at, updated_at)
-				VALUES ($1, $2, $3, 'offline', NOW(), NOW())
-				RETURNING id
-			`, uniqueID, name, protocol).Scan(&deviceID)
+			owner := deviceOwnerEmail(userEmail)
+			user, err := repository.NewUserRepository(pool).GetByEmail(ctx, owner)
 			if err != nil {
+				fatalFn("user not found; pass --user with an existing user's email",
+					slog.String("user", owner), slog.Any("error", err))
+				return
+			}
+
+			device := &model.Device{
+				UniqueID: uniqueID,
+				Name:     name,
+				Protocol: protocol,
+				Status:   "offline",
+			}
+			if err := repository.NewDeviceRepository(pool).Create(ctx, device, user.ID); err != nil {
 				if strings.Contains(err.Error(), "duplicate key") {
 					fatal("device already exists", slog.String("uniqueID", uniqueID))
 				}
 				fatal("failed to create device", slog.Any("error", err))
 			}
 
-			fmt.Printf("Created device: id=%d, unique_id=%s, name=%s, protocol=%s\n",
-				deviceID, uniqueID, name, protocol)
+			fmt.Printf("Created device: id=%d, unique_id=%s, name=%s, protocol=%s, owner=%s\n",
+				device.ID, uniqueID, name, protocol, user.Email)
 		},
 	}
 
@@ -66,6 +93,8 @@ func newDeviceAddCmd() *cobra.Command {
 	f.StringVar(&uniqueID, "unique-id", "", "Device unique identifier")
 	f.StringVar(&name, "name", "", "Device display name")
 	f.StringVar(&protocol, "protocol", "h02", "Device protocol: h02, watch")
+	f.StringVar(&userEmail, "user", "", "Email of the user to assign the device to "+
+		"(default: $MOTUS_DEVICE_AUTO_CREATE_USER or "+defaultDeviceOwner+")")
 	_ = cmd.MarkFlagRequired("unique-id")
 	_ = cmd.MarkFlagRequired("name")
 

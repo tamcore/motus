@@ -435,7 +435,7 @@ motus serve                          # Start HTTP + GPS servers
 motus db-migrate [up|down|status]    # Run database migrations (goose)
 motus user add --email --name --password --role  # Create user
 motus user list                      # List users
-motus device add --uid --name        # Register device
+motus device add --unique-id --name [--user]  # Register device, assigned to --user (default: MOTUS_DEVICE_AUTO_CREATE_USER)
 motus wait-for-db                    # Block until DB is reachable
 motus import                         # Import from Traccar dump
 motus version                        # Print version

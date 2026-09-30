@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { commandAttributesPayload } from "./commands";
+import { commandAttributesPayload, commandTypeOptions, COMMAND_TYPE_LABELS } from "./commands";
 
 // The API decodes command attributes as a oneOf discriminated by "type"
 // (docs/openapi.yaml CommandAttributes). Attributes without "type" or an
@@ -35,5 +35,29 @@ describe("commandAttributesPayload", () => {
       type: "custom",
       text: "x",
     });
+  });
+});
+
+describe("commandTypeOptions", () => {
+  it("labels the command types in the order the server returns them", () => {
+    expect(commandTypeOptions(["rebootDevice", "positionPeriodic", "custom"])).toEqual([
+      { value: "rebootDevice", label: "Reboot Device" },
+      { value: "positionPeriodic", label: "Set Reporting Interval" },
+      { value: "custom", label: "Custom (raw text)" },
+    ]);
+  });
+
+  it("falls back to the raw type for unknown command types", () => {
+    expect(commandTypeOptions(["powerOff"])).toEqual([{ value: "powerOff", label: "powerOff" }]);
+  });
+
+  it("returns no options for protocols without commands", () => {
+    expect(commandTypeOptions([])).toEqual([]);
+  });
+
+  it("has a label for every command type", () => {
+    for (const type of ["rebootDevice", "positionPeriodic", "positionSingle", "sosNumber", "custom", "setSpeedAlarm", "factoryReset"]) {
+      expect(COMMAND_TYPE_LABELS[type]).toBeTruthy();
+    }
   });
 });

@@ -226,10 +226,12 @@ type Handler interface {
 	GenerateToken(ctx context.Context) (GenerateTokenRes, error)
 	// GetCommandTypes implements getCommandTypes operation.
 	//
-	// List supported command types.
+	// Without deviceId, lists all command types. With deviceId, lists only the types the device's protocol
+	// can encode (Traccar-compatible); protocols without command support (e.g. osmand) return an empty
+	// list.
 	//
 	// GET /api/commands/types
-	GetCommandTypes(ctx context.Context) (GetCommandTypesRes, error)
+	GetCommandTypes(ctx context.Context, params GetCommandTypesParams) (GetCommandTypesRes, error)
 	// GetDevice implements getDevice operation.
 	//
 	// Get a device by ID.

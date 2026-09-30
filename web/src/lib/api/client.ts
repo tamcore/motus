@@ -268,8 +268,11 @@ export const api = {
   // Commands
   // ---------------------------------------------------------------------------
 
-  /** Get supported command types for devices. */
-  getCommandTypes: () => request<string[]>("/commands/types"),
+  /** Get command types; with deviceId only those the device protocol supports. */
+  getCommandTypes: (deviceId?: number) =>
+    request<{ type: string }[]>(
+      deviceId === undefined ? "/commands/types" : `/commands/types?deviceId=${deviceId}`,
+    ),
 
   /** Send a command to a device. */
   sendCommand: (command: {

@@ -1,6 +1,7 @@
 package protocol_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/tamcore/motus/internal/model"
@@ -247,5 +248,59 @@ func TestEncoderRegistry_Watch(t *testing.T) {
 	enc := protocol.NewEncoderRegistry().Get("watch")
 	if enc == nil || enc.Protocol() != "watch" {
 		t.Fatalf("expected watch encoder, got %v", enc)
+	}
+}
+
+func TestEncoderRegistry_SupportedCommands(t *testing.T) {
+	reg := protocol.NewEncoderRegistry()
+	tests := []struct {
+		protocol string
+		want     []string
+	}{
+		{"h02", []string{model.CommandRebootDevice, model.CommandPositionPeriodic, model.CommandPositionSingle,
+			model.CommandSosNumber, model.CommandCustom, model.CommandSetSpeedAlarm, model.CommandFactoryReset}},
+		{"watch", []string{model.CommandRebootDevice, model.CommandPositionPeriodic, model.CommandPositionSingle,
+			model.CommandSosNumber, model.CommandCustom}},
+		// Protocols without an encoder (e.g. OsmAnd over HTTP) take no commands.
+		{"osmand", []string{}},
+		// Protocol not known yet (device never connected): offer everything.
+		{"", model.SupportedCommandTypes()},
+	}
+	for _, tt := range tests {
+		got := reg.SupportedCommands(tt.protocol)
+		if got == nil || strings.Join(got, ",") != strings.Join(tt.want, ",") {
+			t.Errorf("%q: got %v, want %v", tt.protocol, got, tt.want)
+		}
+	}
+
+	var nilReg *protocol.EncoderRegistry
+	if got := nilReg.SupportedCommands("watch"); strings.Join(got, ",") != strings.Join(model.SupportedCommandTypes(), ",") {
+		t.Errorf("nil registry: got %v", got)
+	}
+}
+
+// Every command type an encoder advertises must encode, and every other
+// type must be rejected, so the UI never offers a command that fails.
+func TestEncoders_SupportedCommandsMatchEncoding(t *testing.T) {
+	sample := map[string]map[string]any{
+		model.CommandPositionPeriodic: {"frequency": 60},
+		model.CommandSosNumber:        {"phoneNumber": "+49123"},
+		model.CommandCustom:           {"text": "CR"},
+		model.CommandSetSpeedAlarm:    {"speed": 80},
+	}
+	for _, enc := range []protocol.CommandEncoder{&protocol.H02CommandEncoder{}, protocol.NewWatchCommandEncoder(nil)} {
+		supported := map[string]bool{}
+		for _, typ := range enc.SupportedCommands() {
+			supported[typ] = true
+		}
+		for _, typ := range model.SupportedCommandTypes() {
+			_, err := enc.EncodeCommand(&model.Command{Type: typ, Attributes: sample[typ]}, testIMEI)
+			if supported[typ] && err != nil {
+				t.Errorf("%s: advertised %s fails to encode: %v", enc.Protocol(), typ, err)
+			}
+			if !supported[typ] && err == nil {
+				t.Errorf("%s: %s encodes but is not advertised", enc.Protocol(), typ)
+			}
+		}
 	}
 }

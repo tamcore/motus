@@ -14,6 +14,9 @@ import (
 type CommandEncoder interface {
 	EncodeCommand(cmd *model.Command, deviceID string) ([]byte, error)
 	Protocol() string
+	// SupportedCommands lists the command types EncodeCommand accepts, in
+	// model.SupportedCommandTypes order.
+	SupportedCommands() []string
 }
 
 // H02CommandEncoder encodes commands for the H02 GPS protocol.
@@ -21,6 +24,19 @@ type H02CommandEncoder struct{}
 
 // Protocol returns the protocol name.
 func (e *H02CommandEncoder) Protocol() string { return "h02" }
+
+// SupportedCommands lists the command types the H02 encoder accepts.
+func (e *H02CommandEncoder) SupportedCommands() []string {
+	return []string{
+		model.CommandRebootDevice,
+		model.CommandPositionPeriodic,
+		model.CommandPositionSingle,
+		model.CommandSosNumber,
+		model.CommandCustom,
+		model.CommandSetSpeedAlarm,
+		model.CommandFactoryReset,
+	}
+}
 
 // EncodeCommand converts a command to H02 protocol format.
 // deviceID is the device IMEI, required for *HQ,...# framed commands.
@@ -80,6 +96,17 @@ func NewWatchCommandEncoder(sessions SessionLookup) *WatchCommandEncoder {
 
 // Protocol returns the protocol name.
 func (e *WatchCommandEncoder) Protocol() string { return "watch" }
+
+// SupportedCommands lists the command types the WATCH encoder accepts.
+func (e *WatchCommandEncoder) SupportedCommands() []string {
+	return []string{
+		model.CommandRebootDevice,
+		model.CommandPositionPeriodic,
+		model.CommandPositionSingle,
+		model.CommandSosNumber,
+		model.CommandCustom,
+	}
+}
 
 // watchCommandContent returns the frame content of a WATCH command, e.g.
 // "UPLOAD,60" for positionPeriodic.
@@ -171,6 +198,21 @@ func (r *EncoderRegistry) Register(enc CommandEncoder) {
 // Get returns the encoder for the given protocol, or nil if not found.
 func (r *EncoderRegistry) Get(protocol string) CommandEncoder {
 	return r.encoders[protocol]
+}
+
+// SupportedCommands lists the command types a device speaking protocol can
+// receive. A device whose protocol is not known yet ("") may receive any
+// command; a protocol without an encoder (e.g. osmand) receives none. Safe to
+// call on a nil registry, which allows every command.
+func (r *EncoderRegistry) SupportedCommands(protocol string) []string {
+	if r == nil || protocol == "" {
+		return model.SupportedCommandTypes()
+	}
+	enc := r.Get(protocol)
+	if enc == nil {
+		return []string{}
+	}
+	return enc.SupportedCommands()
 }
 
 // ErrNoEncoder is returned by EncoderRegistry.Encode when the device protocol

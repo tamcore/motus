@@ -1641,11 +1641,19 @@ paths:
     get:
       operationId: getCommandTypes
       summary: List supported command types
+      description: |
+        Without deviceId, lists all command types. With deviceId, lists only
+        the types the device's protocol can encode (Traccar-compatible);
+        protocols without command support (e.g. osmand) return an empty list.
       tags: [commands]
       security:
         - cookieAuth: []
         - bearerAuth: []
         - xAuthToken: []
+      parameters:
+        - name: deviceId
+          in: query
+          schema: { type: integer, format: int64 }
       responses:
         "200":
           description: Command type list
@@ -1657,6 +1665,10 @@ paths:
                   $ref: '#/components/schemas/CommandType'
         "401":
           $ref: '#/components/responses/Unauthorized'
+        "403":
+          $ref: '#/components/responses/Forbidden'
+        "404":
+          $ref: '#/components/responses/NotFound'
         default:
           $ref: '#/components/responses/UnexpectedError'
 

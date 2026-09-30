@@ -163,6 +163,43 @@ test.describe('Devices Page', () => {
     await expect(devicesPage.modal.locator('.form-error')).toHaveCount(0);
   });
 
+  test('should only offer commands the device protocol supports', async ({ authedPage }) => {
+    const openCommands = async (protocol: string) => {
+      const uniqueId = `pw-cmdlist-${protocol}-${Date.now()}`;
+      await devicesPage.openCreateModal();
+      await devicesPage.fillDeviceForm({ name: `PW ${protocol} Commands`, uniqueId, protocol });
+      await devicesPage.saveButton.click();
+      await expect(devicesPage.modal).toHaveCount(0, { timeout: 10000 });
+      const row = authedPage.locator('.device-table').locator(`tr:has-text("${uniqueId}")`);
+      await expect(row).toBeVisible({ timeout: 5000 });
+      await row.locator('button:has-text("Commands")').click();
+      await expect(devicesPage.modal).toBeVisible();
+    };
+    const options = () => devicesPage.modal.locator('#cmd-type option');
+    const sendButton = () => devicesPage.modal.locator('button:has-text("Send")');
+
+    // H02 supports every command type.
+    await openCommands('h02');
+    await expect(options()).toHaveCount(7);
+    await expect(devicesPage.modal.locator('#cmd-type option[value="setSpeedAlarm"]')).toHaveCount(1);
+    await devicesPage.modal.locator('button:has-text("Cancel")').click();
+
+    // Watch: no speed alarm or factory reset.
+    await openCommands('watch');
+    await expect(devicesPage.modal.locator('#cmd-type option[value="positionPeriodic"]')).toHaveCount(1);
+    await expect(devicesPage.modal.locator('#cmd-type option[value="setSpeedAlarm"]')).toHaveCount(0);
+    await expect(devicesPage.modal.locator('#cmd-type option[value="factoryReset"]')).toHaveCount(0);
+    await expect(options()).toHaveCount(5);
+    await devicesPage.modal.locator('button:has-text("Cancel")').click();
+
+    // OsmAnd (Traccar Client) takes no commands.
+    await openCommands('osmand');
+    await expect(devicesPage.modal.locator('.cmd-unsupported')).toContainText('not supported');
+    await expect(devicesPage.modal.locator('#cmd-type')).toHaveCount(0);
+    await expect(sendButton()).toBeDisabled();
+    await devicesPage.modal.locator('button:has-text("Cancel")').click();
+  });
+
   test('should search devices by name', async ({ authedPage }) => {
     // Get initial count
     const initialCount = await devicesPage.tableRows.count();

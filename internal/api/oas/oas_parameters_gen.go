@@ -1687,6 +1687,70 @@ func decodeDeleteShareParams(args [1]string, argsEscaped bool, r *http.Request) 
 	return params, nil
 }
 
+// GetCommandTypesParams is parameters of getCommandTypes operation.
+type GetCommandTypesParams struct {
+	DeviceId OptInt64 `json:",omitempty,omitzero"`
+}
+
+func unpackGetCommandTypesParams(packed middleware.Parameters) (params GetCommandTypesParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "deviceId",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.DeviceId = v.(OptInt64)
+		}
+	}
+	return params
+}
+
+func decodeGetCommandTypesParams(args [0]string, argsEscaped bool, r *http.Request) (params GetCommandTypesParams, _ error) {
+	q := uri.NewQueryDecoder(r.URL.Query())
+	// Decode query: deviceId.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "deviceId",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotDeviceIdVal int64
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToInt64(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotDeviceIdVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.DeviceId.SetTo(paramsDotDeviceIdVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "deviceId",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // GetDeviceParams is parameters of getDevice operation.
 type GetDeviceParams struct {
 	ID int64

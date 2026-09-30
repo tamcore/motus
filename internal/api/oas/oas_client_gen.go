@@ -247,10 +247,12 @@ type Invoker interface {
 	GenerateToken(ctx context.Context) (GenerateTokenRes, error)
 	// GetCommandTypes invokes getCommandTypes operation.
 	//
-	// List supported command types.
+	// Without deviceId, lists all command types. With deviceId, lists only the types the device's protocol
+	// can encode (Traccar-compatible); protocols without command support (e.g. osmand) return an empty
+	// list.
 	//
 	// GET /api/commands/types
-	GetCommandTypes(ctx context.Context) (GetCommandTypesRes, error)
+	GetCommandTypes(ctx context.Context, params GetCommandTypesParams) (GetCommandTypesRes, error)
 	// GetDevice invokes getDevice operation.
 	//
 	// Get a device by ID.
@@ -5985,15 +5987,17 @@ func (c *Client) sendGenerateToken(ctx context.Context) (res GenerateTokenRes, e
 
 // GetCommandTypes invokes getCommandTypes operation.
 //
-// List supported command types.
+// Without deviceId, lists all command types. With deviceId, lists only the types the device's protocol
+// can encode (Traccar-compatible); protocols without command support (e.g. osmand) return an empty
+// list.
 //
 // GET /api/commands/types
-func (c *Client) GetCommandTypes(ctx context.Context) (GetCommandTypesRes, error) {
-	res, err := c.sendGetCommandTypes(ctx)
+func (c *Client) GetCommandTypes(ctx context.Context, params GetCommandTypesParams) (GetCommandTypesRes, error) {
+	res, err := c.sendGetCommandTypes(ctx, params)
 	return res, err
 }
 
-func (c *Client) sendGetCommandTypes(ctx context.Context) (res GetCommandTypesRes, err error) {
+func (c *Client) sendGetCommandTypes(ctx context.Context, params GetCommandTypesParams) (res GetCommandTypesRes, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getCommandTypes"),
 		semconv.HTTPRequestMethodKey.String("GET"),
@@ -6033,6 +6037,27 @@ func (c *Client) sendGetCommandTypes(ctx context.Context) (res GetCommandTypesRe
 	var pathParts [1]string
 	pathParts[0] = "/api/commands/types"
 	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeQueryParams"
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "deviceId" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "deviceId",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.DeviceId.Get(); ok {
+				return e.EncodeValue(conv.Int64ToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
 
 	stage = "EncodeRequest"
 	r, err := ht.NewRequest(ctx, "GET", u)

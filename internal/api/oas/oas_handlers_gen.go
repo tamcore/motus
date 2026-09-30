@@ -8526,7 +8526,9 @@ func (s *Server) handleGenerateTokenRequest(args [0]string, argsEscaped bool, w 
 
 // handleGetCommandTypesRequest handles getCommandTypes operation.
 //
-// List supported command types.
+// Without deviceId, lists all command types. With deviceId, lists only the types the device's protocol
+// can encode (Traccar-compatible); protocols without command support (e.g. osmand) return an empty
+// list.
 //
 // GET /api/commands/types
 func (s *Server) handleGetCommandTypesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -8684,6 +8686,16 @@ func (s *Server) handleGetCommandTypesRequest(args [0]string, argsEscaped bool, 
 			return
 		}
 	}
+	params, err := decodeGetCommandTypesParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
 
 	var rawBody []byte
 
@@ -8696,13 +8708,18 @@ func (s *Server) handleGetCommandTypesRequest(args [0]string, argsEscaped bool, 
 			OperationID:      "getCommandTypes",
 			Body:             nil,
 			RawBody:          rawBody,
-			Params:           middleware.Parameters{},
-			Raw:              r,
+			Params: middleware.Parameters{
+				{
+					Name: "deviceId",
+					In:   "query",
+				}: params.DeviceId,
+			},
+			Raw: r,
 		}
 
 		type (
 			Request  = struct{}
-			Params   = struct{}
+			Params   = GetCommandTypesParams
 			Response = GetCommandTypesRes
 		)
 		response, err = middleware.HookMiddleware[
@@ -8712,14 +8729,14 @@ func (s *Server) handleGetCommandTypesRequest(args [0]string, argsEscaped bool, 
 		](
 			m,
 			mreq,
-			nil,
+			unpackGetCommandTypesParams,
 			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.GetCommandTypes(ctx)
+				response, err = s.h.GetCommandTypes(ctx, params)
 				return response, err
 			},
 		)
 	} else {
-		response, err = s.h.GetCommandTypes(ctx)
+		response, err = s.h.GetCommandTypes(ctx, params)
 	}
 	if err != nil {
 		if errRes, ok := errors.Into[*UnexpectedErrorStatusCode](err); ok {

@@ -83,9 +83,24 @@ func (h *Handler) ListCommands(ctx context.Context, params oas.ListCommandsParam
 }
 
 // GetCommandTypes implements oas.Handler for GET /api/commands/types.
-// Returns the list of supported command types.
-func (h *Handler) GetCommandTypes(ctx context.Context) (oas.GetCommandTypesRes, error) {
+// Without deviceId it returns all command types; with deviceId only those
+// the device's protocol can receive (Traccar-compatible).
+func (h *Handler) GetCommandTypes(ctx context.Context, params oas.GetCommandTypesParams) (oas.GetCommandTypesRes, error) {
 	types := model.SupportedCommandTypes()
+	if deviceID, ok := params.DeviceId.Get(); ok {
+		user := api.UserFromContext(ctx)
+		if user == nil {
+			return &oas.GetCommandTypesUnauthorized{Error: "unauthorized"}, nil
+		}
+		if !h.cfg.Devices.UserHasAccess(ctx, user, deviceID) {
+			return &oas.GetCommandTypesForbidden{Error: "access denied"}, nil
+		}
+		device, err := h.cfg.Devices.GetByID(ctx, deviceID)
+		if err != nil {
+			return &oas.GetCommandTypesNotFound{Error: "device not found"}, nil
+		}
+		types = h.cfg.EncoderRegistry.SupportedCommands(device.Protocol)
+	}
 	result := make(oas.GetCommandTypesOKApplicationJSON, len(types))
 	for i, t := range types {
 		result[i] = oas.CommandType{Type: t}
@@ -123,6 +138,11 @@ func (h *Handler) SendCommand(ctx context.Context, req *oas.SendCommandRequest) 
 	device, err := h.cfg.Devices.GetByID(ctx, req.DeviceId)
 	if err != nil {
 		return &oas.SendCommandNotFound{Error: "device not found"}, nil
+	}
+	if !slices.Contains(h.cfg.EncoderRegistry.SupportedCommands(device.Protocol), req.Type) {
+		return &oas.SendCommandBadRequest{
+			Error: "command type " + req.Type + " is not supported by device protocol " + device.Protocol,
+		}, nil
 	}
 
 	// Encode the command payload.

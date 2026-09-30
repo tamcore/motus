@@ -16,3 +16,28 @@ export function commandAttributesPayload(
   }
   return { ...values, type: commandType };
 }
+
+/** Display names of the command types, keyed by API command type. */
+export const COMMAND_TYPE_LABELS: Readonly<Record<string, string>> = {
+  rebootDevice: "Reboot Device",
+  positionPeriodic: "Set Reporting Interval",
+  positionSingle: "Request Position",
+  sosNumber: "Set SOS Number",
+  custom: "Custom (raw text)",
+  setSpeedAlarm: "Set Speed Alarm",
+  factoryReset: "Factory Reset",
+};
+
+export interface CommandTypeOption {
+  value: string;
+  label: string;
+}
+
+/**
+ * Turns the command types returned by GET /api/commands/types?deviceId=…
+ * (only those the device protocol supports) into select options, keeping
+ * the server order. Unknown types are shown by their raw name.
+ */
+export function commandTypeOptions(types: readonly string[]): CommandTypeOption[] {
+  return types.map((type) => ({ value: type, label: COMMAND_TYPE_LABELS[type] ?? type }));
+}

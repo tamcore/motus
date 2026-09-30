@@ -6,7 +6,12 @@
 	import { refreshHandler } from '$lib/stores/refresh';
 	import { mileageToDisplay, mileageFromDisplay, formatMileage, formatRelative } from '$lib/utils/formatting';
 	import { DEVICE_PROTOCOLS } from '$lib/utils/protocols';
-	import { commandAttributesPayload } from '$lib/utils/commands';
+	import {
+		commandAttributesPayload,
+		commandTypeOptions,
+		COMMAND_TYPE_LABELS,
+		type CommandTypeOption
+	} from '$lib/utils/commands';
 	import { settings } from '$lib/stores/settings';
 	import AllDevicesToggle from '$lib/components/AllDevicesToggle.svelte';
 	import Button from '$lib/components/Button.svelte';
@@ -63,28 +68,32 @@
 	let commandResult: { msg: string; ok: boolean } | null = null;
 	let commandResultTimer: ReturnType<typeof setTimeout> | null = null;
 	let commandSpeed = '';
-
-	const commandTypeLabels: Record<string, string> = {
-		rebootDevice: 'Reboot Device',
-		positionPeriodic: 'Set Reporting Interval',
-		positionSingle: 'Request Position',
-		sosNumber: 'Set SOS Number',
-		custom: 'Custom (raw text)',
-		setSpeedAlarm: 'Set Speed Alarm',
-		factoryReset: 'Factory Reset'
-	};
+	// Command types the device protocol supports (GET /api/commands/types?deviceId).
+	let commandOptions: CommandTypeOption[] = [];
+	let commandTypesLoading = false;
 
 	async function openCommandModal(device: Device) {
 		commandDevice = device;
-		commandType = 'rebootDevice';
+		commandType = '';
 		commandText = '';
 		commandFrequency = '';
 		commandSosNumber = '';
 		commandSpeed = '';
 		commandError = '';
 		commandResult = null;
+		commandOptions = [];
 		showCommandModal = true;
 		commandHistory = [];
+		commandTypesLoading = true;
+		try {
+			const types = await api.getCommandTypes(device.id);
+			commandOptions = commandTypeOptions(types.map((t) => t.type));
+			commandType = commandOptions[0]?.value ?? '';
+		} catch {
+			commandError = 'Failed to load command types';
+		} finally {
+			commandTypesLoading = false;
+		}
 		try {
 			commandHistory = await api.listCommands(device.id, 10);
 		} catch {
@@ -93,7 +102,7 @@
 	}
 
 	async function handleSendCommand() {
-		if (!commandDevice) return;
+		if (!commandDevice || !commandType) return;
 		commandError = '';
 		commandSending = true;
 
@@ -750,14 +759,20 @@
 {#if commandDevice}
 <Modal bind:open={showCommandModal} title="Send Command — {commandDevice.name}">
 	<div class="cmd-form">
-		<div class="form-group">
-			<label class="form-label" for="cmd-type">Command Type</label>
-			<select id="cmd-type" class="cmd-select" bind:value={commandType}>
-				{#each Object.entries(commandTypeLabels) as [value, label]}
-					<option {value}>{label}</option>
-				{/each}
-			</select>
-		</div>
+		{#if !commandTypesLoading && commandOptions.length === 0 && !commandError}
+			<p class="cmd-unsupported" role="status">
+				Commands are not supported for this device's protocol{commandDevice.protocol ? ` (${commandDevice.protocol})` : ''}.
+			</p>
+		{:else}
+			<div class="form-group">
+				<label class="form-label" for="cmd-type">Command Type</label>
+				<select id="cmd-type" class="cmd-select" bind:value={commandType} disabled={commandTypesLoading}>
+					{#each commandOptions as option}
+						<option value={option.value}>{option.label}</option>
+					{/each}
+				</select>
+			</div>
+		{/if}
 
 		{#if commandType === 'positionPeriodic'}
 			<div class="form-group">
@@ -798,7 +813,7 @@
 					{#each commandHistory as cmd}
 						<div class="cmd-history-item">
 							<div class="cmd-history-meta">
-								<span class="cmd-history-type">{commandTypeLabels[cmd.type] ?? cmd.type}</span>
+								<span class="cmd-history-type">{COMMAND_TYPE_LABELS[cmd.type] ?? cmd.type}</span>
 								<span class="cmd-history-status cmd-status-{cmd.status}">{cmd.status}</span>
 								<span class="cmd-history-time">{new Date(cmd.createdAt).toLocaleString()}</span>
 							</div>
@@ -815,7 +830,7 @@
 	<svelte:fragment slot="footer">
 		<div class="modal-actions">
 			<Button variant="secondary" on:click={() => (showCommandModal = false)}>Cancel</Button>
-			<Button variant="primary" loading={commandSending} on:click={handleSendCommand}>Send</Button>
+			<Button variant="primary" loading={commandSending} disabled={!commandType} on:click={handleSendCommand}>Send</Button>
 		</div>
 	</svelte:fragment>
 </Modal>
@@ -1186,6 +1201,15 @@
 		border: 1px solid var(--error);
 		border-radius: var(--radius-md);
 		color: var(--error);
+		font-size: var(--text-sm);
+	}
+
+	.cmd-unsupported {
+		margin: 0;
+		padding: var(--space-3);
+		border: 1px solid var(--border-color);
+		border-radius: var(--radius-md);
+		color: var(--text-secondary);
 		font-size: var(--text-sm);
 	}
 

@@ -18,6 +18,7 @@ package handlers_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/tamcore/motus/internal/api"
@@ -454,7 +455,7 @@ func TestListCommands_Empty(t *testing.T) {
 func TestGetCommandTypes(t *testing.T) {
 	h := newCommandTestHandler(&mockCommandRepo{}, &mockDeviceRepo{}, nil, nil)
 
-	res, err := h.GetCommandTypes(context.Background())
+	res, err := h.GetCommandTypes(context.Background(), oas.GetCommandTypesParams{})
 	if err != nil {
 		t.Fatalf("GetCommandTypes returned error: %v", err)
 	}
@@ -526,4 +527,105 @@ func TestSendCommand_WatchUnsupportedCommand(t *testing.T) {
 	if _, ok := res.(*oas.SendCommandBadRequest); !ok {
 		t.Fatalf("expected *oas.SendCommandBadRequest, got %T", res)
 	}
+}
+
+func commandTypeNames(t *testing.T, res oas.GetCommandTypesRes) []string {
+	t.Helper()
+	list, ok := res.(*oas.GetCommandTypesOKApplicationJSON)
+	if !ok {
+		t.Fatalf("expected *oas.GetCommandTypesOKApplicationJSON, got %T", res)
+	}
+	names := []string{}
+	for _, ct := range *list {
+		names = append(names, ct.Type)
+	}
+	return names
+}
+
+// TestGetCommandTypes_PerDevice verifies that ?deviceId lists only the
+// command types the device protocol can encode.
+func TestGetCommandTypes_PerDevice(t *testing.T) {
+	tests := []struct {
+		protocol string
+		want     []string
+	}{
+		{"h02", []string{"rebootDevice", "positionPeriodic", "positionSingle", "sosNumber", "custom", "setSpeedAlarm", "factoryReset"}},
+		{"watch", []string{"rebootDevice", "positionPeriodic", "positionSingle", "sosNumber", "custom"}},
+		{"osmand", []string{}},
+		{"", []string{"rebootDevice", "positionPeriodic", "positionSingle", "sosNumber", "custom", "setSpeedAlarm", "factoryReset"}},
+	}
+	for _, tt := range tests {
+		h := newCommandTestHandler(&mockCommandRepo{}, accessGrantingDeviceRepo("dev", tt.protocol), nil, protocol.NewEncoderRegistry())
+		res, err := h.GetCommandTypes(commandTestUserCtx(1), oas.GetCommandTypesParams{DeviceId: oas.NewOptInt64(5)})
+		if err != nil {
+			t.Fatalf("%q: %v", tt.protocol, err)
+		}
+		if got := commandTypeNames(t, res); strings.Join(got, ",") != strings.Join(tt.want, ",") {
+			t.Errorf("%q: got %v, want %v", tt.protocol, got, tt.want)
+		}
+	}
+}
+
+func TestGetCommandTypes_PerDeviceErrors(t *testing.T) {
+	params := oas.GetCommandTypesParams{DeviceId: oas.NewOptInt64(5)}
+
+	h := newCommandTestHandler(&mockCommandRepo{}, accessGrantingDeviceRepo("dev", "h02"), nil, protocol.NewEncoderRegistry())
+	if res, _ := h.GetCommandTypes(context.Background(), params); !isType[*oas.GetCommandTypesUnauthorized](res) {
+		t.Errorf("no user: got %T", res)
+	}
+
+	denied := &mockDeviceRepo{userHasAccessFn: func(context.Context, *model.User, int64) bool { return false }}
+	h = newCommandTestHandler(&mockCommandRepo{}, denied, nil, protocol.NewEncoderRegistry())
+	if res, _ := h.GetCommandTypes(commandTestUserCtx(1), params); !isType[*oas.GetCommandTypesForbidden](res) {
+		t.Errorf("foreign device: got %T", res)
+	}
+
+	missing := &mockDeviceRepo{
+		userHasAccessFn: func(context.Context, *model.User, int64) bool { return true },
+		getByIDFn:       func(context.Context, int64) (*model.Device, error) { return nil, errors.New("not found") },
+	}
+	h = newCommandTestHandler(&mockCommandRepo{}, missing, nil, protocol.NewEncoderRegistry())
+	if res, _ := h.GetCommandTypes(commandTestUserCtx(1), params); !isType[*oas.GetCommandTypesNotFound](res) {
+		t.Errorf("missing device: got %T", res)
+	}
+}
+
+// TestSendCommand_RejectsUnsupportedType verifies that a command type the
+// device protocol cannot receive is rejected before it is stored.
+func TestSendCommand_RejectsUnsupportedType(t *testing.T) {
+	for _, tt := range []struct{ protocol, typ string }{
+		{"osmand", "custom"},
+		{"osmand", "positionPeriodic"},
+		{"watch", "setSpeedAlarm"},
+	} {
+		created := false
+		cmdRepo := &mockCommandRepo{createFn: func(context.Context, *model.Command) error { created = true; return nil }}
+		h := newCommandTestHandler(cmdRepo, accessGrantingDeviceRepo("dev", tt.protocol), nil, protocol.NewEncoderRegistry())
+
+		req := &oas.SendCommandRequest{DeviceId: 5, Type: tt.typ}
+		switch tt.typ {
+		case "custom":
+			req.Attributes = customTextAttrs("CR")
+		case "positionPeriodic":
+			req.Attributes = oas.NewOptCommandAttributes(oas.NewCommandAttrPositionPeriodicCommandAttributes(oas.CommandAttrPositionPeriodic{
+				Type: oas.CommandAttrPositionPeriodicTypePositionPeriodic, Frequency: 60,
+			}))
+		}
+		res, err := h.SendCommand(commandTestUserCtx(1), req)
+		if err != nil {
+			t.Fatalf("%s/%s: %v", tt.protocol, tt.typ, err)
+		}
+		bad, ok := res.(*oas.SendCommandBadRequest)
+		if !ok || !strings.Contains(bad.Error, "not supported") {
+			t.Errorf("%s/%s: got %#v", tt.protocol, tt.typ, res)
+		}
+		if created {
+			t.Errorf("%s/%s: unsupported command must not be stored", tt.protocol, tt.typ)
+		}
+	}
+}
+
+func isType[T any](v any) bool {
+	_, ok := v.(T)
+	return ok
 }

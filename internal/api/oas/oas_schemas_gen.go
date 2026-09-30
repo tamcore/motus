@@ -3421,7 +3421,6 @@ func (s *Error) SetError(val string) {
 
 func (*Error) endSudoRes()           {}
 func (*Error) generateTokenRes()     {}
-func (*Error) getCommandTypesRes()   {}
 func (*Error) getPositionsRes()      {}
 func (*Error) getSessionRes()        {}
 func (*Error) getSharedDeviceRes()   {}
@@ -4157,9 +4156,21 @@ func (s *GeofenceUpdateInput) SetAttributes(val OptAttributes) {
 	s.Attributes = val
 }
 
+type GetCommandTypesForbidden Error
+
+func (*GetCommandTypesForbidden) getCommandTypesRes() {}
+
+type GetCommandTypesNotFound Error
+
+func (*GetCommandTypesNotFound) getCommandTypesRes() {}
+
 type GetCommandTypesOKApplicationJSON []CommandType
 
 func (*GetCommandTypesOKApplicationJSON) getCommandTypesRes() {}
+
+type GetCommandTypesUnauthorized Error
+
+func (*GetCommandTypesUnauthorized) getCommandTypesRes() {}
 
 type GetDeviceForbidden Error
 

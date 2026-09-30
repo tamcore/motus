@@ -339,10 +339,12 @@ func (UnimplementedHandler) GenerateToken(ctx context.Context) (r GenerateTokenR
 
 // GetCommandTypes implements getCommandTypes operation.
 //
-// List supported command types.
+// Without deviceId, lists all command types. With deviceId, lists only the types the device's protocol
+// can encode (Traccar-compatible); protocols without command support (e.g. osmand) return an empty
+// list.
 //
 // GET /api/commands/types
-func (UnimplementedHandler) GetCommandTypes(ctx context.Context) (r GetCommandTypesRes, _ error) {
+func (UnimplementedHandler) GetCommandTypes(ctx context.Context, params GetCommandTypesParams) (r GetCommandTypesRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

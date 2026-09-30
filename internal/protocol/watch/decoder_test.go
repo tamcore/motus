@@ -353,3 +353,71 @@ func TestEncodeResponse(t *testing.T) {
 		t.Errorf("got %q", got)
 	}
 }
+
+func TestDecode_HealthMessages(t *testing.T) {
+	tests := []struct {
+		raw   string
+		attrs map[string]any
+	}{
+		// Vectors from Traccar's WatchProtocolDecoderTest.
+		{"[3G*9705141740*000B*oxygen,0,98]", map[string]any{"bloodOxygen": 98}},
+		{"[ZJ*5678901234*0001*0009*TEMP,36.5]", map[string]any{"temp1": 36.5}},
+		{"[3G*2104326058*000E*btemp2,1,35.29]", map[string]any{"temp1": 35.29}},
+		{"[3G*4700609403*0013*bphrt,120,79,73,,,,]", map[string]any{"pressureHigh": "120", "pressureLow": "79", "heartRate": 73}},
+		{"[ZJ*357653059860416*0007*000c*BLOOD,109,68]", map[string]any{"pressureHigh": "109", "pressureLow": "68"}},
+		{"[CS*8800000015*0008*PULSE,72]", map[string]any{"heartRate": 72}},
+		{"[3G*6005412902*0007*heart,0]", map[string]any{"heartRate": 0}},
+		{"[3G*6005412902*0008*heart,71]", map[string]any{"heartRate": 71}},
+		// Disabled body temperature measurement carries no value.
+		{"[3G*2104326058*0009*btemp2,0]", nil},
+		// No content or malformed values carry no data.
+		{"[3G*6005412902*0005*HEART]", nil},
+		{"[3G*6005412902*0009*heart,abc]", nil},
+		{"[3G*9705141740*0008*oxygen,0]", nil},
+	}
+	for _, tt := range tests {
+		msg, err := Decode(tt.raw)
+		if err != nil {
+			t.Fatalf("decode %q: %v", tt.raw, err)
+		}
+		if msg.Response != "" || msg.Position != nil {
+			t.Errorf("%q: unexpected response %q / position %v", tt.raw, msg.Response, msg.Position)
+		}
+		if len(msg.Attributes) != len(tt.attrs) {
+			t.Errorf("%q: attributes got %v, want %v", tt.raw, msg.Attributes, tt.attrs)
+			continue
+		}
+		for k, v := range tt.attrs {
+			if msg.Attributes[k] != v {
+				t.Errorf("%q: %s got %v (%T), want %v (%T)", tt.raw, k, msg.Attributes[k], msg.Attributes[k], v, v)
+			}
+		}
+	}
+}
+
+func TestDecode_MediaMessages(t *testing.T) {
+	tests := []struct{ raw, response string }{
+		// Voice message chunks are acknowledged per chunk (header layout
+		// from Traccar's JXTK vector; binary AMR data is not stored).
+		{"[ZJ*789468050042692*0034*0439*JXTK,0,watch_7_20220526093954,1,6,#!AMR\n\x0c\x0a<?\x96}\x04\xd9]", "[ZJ*789468050042692*0034*0007*JXTKR,1]"},
+		{"[3G*1234567890*0020*JXTK,0,watch_1,6,6,#!AMR]", "[3G*1234567890*0007*JXTKR,1]"},
+		// Malformed JXTK headers are not acknowledged.
+		{"[3G*1234567890*0008*JXTK,0,x]", ""},
+		{"[3G*1234567890*0010*JXTK,0,x,a,b,data]", ""},
+		// Voice messages and images are not acknowledged.
+		{"[CS*1234567890*000e*TK,#!AMR}\x01}\x02}\x03}\x04}\x05\xff]", ""},
+		{"[3G*1234567890*0010*img,5,220414134652,\xff\xd8\xff]", ""},
+	}
+	for _, tt := range tests {
+		msg, err := Decode(tt.raw)
+		if err != nil {
+			t.Fatalf("decode %q: %v", tt.raw, err)
+		}
+		if msg.Response != tt.response {
+			t.Errorf("%q: response got %q, want %q", tt.raw, msg.Response, tt.response)
+		}
+		if msg.Position != nil || msg.Attributes != nil {
+			t.Errorf("%q: unexpected data %v / %v", tt.raw, msg.Position, msg.Attributes)
+		}
+	}
+}

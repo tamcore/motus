@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -430,5 +431,91 @@ func TestRelay_WatchForwardsFramesVerbatim(t *testing.T) {
 		}
 	case <-time.After(3 * time.Second):
 		t.Fatal("timeout waiting for relay")
+	}
+}
+
+func TestDecodeWatch_HealthMeasurements(t *testing.T) {
+	t.Run("with last location", func(t *testing.T) {
+		env := newWatchTestEnv(t, "4700609403")
+		last := env.seedPosition(t, 48.1, 11.5)
+
+		before := time.Now().UTC()
+		pos, _, resp, err := env.srv.decodeWatch(context.Background(), "[3G*4700609403*0013*bphrt,120,79,73,,,,]")
+		if err != nil {
+			t.Fatalf("decode: %v", err)
+		}
+		if resp != "" {
+			t.Errorf("health messages are not acknowledged, got %q", resp)
+		}
+		if pos == nil {
+			t.Fatal("expected position at last location")
+		}
+		if !pos.Outdated || pos.Latitude != 48.1 || pos.Longitude != 11.5 || !pos.Timestamp.Equal(last.Timestamp) {
+			t.Errorf("position: %+v", pos)
+		}
+		// Measurements are timestamped with the time they were received.
+		if pos.DeviceTime == nil || pos.DeviceTime.Before(before) {
+			t.Errorf("device time: %v", pos.DeviceTime)
+		}
+		want := map[string]any{"pressureHigh": "120", "pressureLow": "79", "heartRate": 73}
+		for k, v := range want {
+			if pos.Attributes[k] != v {
+				t.Errorf("%s: got %v, want %v", k, pos.Attributes[k], v)
+			}
+		}
+	})
+
+	t.Run("without last location", func(t *testing.T) {
+		env := newWatchTestEnv(t, "4700609403")
+
+		pos, _, _, err := env.srv.decodeWatch(context.Background(), "[CS*4700609403*0008*PULSE,72]")
+		if err != nil || pos != nil {
+			t.Fatalf("expected no position, got %+v / %v", pos, err)
+		}
+		if d := env.devices.get("4700609403"); d.Status != "online" {
+			t.Errorf("device should be online: %+v", d)
+		}
+	})
+}
+
+// TestWatchServer_VoiceChunksAcknowledged sends escaped binary voice chunks
+// over TCP. Each chunk must be acknowledged and the connection kept alive.
+func TestWatchServer_VoiceChunksAcknowledged(t *testing.T) {
+	env := newWatchTestEnv(t, "789468050042692")
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	env.srv.listener = listener
+	go env.srv.acceptLoop(t.Context())
+
+	conn, err := net.Dial("tcp", listener.Addr().String())
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer func() { _ = conn.Close() }()
+
+	audio := strings.Repeat("\x0c\x0a<?\x96}\x04\xd9}\x02}\x03\xff", 2000) // ~30 KB, beyond the H02 buffer
+	input := "[ZJ*789468050042692*0034*0439*JXTK,0,watch_7_20220526093954,1,2,#!AMR\n" + audio + "]" +
+		"[ZJ*789468050042692*0035*0439*JXTK,0,watch_7_20220526093954,2,2," + audio + "]" +
+		"[ZJ*789468050042692*0036*0009*LK,0,0,19]"
+	if _, err := io.WriteString(conn, input); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	want := "[ZJ*789468050042692*0034*0007*JXTKR,1]" +
+		"[ZJ*789468050042692*0035*0007*JXTKR,1]" +
+		"[ZJ*789468050042692*0036*0002*LK]"
+	got := make([]byte, len(want))
+	_ = conn.SetReadDeadline(time.Now().Add(3 * time.Second))
+	if _, err := io.ReadFull(conn, got); err != nil {
+		t.Fatalf("read responses: %v (got %q)", err, got)
+	}
+	if string(got) != want {
+		t.Fatalf("responses: got %q, want %q", got, want)
+	}
+	if n := len(env.positions.all()); n != 0 {
+		t.Errorf("voice chunks must not store positions, got %d", n)
 	}
 }

@@ -19,6 +19,12 @@
 //   - UD*, WT*:    position report (UD, UD2, UD3, UD_LTE, UD_WCDMA, WT, ...)
 //   - AL*:         alarm with position (AL, AL_LTE, ALCUSTOMER1, ...), acknowledged
 //   - TKQ, TKQ2:   acknowledged by echoing the type
+//   - PULSE, HEART, BLOOD, BPHRT, TEMP, btemp2, oxygen (case-insensitive):
+//     health measurements (heartRate, pressureHigh/Low, temp1, bloodOxygen)
+//   - JXTK:        voice message chunk, acknowledged with JXTKR,1 (audio is
+//     not stored)
+//
+// Other types (e.g. TK voice messages, img photos) are accepted but ignored.
 package watch
 
 import (
@@ -48,8 +54,8 @@ type Message struct {
 	Position    *Position
 	PositionErr error
 
-	// Attributes holds non-position data (e.g. LK battery and steps). It is
-	// nil when the message carries no such data.
+	// Attributes holds non-position data (LK battery and steps, health
+	// measurements). It is nil when the message carries no such data.
 	Attributes map[string]any
 
 	// Response is the acknowledgement frame to send back to the device, or
@@ -159,7 +165,120 @@ func decodeByType(msg *Message) {
 
 	case msg.Type == "TKQ" || msg.Type == "TKQ2":
 		msg.Response = msg.response(msg.Type)
+
+	case isHealthType(msg.Type):
+		msg.Attributes = decodeHealth(msg.Type, msg.Content)
+
+	case msg.Type == "JXTK":
+		// Voice message chunk. The audio is not stored, but every chunk with
+		// a valid header must be acknowledged or the device keeps resending.
+		if validVoiceChunkHeader(msg.Content) {
+			msg.Response = msg.response("JXTKR,1")
+		}
 	}
+}
+
+// isHealthType reports whether the message type carries health measurements.
+func isHealthType(t string) bool {
+	for _, h := range []string{"PULSE", "HEART", "BLOOD", "BPHRT", "TEMP", "btemp2", "oxygen"} {
+		if strings.EqualFold(t, h) {
+			return true
+		}
+	}
+	return false
+}
+
+// decodeHealth parses health measurement content, mirroring Traccar:
+//
+//	TEMP,<temp>             -> temp1
+//	btemp2,<enabled>,<temp> -> temp1 (only when enabled)
+//	oxygen,<x>,<spo2>       -> bloodOxygen
+//	BPHRT|BLOOD,<high>,<low>[,<hr>] -> pressureHigh, pressureLow, heartRate
+//	PULSE|HEART,<hr>        -> heartRate
+//
+// Returns nil when there is no content or it is malformed.
+func decodeHealth(msgType, content string) map[string]any {
+	if content == "" {
+		return nil
+	}
+	values := javaSplit(content)
+	value := func(i int) (string, bool) {
+		if i >= len(values) {
+			return "", false
+		}
+		return values[i], true
+	}
+
+	attrs := map[string]any{}
+	switch {
+	case strings.EqualFold(msgType, "TEMP"):
+		v, _ := value(0)
+		temp, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			return nil
+		}
+		attrs["temp1"] = temp
+
+	case strings.EqualFold(msgType, "btemp2"):
+		v, _ := value(0)
+		enabled, err := strconv.Atoi(v)
+		if err != nil {
+			return nil
+		}
+		if enabled > 0 {
+			v, _ := value(1)
+			temp, err := strconv.ParseFloat(v, 64)
+			if err != nil {
+				return nil
+			}
+			attrs["temp1"] = temp
+		}
+
+	case strings.EqualFold(msgType, "oxygen"):
+		v, _ := value(1)
+		oxygen, err := strconv.Atoi(v)
+		if err != nil {
+			return nil
+		}
+		attrs["bloodOxygen"] = oxygen
+
+	default:
+		index := 0
+		if strings.EqualFold(msgType, "BPHRT") || strings.EqualFold(msgType, "BLOOD") {
+			high, ok1 := value(0)
+			low, ok2 := value(1)
+			if !ok1 || !ok2 {
+				return nil
+			}
+			attrs["pressureHigh"] = high
+			attrs["pressureLow"] = low
+			index = 2
+		}
+		if v, ok := value(index); ok {
+			heartRate, err := strconv.Atoi(v)
+			if err != nil {
+				return nil
+			}
+			attrs["heartRate"] = heartRate
+		}
+	}
+
+	if len(attrs) == 0 {
+		return nil
+	}
+	return attrs
+}
+
+// validVoiceChunkHeader checks the JXTK header
+// "<x>,<name>,<current>,<total>,<audio data>".
+func validVoiceChunkHeader(content string) bool {
+	values := strings.SplitN(content, ",", 5)
+	if len(values) < 5 {
+		return false
+	}
+	_, err1 := strconv.Atoi(values[2])
+	_, err2 := strconv.Atoi(values[3])
+	return err1 == nil && err2 == nil
 }
 
 func (m *Message) response(content string) string {

@@ -471,7 +471,7 @@ func (s *Server) handleConnection(ctx context.Context, conn net.Conn) {
 			slog.String("conn", id),
 			slog.String("remoteAddr", remoteAddr),
 			slog.String("device", deviceID),
-			slog.String("data", line),
+			slog.String("data", truncate(line, maxLoggedFrame)),
 		)
 
 		position, devID, response, err := s.decoder(ctx, line)
@@ -672,7 +672,8 @@ func (s *Server) decodeH02(ctx context.Context, line string) (*model.Position, s
 //
 // Position reports (UD*, AL*, WT*) look up or auto-create the device. Other
 // messages (LK, INIT, TKQ, ...) are acknowledged and only mark an already
-// known device online. LK heartbeats carrying battery/steps produce a
+// known device online. LK heartbeats carrying battery/steps and health
+// measurements (heart rate, blood pressure, temperature, SpO2) produce a
 // position at the last known location, like Traccar.
 func (s *Server) decodeWatch(ctx context.Context, line string) (*model.Position, string, string, error) {
 	msg, err := watch.Decode(line)
@@ -954,3 +955,8 @@ func h02SplitFunc(data []byte, atEOF bool) (advance int, token []byte, err error
 	tokenEnd := start + 1 + end + 1
 	return tokenEnd, data[start:tokenEnd], nil
 }
+
+// maxLoggedFrame bounds how much of a received frame is written to the debug
+// log. WATCH voice and image frames carry up to watchMaxFrameSize bytes of
+// binary data.
+const maxLoggedFrame = 1024

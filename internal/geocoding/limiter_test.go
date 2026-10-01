@@ -1,6 +1,9 @@
 package geocoding
 
 import (
+	"context"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -34,5 +37,30 @@ func TestRedisLimiter_FallsBackWhenRedisDown(t *testing.T) {
 
 	if err := l.Wait(t.Context()); err != nil {
 		t.Fatalf("Wait with Redis down: %v", err)
+	}
+}
+
+func TestRedisLimiter_SharesFairlyBetweenContenders(t *testing.T) {
+	mr := miniredis.RunT(t)
+	client := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	t.Cleanup(func() { _ = client.Close() })
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+	defer cancel()
+
+	var wg sync.WaitGroup
+	counts := make([]atomic.Int32, 2)
+	for i := range counts {
+		l := NewRedisLimiter(client, 20)
+		wg.Go(func() {
+			for l.Wait(ctx) == nil {
+				counts[i].Add(1)
+			}
+		})
+	}
+	wg.Wait()
+
+	a, b := counts[0].Load(), counts[1].Load()
+	if total := a + b; total < 20 || min(a, b) < total/4 {
+		t.Errorf("slots = %d / %d, want both >= 25%% of %d", a, b, total)
 	}
 }

@@ -2,6 +2,7 @@ package geocoding
 
 import (
 	"context"
+	"math/rand/v2"
 	"time"
 
 	"github.com/go-redis/redis_rate/v10"
@@ -46,10 +47,11 @@ func (l *RedisLimiter) Wait(ctx context.Context) error {
 		if res.Allowed > 0 {
 			return nil
 		}
+		// Jitter keeps the pod that just got a slot from winning every next one.
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-time.After(res.RetryAfter):
+		case <-time.After(res.RetryAfter + rand.N(l.limit.Period)):
 		}
 	}
 }

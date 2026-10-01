@@ -230,20 +230,20 @@ func LogResult(result *ResetResult) {
 		{"devicesDeleted", result.DevicesDeleted},
 		{"geofencesDeleted", result.GeofencesDeleted},
 	}
-	var parts []string
+	var parts []any
 	for _, c := range counts {
 		if c.n > 0 {
-			parts = append(parts, fmt.Sprintf("%s=%d", c.name, c.n))
+			parts = append(parts, slog.Int(c.name, c.n))
 		}
 	}
 
-	deleted := "none"
+	deleted := slog.String("deleted", "none")
 	if len(parts) > 0 {
-		deleted = strings.Join(parts, ", ")
+		deleted = slog.Group("deleted", parts...)
 	}
 
 	slog.Info("demo reset complete",
-		slog.String("deleted", deleted),
+		deleted,
 		slog.Int("usersReset", result.UsersReset),
 		slog.Int("geofencesCreated", result.GeofencesCreated),
 		slog.Int("rulesCreated", result.NotificationRulesCreated),

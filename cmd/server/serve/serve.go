@@ -152,8 +152,7 @@ func Run() {
 
 	// Command encoders. The WATCH encoder reads each device's connection
 	// session (manufacturer, frame indexing) from the registry.
-	encoderRegistry := protocol.NewEncoderRegistry()
-	encoderRegistry.Register(protocol.NewWatchCommandEncoder(deviceRegistry))
+	encoderRegistry := protocol.NewEncoderRegistry(deviceRegistry)
 
 	if cfg.OIDC.Enabled {
 		slog.Info("OIDC authentication enabled",
@@ -177,29 +176,8 @@ func Run() {
 		}
 	}
 
-	// Redis pub/sub for cross-pod WebSocket broadcasting (optional).
-	var redisPubSub pubsub.PubSub
-	if redisClient != nil {
-		ps, err := pubsub.NewRedisPubSubFromClient(redisClient, "motus:updates")
-		if err != nil {
-			slog.Warn("Redis pub/sub setup failed", slog.Any("error", err))
-		} else {
-			redisPubSub = ps
-			slog.Info("Redis pub/sub enabled for cross-pod broadcasting")
-		}
-	}
-
-	// Redis pub/sub for cross-pod device-access cache invalidation (optional).
-	var redisInvalidationPubSub pubsub.PubSub
-	if redisClient != nil {
-		ps, err := pubsub.NewRedisPubSubFromClient(redisClient, cfg.Redis.InvalidationChannel)
-		if err != nil {
-			slog.Warn("Redis cache-invalidation pub/sub setup failed", slog.Any("error", err))
-		} else {
-			redisInvalidationPubSub = ps
-			slog.Info("Redis pub/sub enabled for cross-pod cache invalidation")
-		}
-	}
+	redisPubSub := newRedisPubSub(redisClient, "motus:updates", "broadcasting")
+	redisInvalidationPubSub := newRedisPubSub(redisClient, cfg.Redis.InvalidationChannel, "cache invalidation")
 
 	// WebSocket hub with origin validation and per-user filtering.
 	// Since /api/socket is outside auth middleware, we must parse session cookie manually.
@@ -301,15 +279,14 @@ func Run() {
 	var cachedGeocoder *geocoding.CachedGeocoder
 	var forwardGeocoder geocoding.ForwardGeocoder
 	if cfg.Geocoding.Enabled || cfg.AI.Enabled {
+		geocodeLogger := appLogger.With(slog.String("component", "geocoding"))
 		nominatim := geocoding.NewNominatimGeocoder(geocoding.NominatimConfig{
 			URL:       cfg.Geocoding.URL,
 			RateLimit: cfg.Geocoding.RateLimit,
+			Logger:    geocodeLogger,
 		})
 		if cfg.Geocoding.Enabled {
-			geocodeLogger := appLogger.With(slog.String("component", "geocoding"))
-			nominatim.SetLogger(geocodeLogger)
-			cachedGeocoder = geocoding.NewCachedGeocoder(nominatim, cfg.Geocoding.CacheTTL)
-			cachedGeocoder.SetLogger(geocodeLogger)
+			cachedGeocoder = geocoding.NewCachedGeocoder(nominatim, cfg.Geocoding.CacheTTL, geocodeLogger)
 			slog.Info("geocoding enabled",
 				slog.String("provider", cfg.Geocoding.Provider),
 				slog.String("cacheTTL", cfg.Geocoding.CacheTTL.String()),
@@ -382,39 +359,33 @@ func Run() {
 	router := api.NewRouter(handler, secHandler, hub, routerCfg)
 
 	// Geofence event detection service.
-	geofenceEventService := services.NewGeofenceEventService(geofenceRepo, eventRepo, positionRepo, hub, notificationService)
+	geofenceEventService := services.NewGeofenceEventService(geofenceRepo, eventRepo, positionRepo, hub, notificationService, svcLogger)
 	geofenceEventService.SetCalendarRepo(calendarRepo)
-	geofenceEventService.SetLogger(svcLogger)
 
 	// Motion detection service.
-	motionService := services.NewMotionService(positionRepo, eventRepo, hub, notificationService)
-	motionService.SetLogger(svcLogger)
+	motionService := services.NewMotionService(positionRepo, eventRepo, hub, notificationService, svcLogger)
 
 	// Ignition detection service.
-	ignitionService := services.NewIgnitionService(deviceRepo, eventRepo, hub, notificationService)
-	ignitionService.SetLogger(svcLogger)
+	ignitionService := services.NewIgnitionService(deviceRepo, eventRepo, hub, notificationService, svcLogger)
 
 	// Alarm detection service (SOS, power cut, vibration, overspeed from H02 flags).
-	alarmService := services.NewAlarmService(eventRepo, hub, notificationService)
-	alarmService.SetLogger(svcLogger)
+	alarmService := services.NewAlarmService(eventRepo, hub, notificationService, svcLogger)
 
 	// Idle detection service.
-	idleService := services.NewIdleService(deviceRepo, positionRepo, eventRepo, hub, notificationService)
-	idleService.SetLogger(svcLogger)
+	idleService := services.NewIdleService(deviceRepo, positionRepo, eventRepo, hub, notificationService, svcLogger)
 	if cachedGeocoder != nil {
 		idleService.SetGeocoder(cachedGeocoder, positionRepo)
 	}
 
 	// Mileage tracking service.
-	mileageService := services.NewMileageService(positionRepo, deviceRepo, eventRepo, hub, notificationService)
-	mileageService.SetLogger(svcLogger)
+	mileageService := services.NewMileageService(positionRepo, deviceRepo, eventRepo, hub, notificationService, svcLogger)
 	idleService.SetMileageService(mileageService)
 
 	// GPS protocol position handler (stores positions and broadcasts via WebSocket).
 	gpsHandler := protocol.NewPositionHandler(positionRepo, deviceRepo, hub, geofenceEventService)
-	gpsHandler.SetMotionChecker(motionService)
-	gpsHandler.SetIgnitionChecker(ignitionService)
-	gpsHandler.SetAlarmChecker(alarmService)
+	gpsHandler.AddCheck("motion", motionService.CheckMotion)
+	gpsHandler.AddCheck("ignition", ignitionService.CheckIgnition)
+	gpsHandler.AddCheck("alarm", alarmService.CheckAlarm)
 	gpsHandler.SetMileageChecker(mileageService)
 	gpsHandler.SetLogger(protoLogger)
 	if cachedGeocoder != nil {
@@ -504,9 +475,8 @@ func Run() {
 	// Device timeout monitor marks devices offline after inactivity.
 	timeoutService := services.NewDeviceTimeoutService(
 		deviceRepo, hub,
-		cfg.Device.Timeout(), cfg.Device.CheckInterval(),
+		cfg.Device.Timeout(), cfg.Device.CheckInterval(), svcLogger,
 	)
-	timeoutService.SetLogger(svcLogger)
 	go timeoutService.Start(gpsCtx)
 
 	// Idle detection service runs as a background task.
@@ -514,14 +484,12 @@ func Run() {
 
 	// Partition manager for positions table: creates future partitions and
 	// optionally drops expired ones based on retention configuration.
-	partitionMgr := partition.NewManager(pool, cfg.Positions.RetentionDays, 1*time.Hour)
-	partitionMgr.SetLogger(appLogger.With(slog.String("component", "partition")))
+	partitionMgr := partition.NewManager(pool, cfg.Positions.RetentionDays, 1*time.Hour, appLogger.With(slog.String("component", "partition")))
 	go partitionMgr.Start(gpsCtx)
 
 	// Cleanup service: removes expired sessions and device shares to prevent
 	// unbounded table growth. Runs daily.
-	cleanupService := services.NewCleanupService(pool, 24*time.Hour)
-	cleanupService.SetLogger(svcLogger)
+	cleanupService := services.NewCleanupService(pool, 24*time.Hour, svcLogger)
 	go cleanupService.Start(gpsCtx)
 
 	// Demo mode: enable demo account protection. Seeding, reset, and GPS
@@ -710,4 +678,18 @@ func buildWebAuthn(cfg config.WebAuthnConfig) *webauthn.WebAuthn {
 func deriveWebAuthnCookieKey(csrfSecret []byte) []byte {
 	sum := sha256.Sum256(append([]byte("motus-webauthn-cookie:"), csrfSecret...))
 	return sum[:]
+}
+
+// newRedisPubSub returns a pub/sub on channel, or nil when Redis is unavailable or setup fails.
+func newRedisPubSub(client *redislib.Client, channel, purpose string) pubsub.PubSub {
+	if client == nil {
+		return nil
+	}
+	ps, err := pubsub.NewRedisPubSubFromClient(client, channel)
+	if err != nil {
+		slog.Warn("Redis pub/sub setup failed", slog.String("purpose", purpose), slog.Any("error", err))
+		return nil
+	}
+	slog.Info("Redis pub/sub enabled for cross-pod " + purpose)
+	return ps
 }

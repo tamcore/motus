@@ -37,7 +37,7 @@ func TestCleanupService_CleanExpiredSessions(t *testing.T) {
 	}
 
 	// Run cleanup
-	svc := NewCleanupService(pool, 24*time.Hour)
+	svc := NewCleanupService(pool, 24*time.Hour, nil)
 	if err := svc.RunOnce(context.Background()); err != nil {
 		t.Fatalf("RunOnce failed: %v", err)
 	}
@@ -110,7 +110,7 @@ func TestCleanupService_CleanExpiredShares(t *testing.T) {
 	}
 
 	// Run cleanup
-	svc := NewCleanupService(pool, 24*time.Hour)
+	svc := NewCleanupService(pool, 24*time.Hour, nil)
 	if err := svc.RunOnce(context.Background()); err != nil {
 		t.Fatalf("RunOnce failed: %v", err)
 	}
@@ -134,7 +134,7 @@ func TestCleanupService_NoExpiredData(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 
-	svc := NewCleanupService(pool, 24*time.Hour)
+	svc := NewCleanupService(pool, 24*time.Hour, nil)
 
 	// Should not error when there's nothing to clean
 	if err := svc.RunOnce(context.Background()); err != nil {
@@ -146,7 +146,7 @@ func TestCleanupService_Start_ContextCancel(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 
-	svc := NewCleanupService(pool, 24*time.Hour)
+	svc := NewCleanupService(pool, 24*time.Hour, nil)
 
 	ctx, cancel := context.WithCancel(context.Background())
 

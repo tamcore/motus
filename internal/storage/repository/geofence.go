@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/tamcore/motus/internal/model"
 )
@@ -101,26 +102,7 @@ func (r *GeofenceRepository) GetByUser(ctx context.Context, userID int64) ([]*mo
 	if err != nil {
 		return nil, fmt.Errorf("get geofences by user: %w", err)
 	}
-	defer rows.Close()
-
-	geofences := make([]*model.Geofence, 0, 16)
-	for rows.Next() {
-		var g model.Geofence
-		var attrs []byte
-		if err := rows.Scan(&g.ID, &g.Name, &g.Description, &g.Area, &g.Geometry, &attrs, &g.CalendarID, &g.CreatedAt, &g.UpdatedAt); err != nil {
-			return nil, fmt.Errorf("scan geofence: %w", err)
-		}
-		if len(attrs) > 0 {
-			if err := json.Unmarshal(attrs, &g.Attributes); err != nil {
-				slog.Warn("failed to unmarshal geofence attributes",
-					slog.Int64("geofenceID", g.ID),
-					slog.Any("error", err))
-				g.Attributes = make(map[string]any)
-			}
-		}
-		geofences = append(geofences, &g)
-	}
-	return geofences, rows.Err()
+	return pgx.CollectRows(rows, rowToGeofence)
 }
 
 // GetAll retrieves all geofences, ordered by name.
@@ -133,26 +115,7 @@ func (r *GeofenceRepository) GetAll(ctx context.Context) ([]*model.Geofence, err
 	if err != nil {
 		return nil, fmt.Errorf("get all geofences: %w", err)
 	}
-	defer rows.Close()
-
-	geofences := make([]*model.Geofence, 0, 16)
-	for rows.Next() {
-		var g model.Geofence
-		var attrs []byte
-		if err := rows.Scan(&g.ID, &g.Name, &g.Description, &g.Area, &g.Geometry, &attrs, &g.CalendarID, &g.CreatedAt, &g.UpdatedAt); err != nil {
-			return nil, fmt.Errorf("scan geofence: %w", err)
-		}
-		if len(attrs) > 0 {
-			if err := json.Unmarshal(attrs, &g.Attributes); err != nil {
-				slog.Warn("failed to unmarshal geofence attributes",
-					slog.Int64("geofenceID", g.ID),
-					slog.Any("error", err))
-				g.Attributes = make(map[string]any)
-			}
-		}
-		geofences = append(geofences, &g)
-	}
-	return geofences, rows.Err()
+	return pgx.CollectRows(rows, rowToGeofence)
 }
 
 // GetAllWithOwners retrieves all geofences with owner names from user_geofences join.
@@ -170,13 +133,10 @@ func (r *GeofenceRepository) GetAllWithOwners(ctx context.Context) ([]*model.Geo
 	if err != nil {
 		return nil, fmt.Errorf("get all geofences with owners: %w", err)
 	}
-	defer rows.Close()
-
-	geofences := make([]*model.Geofence, 0, 16)
-	for rows.Next() {
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (*model.Geofence, error) {
 		var g model.Geofence
 		var attrs []byte
-		if err := rows.Scan(&g.ID, &g.Name, &g.Description, &g.Area, &g.Geometry, &attrs, &g.CalendarID, &g.CreatedAt, &g.UpdatedAt, &g.OwnerName); err != nil {
+		if err := row.Scan(&g.ID, &g.Name, &g.Description, &g.Area, &g.Geometry, &attrs, &g.CalendarID, &g.CreatedAt, &g.UpdatedAt, &g.OwnerName); err != nil {
 			return nil, fmt.Errorf("scan geofence with owner: %w", err)
 		}
 		if len(attrs) > 0 {
@@ -187,9 +147,8 @@ func (r *GeofenceRepository) GetAllWithOwners(ctx context.Context) ([]*model.Geo
 				g.Attributes = make(map[string]any)
 			}
 		}
-		geofences = append(geofences, &g)
-	}
-	return geofences, rows.Err()
+		return &g, nil
+	})
 }
 
 // Update modifies an existing geofence. Accepts GeoJSON or WKT for geometry.
@@ -262,32 +221,6 @@ func (r *GeofenceRepository) UserHasAccess(ctx context.Context, user *model.User
 	return err == nil && exists
 }
 
-// CheckContainment returns the IDs of geofences (associated with the given user)
-// that contain the specified point. PostGIS uses longitude/latitude (X/Y) order.
-func (r *GeofenceRepository) CheckContainment(ctx context.Context, userID int64, lat, lon float64) ([]int64, error) {
-	rows, err := r.pool.Query(ctx, `
-		SELECT g.id
-		FROM geofences g
-		JOIN user_geofences ug ON g.id = ug.geofence_id
-		WHERE ug.user_id = $1
-		  AND ST_Contains(g.geometry, ST_SetSRID(ST_MakePoint($2, $3), 4326))
-	`, userID, lon, lat) // PostGIS: ST_MakePoint(lon, lat)
-	if err != nil {
-		return nil, fmt.Errorf("check geofence containment: %w", err)
-	}
-	defer rows.Close()
-
-	var ids []int64
-	for rows.Next() {
-		var id int64
-		if err := rows.Scan(&id); err != nil {
-			return nil, fmt.Errorf("scan geofence id: %w", err)
-		}
-		ids = append(ids, id)
-	}
-	return ids, rows.Err()
-}
-
 // CheckContainmentForDevice returns the deduplicated IDs of geofences associated
 // with any user who owns the device that contain the specified point.
 // This collapses per-user containment into a single device-scoped query,
@@ -304,15 +237,22 @@ func (r *GeofenceRepository) CheckContainmentForDevice(ctx context.Context, devi
 	if err != nil {
 		return nil, fmt.Errorf("check geofence containment for device: %w", err)
 	}
-	defer rows.Close()
+	return pgx.AppendRows([]int64(nil), rows, pgx.RowTo[int64])
+}
 
-	var ids []int64
-	for rows.Next() {
-		var id int64
-		if err := rows.Scan(&id); err != nil {
-			return nil, fmt.Errorf("scan geofence id: %w", err)
-		}
-		ids = append(ids, id)
+func rowToGeofence(row pgx.CollectableRow) (*model.Geofence, error) {
+	var g model.Geofence
+	var attrs []byte
+	if err := row.Scan(&g.ID, &g.Name, &g.Description, &g.Area, &g.Geometry, &attrs, &g.CalendarID, &g.CreatedAt, &g.UpdatedAt); err != nil {
+		return nil, fmt.Errorf("scan geofence: %w", err)
 	}
-	return ids, rows.Err()
+	if len(attrs) > 0 {
+		if err := json.Unmarshal(attrs, &g.Attributes); err != nil {
+			slog.Warn("failed to unmarshal geofence attributes",
+				slog.Int64("geofenceID", g.ID),
+				slog.Any("error", err))
+			g.Attributes = make(map[string]any)
+		}
+	}
+	return &g, nil
 }

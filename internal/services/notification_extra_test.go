@@ -214,7 +214,7 @@ func TestGeofenceEventService_CreateEvent_WithNotificationService(t *testing.T) 
 	// Create the services.
 	notifSvc := NewNotificationService(notifRepo, deviceRepo, geoRepo, posRepo)
 	hub := newTestHub()
-	geoSvc := NewGeofenceEventService(geoRepo, eventRepo, posRepo, hub, notifSvc)
+	geoSvc := NewGeofenceEventService(geoRepo, eventRepo, posRepo, hub, notifSvc, nil)
 
 	// Position inside the geofence.
 	pos := &model.Position{
@@ -231,7 +231,7 @@ func TestGeofenceEventService_CreateEvent_WithNotificationService(t *testing.T) 
 	}
 
 	// Verify enter event was created.
-	events, _ := eventRepo.GetByDevice(ctx, device.ID, 100)
+	events, _ := deviceEvents(t, device.ID)
 	if len(events) != 1 {
 		t.Fatalf("expected 1 event, got %d", len(events))
 	}

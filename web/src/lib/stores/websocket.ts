@@ -31,8 +31,6 @@ class WebSocketManager {
   }
 
   connect() {
-    if (typeof window === "undefined") return;
-
     // Guard against duplicate connections - if already open or connecting, skip
     if (
       this.ws &&

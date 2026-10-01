@@ -3,9 +3,9 @@ package services
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	"github.com/tamcore/motus/internal/model"
-	"github.com/tamcore/motus/internal/storage/repository"
 	"github.com/tamcore/motus/internal/websocket"
 )
 
@@ -15,33 +15,26 @@ import (
 // positions. This approach is immune to out-of-order and duplicate positions
 // that the H02 tracker frequently sends.
 type IgnitionService struct {
-	deviceRepo          repository.DeviceRepo
-	eventRepo           repository.EventRepo
-	hub                 *websocket.Hub
-	notificationService *NotificationService
-	logger              *slog.Logger
+	eventEmitter
+	deviceRepo ignitionDeviceStore
+}
+
+type ignitionDeviceStore interface {
+	GetByID(ctx context.Context, id int64) (*model.Device, error)
+	UpdateIgnitionState(ctx context.Context, id int64, on bool, ts time.Time) error
 }
 
 // NewIgnitionService creates a new ignition detection service.
 func NewIgnitionService(
-	deviceRepo repository.DeviceRepo,
-	eventRepo repository.EventRepo,
+	deviceRepo ignitionDeviceStore,
+	eventRepo eventStore,
 	hub *websocket.Hub,
 	notificationService *NotificationService,
+	logger *slog.Logger,
 ) *IgnitionService {
 	return &IgnitionService{
-		deviceRepo:          deviceRepo,
-		eventRepo:           eventRepo,
-		hub:                 hub,
-		notificationService: notificationService,
-		logger:              slog.Default(),
-	}
-}
-
-// SetLogger configures the structured logger for this service.
-func (s *IgnitionService) SetLogger(l *slog.Logger) {
-	if l != nil {
-		s.logger = l
+		eventEmitter: newEventEmitter(eventRepo, hub, notificationService, logger),
+		deviceRepo:   deviceRepo,
 	}
 }
 
@@ -96,29 +89,10 @@ func (s *IgnitionService) CheckIgnition(ctx context.Context, position *model.Pos
 		},
 	}
 
-	if err := s.eventRepo.Create(ctx, event); err != nil {
-		return err
-	}
-
-	s.logger.Info("ignition event detected",
+	return s.emit(ctx, event, "ignition event detected",
 		slog.Int64("deviceID", position.DeviceID),
 		slog.String("event", eventType),
 	)
-
-	if s.hub != nil {
-		s.hub.BroadcastEvent(event)
-	}
-
-	if s.notificationService != nil {
-		if err := s.notificationService.ProcessEvent(ctx, event); err != nil {
-			s.logger.Error("failed to process notifications for ignition event",
-				slog.Int64("eventID", event.ID),
-				slog.Any("error", err),
-			)
-		}
-	}
-
-	return nil
 }
 
 // ignitionFromAttributes extracts the ignition boolean from a position's

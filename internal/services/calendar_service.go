@@ -8,6 +8,7 @@ import (
 	"github.com/tamcore/motus/internal/calendar"
 	"github.com/tamcore/motus/internal/model"
 	"github.com/tamcore/motus/internal/storage/repository"
+	"github.com/tamcore/motus/internal/validation"
 )
 
 // CalendarService bundles calendar creation with validation and audit logging.
@@ -33,7 +34,7 @@ func (s *CalendarService) CreateForUser(ctx context.Context, user *model.User, i
 	if in.Name == "" {
 		return nil, fmt.Errorf("name is required")
 	}
-	if err := validateDisplayName(in.Name); err != nil {
+	if err := validation.ValidateDisplayName(in.Name); err != nil {
 		return nil, err
 	}
 	if err := calendar.Validate(in.Data); err != nil {

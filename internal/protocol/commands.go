@@ -75,22 +75,16 @@ func (e *H02CommandEncoder) EncodeCommand(cmd *model.Command, deviceID string) (
 	}
 }
 
-// SessionLookup provides the protocol session details of connected devices.
-// It is implemented by DeviceRegistry.
-type SessionLookup interface {
-	Session(uniqueID string) (DeviceSession, bool)
-}
-
 // WatchCommandEncoder encodes commands for the WATCH GPS protocol, mirroring
 // Traccar's WatchProtocolEncoder.
 type WatchCommandEncoder struct {
-	sessions SessionLookup
+	sessions *DeviceRegistry
 }
 
 // NewWatchCommandEncoder creates a WATCH encoder. sessions supplies the
 // manufacturer code and frame indexing of each device's live connection; when
 // nil or unknown, frames use the "CS" manufacturer without an index.
-func NewWatchCommandEncoder(sessions SessionLookup) *WatchCommandEncoder {
+func NewWatchCommandEncoder(sessions *DeviceRegistry) *WatchCommandEncoder {
 	return &WatchCommandEncoder{sessions: sessions}
 }
 
@@ -182,17 +176,14 @@ type EncoderRegistry struct {
 	encoders map[string]CommandEncoder
 }
 
-// NewEncoderRegistry creates a registry with default encoders.
-func NewEncoderRegistry() *EncoderRegistry {
+// NewEncoderRegistry creates a registry with the H02 and WATCH encoders.
+// sessions is passed to the WATCH encoder and may be nil.
+func NewEncoderRegistry(sessions *DeviceRegistry) *EncoderRegistry {
 	r := &EncoderRegistry{encoders: make(map[string]CommandEncoder)}
-	r.Register(&H02CommandEncoder{})
-	r.Register(NewWatchCommandEncoder(nil))
+	for _, enc := range []CommandEncoder{&H02CommandEncoder{}, NewWatchCommandEncoder(sessions)} {
+		r.encoders[enc.Protocol()] = enc
+	}
 	return r
-}
-
-// Register adds an encoder for its protocol.
-func (r *EncoderRegistry) Register(enc CommandEncoder) {
-	r.encoders[enc.Protocol()] = enc
 }
 
 // Get returns the encoder for the given protocol, or nil if not found.

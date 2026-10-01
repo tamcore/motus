@@ -46,34 +46,20 @@ func (r *StatisticsRepository) GetPlatformStats(ctx context.Context) (*PlatformS
 		DevicesByStatus: make(map[string]int64),
 	}
 
-	// Count users.
-	err := r.pool.QueryRow(ctx, `SELECT COUNT(*) FROM users`).Scan(&stats.TotalUsers)
-	if err != nil {
-		return nil, fmt.Errorf("count users: %w", err)
-	}
-
-	// Count devices.
-	err = r.pool.QueryRow(ctx, `SELECT COUNT(*) FROM devices`).Scan(&stats.TotalDevices)
-	if err != nil {
-		return nil, fmt.Errorf("count devices: %w", err)
-	}
-
-	// Optimize: Combine all counts into a single query with CTEs to reduce round trips.
 	todayStart := time.Now().UTC().Truncate(24 * time.Hour)
-	err = r.pool.QueryRow(ctx,
-		`WITH counts AS (
-			SELECT
-				(SELECT COUNT(*) FROM positions) AS total_positions,
-				(SELECT COUNT(*) FROM events) AS total_events,
-				(SELECT COUNT(*) FROM notification_log) AS notifications_sent,
-				(SELECT COUNT(*) FROM positions WHERE timestamp >= $1) AS positions_today,
-				(SELECT COUNT(DISTINCT user_id) FROM sessions
-				 WHERE expires_at > NOW() AND created_at >= NOW() - INTERVAL '24 hours') AS active_users
-		)
-		SELECT total_positions, total_events, notifications_sent, positions_today, active_users
-		FROM counts`,
+	err := r.pool.QueryRow(ctx,
+		`SELECT
+			(SELECT COUNT(*) FROM users),
+			(SELECT COUNT(*) FROM devices),
+			(SELECT COUNT(*) FROM positions),
+			(SELECT COUNT(*) FROM events),
+			(SELECT COUNT(*) FROM notification_log),
+			(SELECT COUNT(*) FROM positions WHERE timestamp >= $1),
+			(SELECT COUNT(DISTINCT user_id) FROM sessions
+			 WHERE expires_at > NOW() AND created_at >= NOW() - INTERVAL '24 hours')`,
 		todayStart,
-	).Scan(&stats.TotalPositions, &stats.TotalEvents, &stats.NotificationsSent, &stats.PositionsToday, &stats.ActiveUsers)
+	).Scan(&stats.TotalUsers, &stats.TotalDevices, &stats.TotalPositions, &stats.TotalEvents,
+		&stats.NotificationsSent, &stats.PositionsToday, &stats.ActiveUsers)
 	if err != nil {
 		return nil, fmt.Errorf("fetch statistics: %w", err)
 	}

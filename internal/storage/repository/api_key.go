@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/tamcore/motus/internal/model"
 )
@@ -48,7 +49,7 @@ func (r *ApiKeyRepository) Create(ctx context.Context, key *model.ApiKey) error 
 		`INSERT INTO api_keys (user_id, token, name, permissions, expires_at)
 		 VALUES ($1, $2, $3, $4, $5)
 		 RETURNING id, created_at`,
-		key.UserID, hashToken(token), key.Name, key.Permissions, key.ExpiresAt,
+		key.UserID, HashToken(token), key.Name, key.Permissions, key.ExpiresAt,
 	).Scan(&key.ID, &key.CreatedAt)
 	if err != nil {
 		return fmt.Errorf("create api key: %w", err)
@@ -63,7 +64,7 @@ func (r *ApiKeyRepository) GetByToken(ctx context.Context, token string) (*model
 	err := r.pool.QueryRow(ctx,
 		`SELECT id, user_id, token, name, permissions, expires_at, created_at, last_used_at
 		 FROM api_keys WHERE token = $1`,
-		hashToken(token),
+		HashToken(token),
 	).Scan(&k.ID, &k.UserID, &k.Token, &k.Name, &k.Permissions, &k.ExpiresAt, &k.CreatedAt, &k.LastUsedAt)
 	if err != nil {
 		return nil, fmt.Errorf("get api key by token: %w", err)
@@ -97,17 +98,13 @@ func (r *ApiKeyRepository) ListByUser(ctx context.Context, userID int64) ([]*mod
 	if err != nil {
 		return nil, fmt.Errorf("list api keys: %w", err)
 	}
-	defer rows.Close()
-
-	keys := make([]*model.ApiKey, 0, 8)
-	for rows.Next() {
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (*model.ApiKey, error) {
 		k := &model.ApiKey{}
-		if err := rows.Scan(&k.ID, &k.UserID, &k.Token, &k.Name, &k.Permissions, &k.ExpiresAt, &k.CreatedAt, &k.LastUsedAt); err != nil {
+		if err := row.Scan(&k.ID, &k.UserID, &k.Token, &k.Name, &k.Permissions, &k.ExpiresAt, &k.CreatedAt, &k.LastUsedAt); err != nil {
 			return nil, fmt.Errorf("scan api key: %w", err)
 		}
-		keys = append(keys, k)
-	}
-	return keys, rows.Err()
+		return k, nil
+	})
 }
 
 // Delete removes an API key by ID.

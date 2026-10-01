@@ -101,3 +101,17 @@ func connectDB() (*pgxpool.Pool, error) {
 
 	return pool, nil
 }
+
+// withDB runs fn with a connected pool and a 10s context, exiting on connection failure.
+func withDB(fn func(ctx context.Context, pool *pgxpool.Pool)) {
+	pool, err := connectDBFn()
+	if err != nil {
+		fatal("database connection failed", slog.Any("error", err))
+	}
+	defer pool.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	fn(ctx, pool)
+}

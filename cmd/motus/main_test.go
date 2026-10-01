@@ -82,34 +82,6 @@ func TestSortUsers(t *testing.T) {
 	}
 }
 
-// --- generatePassword ---
-
-func TestGeneratePassword(t *testing.T) {
-	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-
-	for _, length := range []int{0, 1, 16, 32} {
-		p, err := generatePassword(length)
-		if err != nil {
-			t.Fatalf("generatePassword(%d): unexpected error: %v", length, err)
-		}
-		if len(p) != length {
-			t.Errorf("generatePassword(%d): got len %d", length, len(p))
-		}
-		for _, ch := range p {
-			if !strings.ContainsRune(chars, ch) {
-				t.Errorf("generatePassword(%d): unexpected char %q", length, ch)
-			}
-		}
-	}
-
-	// Two generated passwords of length 16 should differ (practically always).
-	p1, _ := generatePassword(16)
-	p2, _ := generatePassword(16)
-	if p1 == p2 {
-		t.Error("generatePassword: two calls returned identical passwords")
-	}
-}
-
 // --- truncateID ---
 
 func TestTruncateID(t *testing.T) {
@@ -132,34 +104,16 @@ func TestTruncateID(t *testing.T) {
 	}
 }
 
-// --- TableWriter ---
+// --- printTableTo ---
 
-func TestTableWriter(t *testing.T) {
+func TestPrintTableTo(t *testing.T) {
 	var buf bytes.Buffer
-	tw := NewTableWriter(&buf)
+	printTableTo(&buf, []string{"ID", "NAME", "STATUS"}, [][]string{{"1", "Alpha", "online"}, {"2", "Bravo", "offline"}})
 
-	tw.WriteHeader("ID", "NAME", "STATUS")
-	tw.WriteRow("1", "Alpha", "online")
-	tw.WriteRow("2", "Bravo", "offline")
-	tw.Flush()
-
-	out := buf.String()
-	if !strings.Contains(out, "ID") {
-		t.Error("output missing header 'ID'")
+	want := "ID  NAME   STATUS\n1   Alpha  online\n2   Bravo  offline\n"
+	if got := buf.String(); got != want {
+		t.Errorf("printTableTo = %q, want %q", got, want)
 	}
-	if !strings.Contains(out, "Alpha") {
-		t.Error("output missing row value 'Alpha'")
-	}
-	if !strings.Contains(out, "offline") {
-		t.Error("output missing row value 'offline'")
-	}
-}
-
-func TestTableWriter_EmptyTable(t *testing.T) {
-	var buf bytes.Buffer
-	tw := NewTableWriter(&buf)
-	tw.Flush()
-	// Should not panic or error.
 }
 
 // --- newVersionCmd ---

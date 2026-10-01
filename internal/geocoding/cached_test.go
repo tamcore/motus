@@ -26,7 +26,7 @@ func (m *mockGeocoder) ReverseGeocode(_ context.Context, lat, lon float64) (stri
 
 func TestCachedGeocoder_Lookup_CacheHit(t *testing.T) {
 	mock := &mockGeocoder{response: "Berlin, Germany"}
-	cg := NewCachedGeocoder(mock, 1*time.Minute)
+	cg := NewCachedGeocoder(mock, 1*time.Minute, nil)
 
 	// First call: cache miss, calls geocoder.
 	addr := cg.Lookup(context.Background(), 52.5200, 13.4050)
@@ -49,7 +49,7 @@ func TestCachedGeocoder_Lookup_CacheHit(t *testing.T) {
 
 func TestCachedGeocoder_Lookup_CacheMiss_DifferentLocation(t *testing.T) {
 	mock := &mockGeocoder{response: "Address"}
-	cg := NewCachedGeocoder(mock, 1*time.Minute)
+	cg := NewCachedGeocoder(mock, 1*time.Minute, nil)
 
 	// Two different locations should each call the geocoder.
 	cg.Lookup(context.Background(), 52.5200, 13.4050)
@@ -62,7 +62,7 @@ func TestCachedGeocoder_Lookup_CacheMiss_DifferentLocation(t *testing.T) {
 
 func TestCachedGeocoder_Lookup_GeocodingError_NotCached(t *testing.T) {
 	mock := &mockGeocoder{err: fmt.Errorf("service unavailable")}
-	cg := NewCachedGeocoder(mock, 1*time.Minute)
+	cg := NewCachedGeocoder(mock, 1*time.Minute, nil)
 
 	// First call fails: returns fallback.
 	addr := cg.Lookup(context.Background(), 52.5200, 13.4050)
@@ -79,7 +79,7 @@ func TestCachedGeocoder_Lookup_GeocodingError_NotCached(t *testing.T) {
 
 func TestCachedGeocoder_Lookup_CacheExpiry(t *testing.T) {
 	mock := &mockGeocoder{response: "Berlin, Germany"}
-	cg := NewCachedGeocoder(mock, 100*time.Millisecond)
+	cg := NewCachedGeocoder(mock, 100*time.Millisecond, nil)
 
 	// Inject test clock.
 	now := time.Now()
@@ -109,7 +109,7 @@ func TestCachedGeocoder_Lookup_CacheExpiry(t *testing.T) {
 
 func TestCachedGeocoder_NearbyPointsShareCache(t *testing.T) {
 	mock := &mockGeocoder{response: "Neighborhood"}
-	cg := NewCachedGeocoder(mock, 1*time.Minute)
+	cg := NewCachedGeocoder(mock, 1*time.Minute, nil)
 
 	// These two points are within ~5m of each other, so they should
 	// round to the same cache key (4 decimal places).
@@ -124,7 +124,7 @@ func TestCachedGeocoder_NearbyPointsShareCache(t *testing.T) {
 
 func TestCachedGeocoder_StartCleanup(t *testing.T) {
 	mock := &mockGeocoder{response: "Test"}
-	cg := NewCachedGeocoder(mock, 50*time.Millisecond)
+	cg := NewCachedGeocoder(mock, 50*time.Millisecond, nil)
 
 	// Populate cache.
 	cg.Lookup(context.Background(), 52.5200, 13.4050)
@@ -147,18 +147,13 @@ func TestCachedGeocoder_StartCleanup(t *testing.T) {
 	cancel()
 }
 
-func TestCachedGeocoder_SetLogger(t *testing.T) {
+func TestCachedGeocoder_Logger(t *testing.T) {
 	g := &mockGeocoder{response: "Berlin, Germany"}
-	cg := NewCachedGeocoder(g, time.Hour)
-
-	initial := cg.logger
-	cg.SetLogger(nil) // nil should not change logger
-	if cg.logger != initial {
-		t.Error("SetLogger(nil) should not change logger")
+	if cg := NewCachedGeocoder(g, time.Hour, nil); cg.logger != slog.Default() {
+		t.Error("nil logger should default to slog.Default()")
 	}
-	custom := slog.Default()
-	cg.SetLogger(custom)
-	if cg.logger != custom {
-		t.Error("SetLogger(custom) should replace logger")
+	custom := slog.New(slog.Default().Handler())
+	if cg := NewCachedGeocoder(g, time.Hour, custom); cg.logger != custom {
+		t.Error("custom logger should be kept")
 	}
 }

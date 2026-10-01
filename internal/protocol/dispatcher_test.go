@@ -110,7 +110,7 @@ func TestCommandDispatcher_DispatchesPendingCommand(t *testing.T) {
 		},
 	}
 
-	d := protocol.NewCommandDispatcher(registry, cmdRepo, devRepo, protocol.NewEncoderRegistry())
+	d := protocol.NewCommandDispatcher(registry, cmdRepo, devRepo, protocol.NewEncoderRegistry(nil))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -151,7 +151,7 @@ func TestCommandDispatcher_SkipsOfflineDevice(t *testing.T) {
 		},
 	}
 
-	d := protocol.NewCommandDispatcher(registry, cmdRepo, devRepo, protocol.NewEncoderRegistry())
+	d := protocol.NewCommandDispatcher(registry, cmdRepo, devRepo, protocol.NewEncoderRegistry(nil))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
@@ -187,7 +187,7 @@ func TestCommandDispatcher_CustomCommand(t *testing.T) {
 		},
 	}
 
-	d := protocol.NewCommandDispatcher(registry, cmdRepo, devRepo, protocol.NewEncoderRegistry())
+	d := protocol.NewCommandDispatcher(registry, cmdRepo, devRepo, protocol.NewEncoderRegistry(nil))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -216,7 +216,7 @@ func TestCommandDispatcher_NoPendingCommands(t *testing.T) {
 		},
 	}
 
-	d := protocol.NewCommandDispatcher(registry, cmdRepo, devRepo, protocol.NewEncoderRegistry())
+	d := protocol.NewCommandDispatcher(registry, cmdRepo, devRepo, protocol.NewEncoderRegistry(nil))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
@@ -258,7 +258,7 @@ func TestCommandDispatcher_SendFails_RevertsStatus(t *testing.T) {
 		},
 	}
 
-	d := protocol.NewCommandDispatcher(registry, cmdRepo, devRepo, protocol.NewEncoderRegistry())
+	d := protocol.NewCommandDispatcher(registry, cmdRepo, devRepo, protocol.NewEncoderRegistry(nil))
 
 	// Run one dispatch tick synchronously.
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -290,7 +290,7 @@ func TestCommandDispatcher_DispatchForDevice_DeviceNotFound(t *testing.T) {
 	// devRepo has no entry for IMEI006.
 	devRepo := &mockDeviceRepo{devices: map[string]*model.Device{}}
 
-	d := protocol.NewCommandDispatcher(registry, cmdRepo, devRepo, protocol.NewEncoderRegistry())
+	d := protocol.NewCommandDispatcher(registry, cmdRepo, devRepo, protocol.NewEncoderRegistry(nil))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
 	defer cancel()
@@ -323,7 +323,7 @@ func TestCommandDispatcher_GetPendingError(t *testing.T) {
 		},
 	}
 
-	d := protocol.NewCommandDispatcher(registry, cmdRepo, devRepo, protocol.NewEncoderRegistry())
+	d := protocol.NewCommandDispatcher(registry, cmdRepo, devRepo, protocol.NewEncoderRegistry(nil))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
 	defer cancel()
@@ -357,7 +357,7 @@ func TestCommandDispatcher_EncodeError(t *testing.T) {
 		},
 	}
 
-	d := protocol.NewCommandDispatcher(registry, cmdRepo, devRepo, protocol.NewEncoderRegistry())
+	d := protocol.NewCommandDispatcher(registry, cmdRepo, devRepo, protocol.NewEncoderRegistry(nil))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -394,8 +394,7 @@ func TestCommandDispatcher_WatchCommandsAreFramed(t *testing.T) {
 		},
 	}
 
-	encoders := protocol.NewEncoderRegistry()
-	encoders.Register(protocol.NewWatchCommandEncoder(registry))
+	encoders := protocol.NewEncoderRegistry(registry)
 	d := protocol.NewCommandDispatcher(registry, cmdRepo, devRepo, encoders)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)

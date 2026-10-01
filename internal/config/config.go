@@ -1,7 +1,9 @@
 package config
 
 import (
+	"cmp"
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -346,10 +348,10 @@ func LoadFromEnv() (*Config, error) {
 			Name:     getEnv("MOTUS_DATABASE_NAME", "motus"),
 			SSLMode:  getEnv("MOTUS_DATABASE_SSLMODE", "require"),
 			Pool: PoolConfig{
-				MaxConns:        getEnvInt32("MOTUS_DB_MAX_CONNS", 25),
-				MinConns:        getEnvInt32("MOTUS_DB_MIN_CONNS", 5),
-				MaxConnLifetime: getEnvDuration("MOTUS_DB_MAX_CONN_LIFETIME", 1*time.Hour),
-				MaxConnIdleTime: getEnvDuration("MOTUS_DB_MAX_CONN_IDLE_TIME", 30*time.Minute),
+				MaxConns:        parseEnv("MOTUS_DB_MAX_CONNS", 25, parseInt32),
+				MinConns:        parseEnv("MOTUS_DB_MIN_CONNS", 5, parseInt32),
+				MaxConnLifetime: parseEnv("MOTUS_DB_MAX_CONN_LIFETIME", 1*time.Hour, time.ParseDuration),
+				MaxConnIdleTime: parseEnv("MOTUS_DB_MAX_CONN_IDLE_TIME", 30*time.Minute, time.ParseDuration),
 			},
 		},
 		Server: ServerConfig{
@@ -363,82 +365,82 @@ func LoadFromEnv() (*Config, error) {
 			OsmAndPort:       getEnv("MOTUS_GPS_OSMAND_PORT", "5055"),
 		},
 		Device: DeviceConfig{
-			TimeoutMinutes:        getEnvInt("MOTUS_DEVICE_TIMEOUT_MINUTES", 5),
-			CheckIntervalMinutes:  getEnvInt("MOTUS_DEVICE_CHECK_INTERVAL_MINUTES", 1),
-			AutoCreateDevices:     getEnvBool("MOTUS_DEVICE_AUTO_CREATE", false),
+			TimeoutMinutes:        parseEnv("MOTUS_DEVICE_TIMEOUT_MINUTES", 5, strconv.Atoi),
+			CheckIntervalMinutes:  parseEnv("MOTUS_DEVICE_CHECK_INTERVAL_MINUTES", 1, strconv.Atoi),
+			AutoCreateDevices:     parseEnv("MOTUS_DEVICE_AUTO_CREATE", false, strconv.ParseBool),
 			AutoCreateDefaultUser: getEnv("MOTUS_DEVICE_AUTO_CREATE_USER", "admin@motus.local"),
 			UniqueIDPrefix:        getEnv("MOTUS_DEVICE_UNIQUE_ID_PREFIX", ""),
 		},
 		WebSocket: WebSocketConfig{
-			AllowedOrigins: getEnvSlice("MOTUS_WS_ALLOWED_ORIGINS"),
+			AllowedOrigins: parseEnv("MOTUS_WS_ALLOWED_ORIGINS", nil, parseList),
 		},
 		Redis: RedisConfig{
 			URL:                 getEnv("MOTUS_REDIS_URL", ""),
-			Enabled:             getEnvBool("MOTUS_REDIS_ENABLED", false),
+			Enabled:             parseEnv("MOTUS_REDIS_ENABLED", false, strconv.ParseBool),
 			InvalidationChannel: getEnv("MOTUS_REDIS_INVALIDATION_CHANNEL", "motus:cache:invalidate"),
 		},
 		Demo: DemoConfig{
-			Enabled:               getEnvBool("MOTUS_DEMO_ENABLED", false),
+			Enabled:               parseEnv("MOTUS_DEMO_ENABLED", false, strconv.ParseBool),
 			GPXDir:                getEnv("MOTUS_DEMO_GPX_DIR", "data/demo"),
 			ResetTime:             getEnv("MOTUS_DEMO_RESET_TIME", "00:00"),
-			DeviceIMEIs:           getEnvSliceDefault("MOTUS_DEMO_DEVICE_IMEIS", []string{"9000000000001", "9000000000002"}),
-			SpeedMultiplier:       getEnvFloat("MOTUS_DEMO_SPEED_MULTIPLIER", 1.0),
-			InterpolationInterval: getEnvFloat("MOTUS_DEMO_INTERPOLATION_INTERVAL", 100.0),
+			DeviceIMEIs:           parseEnv("MOTUS_DEMO_DEVICE_IMEIS", []string{"9000000000001", "9000000000002"}, parseList),
+			SpeedMultiplier:       parseEnv("MOTUS_DEMO_SPEED_MULTIPLIER", 1.0, parseFloat),
+			InterpolationInterval: parseEnv("MOTUS_DEMO_INTERPOLATION_INTERVAL", 100.0, parseFloat),
 			H02Target:             getEnv("MOTUS_DEMO_H02_TARGET", "localhost:5013"),
 		},
 		Metrics: MetricsConfig{
 			Port:    getPort("MOTUS_METRICS_PORT", "9090"),
-			Enabled: getEnvBool("MOTUS_METRICS_ENABLED", true),
+			Enabled: parseEnv("MOTUS_METRICS_ENABLED", true, strconv.ParseBool),
 		},
 		Security: SecurityConfig{
 			CSRFSecret:          getEnv("MOTUS_CSRF_SECRET", ""),
 			Env:                 getEnv("MOTUS_ENV", "production"),
-			WebhookAllowedHosts: getEnvSlice("MOTUS_WEBHOOK_ALLOWED_HOSTS"),
+			WebhookAllowedHosts: parseEnv("MOTUS_WEBHOOK_ALLOWED_HOSTS", nil, parseList),
 		},
 		Positions: PositionsConfig{
-			RetentionDays: getEnvInt("MOTUS_POSITION_RETENTION_DAYS", 0),
+			RetentionDays: parseEnv("MOTUS_POSITION_RETENTION_DAYS", 0, strconv.Atoi),
 		},
 		Log: LogConfig{
 			Level:  getEnv("MOTUS_LOG_LEVEL", "INFO"),
 			Format: getEnv("MOTUS_LOG_FORMAT", ""),
 		},
 		Geocoding: GeocodingConfig{
-			Enabled:   getEnvBool("MOTUS_GEOCODING_ENABLED", true),
+			Enabled:   parseEnv("MOTUS_GEOCODING_ENABLED", true, strconv.ParseBool),
 			Provider:  getEnv("MOTUS_GEOCODING_PROVIDER", "nominatim"),
 			URL:       getEnv("MOTUS_GEOCODING_URL", "https://nominatim.openstreetmap.org/reverse"),
-			CacheTTL:  getEnvDuration("MOTUS_GEOCODING_CACHE_TTL", 30*time.Second),
-			RateLimit: getEnvFloat("MOTUS_GEOCODING_RATE_LIMIT", 1.0),
+			CacheTTL:  parseEnv("MOTUS_GEOCODING_CACHE_TTL", 30*time.Second, time.ParseDuration),
+			RateLimit: parseEnv("MOTUS_GEOCODING_RATE_LIMIT", 1.0, parseFloat),
 		},
 		OIDC: OIDCConfig{
-			Enabled:              getEnvBool("MOTUS_OIDC_ENABLED", false),
+			Enabled:              parseEnv("MOTUS_OIDC_ENABLED", false, strconv.ParseBool),
 			Issuer:               getEnv("MOTUS_OIDC_ISSUER", ""),
 			ClientID:             getEnv("MOTUS_OIDC_CLIENT_ID", ""),
 			ClientSecret:         getEnv("MOTUS_OIDC_CLIENT_SECRET", ""),
 			RedirectURL:          getEnv("MOTUS_OIDC_REDIRECT_URL", ""),
-			SignupEnabled:        getEnvBool("MOTUS_OIDC_SIGNUP_ENABLED", false),
-			TrustUnverifiedEmail: getEnvBool("MOTUS_OIDC_TRUST_UNVERIFIED_EMAIL", false),
+			SignupEnabled:        parseEnv("MOTUS_OIDC_SIGNUP_ENABLED", false, strconv.ParseBool),
+			TrustUnverifiedEmail: parseEnv("MOTUS_OIDC_TRUST_UNVERIFIED_EMAIL", false, strconv.ParseBool),
 			AdminEmailRegex:      getEnv("MOTUS_OIDC_ADMIN_EMAIL_REGEX", ""),
 			AdminClaim:           getEnv("MOTUS_OIDC_ADMIN_CLAIM", ""),
 			AdminClaimValue:      getEnv("MOTUS_OIDC_ADMIN_CLAIM_VALUE", ""),
 			Scopes:               getEnv("MOTUS_OIDC_SCOPES", ""),
 		},
 		AI: AIConfig{
-			Enabled:          getEnvBool("MOTUS_AI_ENABLED", false),
+			Enabled:          parseEnv("MOTUS_AI_ENABLED", false, strconv.ParseBool),
 			BaseURL:          getEnv("MOTUS_AI_BASE_URL", "https://api.openai.com/v1"),
 			APIKey:           getEnv("MOTUS_AI_API_KEY", ""),
 			Model:            getEnv("MOTUS_AI_MODEL", "gpt-4o-mini"),
-			MaxTokens:        getEnvInt("MOTUS_AI_MAX_TOKENS", 4096),
-			Temperature:      getEnvFloat("MOTUS_AI_TEMPERATURE", 0.2),
-			Timeout:          getEnvDuration("MOTUS_AI_TIMEOUT", 90*time.Second),
-			MaxToolLoops:     getEnvInt("MOTUS_AI_MAX_TOOL_LOOPS", 8),
+			MaxTokens:        parseEnv("MOTUS_AI_MAX_TOKENS", 4096, strconv.Atoi),
+			Temperature:      parseEnv("MOTUS_AI_TEMPERATURE", 0.2, parseFloat),
+			Timeout:          parseEnv("MOTUS_AI_TIMEOUT", 90*time.Second, time.ParseDuration),
+			MaxToolLoops:     parseEnv("MOTUS_AI_MAX_TOOL_LOOPS", 8, strconv.Atoi),
 			SystemPrompt:     getEnv("MOTUS_AI_SYSTEM_PROMPT", ""),
-			GuardrailEnabled: getEnvBool("MOTUS_AI_GUARDRAIL_ENABLED", true),
+			GuardrailEnabled: parseEnv("MOTUS_AI_GUARDRAIL_ENABLED", true, strconv.ParseBool),
 			GuardrailModel:   getEnv("MOTUS_AI_GUARDRAIL_MODEL", ""),
 		},
 		WebAuthn: WebAuthnConfig{
-			Enabled:       getEnvBool("MOTUS_WEBAUTHN_ENABLED", false),
+			Enabled:       parseEnv("MOTUS_WEBAUTHN_ENABLED", false, strconv.ParseBool),
 			RPID:          getEnv("MOTUS_WEBAUTHN_RPID", ""),
-			RPOrigins:     getEnvSlice("MOTUS_WEBAUTHN_ORIGINS"),
+			RPOrigins:     parseEnv("MOTUS_WEBAUTHN_ORIGINS", nil, parseList),
 			RPDisplayName: getEnv("MOTUS_WEBAUTHN_DISPLAY_NAME", "Motus"),
 		},
 	}
@@ -449,128 +451,44 @@ func LoadFromEnv() (*Config, error) {
 }
 
 func getEnv(key, defaultValue string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
-	return defaultValue
+	return cmp.Or(os.Getenv(key), defaultValue)
 }
 
-// getPort retrieves a port from environment, handling Kubernetes service URLs.
-// Kubernetes injects service env vars like MOTUS_METRICS_PORT=tcp://10.233.x.x:9090
-// This function extracts just the port number.
+// getPort reads a port, accepting Kubernetes service URLs such as tcp://10.0.0.1:9090.
 func getPort(key, defaultValue string) string {
-	v := os.Getenv(key)
-	if v == "" {
-		return defaultValue
+	v := getEnv(key, defaultValue)
+	if u, err := url.Parse(v); err == nil && u.Port() != "" {
+		return u.Port()
 	}
-
-	// Handle Kubernetes service URL format: tcp://host:port or tcp://host:port/path
-	if strings.HasPrefix(v, "tcp://") || strings.HasPrefix(v, "http://") || strings.HasPrefix(v, "https://") {
-		// Extract port from URL
-		parts := strings.Split(v, ":")
-		if len(parts) >= 3 {
-			// Format: tcp://host:port
-			port := parts[2]
-			// Remove any path suffix
-			if idx := strings.Index(port, "/"); idx > 0 {
-				port = port[:idx]
-			}
-			return port
-		}
-	}
-
-	// Plain port number
 	return v
 }
 
-func getEnvSlice(key string) []string {
+// parseEnv returns parse(os.Getenv(key)), or defaultValue when unset or invalid.
+func parseEnv[T any](key string, defaultValue T, parse func(string) (T, error)) T {
 	v := os.Getenv(key)
 	if v == "" {
-		return nil
+		return defaultValue
 	}
-	parts := strings.Split(v, ",")
-	result := make([]string, 0, len(parts))
-	for _, p := range parts {
-		trimmed := strings.TrimSpace(p)
-		if trimmed != "" {
+	x, err := parse(v)
+	if err != nil {
+		return defaultValue
+	}
+	return x
+}
+
+func parseInt32(s string) (int32, error) {
+	n, err := strconv.ParseInt(s, 10, 32)
+	return int32(n), err
+}
+
+func parseFloat(s string) (float64, error) { return strconv.ParseFloat(s, 64) }
+
+func parseList(s string) ([]string, error) {
+	result := []string{}
+	for p := range strings.SplitSeq(s, ",") {
+		if trimmed := strings.TrimSpace(p); trimmed != "" {
 			result = append(result, trimmed)
 		}
 	}
-	return result
-}
-
-func getEnvInt(key string, defaultValue int) int {
-	v := os.Getenv(key)
-	if v == "" {
-		return defaultValue
-	}
-	n, err := strconv.Atoi(v)
-	if err != nil {
-		return defaultValue
-	}
-	return n
-}
-
-func getEnvInt32(key string, defaultValue int32) int32 {
-	v := os.Getenv(key)
-	if v == "" {
-		return defaultValue
-	}
-	n, err := strconv.ParseInt(v, 10, 32)
-	if err != nil {
-		return defaultValue
-	}
-	return int32(n)
-}
-
-func getEnvBool(key string, defaultValue bool) bool {
-	v := os.Getenv(key)
-	if v == "" {
-		return defaultValue
-	}
-	b, err := strconv.ParseBool(v)
-	if err != nil {
-		return defaultValue
-	}
-	return b
-}
-
-func getEnvFloat(key string, defaultValue float64) float64 {
-	v := os.Getenv(key)
-	if v == "" {
-		return defaultValue
-	}
-	f, err := strconv.ParseFloat(v, 64)
-	if err != nil {
-		return defaultValue
-	}
-	return f
-}
-
-func getEnvDuration(key string, defaultValue time.Duration) time.Duration {
-	v := os.Getenv(key)
-	if v == "" {
-		return defaultValue
-	}
-	d, err := time.ParseDuration(v)
-	if err != nil {
-		return defaultValue
-	}
-	return d
-}
-
-func getEnvSliceDefault(key string, defaultValue []string) []string {
-	v := os.Getenv(key)
-	if v == "" {
-		return defaultValue
-	}
-	parts := strings.Split(v, ",")
-	result := make([]string, 0, len(parts))
-	for _, p := range parts {
-		trimmed := strings.TrimSpace(p)
-		if trimmed != "" {
-			result = append(result, trimmed)
-		}
-	}
-	return result
+	return result, nil
 }

@@ -113,7 +113,7 @@
 	</div>
 
 	{#if $chatError}
-		<div class="error-banner">{$chatError}</div>
+		<div class="chat-error">{$chatError}</div>
 	{/if}
 
 	<form class="input-area" on:submit|preventDefault={submit}>
@@ -259,7 +259,7 @@
 		color: var(--color-muted, #6b7280);
 	}
 
-	.error-banner {
+	.chat-error {
 		background: var(--color-danger-light, #fee2e2);
 		color: var(--color-danger, #dc2626);
 		padding: 0.5rem 0.75rem;

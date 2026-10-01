@@ -88,13 +88,6 @@ func (c *deviceAccessCache) invalidate(deviceID int64) {
 	c.mu.Unlock()
 }
 
-// invalidateAll removes all cached entries. Useful for bulk operations.
-func (c *deviceAccessCache) invalidateAll() {
-	c.mu.Lock()
-	c.entries = make(map[int64]cacheEntry)
-	c.mu.Unlock()
-}
-
 // len returns the number of entries currently in the cache (including expired
 // ones that have not yet been lazily evicted). Mainly useful for testing.
 func (c *deviceAccessCache) len() int {

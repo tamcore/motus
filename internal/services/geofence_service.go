@@ -7,6 +7,7 @@ import (
 	"github.com/tamcore/motus/internal/audit"
 	"github.com/tamcore/motus/internal/model"
 	"github.com/tamcore/motus/internal/storage/repository"
+	"github.com/tamcore/motus/internal/validation"
 )
 
 // UpdateGeofenceInput holds the fields that may be changed. nil pointer fields
@@ -35,13 +36,13 @@ func (s *GeofenceService) UpdateForUser(ctx context.Context, user *model.User, g
 
 	updated := *existing
 	if in.Name != nil && *in.Name != "" {
-		if err := validateDisplayName(*in.Name); err != nil {
+		if err := validation.ValidateDisplayName(*in.Name); err != nil {
 			return nil, err
 		}
 		updated.Name = *in.Name
 	}
 	if in.Description != nil {
-		if err := validateDescription(*in.Description); err != nil {
+		if err := validation.ValidateDescription(*in.Description); err != nil {
 			return nil, err
 		}
 		updated.Description = *in.Description
@@ -117,10 +118,10 @@ func (s *GeofenceService) CreateForUser(ctx context.Context, user *model.User, i
 	if in.Name == "" {
 		return nil, fmt.Errorf("name is required")
 	}
-	if err := validateDisplayName(in.Name); err != nil {
+	if err := validation.ValidateDisplayName(in.Name); err != nil {
 		return nil, err
 	}
-	if err := validateDescription(in.Description); err != nil {
+	if err := validation.ValidateDescription(in.Description); err != nil {
 		return nil, err
 	}
 	if in.Geometry == "" && in.Area == "" {

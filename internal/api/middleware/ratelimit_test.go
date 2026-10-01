@@ -196,3 +196,57 @@ func TestDefaultAPIRateLimit(t *testing.T) {
 		t.Errorf("expected Period 1m, got %v", cfg.Period)
 	}
 }
+
+func TestRateLimit_HeadersAndKeys(t *testing.T) {
+	handler := middleware.RateLimit(middleware.RateLimitConfig{Max: 2, Period: time.Minute})(http.HandlerFunc(okHandler))
+	do := func(path, remote, xff string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req.RemoteAddr = remote
+		if xff != "" {
+			req.Header.Set("X-Forwarded-For", xff)
+		}
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+		return rr
+	}
+	want := func(rr *httptest.ResponseRecorder, code int, hdr map[string]string) {
+		t.Helper()
+		if rr.Code != code {
+			t.Errorf("status = %d, want %d", rr.Code, code)
+		}
+		for k, v := range hdr {
+			if got := rr.Header().Values(k); len(got) != 1 || got[0] != v {
+				t.Errorf("%s = %q, want %q", k, got, v)
+			}
+		}
+	}
+
+	want(do("/a", "10.9.0.1", "1.1.1.1, 2.2.2.2"), http.StatusOK, map[string]string{
+		"X-Rate-Limit-Limit":                 "0.03",
+		"X-Rate-Limit-Duration":              "1",
+		"X-Rate-Limit-Request-Forwarded-For": "1.1.1.1, 2.2.2.2",
+		"X-Rate-Limit-Request-Remote-Addr":   "10.9.0.1",
+		"RateLimit-Limit":                    "0",
+		"RateLimit-Reset":                    "1",
+		"RateLimit-Remaining":                "1",
+	})
+	want(do("/a", "10.9.0.1:1", ""), http.StatusOK, map[string]string{"RateLimit-Remaining": "0"})
+	rr := do("/a", "10.9.0.1:2", "")
+	want(rr, http.StatusTooManyRequests, map[string]string{"RateLimit-Remaining": "0", "Retry-After": "60"})
+	if rr.Header().Get("X-Rate-Limit-Request-Forwarded-For") != "" {
+		t.Error("unexpected X-Rate-Limit-Request-Forwarded-For without X-Forwarded-For")
+	}
+	want(do("/b", "10.9.0.1", ""), http.StatusOK, nil)
+
+	do("/v6", "[2001:db8:1:2:aaaa::1]:5", "")
+	do("/v6", "2001:db8:1:2:bbbb::2", "")
+	want(do("/v6", "2001:db8:1:2:cccc::3", ""), http.StatusTooManyRequests, nil)
+
+	for range 3 {
+		rr := do("/a", "", "")
+		want(rr, http.StatusOK, nil)
+		if rr.Header().Get("RateLimit-Limit") != "" {
+			t.Error("RateLimit-* headers must be absent when the client IP is unknown")
+		}
+	}
+}

@@ -360,7 +360,7 @@ Any other status value (including `"moving"`) is treated as False (off/stopped).
 **Solution:**
 ```go
 // In geofence detection service
-currentGeofences := geofenceRepo.CheckContainment(ctx, userID, lat, lon)
+currentGeofences, _ := geofenceRepo.CheckContainmentForDevice(ctx, deviceID, lat, lon)
 position.GeofenceIDs = currentGeofences  // Set the IDs!
 ```
 

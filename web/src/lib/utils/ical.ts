@@ -237,12 +237,7 @@ function parseRruleParams(rrule: string): Record<string, string> {
  * Format a time from a Date in HH:MM AM/PM format.
  */
 function formatTime12h(date: Date): string {
-  const hours = date.getUTCHours();
-  const minutes = date.getUTCMinutes();
-  const ampm = hours >= 12 ? "PM" : "AM";
-  const h = hours % 12 || 12;
-  const m = minutes.toString().padStart(2, "0");
-  return `${h}:${m} ${ampm}`;
+  return date.toLocaleTimeString("en-US", { timeZone: "UTC", hour: "numeric", minute: "2-digit" });
 }
 
 /**

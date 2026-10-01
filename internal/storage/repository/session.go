@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/tamcore/motus/internal/model"
 )
@@ -162,22 +163,17 @@ func (r *SessionRepository) ListByUser(ctx context.Context, userID int64) ([]*mo
 	if err != nil {
 		return nil, fmt.Errorf("list sessions by user: %w", err)
 	}
-	defer rows.Close()
-
-	var sessions []*model.Session
-	for rows.Next() {
+	sessions, err := pgx.AppendRows([]*model.Session(nil), rows, func(row pgx.CollectableRow) (*model.Session, error) {
 		s := &model.Session{}
-		if err := rows.Scan(
+		err := row.Scan(
 			&s.ID, &s.UserID, &s.RememberMe, &s.OriginalUserID, &s.IsSudo,
 			&s.ApiKeyID, &s.CreatedAt, &s.ExpiresAt, &s.ApiKeyName,
 			&s.LastSeenAt, &s.LastSeenIP, &s.LastSeenUserAgent,
-		); err != nil {
-			return nil, fmt.Errorf("scan session row: %w", err)
-		}
-		sessions = append(sessions, s)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate session rows: %w", err)
+		)
+		return s, err
+	})
+	if err != nil {
+		return nil, fmt.Errorf("list session rows: %w", err)
 	}
 	return sessions, nil
 }

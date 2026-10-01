@@ -109,15 +109,6 @@ func isBearerTokenRequest(r *http.Request) bool {
 	return token != ""
 }
 
-// ExemptLogin wraps a handler to exempt it from CSRF protection.
-// Use for the login endpoint since users cannot obtain a CSRF token before authenticating.
-func ExemptLogin(handler http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		r = gorillacsrf.UnsafeSkipCheck(r)
-		handler.ServeHTTP(w, r)
-	})
-}
-
 // csrfErrorHandler writes a JSON 403 response for CSRF validation failures.
 func csrfErrorHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")

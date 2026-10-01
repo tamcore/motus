@@ -9,6 +9,7 @@
 		isPasskeyCancellation,
 	} from '$lib/utils/webauthn';
 	import Button from '$lib/components/Button.svelte';
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import Input from '$lib/components/Input.svelte';
 
@@ -34,8 +35,6 @@
 	// Delete confirmation state
 	// ---------------------------------------------------------------------------
 	let confirmingDeleteId: number | null = null;
-	let deleting = false;
-	let deleteError = '';
 
 	// ---------------------------------------------------------------------------
 	// Lifecycle
@@ -108,31 +107,10 @@
 	// ---------------------------------------------------------------------------
 	// Delete
 	// ---------------------------------------------------------------------------
-	function requestDelete(id: number) {
-		confirmingDeleteId = id;
-		deleteError = '';
-	}
-
-	function cancelDelete() {
+	async function confirmDelete(id: number) {
+		await api.deletePasskey(id);
+		passkeys = passkeys.filter((p) => p.id !== id);
 		confirmingDeleteId = null;
-		deleteError = '';
-	}
-
-	async function confirmDelete() {
-		if (confirmingDeleteId === null) return;
-
-		deleting = true;
-		deleteError = '';
-
-		try {
-			await api.deletePasskey(confirmingDeleteId);
-			passkeys = passkeys.filter((p) => p.id !== confirmingDeleteId);
-			confirmingDeleteId = null;
-		} catch (e: unknown) {
-			deleteError = errorMessage(e);
-		} finally {
-			deleting = false;
-		}
 	}
 
 	// ---------------------------------------------------------------------------
@@ -188,7 +166,7 @@
 							</div>
 						</div>
 						<div class="key-actions">
-							<Button variant="danger" size="sm" on:click={() => requestDelete(passkey.id)}>
+							<Button variant="danger" size="sm" on:click={() => (confirmingDeleteId = passkey.id)}>
 								Remove
 							</Button>
 						</div>
@@ -199,25 +177,17 @@
 
 		<!-- Delete confirmation -->
 		{#if confirmingDeleteId !== null}
-			<div class="confirm-overlay">
-				<div class="confirm-box">
-					<p class="confirm-text">
-						Are you sure you want to remove <strong>{confirmingPasskeyName}</strong>?
-						You will no longer be able to sign in with this passkey.
-					</p>
-					{#if deleteError}
-						<div class="message error">{deleteError}</div>
-					{/if}
-					<div class="confirm-actions">
-						<Button variant="secondary" size="sm" on:click={cancelDelete}>
-							Cancel
-						</Button>
-						<Button variant="danger" size="sm" loading={deleting} on:click={confirmDelete}>
-							{deleting ? 'Removing...' : 'Remove Passkey'}
-						</Button>
-					</div>
-				</div>
-			</div>
+			{@const id = confirmingDeleteId}
+			<ConfirmDialog
+				confirmLabel="Remove Passkey"
+				busyLabel="Removing..."
+				fallbackError="Please try again."
+				onConfirm={() => confirmDelete(id)}
+				onCancel={() => (confirmingDeleteId = null)}
+			>
+				Are you sure you want to remove <strong>{confirmingPasskeyName}</strong>?
+				You will no longer be able to sign in with this passkey.
+			</ConfirmDialog>
 		{/if}
 	</section>
 
@@ -371,28 +341,6 @@
 
 	.key-actions {
 		flex-shrink: 0;
-	}
-
-	/* Delete confirmation */
-	.confirm-overlay {
-		margin-top: var(--space-4);
-		padding: var(--space-4);
-		background-color: rgba(255, 68, 68, 0.05);
-		border: 1px solid var(--error);
-		border-radius: var(--radius-md);
-	}
-
-	.confirm-text {
-		font-size: var(--text-sm);
-		color: var(--text-primary);
-		margin-bottom: var(--space-3);
-		line-height: 1.5;
-	}
-
-	.confirm-actions {
-		display: flex;
-		justify-content: flex-end;
-		gap: var(--space-3);
 	}
 
 	/* Create modal form */

@@ -45,14 +45,14 @@ func setupCalendarGeofenceTest(t *testing.T) (
 	calRepo := repository.NewCalendarRepository(pool)
 	hub := websocket.NewHub(nil, nil, func(r *http.Request) int64 { return 0 })
 
-	svc := NewGeofenceEventService(geoRepo, eventRepo, posRepo, hub, nil)
+	svc := NewGeofenceEventService(geoRepo, eventRepo, posRepo, hub, nil, nil)
 	svc.SetCalendarRepo(calRepo)
 
 	return svc, geoRepo, eventRepo, deviceRepo, posRepo, userRepo, calRepo
 }
 
 func TestGeofenceCalendar_NoCalendar_AlwaysTriggers(t *testing.T) {
-	svc, geoRepo, eventRepo, deviceRepo, posRepo, userRepo, _ := setupCalendarGeofenceTest(t)
+	svc, geoRepo, _, deviceRepo, posRepo, userRepo, _ := setupCalendarGeofenceTest(t)
 	ctx := context.Background()
 
 	user := &model.User{Email: "cal-nocal@example.com", PasswordHash: "hash", Name: "No Cal"}
@@ -76,7 +76,7 @@ func TestGeofenceCalendar_NoCalendar_AlwaysTriggers(t *testing.T) {
 		t.Fatalf("CheckGeofences failed: %v", err)
 	}
 
-	events, _ := eventRepo.GetByDevice(ctx, device.ID, 100)
+	events, _ := deviceEvents(t, device.ID)
 	if len(events) != 1 {
 		t.Fatalf("expected 1 enter event, got %d", len(events))
 	}
@@ -86,7 +86,7 @@ func TestGeofenceCalendar_NoCalendar_AlwaysTriggers(t *testing.T) {
 }
 
 func TestGeofenceCalendar_ActiveCalendar_Triggers(t *testing.T) {
-	svc, geoRepo, eventRepo, deviceRepo, posRepo, userRepo, calRepo := setupCalendarGeofenceTest(t)
+	svc, geoRepo, _, deviceRepo, posRepo, userRepo, calRepo := setupCalendarGeofenceTest(t)
 	ctx := context.Background()
 
 	user := &model.User{Email: "cal-active@example.com", PasswordHash: "hash", Name: "Active Cal"}
@@ -118,14 +118,14 @@ func TestGeofenceCalendar_ActiveCalendar_Triggers(t *testing.T) {
 		t.Fatalf("CheckGeofences failed: %v", err)
 	}
 
-	events, _ := eventRepo.GetByDevice(ctx, device.ID, 100)
+	events, _ := deviceEvents(t, device.ID)
 	if len(events) != 1 {
 		t.Fatalf("expected 1 enter event (calendar active), got %d", len(events))
 	}
 }
 
 func TestGeofenceCalendar_InactiveCalendar_Suppresses(t *testing.T) {
-	svc, geoRepo, eventRepo, deviceRepo, posRepo, userRepo, calRepo := setupCalendarGeofenceTest(t)
+	svc, geoRepo, _, deviceRepo, posRepo, userRepo, calRepo := setupCalendarGeofenceTest(t)
 	ctx := context.Background()
 
 	user := &model.User{Email: "cal-inactive@example.com", PasswordHash: "hash", Name: "Inactive Cal"}
@@ -158,14 +158,14 @@ func TestGeofenceCalendar_InactiveCalendar_Suppresses(t *testing.T) {
 	}
 
 	// No events should be created because the calendar says it's not active.
-	events, _ := eventRepo.GetByDevice(ctx, device.ID, 100)
+	events, _ := deviceEvents(t, device.ID)
 	if len(events) != 0 {
 		t.Fatalf("expected 0 events (calendar inactive), got %d", len(events))
 	}
 }
 
 func TestGeofenceCalendar_OutsideHours_Suppresses(t *testing.T) {
-	svc, geoRepo, eventRepo, deviceRepo, posRepo, userRepo, calRepo := setupCalendarGeofenceTest(t)
+	svc, geoRepo, _, deviceRepo, posRepo, userRepo, calRepo := setupCalendarGeofenceTest(t)
 	ctx := context.Background()
 
 	user := &model.User{Email: "cal-hours@example.com", PasswordHash: "hash", Name: "Hours Cal"}
@@ -197,14 +197,14 @@ func TestGeofenceCalendar_OutsideHours_Suppresses(t *testing.T) {
 		t.Fatalf("CheckGeofences failed: %v", err)
 	}
 
-	events, _ := eventRepo.GetByDevice(ctx, device.ID, 100)
+	events, _ := deviceEvents(t, device.ID)
 	if len(events) != 0 {
 		t.Fatalf("expected 0 events (outside business hours), got %d", len(events))
 	}
 }
 
 func TestGeofenceCalendar_ExitAlsoSuppressed(t *testing.T) {
-	svc, geoRepo, eventRepo, deviceRepo, posRepo, userRepo, calRepo := setupCalendarGeofenceTest(t)
+	svc, geoRepo, _, deviceRepo, posRepo, userRepo, calRepo := setupCalendarGeofenceTest(t)
 	ctx := context.Background()
 
 	user := &model.User{Email: "cal-exit@example.com", PasswordHash: "hash", Name: "Cal Exit"}
@@ -242,7 +242,7 @@ func TestGeofenceCalendar_ExitAlsoSuppressed(t *testing.T) {
 	_ = posRepo.Create(ctx, pos2)
 	_ = svc.CheckGeofences(ctx, pos2)
 
-	events, _ := eventRepo.GetByDevice(ctx, device.ID, 100)
+	events, _ := deviceEvents(t, device.ID)
 
 	// Should have 1 enter event (from Wednesday), but 0 exit events (Saturday suppressed).
 	if len(events) != 1 {
@@ -267,7 +267,7 @@ func TestGeofenceCalendar_NoCalendarRepo_AlwaysTriggers(t *testing.T) {
 	hub := websocket.NewHub(nil, nil, func(r *http.Request) int64 { return 0 })
 
 	// Create service WITHOUT setting calendar repo.
-	svc := NewGeofenceEventService(geoRepo, eventRepo, posRepo, hub, nil)
+	svc := NewGeofenceEventService(geoRepo, eventRepo, posRepo, hub, nil, nil)
 
 	ctx := context.Background()
 
@@ -296,7 +296,7 @@ func TestGeofenceCalendar_NoCalendarRepo_AlwaysTriggers(t *testing.T) {
 	}
 
 	// Should still trigger because calendarRepo is nil (fail open).
-	events, _ := eventRepo.GetByDevice(ctx, device.ID, 100)
+	events, _ := deviceEvents(t, device.ID)
 	if len(events) != 1 {
 		t.Fatalf("expected 1 event (no calendar repo = always trigger), got %d", len(events))
 	}

@@ -206,25 +206,8 @@ func TestParsePartitionBounds(t *testing.T) {
 	}
 }
 
-func TestManager_SetLogger_Nil(t *testing.T) {
-	// SetLogger with nil should be a no-op (keep existing logger, no panic).
-	mgr := NewManager(nil, 0, time.Hour)
-	initialLogger := mgr.logger
-
-	mgr.SetLogger(nil) // Should not panic.
-
-	if mgr.logger != initialLogger {
-		t.Error("expected logger to remain unchanged after SetLogger(nil)")
-	}
-}
-
-func TestManager_SetLogger_Custom(t *testing.T) {
-	mgr := NewManager(nil, 0, time.Hour)
-	customLogger := slog.Default()
-
-	mgr.SetLogger(customLogger)
-
-	if mgr.logger != customLogger {
-		t.Error("expected logger to be replaced with the custom logger")
+func TestNewManager_DefaultsLogger(t *testing.T) {
+	if mgr := NewManager(nil, 0, time.Hour, nil); mgr.logger != slog.Default() {
+		t.Error("nil logger should default to slog.Default()")
 	}
 }

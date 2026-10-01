@@ -177,7 +177,7 @@ func TestAuthMiddleware_ExpiredBearerToken_Returns401(t *testing.T) {
 	}
 	sessionRepo := &mockSessionRepo{}
 
-	mw := middleware.Auth(userRepo, sessionRepo, apiKeyRepo)
+	mw := middleware.LoadAuthContext(userRepo, sessionRepo, apiKeyRepo)
 	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		t.Error("handler should not be called for expired API key")
 		w.WriteHeader(http.StatusOK)
@@ -216,7 +216,7 @@ func TestAuthMiddleware_ValidBearerToken_NotExpired(t *testing.T) {
 	}
 	sessionRepo := &mockSessionRepo{}
 
-	mw := middleware.Auth(userRepo, sessionRepo, apiKeyRepo)
+	mw := middleware.LoadAuthContext(userRepo, sessionRepo, apiKeyRepo)
 	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		handlerCalled = true
 		w.WriteHeader(http.StatusOK)
@@ -257,7 +257,7 @@ func TestAuthMiddleware_NilExpiresAt_NeverExpires(t *testing.T) {
 	}
 	sessionRepo := &mockSessionRepo{}
 
-	mw := middleware.Auth(userRepo, sessionRepo, apiKeyRepo)
+	mw := middleware.LoadAuthContext(userRepo, sessionRepo, apiKeyRepo)
 	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		handlerCalled = true
 		w.WriteHeader(http.StatusOK)
@@ -301,7 +301,7 @@ func TestAuthMiddleware_RememberMeSessionRollsWhenNearExpiry_Cookie(t *testing.T
 		},
 	}
 
-	mw := middleware.Auth(userRepo, sessionRepo, &mockApiKeyRepo{})
+	mw := middleware.LoadAuthContext(userRepo, sessionRepo, &mockApiKeyRepo{})
 	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -344,7 +344,7 @@ func TestAuthMiddleware_RememberMeSessionRollsWhenNearExpiry_XAuthToken(t *testi
 		},
 	}
 
-	mw := middleware.Auth(userRepo, sessionRepo, &mockApiKeyRepo{})
+	mw := middleware.LoadAuthContext(userRepo, sessionRepo, &mockApiKeyRepo{})
 	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -386,7 +386,7 @@ func TestAuthMiddleware_NonRememberMeSession_NotRolled(t *testing.T) {
 		},
 	}
 
-	mw := middleware.Auth(userRepo, sessionRepo, &mockApiKeyRepo{})
+	mw := middleware.LoadAuthContext(userRepo, sessionRepo, &mockApiKeyRepo{})
 	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -426,7 +426,7 @@ func TestAuthMiddleware_RememberMeSessionFarFromExpiry_NotRolled(t *testing.T) {
 		},
 	}
 
-	mw := middleware.Auth(userRepo, sessionRepo, &mockApiKeyRepo{})
+	mw := middleware.LoadAuthContext(userRepo, sessionRepo, &mockApiKeyRepo{})
 	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -472,7 +472,7 @@ func TestAuthMiddleware_ExpiredKeyViaSessionCookie_Returns401(t *testing.T) {
 		},
 	}
 
-	mw := middleware.Auth(userRepo, sessionRepo, apiKeyRepo)
+	mw := middleware.LoadAuthContext(userRepo, sessionRepo, apiKeyRepo)
 	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		t.Error("handler should not be called for expired API key via session")
 		w.WriteHeader(http.StatusOK)

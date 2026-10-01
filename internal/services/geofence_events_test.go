@@ -31,14 +31,14 @@ func setupGeofenceService(t *testing.T) (
 	userRepo := repository.NewUserRepository(pool)
 	hub := websocket.NewHub(nil, nil, func(r *http.Request) int64 { return 0 })
 
-	svc := NewGeofenceEventService(geoRepo, eventRepo, posRepo, hub, nil)
+	svc := NewGeofenceEventService(geoRepo, eventRepo, posRepo, hub, nil, nil)
 	return svc, geoRepo, eventRepo, deviceRepo, posRepo, userRepo
 }
 
 const testGeoJSON = `{"type":"Polygon","coordinates":[[[13.35,52.51],[13.35,52.53],[13.40,52.53],[13.40,52.51],[13.35,52.51]]]}`
 
 func TestGeofenceEvent_FirstPosition_EnterEvents(t *testing.T) {
-	svc, geoRepo, eventRepo, deviceRepo, posRepo, userRepo := setupGeofenceService(t)
+	svc, geoRepo, _, deviceRepo, posRepo, userRepo := setupGeofenceService(t)
 	ctx := context.Background()
 
 	// Setup: user, device, geofence.
@@ -66,9 +66,9 @@ func TestGeofenceEvent_FirstPosition_EnterEvents(t *testing.T) {
 		t.Fatalf("CheckGeofences failed: %v", err)
 	}
 
-	events, err := eventRepo.GetByDevice(ctx, device.ID, 100)
+	events, err := deviceEvents(t, device.ID)
 	if err != nil {
-		t.Fatalf("GetByDevice failed: %v", err)
+		t.Fatalf("deviceEvents failed: %v", err)
 	}
 	if len(events) != 1 {
 		t.Fatalf("expected 1 enter event, got %d", len(events))
@@ -79,7 +79,7 @@ func TestGeofenceEvent_FirstPosition_EnterEvents(t *testing.T) {
 }
 
 func TestGeofenceEvent_NoGeofence_NoEvents(t *testing.T) {
-	svc, _, eventRepo, deviceRepo, posRepo, userRepo := setupGeofenceService(t)
+	svc, _, _, deviceRepo, posRepo, userRepo := setupGeofenceService(t)
 	ctx := context.Background()
 
 	user := &model.User{Email: "geoevt-no@example.com", PasswordHash: "hash", Name: "No Geo"}
@@ -99,14 +99,14 @@ func TestGeofenceEvent_NoGeofence_NoEvents(t *testing.T) {
 		t.Fatalf("CheckGeofences failed: %v", err)
 	}
 
-	events, _ := eventRepo.GetByDevice(ctx, device.ID, 100)
+	events, _ := deviceEvents(t, device.ID)
 	if len(events) != 0 {
 		t.Errorf("expected 0 events, got %d", len(events))
 	}
 }
 
 func TestGeofenceEvent_ExitDetection(t *testing.T) {
-	svc, geoRepo, eventRepo, deviceRepo, posRepo, userRepo := setupGeofenceService(t)
+	svc, geoRepo, _, deviceRepo, posRepo, userRepo := setupGeofenceService(t)
 	ctx := context.Background()
 
 	user := &model.User{Email: "geoexit@example.com", PasswordHash: "hash", Name: "Geo Exit"}
@@ -137,7 +137,7 @@ func TestGeofenceEvent_ExitDetection(t *testing.T) {
 	_ = posRepo.Create(ctx, pos2)
 	_ = svc.CheckGeofences(ctx, pos2)
 
-	events, _ := eventRepo.GetByDevice(ctx, device.ID, 100)
+	events, _ := deviceEvents(t, device.ID)
 	if len(events) != 2 {
 		t.Fatalf("expected 2 events (enter + exit), got %d", len(events))
 	}
@@ -178,7 +178,7 @@ func TestGeofenceEvent_DeviceWithNoUsers(t *testing.T) {
 // previous position against the NEW polygon, finds "not inside", then compares
 // with the current position that IS inside → wrongly emits geofenceEnter.
 func TestCheckGeofences_ShapeEditDoesNotEmitSpuriousEvent(t *testing.T) {
-	svc, geoRepo, eventRepo, deviceRepo, posRepo, userRepo := setupGeofenceService(t)
+	svc, geoRepo, _, deviceRepo, posRepo, userRepo := setupGeofenceService(t)
 	ctx := context.Background()
 
 	user := &model.User{Email: "spurious@example.com", PasswordHash: "h", Name: "Spurious"}
@@ -246,9 +246,9 @@ func TestCheckGeofences_ShapeEditDoesNotEmitSpuriousEvent(t *testing.T) {
 
 	// Expect exactly 1 event total: the initial geofenceEnter from pos1.
 	// No spurious geofenceEnter should be emitted for pos2.
-	events, err := eventRepo.GetByDevice(ctx, device.ID, 100)
+	events, err := deviceEvents(t, device.ID)
 	if err != nil {
-		t.Fatalf("GetByDevice failed: %v", err)
+		t.Fatalf("deviceEvents failed: %v", err)
 	}
 	if len(events) != 1 {
 		types := make([]string, len(events))
@@ -259,28 +259,5 @@ func TestCheckGeofences_ShapeEditDoesNotEmitSpuriousEvent(t *testing.T) {
 	}
 	if len(events) == 1 && events[0].Type != "geofenceEnter" {
 		t.Errorf("expected geofenceEnter, got %q", events[0].Type)
-	}
-}
-
-func TestContainsID(t *testing.T) {
-	tests := []struct {
-		name   string
-		ids    []int64
-		target int64
-		want   bool
-	}{
-		{"found", []int64{1, 2, 3}, 2, true},
-		{"not found", []int64{1, 2, 3}, 4, false},
-		{"empty slice", []int64{}, 1, false},
-		{"nil slice", nil, 1, false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := containsID(tt.ids, tt.target)
-			if got != tt.want {
-				t.Errorf("containsID(%v, %d) = %v, want %v", tt.ids, tt.target, got, tt.want)
-			}
-		})
 	}
 }

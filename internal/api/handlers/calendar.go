@@ -9,6 +9,7 @@ import (
 	"github.com/tamcore/motus/internal/audit"
 	"github.com/tamcore/motus/internal/calendar"
 	"github.com/tamcore/motus/internal/model"
+	"github.com/tamcore/motus/internal/validation"
 )
 
 // --- ogen Handler methods ---
@@ -42,7 +43,7 @@ func (h *Handler) CreateCalendar(ctx context.Context, req *oas.CalendarInput) (o
 	if req.Name == "" {
 		return &oas.CreateCalendarBadRequest{Error: "name is required"}, nil
 	}
-	if err := ValidateDisplayName(req.Name); err != nil {
+	if err := validation.ValidateDisplayName(req.Name); err != nil {
 		return &oas.CreateCalendarBadRequest{Error: err.Error()}, nil
 	}
 	if req.Data == "" {
@@ -86,7 +87,7 @@ func (h *Handler) UpdateCalendar(ctx context.Context, req *oas.CalendarInput, pa
 
 	updated := *existing
 	if req.Name != "" {
-		if err := ValidateDisplayName(req.Name); err != nil {
+		if err := validation.ValidateDisplayName(req.Name); err != nil {
 			return &oas.UpdateCalendarBadRequest{Error: err.Error()}, nil
 		}
 		updated.Name = req.Name

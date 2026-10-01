@@ -23,13 +23,10 @@ const GeofenceDedupWindow = 5 * time.Minute
 // GeofenceEventService detects geofence enter/exit events by comparing
 // a new position against the previous one for the same device.
 type GeofenceEventService struct {
-	geofenceRepo        repository.GeofenceRepo
-	eventRepo           repository.EventRepo
-	positionRepo        repository.PositionRepo
-	calendarRepo        repository.CalendarRepo
-	hub                 *websocket.Hub
-	notificationService *NotificationService
-	logger              *slog.Logger
+	eventEmitter
+	geofenceRepo repository.GeofenceRepo
+	positionRepo repository.PositionRepo
+	calendarRepo repository.CalendarRepo
 	// now returns the current time. Defaults to time.Now; injectable for testing.
 	now func() time.Time
 }
@@ -41,22 +38,13 @@ func NewGeofenceEventService(
 	positionRepo repository.PositionRepo,
 	hub *websocket.Hub,
 	notificationService *NotificationService,
+	logger *slog.Logger,
 ) *GeofenceEventService {
 	return &GeofenceEventService{
-		geofenceRepo:        geofenceRepo,
-		eventRepo:           eventRepo,
-		positionRepo:        positionRepo,
-		hub:                 hub,
-		notificationService: notificationService,
-		logger:              slog.Default(),
-		now:                 time.Now,
-	}
-}
-
-// SetLogger configures the structured logger for this service.
-func (s *GeofenceEventService) SetLogger(l *slog.Logger) {
-	if l != nil {
-		s.logger = l
+		eventEmitter: newEventEmitter(eventRepo, hub, notificationService, logger),
+		geofenceRepo: geofenceRepo,
+		positionRepo: positionRepo,
+		now:          time.Now,
 	}
 }
 
@@ -113,13 +101,13 @@ func (s *GeofenceEventService) CheckGeofences(ctx context.Context, position *mod
 	}
 
 	for _, gid := range currentGeofences {
-		if !containsID(prevGeofences, gid) {
+		if !slices.Contains(prevGeofences, gid) {
 			s.createEvent(ctx, position, gid, "geofenceEnter")
 		}
 	}
 
 	for _, gid := range prevGeofences {
-		if !containsID(currentGeofences, gid) {
+		if !slices.Contains(currentGeofences, gid) {
 			s.createEvent(ctx, position, gid, "geofenceExit")
 		}
 	}
@@ -158,7 +146,12 @@ func (s *GeofenceEventService) createEvent(ctx context.Context, position *model.
 		Timestamp:  position.Timestamp,
 	}
 
-	if err := s.eventRepo.Create(ctx, event); err != nil {
+	err = s.emit(ctx, event, "geofence event detected",
+		slog.Int64("deviceID", position.DeviceID),
+		slog.Int64("geofenceID", geofenceID),
+		slog.String("eventType", eventType),
+	)
+	if err != nil {
 		s.logger.Error("failed to create geofence event",
 			slog.String("eventType", eventType),
 			slog.Int64("deviceID", position.DeviceID),
@@ -167,28 +160,7 @@ func (s *GeofenceEventService) createEvent(ctx context.Context, position *model.
 		)
 		return
 	}
-
 	metrics.GeofenceEvents.WithLabelValues(eventType).Inc()
-	s.logger.Info("geofence event detected",
-		slog.Int64("deviceID", position.DeviceID),
-		slog.Int64("geofenceID", geofenceID),
-		slog.String("eventType", eventType),
-	)
-
-	// Broadcast the event via WebSocket.
-	if s.hub != nil {
-		s.hub.BroadcastEvent(event)
-	}
-
-	// Trigger notifications for this event.
-	if s.notificationService != nil {
-		if err := s.notificationService.ProcessEvent(ctx, event); err != nil {
-			s.logger.Error("failed to process notifications for event",
-				slog.Int64("eventID", event.ID),
-				slog.Any("error", err),
-			)
-		}
-	}
 }
 
 // isGeofenceActiveNow checks whether a geofence should trigger events at the
@@ -235,8 +207,4 @@ func (s *GeofenceEventService) isGeofenceActiveNow(ctx context.Context, geofence
 	}
 
 	return active
-}
-
-func containsID(ids []int64, target int64) bool {
-	return slices.Contains(ids, target)
 }

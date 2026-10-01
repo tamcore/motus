@@ -8,73 +8,6 @@ import (
 	"time"
 )
 
-func TestBackoff_InitialDelay(t *testing.T) {
-	b := newBackoff()
-	if b.next() != initialBackoff {
-		t.Errorf("first backoff = %v, want %v", b.next(), initialBackoff)
-	}
-}
-
-func TestBackoff_ExponentialGrowth(t *testing.T) {
-	b := newBackoff()
-
-	// Collect delays and verify exponential growth.
-	var delays []time.Duration
-	for range 10 {
-		delays = append(delays, b.next())
-		b.increment()
-	}
-
-	// Each delay should be double the previous (until cap).
-	for i := 1; i < len(delays); i++ {
-		if delays[i] <= delays[i-1] && delays[i] < maxBackoff {
-			t.Errorf("delay[%d]=%v should be > delay[%d]=%v", i, delays[i], i-1, delays[i-1])
-		}
-	}
-}
-
-func TestBackoff_CapsAtMaximum(t *testing.T) {
-	b := newBackoff()
-
-	// Increment many times past the cap.
-	for range 20 {
-		b.increment()
-	}
-
-	delay := b.next()
-	if delay > maxBackoff {
-		t.Errorf("backoff = %v exceeds max %v", delay, maxBackoff)
-	}
-}
-
-func TestBackoff_Reset(t *testing.T) {
-	b := newBackoff()
-	// Increment several times.
-	for range 5 {
-		b.increment()
-	}
-	// Verify it grew.
-	if b.next() <= initialBackoff {
-		t.Fatal("expected backoff to have grown")
-	}
-
-	b.reset()
-	if b.next() != initialBackoff {
-		t.Errorf("after reset, backoff = %v, want %v", b.next(), initialBackoff)
-	}
-}
-
-func TestBackoff_NextIsIdempotent(t *testing.T) {
-	b := newBackoff()
-	b.increment()
-	b.increment()
-	d1 := b.next()
-	d2 := b.next()
-	if d1 != d2 {
-		t.Errorf("next() not idempotent: %v != %v", d1, d2)
-	}
-}
-
 func TestConnectWithBackoff_ImmediateSuccess(t *testing.T) {
 	// Start a TCP listener that accepts connections.
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -104,8 +37,8 @@ func TestConnectWithBackoff_ImmediateSuccess(t *testing.T) {
 	_ = conn.Close()
 
 	// Backoff should not have incremented since connection succeeded first try.
-	if b.next() != initialBackoff {
-		t.Errorf("backoff should be at initial after immediate success, got %v", b.next())
+	if b.current != initialBackoff {
+		t.Errorf("backoff should be at initial after immediate success, got %v", b.current)
 	}
 }
 
@@ -180,8 +113,8 @@ func TestConnectWithBackoff_BackoffGrowsDuringRetries(t *testing.T) {
 	_, _ = connectWithBackoff(ctx, addr, &b)
 
 	// After failed retries, backoff should have grown beyond initial.
-	if b.next() <= initialBackoff {
-		t.Errorf("backoff should have grown during retries, got %v", b.next())
+	if b.current <= initialBackoff {
+		t.Errorf("backoff should have grown during retries, got %v", b.current)
 	}
 }
 
@@ -302,7 +235,7 @@ func TestBackoff_SpecificValues(t *testing.T) {
 	}
 
 	for i, want := range expected {
-		got := b.next()
+		got := b.current
 		if got != want {
 			t.Errorf("step %d: backoff = %v, want %v", i, got, want)
 		}
@@ -336,7 +269,7 @@ func TestConnectWithBackoff_ResetsBackoffOnSuccess(t *testing.T) {
 	for range 5 {
 		b.increment()
 	}
-	if b.next() <= initialBackoff {
+	if b.current <= initialBackoff {
 		t.Fatal("expected pre-incremented backoff to be greater than initial")
 	}
 
@@ -347,8 +280,8 @@ func TestConnectWithBackoff_ResetsBackoffOnSuccess(t *testing.T) {
 	_ = conn.Close()
 
 	// After successful connection, backoff should be reset.
-	if b.next() != initialBackoff {
-		t.Errorf("backoff should be reset after success, got %v", b.next())
+	if b.current != initialBackoff {
+		t.Errorf("backoff should be reset after success, got %v", b.current)
 	}
 }
 
@@ -388,7 +321,7 @@ func TestBackoff_JitterRange(t *testing.T) {
 
 	// Run many iterations to check jitter stays within bounds.
 	for range 100 {
-		base := b.next()
+		base := b.current
 		jittered := b.withJitter()
 		// Jitter should be within [0.5*base, 1.5*base].
 		minVal := time.Duration(float64(base) * 0.5)
@@ -396,25 +329,5 @@ func TestBackoff_JitterRange(t *testing.T) {
 		if jittered < minVal || jittered > maxVal {
 			t.Errorf("jittered %v outside range [%v, %v] for base %v", jittered, minVal, maxVal, base)
 		}
-	}
-}
-
-func TestBackoff_Workflow(t *testing.T) {
-	b := newBackoff()
-
-	if got := b.next(); got != 1*time.Second {
-		t.Errorf("initial = %v, want 1s", got)
-	}
-	b.increment()
-	if got := b.next(); got != 2*time.Second {
-		t.Errorf("after 1 increment = %v, want 2s", got)
-	}
-	b.increment()
-	if got := b.next(); got != 4*time.Second {
-		t.Errorf("after 2 increments = %v, want 4s", got)
-	}
-	b.reset()
-	if got := b.next(); got != 1*time.Second {
-		t.Errorf("after reset = %v, want 1s", got)
 	}
 }

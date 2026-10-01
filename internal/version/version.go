@@ -11,13 +11,3 @@ var (
 	// Branch is the git branch name
 	Branch = "unknown"
 )
-
-// Info returns build information as a map
-func Info() map[string]string {
-	return map[string]string{
-		"version":   Version,
-		"commit":    Commit,
-		"buildDate": BuildDate,
-		"branch":    Branch,
-	}
-}

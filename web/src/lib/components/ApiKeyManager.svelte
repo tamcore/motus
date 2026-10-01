@@ -4,6 +4,7 @@
 	import type { ApiKey } from '$lib/types/api';
 	import { formatDate } from '$lib/utils/formatting';
 	import Button from '$lib/components/Button.svelte';
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import Input from '$lib/components/Input.svelte';
 	import QrCodeDialog from '$lib/components/QrCodeDialog.svelte';
@@ -36,8 +37,6 @@
 	// Delete confirmation state
 	// ---------------------------------------------------------------------------
 	let confirmingDeleteId: number | null = null;
-	let deleting = false;
-	let deleteError = '';
 
 	// ---------------------------------------------------------------------------
 	// QR Code dialog state
@@ -195,37 +194,10 @@
 	// ---------------------------------------------------------------------------
 	// Delete
 	// ---------------------------------------------------------------------------
-	function requestDelete(id: number) {
-		confirmingDeleteId = id;
-		deleteError = '';
-	}
-
-	function cancelDelete() {
+	async function confirmDelete(id: number) {
+		await api.deleteApiKey(id);
+		apiKeys = apiKeys.filter((k) => k.id !== id);
 		confirmingDeleteId = null;
-		deleteError = '';
-	}
-
-	async function confirmDelete() {
-		if (confirmingDeleteId === null) return;
-
-		deleting = true;
-		deleteError = '';
-
-		try {
-			await api.deleteApiKey(confirmingDeleteId);
-			apiKeys = apiKeys.filter((k) => k.id !== confirmingDeleteId);
-			confirmingDeleteId = null;
-		} catch (e: unknown) {
-			if (e instanceof APIError) {
-				deleteError = e.message;
-			} else if (e instanceof Error) {
-				deleteError = e.message;
-			} else {
-				deleteError = 'Failed to revoke API key. Please try again.';
-			}
-		} finally {
-			deleting = false;
-		}
 	}
 
 	// ---------------------------------------------------------------------------
@@ -330,7 +302,7 @@
 						</div>
 					</div>
 					<div class="key-actions">
-						<Button variant="danger" size="sm" on:click={() => requestDelete(key.id)}>
+						<Button variant="danger" size="sm" on:click={() => (confirmingDeleteId = key.id)}>
 							Revoke
 						</Button>
 					</div>
@@ -363,25 +335,17 @@
 
 	<!-- Delete confirmation -->
 	{#if confirmingDeleteId !== null}
-		<div class="confirm-overlay">
-			<div class="confirm-box">
-				<p class="confirm-text">
-					Are you sure you want to revoke <strong>{confirmingKeyName}</strong>?
-					Any integrations using this key will immediately stop working.
-				</p>
-				{#if deleteError}
-					<div class="message error">{deleteError}</div>
-				{/if}
-				<div class="confirm-actions">
-					<Button variant="secondary" size="sm" on:click={cancelDelete}>
-						Cancel
-					</Button>
-					<Button variant="danger" size="sm" loading={deleting} on:click={confirmDelete}>
-						{deleting ? 'Revoking...' : 'Revoke Key'}
-					</Button>
-				</div>
-			</div>
-		</div>
+		{@const id = confirmingDeleteId}
+		<ConfirmDialog
+			confirmLabel="Revoke Key"
+			busyLabel="Revoking..."
+			fallbackError="Failed to revoke API key. Please try again."
+			onConfirm={() => confirmDelete(id)}
+			onCancel={() => (confirmingDeleteId = null)}
+		>
+			Are you sure you want to revoke <strong>{confirmingKeyName}</strong>?
+			Any integrations using this key will immediately stop working.
+		</ConfirmDialog>
 	{/if}
 </section>
 
@@ -697,28 +661,6 @@
 
 	.key-actions {
 		flex-shrink: 0;
-	}
-
-	/* Delete confirmation */
-	.confirm-overlay {
-		margin-top: var(--space-4);
-		padding: var(--space-4);
-		background-color: rgba(255, 68, 68, 0.05);
-		border: 1px solid var(--error);
-		border-radius: var(--radius-md);
-	}
-
-	.confirm-text {
-		font-size: var(--text-sm);
-		color: var(--text-primary);
-		margin-bottom: var(--space-3);
-		line-height: 1.5;
-	}
-
-	.confirm-actions {
-		display: flex;
-		justify-content: flex-end;
-		gap: var(--space-3);
 	}
 
 	/* Create modal form */

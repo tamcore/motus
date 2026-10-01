@@ -90,17 +90,6 @@ func exemptLoginFromCSRF(next http.Handler) http.Handler {
 	})
 }
 
-// csrfTokenMiddleware injects the X-CSRF-Token response header on any /api/session
-// request so clients can obtain the token both on login and from an existing session.
-func csrfTokenMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/api/session" || r.URL.Path == "/api/session/passkey/login/finish" {
-			w.Header().Set("X-CSRF-Token", csrf.Token(r))
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
 // serveDocs serves a single file from an embedded FS.
 func serveDocs(f fs.FS, path string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -213,8 +202,6 @@ func NewRouter(h oas.Handler, sec oas.SecurityHandler, hub *websocket.Hub, opts 
 	if cfg.APIRateLimit != nil {
 		apiHandler = cfg.APIRateLimit(apiHandler)
 	}
-	// Inject X-CSRF-Token header into login responses.
-	apiHandler = csrfTokenMiddleware(apiHandler)
 	// CSRF protection (login already marked exempt by exemptLoginFromCSRF below).
 	if cfg.CSRFProtect != nil {
 		apiHandler = cfg.CSRFProtect(apiHandler)

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/tamcore/motus/internal/model"
 )
@@ -74,29 +75,7 @@ func (r *NotificationRepository) GetByUser(ctx context.Context, userID int64) ([
 	if err != nil {
 		return nil, fmt.Errorf("get notification rules by user: %w", err)
 	}
-	defer rows.Close()
-
-	rules := make([]*model.NotificationRule, 0, 16)
-	for rows.Next() {
-		var rule model.NotificationRule
-		var configJSON []byte
-		if err := rows.Scan(
-			&rule.ID, &rule.UserID, &rule.Name, &rule.EventTypes, &rule.Channel,
-			&configJSON, &rule.Template, &rule.Enabled, &rule.CreatedAt, &rule.UpdatedAt,
-		); err != nil {
-			return nil, fmt.Errorf("scan notification rule: %w", err)
-		}
-		if len(configJSON) > 0 {
-			if err := json.Unmarshal(configJSON, &rule.Config); err != nil {
-				slog.Warn("failed to unmarshal notification config",
-					slog.Int64("ruleID", rule.ID),
-					slog.Any("error", err))
-				rule.Config = make(map[string]any)
-			}
-		}
-		rules = append(rules, &rule)
-	}
-	return rules, rows.Err()
+	return pgx.CollectRows(rows, rowToNotificationRule(false))
 }
 
 // GetAll retrieves all notification rules with owner names.
@@ -111,30 +90,7 @@ func (r *NotificationRepository) GetAll(ctx context.Context) ([]*model.Notificat
 	if err != nil {
 		return nil, fmt.Errorf("get all notification rules: %w", err)
 	}
-	defer rows.Close()
-
-	rules := make([]*model.NotificationRule, 0, 16)
-	for rows.Next() {
-		var rule model.NotificationRule
-		var configJSON []byte
-		if err := rows.Scan(
-			&rule.ID, &rule.UserID, &rule.Name, &rule.EventTypes, &rule.Channel,
-			&configJSON, &rule.Template, &rule.Enabled, &rule.CreatedAt, &rule.UpdatedAt,
-			&rule.OwnerName,
-		); err != nil {
-			return nil, fmt.Errorf("scan notification rule: %w", err)
-		}
-		if len(configJSON) > 0 {
-			if err := json.Unmarshal(configJSON, &rule.Config); err != nil {
-				slog.Warn("failed to unmarshal notification config",
-					slog.Int64("ruleID", rule.ID),
-					slog.Any("error", err))
-				rule.Config = make(map[string]any)
-			}
-		}
-		rules = append(rules, &rule)
-	}
-	return rules, rows.Err()
+	return pgx.CollectRows(rows, rowToNotificationRule(true))
 }
 
 // GetByEventType retrieves enabled notification rules for a user matching a given event type.
@@ -147,29 +103,7 @@ func (r *NotificationRepository) GetByEventType(ctx context.Context, userID int6
 	if err != nil {
 		return nil, fmt.Errorf("get notification rules by event type: %w", err)
 	}
-	defer rows.Close()
-
-	rules := make([]*model.NotificationRule, 0, 16)
-	for rows.Next() {
-		var rule model.NotificationRule
-		var configJSON []byte
-		if err := rows.Scan(
-			&rule.ID, &rule.UserID, &rule.Name, &rule.EventTypes, &rule.Channel,
-			&configJSON, &rule.Template, &rule.Enabled, &rule.CreatedAt, &rule.UpdatedAt,
-		); err != nil {
-			return nil, fmt.Errorf("scan notification rule: %w", err)
-		}
-		if len(configJSON) > 0 {
-			if err := json.Unmarshal(configJSON, &rule.Config); err != nil {
-				slog.Warn("failed to unmarshal notification config",
-					slog.Int64("ruleID", rule.ID),
-					slog.Any("error", err))
-				rule.Config = make(map[string]any)
-			}
-		}
-		rules = append(rules, &rule)
-	}
-	return rules, rows.Err()
+	return pgx.CollectRows(rows, rowToNotificationRule(false))
 }
 
 // Update modifies an existing notification rule.
@@ -229,15 +163,37 @@ func (r *NotificationRepository) GetLogsByRule(ctx context.Context, ruleID int64
 	if err != nil {
 		return nil, fmt.Errorf("get notification logs by rule: %w", err)
 	}
-	defer rows.Close()
-
-	var logs []*model.NotificationLog
-	for rows.Next() {
+	return pgx.AppendRows([]*model.NotificationLog(nil), rows, func(row pgx.CollectableRow) (*model.NotificationLog, error) {
 		var l model.NotificationLog
-		if err := rows.Scan(&l.ID, &l.RuleID, &l.EventID, &l.Status, &l.SentAt, &l.Error, &l.ResponseCode, &l.CreatedAt); err != nil {
+		if err := row.Scan(&l.ID, &l.RuleID, &l.EventID, &l.Status, &l.SentAt, &l.Error, &l.ResponseCode, &l.CreatedAt); err != nil {
 			return nil, fmt.Errorf("scan notification log: %w", err)
 		}
-		logs = append(logs, &l)
+		return &l, nil
+	})
+}
+
+func rowToNotificationRule(withOwner bool) pgx.RowToFunc[*model.NotificationRule] {
+	return func(row pgx.CollectableRow) (*model.NotificationRule, error) {
+		var rule model.NotificationRule
+		var configJSON []byte
+		dest := []any{
+			&rule.ID, &rule.UserID, &rule.Name, &rule.EventTypes, &rule.Channel,
+			&configJSON, &rule.Template, &rule.Enabled, &rule.CreatedAt, &rule.UpdatedAt,
+		}
+		if withOwner {
+			dest = append(dest, &rule.OwnerName)
+		}
+		if err := row.Scan(dest...); err != nil {
+			return nil, fmt.Errorf("scan notification rule: %w", err)
+		}
+		if len(configJSON) > 0 {
+			if err := json.Unmarshal(configJSON, &rule.Config); err != nil {
+				slog.Warn("failed to unmarshal notification config",
+					slog.Int64("ruleID", rule.ID),
+					slog.Any("error", err))
+				rule.Config = make(map[string]any)
+			}
+		}
+		return &rule, nil
 	}
-	return logs, rows.Err()
 }

@@ -68,12 +68,4 @@ var (
 		},
 		[]string{"channel", "status"},
 	)
-
-	// ActiveDevices tracks the number of currently online devices.
-	ActiveDevices = promauto.NewGauge(
-		prometheus.GaugeOpts{
-			Name: "motus_active_devices",
-			Help: "Number of currently online devices",
-		},
-	)
 )

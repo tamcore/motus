@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/tamcore/motus/internal/audit"
 	"github.com/tamcore/motus/internal/model"
 	"github.com/tamcore/motus/internal/notification"
 	"github.com/tamcore/motus/internal/storage/repository"
@@ -20,7 +19,6 @@ type NotificationService struct {
 	positionRepo     repository.PositionRepo
 	sender           *notification.Sender
 	logger           *slog.Logger
-	audit            *audit.Logger
 }
 
 // NewNotificationService creates a new notification service.
@@ -38,18 +36,6 @@ func NewNotificationService(
 		sender:           notification.NewSender(),
 		logger:           slog.Default(),
 	}
-}
-
-// SetLogger configures the structured logger for this service.
-func (s *NotificationService) SetLogger(l *slog.Logger) {
-	if l != nil {
-		s.logger = l
-	}
-}
-
-// SetAuditLogger configures audit logging for notification delivery.
-func (s *NotificationService) SetAuditLogger(l *audit.Logger) {
-	s.audit = l
 }
 
 // ProcessEvent finds matching notification rules for the event and sends
@@ -82,13 +68,13 @@ func (s *NotificationService) ProcessEvent(ctx context.Context, event *model.Eve
 			// the event processing pipeline. The context and its cancel are
 			// created inside the goroutine so the timer lifetime is scoped
 			// to the goroutine, not the outer loop iteration.
-			go func(r *model.NotificationRule, uid int64) {
+			go func(r *model.NotificationRule) {
 				// WithoutCancel inherits trace spans from the event context but is
 				// not cancelled when ProcessEvent returns.
 				ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
 				defer cancel()
-				s.sendNotification(ctx, r, event, device, uid)
-			}(rule, userID)
+				s.sendNotification(ctx, r, event, device)
+			}(rule)
 		}
 	}
 
@@ -122,7 +108,7 @@ func (s *NotificationService) SendTestNotification(ctx context.Context, rule *mo
 	return s.sender.Send(ctx, rule, templateCtx)
 }
 
-func (s *NotificationService) sendNotification(ctx context.Context, rule *model.NotificationRule, event *model.Event, device *model.Device, userID int64) {
+func (s *NotificationService) sendNotification(ctx context.Context, rule *model.NotificationRule, event *model.Event, device *model.Device) {
 	templateCtx := &notification.TemplateContext{
 		Device: device,
 		Event:  event,
@@ -163,20 +149,6 @@ func (s *NotificationService) sendNotification(ctx context.Context, rule *model.
 			slog.Int64("eventID", event.ID),
 			slog.Any("error", err),
 		)
-
-		// Audit log the failed notification.
-		if s.audit != nil {
-			uid := userID
-			s.audit.Log(ctx, &uid, audit.ActionNotifFailed, audit.ResourceNotification, &rule.ID,
-				map[string]any{
-					"ruleName":     rule.Name,
-					"eventType":    event.Type,
-					"channel":      rule.Channel,
-					"deviceId":     device.ID,
-					"error":        err.Error(),
-					"responseCode": responseCode,
-				}, "", "")
-		}
 	} else {
 		logEntry.Status = "sent"
 		s.logger.Info("notification sent",
@@ -184,19 +156,6 @@ func (s *NotificationService) sendNotification(ctx context.Context, rule *model.
 			slog.Int64("eventID", event.ID),
 			slog.String("channel", rule.Channel),
 		)
-
-		// Audit log the successful notification.
-		if s.audit != nil {
-			uid := userID
-			s.audit.Log(ctx, &uid, audit.ActionNotifSent, audit.ResourceNotification, &rule.ID,
-				map[string]any{
-					"ruleName":     rule.Name,
-					"eventType":    event.Type,
-					"channel":      rule.Channel,
-					"deviceId":     device.ID,
-					"responseCode": responseCode,
-				}, "", "")
-		}
 	}
 
 	if logErr := s.notificationRepo.LogDelivery(ctx, logEntry); logErr != nil {

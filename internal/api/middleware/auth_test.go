@@ -12,16 +12,28 @@ import (
 	"github.com/tamcore/motus/internal/storage/repository"
 )
 
+// requireUser stands in for the ogen SecurityHandler, which rejects requests
+// that LoadAuthContext left without a user.
+func requireUser(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if api.UserFromContext(r.Context()) == nil {
+			api.RespondError(w, http.StatusUnauthorized, "authentication required")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 // TestAuthMiddleware_NoCredentials verifies that requests without any
 // authentication credentials receive a 401 response.
 func TestAuthMiddleware_NoCredentials(t *testing.T) {
 	userRepo := repository.NewUserRepository(nil)
 	sessionRepo := repository.NewSessionRepository(nil)
 
-	mw := middleware.Auth(userRepo, sessionRepo, repository.NewApiKeyRepository(nil))
-	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mw := middleware.LoadAuthContext(userRepo, sessionRepo, repository.NewApiKeyRepository(nil))
+	handler := mw(requireUser(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-	}))
+	})))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/devices", nil)
 	rr := httptest.NewRecorder()
@@ -44,10 +56,10 @@ func TestAuthMiddleware_EmptyBearerFallsThrough(t *testing.T) {
 	userRepo := repository.NewUserRepository(nil)
 	sessionRepo := repository.NewSessionRepository(nil)
 
-	mw := middleware.Auth(userRepo, sessionRepo, repository.NewApiKeyRepository(nil))
-	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mw := middleware.LoadAuthContext(userRepo, sessionRepo, repository.NewApiKeyRepository(nil))
+	handler := mw(requireUser(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-	}))
+	})))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/devices", nil)
 	req.Header.Set("Authorization", "Bearer ")
@@ -65,10 +77,10 @@ func TestAuthMiddleware_WrongScheme(t *testing.T) {
 	userRepo := repository.NewUserRepository(nil)
 	sessionRepo := repository.NewSessionRepository(nil)
 
-	mw := middleware.Auth(userRepo, sessionRepo, repository.NewApiKeyRepository(nil))
-	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mw := middleware.LoadAuthContext(userRepo, sessionRepo, repository.NewApiKeyRepository(nil))
+	handler := mw(requireUser(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-	}))
+	})))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/devices", nil)
 	req.Header.Set("Authorization", "Basic dXNlcjpwYXNz")

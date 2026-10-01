@@ -306,12 +306,6 @@
 		animation: spin 0.8s linear infinite;
 	}
 
-	@keyframes spin {
-		to {
-			transform: rotate(360deg);
-		}
-	}
-
 	.dialog-footer {
 		padding: var(--space-6);
 		border-top: 1px solid var(--border-primary);

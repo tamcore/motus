@@ -34,6 +34,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/tamcore/motus/internal/model"
 )
 
 // Message represents a decoded WATCH protocol frame.
@@ -534,20 +536,8 @@ func decodeNetwork(pos *Position, data string) {
 		return true
 	}()
 
-	if !ok || (len(cells) == 0 && len(wifis) == 0) {
-		return
-	}
-
-	pos.Network = map[string]any{"radioType": "gsm", "considerIp": false}
-	if len(cells) > 0 {
-		pos.Network["cellTowers"] = cells
-		pos.Attributes["mcc"] = cells[0]["mobileCountryCode"]
-		pos.Attributes["mnc"] = cells[0]["mobileNetworkCode"]
-		pos.Attributes["lac"] = cells[0]["locationAreaCode"]
-		pos.Attributes["cellId"] = cells[0]["cellId"]
-	}
-	if len(wifis) > 0 {
-		pos.Network["wifiAccessPoints"] = wifis
+	if ok {
+		pos.Network = model.CellNetwork(cells, wifis, pos.Attributes)
 	}
 }
 
@@ -572,24 +562,13 @@ func javaSplit(s string) []string {
 	return values
 }
 
+func isHex(s string) bool {
+	_, err := strconv.ParseUint(s, 16, 16)
+	return err == nil
+}
+
 func containsHexLetter(s string) bool {
 	return strings.ContainsAny(s, "abcdefABCDEF")
-}
-
-func isHex(s string) bool {
-	if s == "" {
-		return false
-	}
-	for i := 0; i < len(s); i++ {
-		if !isHexDigit(s[i]) {
-			return false
-		}
-	}
-	return true
-}
-
-func isHexDigit(c byte) bool {
-	return c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F'
 }
 
 // EncodeResponse creates a WATCH protocol frame for the given content,
@@ -597,7 +576,7 @@ func isHexDigit(c byte) bool {
 // length is four lowercase hex digits and no line terminator is appended.
 func EncodeResponse(manufacturer, deviceID, index, content string) string {
 	if index != "" {
-		return fmt.Sprintf("[%s*%s*%s*%04x*%s]", manufacturer, deviceID, index, len(content), content)
+		index += "*"
 	}
-	return fmt.Sprintf("[%s*%s*%04x*%s]", manufacturer, deviceID, len(content), content)
+	return fmt.Sprintf("[%s*%s*%s%04x*%s]", manufacturer, deviceID, index, len(content), content)
 }

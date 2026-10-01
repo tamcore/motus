@@ -10,6 +10,7 @@ import (
 	oas "github.com/tamcore/motus/internal/api/oas"
 	"github.com/tamcore/motus/internal/audit"
 	"github.com/tamcore/motus/internal/demo"
+	"github.com/tamcore/motus/internal/geo"
 	"github.com/tamcore/motus/internal/model"
 	"github.com/tamcore/motus/internal/storage/repository"
 )
@@ -101,7 +102,7 @@ func processGPXPoints(ctx context.Context, positions repository.PositionRepo, de
 				if prevUnix > 0 {
 					dt := pt.Time.Unix() - prevUnix
 					if dt > 0 {
-						distM := gpxHaversine(prevLat, prevLon, pt.Lat, pt.Lon)
+						distM := geo.HaversineDistance(prevLat, prevLon, pt.Lat, pt.Lon) * 1000
 						spd = (distM / float64(dt)) * 3.6 // m/s → km/h
 					}
 					crs = gpxBearing(prevLat, prevLon, pt.Lat, pt.Lon)
@@ -135,17 +136,6 @@ func processGPXPoints(ctx context.Context, positions repository.PositionRepo, de
 		}
 	}
 	return
-}
-
-// gpxHaversine returns the great-circle distance between two coordinates in metres.
-func gpxHaversine(lat1, lon1, lat2, lon2 float64) float64 {
-	const R = 6371000.0
-	dLat := (lat2 - lat1) * math.Pi / 180.0
-	dLon := (lon2 - lon1) * math.Pi / 180.0
-	a := math.Sin(dLat/2)*math.Sin(dLat/2) +
-		math.Cos(lat1*math.Pi/180.0)*math.Cos(lat2*math.Pi/180.0)*
-			math.Sin(dLon/2)*math.Sin(dLon/2)
-	return R * 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
 }
 
 // gpxBearing returns the initial bearing from (lat1,lon1) to (lat2,lon2) in degrees [0,360).

@@ -37,7 +37,7 @@ func TestAuthMiddleware_ApiKey_FullAccess(t *testing.T) {
 		t.Fatalf("create api key: %v", err)
 	}
 
-	mw := middleware.Auth(userRepo, sessionRepo, apiKeyRepo)
+	mw := middleware.LoadAuthContext(userRepo, sessionRepo, apiKeyRepo)
 	var gotUser *model.User
 	var gotKey *model.ApiKey
 	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -88,7 +88,7 @@ func TestAuthMiddleware_ApiKey_ReadonlyAccess(t *testing.T) {
 		t.Fatalf("create api key: %v", err)
 	}
 
-	mw := middleware.Auth(userRepo, sessionRepo, apiKeyRepo)
+	mw := middleware.LoadAuthContext(userRepo, sessionRepo, apiKeyRepo)
 	var gotKey *model.ApiKey
 	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotKey = api.ApiKeyFromContext(r.Context())
@@ -122,10 +122,10 @@ func TestAuthMiddleware_ApiKey_InvalidToken(t *testing.T) {
 	sessionRepo := repository.NewSessionRepository(pool)
 	apiKeyRepo := repository.NewApiKeyRepository(pool)
 
-	mw := middleware.Auth(userRepo, sessionRepo, apiKeyRepo)
-	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mw := middleware.LoadAuthContext(userRepo, sessionRepo, apiKeyRepo)
+	handler := mw(requireUser(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-	}))
+	})))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/devices", nil)
 	req.Header.Set("Authorization", "Bearer invalid-api-key-token")
@@ -157,7 +157,7 @@ func TestAuthMiddleware_LegacyToken_StillWorks(t *testing.T) {
 		t.Fatalf("generate token: %v", err)
 	}
 
-	mw := middleware.Auth(userRepo, sessionRepo, apiKeyRepo)
+	mw := middleware.LoadAuthContext(userRepo, sessionRepo, apiKeyRepo)
 	var gotUser *model.User
 	var gotKey *model.ApiKey
 	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -207,7 +207,7 @@ func TestAuthMiddleware_ApiKey_PrioritizedOverLegacyToken(t *testing.T) {
 		t.Fatalf("create api key: %v", err)
 	}
 
-	mw := middleware.Auth(userRepo, sessionRepo, apiKeyRepo)
+	mw := middleware.LoadAuthContext(userRepo, sessionRepo, apiKeyRepo)
 	var gotKey *model.ApiKey
 	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotKey = api.ApiKeyFromContext(r.Context())
@@ -260,7 +260,7 @@ func TestAuthMiddleware_ApiKey_UpdatesLastUsed(t *testing.T) {
 		t.Error("expected nil LastUsedAt before auth")
 	}
 
-	mw := middleware.Auth(userRepo, sessionRepo, apiKeyRepo)
+	mw := middleware.LoadAuthContext(userRepo, sessionRepo, apiKeyRepo)
 	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -308,7 +308,7 @@ func TestReadonlyKeyIntegration_BlocksPostWithRealAuth(t *testing.T) {
 	}
 
 	// Build full middleware chain: Auth -> RequireWriteAccess -> handler.
-	authMW := middleware.Auth(userRepo, sessionRepo, apiKeyRepo)
+	authMW := middleware.LoadAuthContext(userRepo, sessionRepo, apiKeyRepo)
 	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
@@ -355,7 +355,7 @@ func TestFullKeyIntegration_AllowsPostWithRealAuth(t *testing.T) {
 		t.Fatalf("create api key: %v", err)
 	}
 
-	authMW := middleware.Auth(userRepo, sessionRepo, apiKeyRepo)
+	authMW := middleware.LoadAuthContext(userRepo, sessionRepo, apiKeyRepo)
 	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
@@ -395,10 +395,10 @@ func TestKeyRevocation_BlocksAfterDelete(t *testing.T) {
 		t.Fatalf("create api key: %v", err)
 	}
 
-	mw := middleware.Auth(userRepo, sessionRepo, apiKeyRepo)
-	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mw := middleware.LoadAuthContext(userRepo, sessionRepo, apiKeyRepo)
+	handler := mw(requireUser(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-	}))
+	})))
 
 	// First, verify it works.
 	req := httptest.NewRequest(http.MethodGet, "/api/devices", nil)
@@ -445,7 +445,7 @@ func TestSessionAuth_NoApiKeyInContext(t *testing.T) {
 		t.Fatalf("create session: %v", err)
 	}
 
-	mw := middleware.Auth(userRepo, sessionRepo, apiKeyRepo)
+	mw := middleware.LoadAuthContext(userRepo, sessionRepo, apiKeyRepo)
 	var gotKey *model.ApiKey
 	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotKey = api.ApiKeyFromContext(r.Context())
@@ -498,7 +498,7 @@ func TestSessionWithApiKey_ReadonlyEnforced(t *testing.T) {
 	}
 
 	// Build the full middleware chain: Auth -> RequireWriteAccess -> handler.
-	authMW := middleware.Auth(userRepo, sessionRepo, apiKeyRepo)
+	authMW := middleware.LoadAuthContext(userRepo, sessionRepo, apiKeyRepo)
 	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
@@ -564,7 +564,7 @@ func TestSessionWithApiKey_FullAccessAllowed(t *testing.T) {
 		t.Fatalf("create session with api key: %v", err)
 	}
 
-	authMW := middleware.Auth(userRepo, sessionRepo, apiKeyRepo)
+	authMW := middleware.LoadAuthContext(userRepo, sessionRepo, apiKeyRepo)
 	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
@@ -613,7 +613,7 @@ func TestSessionWithApiKey_PasswordLoginUnrestricted(t *testing.T) {
 		t.Fatalf("create session: %v", err)
 	}
 
-	authMW := middleware.Auth(userRepo, sessionRepo, apiKeyRepo)
+	authMW := middleware.LoadAuthContext(userRepo, sessionRepo, apiKeyRepo)
 	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
@@ -658,11 +658,11 @@ func TestSessionWithApiKey_DeletedKeyCascadesToSession(t *testing.T) {
 	}
 
 	// Verify the session is initially restricted (readonly key → 403 on write).
-	authMW := middleware.Auth(userRepo, sessionRepo, apiKeyRepo)
+	authMW := middleware.LoadAuthContext(userRepo, sessionRepo, apiKeyRepo)
 	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
-	handler := authMW(middleware.RequireWriteAccess(inner))
+	handler := authMW(requireUser(middleware.RequireWriteAccess(inner)))
 
 	req := httptest.NewRequest(http.MethodPost, "/api/devices", nil)
 	req.AddCookie(&http.Cookie{Name: "session_id", Value: session.ID})
@@ -717,7 +717,7 @@ func TestSessionWithApiKey_ContextHasCorrectApiKey(t *testing.T) {
 		t.Fatalf("create session: %v", err)
 	}
 
-	mw := middleware.Auth(userRepo, sessionRepo, apiKeyRepo)
+	mw := middleware.LoadAuthContext(userRepo, sessionRepo, apiKeyRepo)
 	var gotUser *model.User
 	var gotKey *model.ApiKey
 	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -773,7 +773,7 @@ func TestReadonlyApiKey_CannotMintUserToken(t *testing.T) {
 		t.Fatalf("create api key: %v", err)
 	}
 
-	authMw := middleware.Auth(userRepo, sessionRepo, apiKeyRepo)
+	authMw := middleware.LoadAuthContext(userRepo, sessionRepo, apiKeyRepo)
 	writeMw := middleware.RequireWriteAccess
 
 	handler := authMw(writeMw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

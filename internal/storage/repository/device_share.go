@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/tamcore/motus/internal/model"
 )
@@ -77,17 +78,13 @@ func (r *DeviceShareRepository) ListByDevice(ctx context.Context, deviceID int64
 	if err != nil {
 		return nil, fmt.Errorf("list device shares: %w", err)
 	}
-	defer rows.Close()
-
-	var shares []*model.DeviceShare
-	for rows.Next() {
+	return pgx.AppendRows([]*model.DeviceShare(nil), rows, func(row pgx.CollectableRow) (*model.DeviceShare, error) {
 		s := &model.DeviceShare{}
-		if err := rows.Scan(&s.ID, &s.DeviceID, &s.Token, &s.CreatedBy, &s.ExpiresAt, &s.CreatedAt); err != nil {
+		if err := row.Scan(&s.ID, &s.DeviceID, &s.Token, &s.CreatedBy, &s.ExpiresAt, &s.CreatedAt); err != nil {
 			return nil, fmt.Errorf("scan device share: %w", err)
 		}
-		shares = append(shares, s)
-	}
-	return shares, rows.Err()
+		return s, nil
+	})
 }
 
 // GetByID retrieves a device share by its ID.

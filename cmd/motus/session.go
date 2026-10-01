@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/spf13/cobra"
 	"github.com/tamcore/motus/internal/storage/repository"
 )
@@ -30,36 +31,24 @@ func newUserSessionsListCmd() *cobra.Command {
 		Use:   "list",
 		Short: "List active sessions for a user",
 		Run: func(cmd *cobra.Command, args []string) {
-			pool, err := connectDBFn()
-			if err != nil {
-				fatal("database connection failed", slog.Any("error", err))
-			}
-			defer pool.Close()
+			withDB(func(ctx context.Context, pool *pgxpool.Pool) {
+				u, err := repository.NewUserRepository(pool).GetByEmail(ctx, email)
+				if err != nil {
+					fatal("user not found", slog.String("email", email))
+				}
 
-			userRepo := repository.NewUserRepository(pool)
-			sessionRepo := repository.NewSessionRepository(pool)
+				sessions, err := repository.NewSessionRepository(pool).ListByUser(ctx, u.ID)
+				if err != nil {
+					fatal("failed to list sessions", slog.Any("error", err))
+				}
 
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
+				if len(sessions) == 0 {
+					fmt.Printf("No active sessions for %s.\n", email)
+					return
+				}
 
-			u, err := userRepo.GetByEmail(ctx, email)
-			if err != nil {
-				fatal("user not found", slog.String("email", email))
-			}
-
-			sessions, err := sessionRepo.ListByUser(ctx, u.ID)
-			if err != nil {
-				fatal("failed to list sessions", slog.Any("error", err))
-			}
-
-			if len(sessions) == 0 {
-				fmt.Printf("No active sessions for %s.\n", email)
-				return
-			}
-
-			switch output {
-			case "json":
 				items := make([]map[string]any, len(sessions))
+				rows := make([][]string, len(sessions))
 				for i, s := range sessions {
 					item := map[string]any{
 						"id":         s.ID,
@@ -68,23 +57,15 @@ func newUserSessionsListCmd() *cobra.Command {
 						"createdAt":  s.CreatedAt.Format(time.RFC3339),
 						"expiresAt":  s.ExpiresAt.Format(time.RFC3339),
 					}
+					apiKey := "-"
 					if s.ApiKeyName != nil {
 						item["apiKeyName"] = *s.ApiKeyName
+						apiKey = *s.ApiKeyName
 					}
 					if s.ApiKeyID != nil {
 						item["apiKeyId"] = *s.ApiKeyID
 					}
 					items[i] = item
-				}
-				printJSON(items)
-			case "csv":
-				headers := []string{"ID", "API KEY", "CREATED", "EXPIRES", "REMEMBER", "SUDO"}
-				rows := make([][]string, len(sessions))
-				for i, s := range sessions {
-					apiKey := "-"
-					if s.ApiKeyName != nil {
-						apiKey = *s.ApiKeyName
-					}
 					rows[i] = []string{
 						truncateID(s.ID),
 						apiKey,
@@ -94,26 +75,8 @@ func newUserSessionsListCmd() *cobra.Command {
 						fmt.Sprint(s.IsSudo),
 					}
 				}
-				printCSV(headers, rows)
-			default:
-				tw := NewTableWriter(os.Stdout)
-				tw.WriteHeader("ID", "API KEY", "CREATED", "EXPIRES", "REMEMBER", "SUDO")
-				for _, s := range sessions {
-					apiKey := "-"
-					if s.ApiKeyName != nil {
-						apiKey = *s.ApiKeyName
-					}
-					tw.WriteRow(
-						truncateID(s.ID),
-						apiKey,
-						s.CreatedAt.Format("2006-01-02 15:04"),
-						s.ExpiresAt.Format("2006-01-02 15:04"),
-						fmt.Sprint(s.RememberMe),
-						fmt.Sprint(s.IsSudo),
-					)
-				}
-				tw.Flush()
-			}
+				render(output, items, []string{"ID", "API KEY", "CREATED", "EXPIRES", "REMEMBER", "SUDO"}, rows)
+			})
 		},
 	}
 
@@ -137,19 +100,11 @@ func newUserSessionsRevokeCmd() *cobra.Command {
 				os.Exit(1)
 			}
 
-			pool, err := connectDBFn()
-			if err != nil {
-				fatal("database connection failed", slog.Any("error", err))
-			}
-			defer pool.Close()
-
-			sessionRepo := repository.NewSessionRepository(pool)
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
-
-			if err := sessionRepo.Delete(ctx, id); err != nil {
-				fatal("failed to revoke session", slog.Any("error", err))
-			}
+			withDB(func(ctx context.Context, pool *pgxpool.Pool) {
+				if err := repository.NewSessionRepository(pool).Delete(ctx, id); err != nil {
+					fatal("failed to revoke session", slog.Any("error", err))
+				}
+			})
 
 			fmt.Printf("Revoked session: %s\n", truncateID(id))
 		},

@@ -9,7 +9,7 @@
 	import type { Device, Position } from '$lib/types/api';
 	import Button from '$lib/components/Button.svelte';
 	import AllDevicesToggle from '$lib/components/AllDevicesToggle.svelte';
-	import type { HeatMapOptions } from 'leaflet.heat';
+	import type { HeatMapOptions } from 'leaflet';
 
 	const leafletMap = useLeaflet();
 
@@ -936,12 +936,6 @@
 		border-top-color: var(--accent-primary);
 		border-radius: 50%;
 		animation: spin 0.8s linear infinite;
-	}
-
-	@keyframes spin {
-		to {
-			transform: rotate(360deg);
-		}
 	}
 
 	/* Leaflet popup override */

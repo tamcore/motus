@@ -14,15 +14,9 @@ const (
 	tokenHashLen     uint32 = 32
 )
 
-// hashToken returns a deterministic Argon2id hash of the raw token string.
+// HashToken returns a deterministic Argon2id hash of the raw token string.
 // The fixed salt keeps lookups deterministic while avoiding plaintext storage.
-func hashToken(raw string) string {
+func HashToken(raw string) string {
 	h := argon2.IDKey([]byte(raw), []byte(tokenHashSalt), tokenHashTime, tokenHashMemory, tokenHashThreads, tokenHashLen)
 	return hex.EncodeToString(h)
-}
-
-// HashToken exposes hashToken for callers that seed token columns directly
-// (e.g. demo data reset), so the stored value matches what GetByToken looks up.
-func HashToken(raw string) string {
-	return hashToken(raw)
 }

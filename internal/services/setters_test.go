@@ -7,79 +7,13 @@ import (
 	"time"
 )
 
-// TestSetLogger_AlarmService verifies SetLogger replaces the logger (non-nil)
-// and is a no-op for nil.
-func TestSetLogger_AlarmService(t *testing.T) {
-	s := &AlarmService{logger: slog.Default()}
-	initial := s.logger
-	s.SetLogger(nil)
-	if s.logger != initial {
-		t.Error("SetLogger(nil) should not change the logger")
+func TestNewEventEmitter_DefaultsLogger(t *testing.T) {
+	if e := newEventEmitter(nil, nil, nil, nil); e.logger != slog.Default() {
+		t.Error("nil logger should default to slog.Default()")
 	}
 	custom := slog.New(slog.Default().Handler())
-	s.SetLogger(custom)
-	if s.logger != custom {
-		t.Error("SetLogger(custom) should replace the logger")
-	}
-}
-
-// TestSetLogger_IgnitionService verifies SetLogger behaviour.
-func TestSetLogger_IgnitionService(t *testing.T) {
-	s := &IgnitionService{logger: slog.Default()}
-	initial := s.logger
-	s.SetLogger(nil)
-	if s.logger != initial {
-		t.Error("SetLogger(nil) should not change the logger")
-	}
-	custom := slog.New(slog.Default().Handler())
-	s.SetLogger(custom)
-	if s.logger != custom {
-		t.Error("SetLogger(custom) should replace the logger")
-	}
-}
-
-// TestSetLogger_MotionService verifies SetLogger behaviour.
-func TestSetLogger_MotionService(t *testing.T) {
-	s := &MotionService{logger: slog.Default()}
-	initial := s.logger
-	s.SetLogger(nil)
-	if s.logger != initial {
-		t.Error("SetLogger(nil) should not change the logger")
-	}
-	custom := slog.New(slog.Default().Handler())
-	s.SetLogger(custom)
-	if s.logger != custom {
-		t.Error("SetLogger(custom) should replace the logger")
-	}
-}
-
-// TestSetLogger_GeofenceEventService verifies SetLogger behaviour.
-func TestSetLogger_GeofenceEventService(t *testing.T) {
-	s := &GeofenceEventService{logger: slog.Default()}
-	initial := s.logger
-	s.SetLogger(nil)
-	if s.logger != initial {
-		t.Error("SetLogger(nil) should not change the logger")
-	}
-	custom := slog.New(slog.Default().Handler())
-	s.SetLogger(custom)
-	if s.logger != custom {
-		t.Error("SetLogger(custom) should replace the logger")
-	}
-}
-
-// TestSetLogger_IdleService verifies SetLogger behaviour.
-func TestSetLogger_IdleService(t *testing.T) {
-	s := &IdleService{logger: slog.Default()}
-	initial := s.logger
-	s.SetLogger(nil)
-	if s.logger != initial {
-		t.Error("SetLogger(nil) should not change the logger")
-	}
-	custom := slog.New(slog.Default().Handler())
-	s.SetLogger(custom)
-	if s.logger != custom {
-		t.Error("SetLogger(custom) should replace the logger")
+	if e := newEventEmitter(nil, nil, nil, custom); e.logger != custom {
+		t.Error("custom logger should be kept")
 	}
 }
 
@@ -89,60 +23,6 @@ func TestSetGeocoder_IdleService(t *testing.T) {
 	s.SetGeocoder(nil, nil)
 	if s.geocoder != nil {
 		t.Error("expected geocoder to be nil after SetGeocoder(nil, nil)")
-	}
-}
-
-// TestSetLogger_CleanupService verifies SetLogger behaviour.
-func TestSetLogger_CleanupService(t *testing.T) {
-	s := &CleanupService{logger: slog.Default(), interval: time.Hour}
-	initial := s.logger
-	s.SetLogger(nil)
-	if s.logger != initial {
-		t.Error("SetLogger(nil) should not change the logger")
-	}
-	custom := slog.New(slog.Default().Handler())
-	s.SetLogger(custom)
-	if s.logger != custom {
-		t.Error("SetLogger(custom) should replace the logger")
-	}
-}
-
-// TestSetLogger_NotificationService verifies SetLogger behaviour.
-func TestSetLogger_NotificationService(t *testing.T) {
-	s := &NotificationService{logger: slog.Default()}
-	initial := s.logger
-	s.SetLogger(nil)
-	if s.logger != initial {
-		t.Error("SetLogger(nil) should not change the logger")
-	}
-	custom := slog.New(slog.Default().Handler())
-	s.SetLogger(custom)
-	if s.logger != custom {
-		t.Error("SetLogger(custom) should replace the logger")
-	}
-}
-
-// TestSetAuditLogger_NotificationService verifies SetAuditLogger stores the logger.
-func TestSetAuditLogger_NotificationService(t *testing.T) {
-	s := &NotificationService{logger: slog.Default()}
-	s.SetAuditLogger(nil) // should not panic
-	if s.audit != nil {
-		t.Error("expected audit to be nil after SetAuditLogger(nil)")
-	}
-}
-
-// TestSetLogger_DeviceTimeoutService verifies SetLogger behaviour.
-func TestSetLogger_DeviceTimeoutService(t *testing.T) {
-	s := &DeviceTimeoutService{logger: slog.Default()}
-	initial := s.logger
-	s.SetLogger(nil)
-	if s.logger != initial {
-		t.Error("SetLogger(nil) should not change the logger")
-	}
-	custom := slog.New(slog.Default().Handler())
-	s.SetLogger(custom)
-	if s.logger != custom {
-		t.Error("SetLogger(custom) should replace the logger")
 	}
 }
 

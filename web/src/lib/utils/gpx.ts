@@ -1,5 +1,6 @@
 import type { Position } from './trips';
 import { getPositionTime } from './trips';
+import { downloadFile } from './download';
 
 export function generateGPX(positions: Position[], name: string): string {
 	const trackPoints = positions
@@ -25,11 +26,5 @@ ${trackPoints}
 
 export function downloadGPX(positions: Position[], filename: string): void {
 	const gpx = generateGPX(positions, filename);
-	const blob = new Blob([gpx], { type: 'application/gpx+xml' });
-	const url = URL.createObjectURL(blob);
-	const a = document.createElement('a');
-	a.href = url;
-	a.download = `${filename}.gpx`;
-	a.click();
-	URL.revokeObjectURL(url);
+	downloadFile(gpx, 'application/gpx+xml', `${filename}.gpx`);
 }

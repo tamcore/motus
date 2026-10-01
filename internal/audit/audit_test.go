@@ -2,7 +2,6 @@ package audit
 
 import (
 	"context"
-	"log/slog"
 	"net/http/httptest"
 	"testing"
 )
@@ -17,13 +16,6 @@ func TestLogWithNilPool(t *testing.T) {
 	// A logger with nil pool should not panic.
 	l := NewLogger(nil)
 	l.Log(context.Background(), nil, ActionSessionLogin, ResourceSession, nil, nil, "127.0.0.1", "test-agent")
-}
-
-func TestLogFromRequestWithNilPool(t *testing.T) {
-	l := NewLogger(nil)
-	req := httptest.NewRequest("GET", "/test", nil)
-	req.RemoteAddr = "192.168.1.1:1234"
-	l.LogFromRequest(req, nil, ActionSessionLogin, ResourceSession, nil, nil)
 }
 
 func TestExtractIP(t *testing.T) {
@@ -57,8 +49,7 @@ func TestConstants(t *testing.T) {
 	// Verify action constants are defined.
 	actions := []string{
 		ActionSessionLogin, ActionSessionLogout, ActionUserCreate, ActionUserUpdate,
-		ActionUserDelete, ActionDeviceOnline, ActionDeviceOffline,
-		ActionNotifSent, ActionSessionSudo, ActionSessionSudoEnd,
+		ActionUserDelete, ActionSessionSudo, ActionSessionSudoEnd,
 	}
 	for _, a := range actions {
 		if a == "" {
@@ -72,19 +63,5 @@ func TestConstants(t *testing.T) {
 		if r == "" {
 			t.Error("found empty resource type constant")
 		}
-	}
-}
-
-func TestLogger_SetLogger(t *testing.T) {
-	l := NewLogger(nil)
-	initial := l.logger
-	l.SetLogger(nil) // nil should not change the logger
-	if l.logger != initial {
-		t.Error("SetLogger(nil) should not change the logger")
-	}
-	custom := slog.Default()
-	l.SetLogger(custom)
-	if l.logger != custom {
-		t.Error("SetLogger(custom) should replace the logger")
 	}
 }

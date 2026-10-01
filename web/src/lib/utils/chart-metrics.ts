@@ -1,5 +1,6 @@
 import type { Position } from "$lib/types/api";
 import { haversineDistance } from "$lib/utils/trips";
+import { downloadCSV } from "$lib/utils/download";
 
 /**
  * Metric definitions for device analytics charts.
@@ -163,7 +164,7 @@ export function buildDatasets(
       label: `${metric.label} (${metric.unit})`,
       data,
       borderColor: metric.color,
-      backgroundColor: hexToRgba(metric.color, 0.1),
+      backgroundColor: `${metric.color}1a`,
       yAxisID: metric.axisId,
       tension: 0.3,
       pointRadius: positions.length > 200 ? 0 : 2,
@@ -257,16 +258,6 @@ export function buildScales(
 }
 
 /**
- * Convert hex color to rgba string.
- */
-function hexToRgba(hex: string, alpha: number): string {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
-/**
  * Export chart data to CSV.
  */
 export function exportChartDataToCSV(
@@ -289,15 +280,9 @@ export function exportChartDataToCSV(
     return [time, ...values];
   });
 
-  const csv = [headers.join(","), ...rows.map((row) => row.join(","))].join(
-    "\n",
+  downloadCSV(
+    headers,
+    rows,
+    `motus-charts-${deviceName}-${new Date().toISOString().slice(0, 10)}.csv`,
   );
-
-  const blob = new Blob([csv], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `motus-charts-${deviceName}-${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
 }

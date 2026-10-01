@@ -45,66 +45,6 @@ func TestEventRepository_Create(t *testing.T) {
 	}
 }
 
-func TestEventRepository_GetByDevice(t *testing.T) {
-	pool := testutil.SetupTestDB(t)
-	testutil.CleanTables(t, pool)
-	eventRepo := repository.NewEventRepository(pool)
-	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
-	ctx := context.Background()
-
-	user := createTestUser(t, userRepo)
-	device := &model.Device{UniqueID: "evtbydev-" + time.Now().Format("150405.000"), Name: "EvtByDev", Status: "online"}
-	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
-		t.Fatalf("Create device failed: %v", err)
-	}
-
-	now := time.Now().UTC()
-	for i := range 3 {
-		e := &model.Event{
-			DeviceID:  device.ID,
-			Type:      "deviceOnline",
-			Timestamp: now.Add(time.Duration(i) * time.Minute),
-		}
-		if err := eventRepo.Create(ctx, e); err != nil {
-			t.Fatalf("Create event %d failed: %v", i, err)
-		}
-	}
-
-	events, err := eventRepo.GetByDevice(ctx, device.ID, 10)
-	if err != nil {
-		t.Fatalf("GetByDevice failed: %v", err)
-	}
-	if len(events) != 3 {
-		t.Errorf("expected 3 events, got %d", len(events))
-	}
-}
-
-func TestEventRepository_GetByDevice_LimitCap(t *testing.T) {
-	pool := testutil.SetupTestDB(t)
-	testutil.CleanTables(t, pool)
-	eventRepo := repository.NewEventRepository(pool)
-	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
-	ctx := context.Background()
-
-	user := createTestUser(t, userRepo)
-	device := &model.Device{UniqueID: "evtlim-" + time.Now().Format("150405.000"), Name: "EvtLim", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
-
-	e := &model.Event{DeviceID: device.ID, Type: "deviceOnline", Timestamp: time.Now().UTC()}
-	_ = eventRepo.Create(ctx, e)
-
-	// Invalid limit should be capped to 100.
-	events, err := eventRepo.GetByDevice(ctx, device.ID, -5)
-	if err != nil {
-		t.Fatalf("GetByDevice failed: %v", err)
-	}
-	if len(events) != 1 {
-		t.Errorf("expected 1 event, got %d", len(events))
-	}
-}
-
 func TestEventRepository_GetRecentByDeviceAndType(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)

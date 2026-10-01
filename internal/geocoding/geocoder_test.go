@@ -313,17 +313,12 @@ func TestNominatimGeocoder_ReverseGeocode_ReadBodyError(t *testing.T) {
 	}
 }
 
-func TestNominatimGeocoder_SetLogger(t *testing.T) {
-	g := NewNominatimGeocoder(NominatimConfig{URL: "http://localhost"})
-
-	initial := g.logger
-	g.SetLogger(nil) // nil should not change logger
-	if g.logger != initial {
-		t.Error("SetLogger(nil) should not change logger")
+func TestNominatimGeocoder_Logger(t *testing.T) {
+	if g := NewNominatimGeocoder(NominatimConfig{URL: "http://localhost"}); g.logger != slog.Default() {
+		t.Error("nil logger should default to slog.Default()")
 	}
-	custom := slog.Default()
-	g.SetLogger(custom)
-	if g.logger != custom {
-		t.Error("SetLogger(custom) should replace logger")
+	custom := slog.New(slog.Default().Handler())
+	if g := NewNominatimGeocoder(NominatimConfig{URL: "http://localhost", Logger: custom}); g.logger != custom {
+		t.Error("custom logger should be kept")
 	}
 }

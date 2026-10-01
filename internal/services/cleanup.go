@@ -1,12 +1,15 @@
 package services
 
 import (
+	"cmp"
 	"context"
 	"log/slog"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+const expiredRetention = 7 * 24 * time.Hour
 
 // CleanupService manages deletion of expired sessions and device shares.
 // Runs periodically to prevent unbounded table growth.
@@ -18,18 +21,11 @@ type CleanupService struct {
 
 // NewCleanupService creates a new cleanup service.
 // interval specifies how often to run cleanup (e.g., 24 hours).
-func NewCleanupService(pool *pgxpool.Pool, interval time.Duration) *CleanupService {
+func NewCleanupService(pool *pgxpool.Pool, interval time.Duration, logger *slog.Logger) *CleanupService {
 	return &CleanupService{
 		pool:     pool,
 		interval: interval,
-		logger:   slog.Default(),
-	}
-}
-
-// SetLogger configures the structured logger for this service.
-func (s *CleanupService) SetLogger(l *slog.Logger) {
-	if l != nil {
-		s.logger = l
+		logger:   cmp.Or(logger, slog.Default()),
 	}
 }
 
@@ -60,60 +56,20 @@ func (s *CleanupService) Start(ctx context.Context) {
 
 // RunOnce performs a single cleanup cycle.
 // Deletes sessions and device shares that expired more than 7 days ago.
+// Shares with NULL expires_at never expire.
 func (s *CleanupService) RunOnce(ctx context.Context) error {
-	// Clean up expired sessions (keep 7 days past expiration for audit purposes)
-	sessionsDeleted, err := s.cleanExpiredSessions(ctx)
-	if err != nil {
-		return err
+	cutoff := time.Now().Add(-expiredRetention)
+	for _, c := range []struct{ msg, query string }{
+		{"cleaned expired sessions", `DELETE FROM sessions WHERE expires_at < $1`},
+		{"cleaned expired device shares", `DELETE FROM device_shares WHERE expires_at IS NOT NULL AND expires_at < $1`},
+	} {
+		tag, err := s.pool.Exec(ctx, c.query, cutoff)
+		if err != nil {
+			return err
+		}
+		if n := tag.RowsAffected(); n > 0 {
+			s.logger.Info(c.msg, slog.Int64("count", n))
+		}
 	}
-	if sessionsDeleted > 0 {
-		s.logger.Info("cleaned expired sessions",
-			slog.Int64("count", sessionsDeleted),
-		)
-	}
-
-	// Clean up expired device shares (keep 7 days past expiration)
-	sharesDeleted, err := s.cleanExpiredShares(ctx)
-	if err != nil {
-		return err
-	}
-	if sharesDeleted > 0 {
-		s.logger.Info("cleaned expired device shares",
-			slog.Int64("count", sharesDeleted),
-		)
-	}
-
 	return nil
-}
-
-// cleanExpiredSessions deletes sessions that expired more than 7 days ago.
-func (s *CleanupService) cleanExpiredSessions(ctx context.Context) (int64, error) {
-	cutoff := time.Now().Add(-7 * 24 * time.Hour)
-
-	tag, err := s.pool.Exec(ctx,
-		`DELETE FROM sessions WHERE expires_at < $1`,
-		cutoff,
-	)
-	if err != nil {
-		return 0, err
-	}
-
-	return tag.RowsAffected(), nil
-}
-
-// cleanExpiredShares deletes device shares that expired more than 7 days ago.
-// Shares with NULL expires_at (never expire) are not deleted.
-func (s *CleanupService) cleanExpiredShares(ctx context.Context) (int64, error) {
-	cutoff := time.Now().Add(-7 * 24 * time.Hour)
-
-	tag, err := s.pool.Exec(ctx,
-		`DELETE FROM device_shares
-		 WHERE expires_at IS NOT NULL AND expires_at < $1`,
-		cutoff,
-	)
-	if err != nil {
-		return 0, err
-	}
-
-	return tag.RowsAffected(), nil
 }

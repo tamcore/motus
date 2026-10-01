@@ -6,20 +6,18 @@ import (
 
 	"github.com/tamcore/motus/internal/api"
 	oas "github.com/tamcore/motus/internal/api/oas"
-	"github.com/tamcore/motus/internal/model"
 )
 
-// --- ogen Handler methods ---
-
-// listEventsShared contains the shared logic for ListEvents and ReportEvents.
-// It filters events by the provided parameters and returns OAS-typed events.
-func (h *Handler) listEventsShared(ctx context.Context, deviceID oas.OptInt64, eventType oas.OptString, from, to oas.OptDateTime) ([]*model.Event, error) {
+func (h *Handler) listEvents(ctx context.Context, deviceID oas.OptInt64, eventType oas.OptString, from, to oas.OptDateTime) ([]oas.Event, *oas.Error) {
 	user := api.UserFromContext(ctx)
+	if user == nil {
+		return nil, &oas.Error{Error: "unauthorized"}
+	}
 
 	var deviceIDs []int64
 	if id, ok := deviceID.Get(); ok && id > 0 {
 		if !h.cfg.Devices.UserHasAccess(ctx, user, id) {
-			return nil, nil
+			return nil, &oas.Error{Error: "access denied"}
 		}
 		deviceIDs = []int64{id}
 	}
@@ -39,55 +37,30 @@ func (h *Handler) listEventsShared(ctx context.Context, deviceID oas.OptInt64, e
 	}
 
 	events, err := h.cfg.Events.GetByFilters(ctx, user.ID, deviceIDs, eventTypes, fromTime, toTime)
-	return events, err
+	if err != nil {
+		return nil, &oas.Error{Error: "failed to get events"}
+	}
+	result := make([]oas.Event, len(events))
+	for i, e := range events {
+		result[i] = eventToOAS(e)
+	}
+	return result, nil
 }
 
 // ListEvents implements oas.Handler for GET /api/events.
 func (h *Handler) ListEvents(ctx context.Context, params oas.ListEventsParams) (oas.ListEventsRes, error) {
-	user := api.UserFromContext(ctx)
-	if user == nil {
-		return &oas.Error{Error: "unauthorized"}, nil
+	events, e := h.listEvents(ctx, params.DeviceId, params.Type, params.From, params.To)
+	if e != nil {
+		return e, nil
 	}
-
-	// Access check for the requested device.
-	if id, ok := params.DeviceId.Get(); ok && id > 0 {
-		if !h.cfg.Devices.UserHasAccess(ctx, user, id) {
-			return &oas.Error{Error: "access denied"}, nil
-		}
-	}
-
-	events, err := h.listEventsShared(ctx, params.DeviceId, params.Type, params.From, params.To)
-	if err != nil {
-		return &oas.Error{Error: "failed to get events"}, nil
-	}
-	result := make(oas.ListEventsOKApplicationJSON, len(events))
-	for i, e := range events {
-		result[i] = eventToOAS(e)
-	}
-	return &result, nil
+	return new(oas.ListEventsOKApplicationJSON(events)), nil
 }
 
 // ReportEvents implements oas.Handler for GET /api/reports/events (Traccar-compat alias).
 func (h *Handler) ReportEvents(ctx context.Context, params oas.ReportEventsParams) (oas.ReportEventsRes, error) {
-	user := api.UserFromContext(ctx)
-	if user == nil {
-		return &oas.Error{Error: "unauthorized"}, nil
+	events, e := h.listEvents(ctx, params.DeviceId, params.Type, params.From, params.To)
+	if e != nil {
+		return e, nil
 	}
-
-	// Access check for the requested device.
-	if id, ok := params.DeviceId.Get(); ok && id > 0 {
-		if !h.cfg.Devices.UserHasAccess(ctx, user, id) {
-			return &oas.Error{Error: "access denied"}, nil
-		}
-	}
-
-	events, err := h.listEventsShared(ctx, params.DeviceId, params.Type, params.From, params.To)
-	if err != nil {
-		return &oas.Error{Error: "failed to get events"}, nil
-	}
-	result := make(oas.ReportEventsOKApplicationJSON, len(events))
-	for i, e := range events {
-		result[i] = eventToOAS(e)
-	}
-	return &result, nil
+	return new(oas.ReportEventsOKApplicationJSON(events)), nil
 }

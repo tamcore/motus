@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/tamcore/motus/internal/model"
 )
@@ -49,21 +50,7 @@ func (r *CommandRepository) GetPendingByDevice(ctx context.Context, deviceID int
 	if err != nil {
 		return nil, fmt.Errorf("get pending commands: %w", err)
 	}
-	defer rows.Close()
-
-	var commands []*model.Command
-	for rows.Next() {
-		cmd := &model.Command{}
-		var attrs []byte
-		if err := rows.Scan(&cmd.ID, &cmd.DeviceID, &cmd.Type, &attrs, &cmd.Status, &cmd.Result, &cmd.CreatedAt, &cmd.ExecutedAt); err != nil {
-			return nil, fmt.Errorf("scan command: %w", err)
-		}
-		if len(attrs) > 0 {
-			_ = json.Unmarshal(attrs, &cmd.Attributes)
-		}
-		commands = append(commands, cmd)
-	}
-	return commands, rows.Err()
+	return pgx.AppendRows([]*model.Command(nil), rows, rowToCommand)
 }
 
 // UpdateStatus updates the status of a command and optionally sets executed_at.
@@ -92,21 +79,7 @@ func (r *CommandRepository) ListByDevice(ctx context.Context, deviceID int64, li
 	if err != nil {
 		return nil, fmt.Errorf("list commands by device: %w", err)
 	}
-	defer rows.Close()
-
-	var commands []*model.Command
-	for rows.Next() {
-		cmd := &model.Command{}
-		var attrs []byte
-		if err := rows.Scan(&cmd.ID, &cmd.DeviceID, &cmd.Type, &attrs, &cmd.Status, &cmd.Result, &cmd.CreatedAt, &cmd.ExecutedAt); err != nil {
-			return nil, fmt.Errorf("scan command: %w", err)
-		}
-		if len(attrs) > 0 {
-			_ = json.Unmarshal(attrs, &cmd.Attributes)
-		}
-		commands = append(commands, cmd)
-	}
-	return commands, rows.Err()
+	return pgx.AppendRows([]*model.Command(nil), rows, rowToCommand)
 }
 
 // AppendResult appends a result chunk to a command's result column (newline-separated).
@@ -142,6 +115,18 @@ func (r *CommandRepository) GetLatestSentByDevice(ctx context.Context, deviceID 
 	).Scan(&cmd.ID, &cmd.DeviceID, &cmd.Type, &attrs, &cmd.Status, &cmd.Result, &cmd.CreatedAt, &cmd.ExecutedAt)
 	if err != nil {
 		return nil, fmt.Errorf("get latest sent command: %w", err)
+	}
+	if len(attrs) > 0 {
+		_ = json.Unmarshal(attrs, &cmd.Attributes)
+	}
+	return cmd, nil
+}
+
+func rowToCommand(row pgx.CollectableRow) (*model.Command, error) {
+	cmd := &model.Command{}
+	var attrs []byte
+	if err := row.Scan(&cmd.ID, &cmd.DeviceID, &cmd.Type, &attrs, &cmd.Status, &cmd.Result, &cmd.CreatedAt, &cmd.ExecutedAt); err != nil {
+		return nil, fmt.Errorf("scan command: %w", err)
 	}
 	if len(attrs) > 0 {
 		_ = json.Unmarshal(attrs, &cmd.Attributes)

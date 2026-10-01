@@ -22,6 +22,35 @@ func resolveTarget(h02Port string) string {
 	return h02Port
 }
 
+type routeDirection int
+
+const (
+	directionForward routeDirection = iota
+	directionReverse
+)
+
+func (d routeDirection) String() string {
+	if d == directionForward {
+		return "forward"
+	}
+	return "reverse"
+}
+
+// routeProgress survives reconnects so a device resumes instead of teleporting to the start.
+type routeProgress struct {
+	direction  routeDirection
+	pointIndex int
+	loopCount  int
+}
+
+func (p *routeProgress) finishDirection() {
+	if p.direction == directionReverse {
+		p.loopCount++
+	}
+	p.direction = 1 - p.direction
+	p.pointIndex = 0
+}
+
 // Simulator drives GPS simulation for demo mode devices.
 // It connects to the local H02 TCP server and injects position messages
 // that follow pre-loaded GPX routes.
@@ -74,7 +103,7 @@ func (s *Simulator) simulateDevice(ctx context.Context, imei string, route *Rout
 
 	target := resolveTarget(s.h02Port)
 	b := newBackoff()
-	progress := newRouteProgress()
+	progress := &routeProgress{}
 	reversed := reversePoints(route.Points)
 
 	for {
@@ -191,69 +220,35 @@ func (s *Simulator) runRouteLoop(
 		default:
 		}
 
+		points, pause, done := reversed, 60*time.Second, "return traversal complete, pausing at origin"
 		if progress.direction == directionForward {
-			points := route.Points
-			startIdx := progress.pointIndex
-			slog.Debug("starting traversal",
-				slog.String("device", imei),
-				slog.String("direction", progress.direction.String()),
-				slog.Int("startIdx", startIdx),
-				slog.Int("totalPoints", len(points)))
-
-			err := s.traverseRoute(ctx, w, imei, points, startIdx, progress)
-			if err != nil {
-				return err
-			}
-
-			slog.Debug("forward traversal complete, pausing at destination", slog.String("device", imei))
-			progress.FinishDirection()
-
-			// Send ignition-off at the destination before pausing.
-			if len(route.Points) > 0 {
-				dest := route.Points[len(route.Points)-1]
-				now := time.Now().UTC()
-				parked := BuildH02Message(imei, dest.Lat, dest.Lon, 0, dest.Course, dest.Ele, false, now)
-				_ = w.WriteString(parked) // best-effort; connection errors caught by watchdog
-			}
-
-			// Pause at destination.
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-time.After(scaledDuration(30*time.Second, s.speedMultiplier)):
-			}
+			points, pause, done = route.Points, 30*time.Second, "forward traversal complete, pausing at destination"
 		}
 
-		if progress.direction == directionReverse {
-			startIdx := progress.pointIndex
-			slog.Debug("starting traversal",
-				slog.String("device", imei),
-				slog.String("direction", progress.direction.String()),
-				slog.Int("startIdx", startIdx),
-				slog.Int("totalPoints", len(reversed)))
+		startIdx := progress.pointIndex
+		slog.Debug("starting traversal",
+			slog.String("device", imei),
+			slog.String("direction", progress.direction.String()),
+			slog.Int("startIdx", startIdx),
+			slog.Int("totalPoints", len(points)))
 
-			err := s.traverseRoute(ctx, w, imei, reversed, startIdx, progress)
-			if err != nil {
-				return err
-			}
+		if err := s.traverseRoute(ctx, w, imei, points, startIdx, progress); err != nil {
+			return err
+		}
 
-			slog.Debug("return traversal complete, pausing at origin", slog.String("device", imei))
-			progress.FinishDirection()
+		slog.Debug(done, slog.String("device", imei))
+		progress.finishDirection()
 
-			// Send ignition-off at the origin before pausing.
-			if len(reversed) > 0 {
-				origin := reversed[len(reversed)-1]
-				now := time.Now().UTC()
-				parked := BuildH02Message(imei, origin.Lat, origin.Lon, 0, origin.Course, origin.Ele, false, now)
-				_ = w.WriteString(parked) // best-effort; connection errors caught by watchdog
-			}
+		if len(points) > 0 {
+			end := points[len(points)-1]
+			parked := BuildH02Message(imei, end.Lat, end.Lon, 0, end.Course, end.Ele, false, time.Now().UTC())
+			_ = w.WriteString(parked) // best-effort; connection errors caught by watchdog
+		}
 
-			// Pause at origin before next loop.
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-time.After(scaledDuration(60*time.Second, s.speedMultiplier)):
-			}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(scaledDuration(pause, s.speedMultiplier)):
 		}
 	}
 }
@@ -394,25 +389,8 @@ func (s *Simulator) pointInterval(pt RoutePoint, idx int, points []RoutePoint) t
 		distMeters = pt.Distance
 	}
 
-	// Minimum speed for interval calculation (avoid division by zero).
-	speed := pt.Speed
-	if speed < 5 {
-		speed = 5
-	}
-
-	// time = distance / speed
-	speedMS := speed / 3.6 // km/h to m/s
-	seconds := distMeters / speedMS
-
-	// Clamp to reasonable bounds: at least 0.5s, at most 30s between updates.
-	// With fine-grained interpolation (100m), intervals are naturally shorter,
-	// so we lower the minimum to allow smooth movement at high speeds.
-	if seconds < 0.5 {
-		seconds = 0.5
-	}
-	if seconds > 30 {
-		seconds = 30
-	}
+	speedMS := max(pt.Speed, 5) / 3.6
+	seconds := min(max(distMeters/speedMS, 0.5), 30)
 
 	return scaledDuration(time.Duration(seconds*float64(time.Second)), s.speedMultiplier)
 }

@@ -10,9 +10,10 @@ import (
 	"math"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"time"
+
+	"github.com/tamcore/motus/internal/geo"
 )
 
 // GPXFile represents a parsed GPX file structure.
@@ -103,8 +104,6 @@ func LoadRoutes(dir string) ([]*Route, error) {
 		return nil, fmt.Errorf("no GPX files found in %s", dir)
 	}
 
-	sort.Strings(gpxFiles)
-
 	var routes []*Route
 	for _, path := range gpxFiles {
 		gpx, err := ParseGPXFile(path)
@@ -144,7 +143,7 @@ func gpxToRoute(track GPXTrack) *Route {
 
 			if i > 0 {
 				prev := seg.Points[i-1]
-				rp.Distance = haversineDistance(prev.Lat, prev.Lon, pt.Lat, pt.Lon)
+				rp.Distance = geo.HaversineDistance(prev.Lat, prev.Lon, pt.Lat, pt.Lon) * 1000
 				rp.Course = bearing(prev.Lat, prev.Lon, pt.Lat, pt.Lon)
 			}
 
@@ -153,22 +152,6 @@ func gpxToRoute(track GPXTrack) *Route {
 	}
 
 	return route
-}
-
-// haversineDistance returns the distance between two points in meters.
-func haversineDistance(lat1, lon1, lat2, lon2 float64) float64 {
-	const earthRadiusM = 6371000.0
-
-	dLat := toRadians(lat2 - lat1)
-	dLon := toRadians(lon2 - lon1)
-
-	a := math.Sin(dLat/2)*math.Sin(dLat/2) +
-		math.Cos(toRadians(lat1))*math.Cos(toRadians(lat2))*
-			math.Sin(dLon/2)*math.Sin(dLon/2)
-
-	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
-
-	return earthRadiusM * c
 }
 
 // bearing returns the initial bearing from point 1 to point 2 in degrees (0-360).

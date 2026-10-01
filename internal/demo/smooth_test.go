@@ -11,7 +11,7 @@ import (
 func TestSmoothRoute_EmptyAndSingle(t *testing.T) {
 	// Empty route.
 	r := &Route{Name: "empty"}
-	smoothed := SmoothRoute(r)
+	smoothed := SmoothRouteWithInterval(r, 0)
 	if smoothed.Name != "empty" {
 		t.Error("name changed")
 	}
@@ -24,7 +24,7 @@ func TestSmoothRoute_EmptyAndSingle(t *testing.T) {
 		Name:   "single",
 		Points: []RoutePoint{{Lat: 48.0, Lon: 11.0}},
 	}
-	smoothed = SmoothRoute(r)
+	smoothed = SmoothRouteWithInterval(r, 0)
 	if len(smoothed.Points) != 1 {
 		t.Errorf("expected 1 point, got %d", len(smoothed.Points))
 	}
@@ -323,7 +323,7 @@ func TestSmoothRoute_Integration(t *testing.T) {
 		},
 	}
 
-	smoothed := SmoothRoute(route)
+	smoothed := SmoothRouteWithInterval(route, 0)
 
 	// Should have more points due to interpolation of long segments.
 	if len(smoothed.Points) <= len(route.Points) {
@@ -370,7 +370,7 @@ func TestSmoothRoute_RealRoutes(t *testing.T) {
 
 	for _, r := range routes {
 		t.Run(r.Name, func(t *testing.T) {
-			smoothed := SmoothRoute(r)
+			smoothed := SmoothRouteWithInterval(r, 0)
 
 			t.Logf("original: %d points, %.0f km", len(r.Points), r.TotalDistance())
 			t.Logf("smoothed: %d points, %.0f km", len(smoothed.Points), smoothed.TotalDistance())
@@ -597,22 +597,5 @@ func TestSmoothRouteWithInterval_RealRoutes(t *testing.T) {
 				}
 			})
 		}
-	}
-}
-
-func TestCopyPoints(t *testing.T) {
-	original := []RoutePoint{
-		{Lat: 1, Lon: 2, Speed: 50},
-		{Lat: 3, Lon: 4, Speed: 80},
-	}
-
-	copied := copyPoints(original)
-
-	// Modify copy.
-	copied[0].Speed = 999
-
-	// Original should be unchanged.
-	if original[0].Speed != 50 {
-		t.Error("copyPoints did not make a true copy")
 	}
 }

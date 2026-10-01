@@ -68,179 +68,49 @@ func Reset(ctx context.Context, pool *pgxpool.Pool, accounts []DemoAccount, devi
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	// Build list of demo user emails for filtering.
 	demoEmails := make([]string, len(accounts))
 	for i, a := range accounts {
 		demoEmails[i] = a.Email
 	}
 
-	// -----------------------------------------------------------------------
-	// Phase 1: Clean up transient data tied to demo devices.
-	// -----------------------------------------------------------------------
-
-	// Delete positions for demo devices.
-	tag, err := tx.Exec(ctx, `
-		DELETE FROM positions WHERE device_id IN (
-			SELECT id FROM devices WHERE unique_id = ANY($1)
-		)
-	`, deviceIMEIs)
-	if err != nil {
-		return nil, fmt.Errorf("delete demo positions: %w", err)
+	const (
+		byDevice = `SELECT id FROM devices WHERE unique_id = ANY($1)`
+		byUser   = `SELECT id FROM users WHERE email = ANY($1)`
+	)
+	// Passkeys are deleted explicitly: demo users are upserted, so ON DELETE CASCADE never fires.
+	deletes := []struct {
+		what  string
+		query string
+		args  []any
+		count *int
+	}{
+		{"positions", `DELETE FROM positions WHERE device_id IN (` + byDevice + `)`, []any{deviceIMEIs}, &result.PositionsDeleted},
+		{"events", `DELETE FROM events WHERE device_id IN (` + byDevice + `)`, []any{deviceIMEIs}, &result.EventsDeleted},
+		{"commands", `DELETE FROM commands WHERE device_id IN (` + byDevice + `)`, []any{deviceIMEIs}, &result.CommandsDeleted},
+		{"device shares", `DELETE FROM device_shares WHERE device_id IN (` + byDevice + `)`, []any{deviceIMEIs}, &result.SharesDeleted},
+		{"sessions", `DELETE FROM sessions WHERE user_id IN (` + byUser + `)`, []any{demoEmails}, &result.SessionsDeleted},
+		{"notification logs", `DELETE FROM notification_log WHERE rule_id IN (SELECT id FROM notification_rules WHERE user_id IN (` + byUser + `))`, []any{demoEmails}, &result.NotificationLogsDeleted},
+		{"audit logs", `DELETE FROM audit_log WHERE user_id IN (` + byUser + `)`, []any{demoEmails}, &result.AuditLogsDeleted},
+		{"api keys", `DELETE FROM api_keys WHERE user_id IN (` + byUser + `)`, []any{demoEmails}, &result.ApiKeysDeleted},
+		{"passkey credentials", `DELETE FROM passkey_credentials WHERE user_id IN (` + byUser + `)`, []any{demoEmails}, &result.PasskeysDeleted},
+		{"notification rules", `DELETE FROM notification_rules WHERE user_id IN (` + byUser + `) AND name LIKE $2`, []any{demoEmails, DemoNotificationPrefix + "%"}, &result.NotificationRulesDeleted},
+		{"user-device associations", `DELETE FROM user_devices WHERE device_id IN (` + byDevice + `)`, []any{deviceIMEIs}, nil},
+		{"devices", `DELETE FROM devices WHERE unique_id = ANY($1)`, []any{deviceIMEIs}, &result.DevicesDeleted},
+		{"user-geofence associations", `DELETE FROM user_geofences WHERE geofence_id IN (SELECT id FROM geofences WHERE name = ANY($1))`, []any{DemoGeofenceNames}, nil},
+		{"geofences", `DELETE FROM geofences WHERE name = ANY($1)`, []any{DemoGeofenceNames}, &result.GeofencesDeleted},
 	}
-	result.PositionsDeleted = int(tag.RowsAffected())
-
-	// Delete events for demo devices.
-	tag, err = tx.Exec(ctx, `
-		DELETE FROM events WHERE device_id IN (
-			SELECT id FROM devices WHERE unique_id = ANY($1)
-		)
-	`, deviceIMEIs)
-	if err != nil {
-		return nil, fmt.Errorf("delete demo events: %w", err)
-	}
-	result.EventsDeleted = int(tag.RowsAffected())
-
-	// Delete commands for demo devices.
-	tag, err = tx.Exec(ctx, `
-		DELETE FROM commands WHERE device_id IN (
-			SELECT id FROM devices WHERE unique_id = ANY($1)
-		)
-	`, deviceIMEIs)
-	if err != nil {
-		return nil, fmt.Errorf("delete demo commands: %w", err)
-	}
-	result.CommandsDeleted = int(tag.RowsAffected())
-
-	// Delete device shares for demo devices.
-	tag, err = tx.Exec(ctx, `
-		DELETE FROM device_shares WHERE device_id IN (
-			SELECT id FROM devices WHERE unique_id = ANY($1)
-		)
-	`, deviceIMEIs)
-	if err != nil {
-		return nil, fmt.Errorf("delete demo device shares: %w", err)
-	}
-	result.SharesDeleted = int(tag.RowsAffected())
-
-	// -----------------------------------------------------------------------
-	// Phase 2: Clean up transient data tied to demo users.
-	// -----------------------------------------------------------------------
-
-	// Delete sessions for demo users.
-	tag, err = tx.Exec(ctx, `
-		DELETE FROM sessions WHERE user_id IN (
-			SELECT id FROM users WHERE email = ANY($1)
-		)
-	`, demoEmails)
-	if err != nil {
-		return nil, fmt.Errorf("delete demo sessions: %w", err)
-	}
-	result.SessionsDeleted = int(tag.RowsAffected())
-
-	// Delete notification logs for demo users' notification rules.
-	tag, err = tx.Exec(ctx, `
-		DELETE FROM notification_log WHERE rule_id IN (
-			SELECT id FROM notification_rules WHERE user_id IN (
-				SELECT id FROM users WHERE email = ANY($1)
-			)
-		)
-	`, demoEmails)
-	if err != nil {
-		return nil, fmt.Errorf("delete demo notification logs: %w", err)
-	}
-	result.NotificationLogsDeleted = int(tag.RowsAffected())
-
-	// Delete audit logs for demo users.
-	tag, err = tx.Exec(ctx, `
-		DELETE FROM audit_log WHERE user_id IN (
-			SELECT id FROM users WHERE email = ANY($1)
-		)
-	`, demoEmails)
-	if err != nil {
-		return nil, fmt.Errorf("delete demo audit logs: %w", err)
-	}
-	result.AuditLogsDeleted = int(tag.RowsAffected())
-
-	// Delete API keys for demo users.
-	tag, err = tx.Exec(ctx, `
-		DELETE FROM api_keys WHERE user_id IN (
-			SELECT id FROM users WHERE email = ANY($1)
-		)
-	`, demoEmails)
-	if err != nil {
-		return nil, fmt.Errorf("delete demo api keys: %w", err)
-	}
-	result.ApiKeysDeleted = int(tag.RowsAffected())
-
-	// Delete passkey credentials for demo users. Demo users are upserted (not
-	// deleted) below, so the ON DELETE CASCADE never fires — clean them here so
-	// each demo cycle starts with no registered passkeys.
-	tag, err = tx.Exec(ctx, `
-		DELETE FROM passkey_credentials WHERE user_id IN (
-			SELECT id FROM users WHERE email = ANY($1)
-		)
-	`, demoEmails)
-	if err != nil {
-		return nil, fmt.Errorf("delete demo passkey credentials: %w", err)
-	}
-	result.PasskeysDeleted = int(tag.RowsAffected())
-
-	// -----------------------------------------------------------------------
-	// Phase 3: Delete demo-managed resources.
-	// -----------------------------------------------------------------------
-
-	// Delete demo notification rules (by name prefix and user ownership).
-	tag, err = tx.Exec(ctx, `
-		DELETE FROM notification_rules WHERE user_id IN (
-			SELECT id FROM users WHERE email = ANY($1)
-		) AND name LIKE $2
-	`, demoEmails, DemoNotificationPrefix+"%")
-	if err != nil {
-		return nil, fmt.Errorf("delete demo notification rules: %w", err)
-	}
-	result.NotificationRulesDeleted = int(tag.RowsAffected())
-
-	// Delete user-device associations for demo devices.
-	_, err = tx.Exec(ctx, `
-		DELETE FROM user_devices WHERE device_id IN (
-			SELECT id FROM devices WHERE unique_id = ANY($1)
-		)
-	`, deviceIMEIs)
-	if err != nil {
-		return nil, fmt.Errorf("delete demo user-device associations: %w", err)
+	for _, d := range deletes {
+		tag, err := tx.Exec(ctx, d.query, d.args...)
+		if err != nil {
+			return nil, fmt.Errorf("delete demo %s: %w", d.what, err)
+		}
+		if d.count != nil {
+			*d.count = int(tag.RowsAffected())
+		}
 	}
 
-	// Delete demo devices.
-	tag, err = tx.Exec(ctx, `
-		DELETE FROM devices WHERE unique_id = ANY($1)
-	`, deviceIMEIs)
-	if err != nil {
-		return nil, fmt.Errorf("delete demo devices: %w", err)
-	}
-	result.DevicesDeleted = int(tag.RowsAffected())
-
-	// Delete user-geofence associations for demo geofences.
-	_, err = tx.Exec(ctx, `
-		DELETE FROM user_geofences WHERE geofence_id IN (
-			SELECT id FROM geofences WHERE name = ANY($1)
-		)
-	`, DemoGeofenceNames)
-	if err != nil {
-		return nil, fmt.Errorf("delete demo user-geofence associations: %w", err)
-	}
-
-	// Delete demo geofences.
-	tag, err = tx.Exec(ctx, `
-		DELETE FROM geofences WHERE name = ANY($1)
-	`, DemoGeofenceNames)
-	if err != nil {
-		return nil, fmt.Errorf("delete demo geofences: %w", err)
-	}
-	result.GeofencesDeleted = int(tag.RowsAffected())
-
-	// -----------------------------------------------------------------------
-	// Phase 4: Re-create demo users (upsert to handle existing).
-	// -----------------------------------------------------------------------
+	// The legacy token (email local part) is stored hashed to match GetByToken, and
+	// mirrored into api_keys as readonly because auth checks api_keys first.
 	userIDs := make(map[string]int64)
 	for _, acct := range accounts {
 		hash, err := bcrypt.GenerateFromPassword([]byte(acct.Password), bcrypt.DefaultCost)
@@ -248,50 +118,30 @@ func Reset(ctx context.Context, pool *pgxpool.Pool, accounts []DemoAccount, devi
 			return nil, fmt.Errorf("hash password for %s: %w", acct.Email, err)
 		}
 
-		// Extract username from email for simple token (demo@motus.local → demo)
 		token := acct.Email
-		if idx := strings.Index(acct.Email, "@"); idx > 0 {
-			token = acct.Email[:idx]
+		if name, _, ok := strings.Cut(acct.Email, "@"); ok && name != "" {
+			token = name
 		}
+		hashedToken := repository.HashToken(token)
 
-		// Store the hashed token so it matches what GetByToken looks up
-		// (the lookup hashes the supplied token); storing plaintext here
-		// would make the legacy ?token= login silently fail.
 		var userID int64
 		err = tx.QueryRow(ctx,
 			`INSERT INTO users (email, password_hash, name, role, token)
 			 VALUES ($1, $2, $3, $4, $5)
 			 ON CONFLICT (email) DO UPDATE SET password_hash = $2, name = $3, role = $4, token = $5
 			 RETURNING id`,
-			acct.Email, string(hash), acct.Name, acct.Role, repository.HashToken(token), // token = username part (demo@motus.local → "demo")
+			acct.Email, string(hash), acct.Name, acct.Role, hashedToken,
 		).Scan(&userID)
 		if err != nil {
 			return nil, fmt.Errorf("upsert user %s: %w", acct.Email, err)
 		}
 		userIDs[acct.Email] = userID
 		result.UsersReset++
-	}
-
-	// -----------------------------------------------------------------------
-	// Phase 4b: Re-create readonly API keys for demo users.
-	//
-	// Each demo user's legacy token (stored in users.token) is also inserted
-	// into api_keys with readonly permissions. Because the auth middleware
-	// checks api_keys before the legacy users.token column, this ensures
-	// demo tokens are treated as read-only, preventing state-changing API
-	// requests (POST, PUT, DELETE, PATCH).
-	// -----------------------------------------------------------------------
-	for _, acct := range accounts {
-		userID := userIDs[acct.Email]
-		token := acct.Email
-		if idx := strings.Index(acct.Email, "@"); idx > 0 {
-			token = acct.Email[:idx]
-		}
 
 		_, err = tx.Exec(ctx,
 			`INSERT INTO api_keys (user_id, token, name, permissions)
 			 VALUES ($1, $2, $3, 'readonly')`,
-			userID, repository.HashToken(token), acct.Name+" API Key",
+			userID, hashedToken, acct.Name+" API Key",
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create readonly api key for %s: %w", acct.Email, err)
@@ -299,11 +149,7 @@ func Reset(ctx context.Context, pool *pgxpool.Pool, accounts []DemoAccount, devi
 		result.ApiKeysCreated++
 	}
 
-	// -----------------------------------------------------------------------
-	// Phase 5: Re-create demo geofences.
-	// (Demo devices are no longer pre-registered — they are auto-registered
-	// by the GPS protocol server when the simulator sends the first position.)
-	// -----------------------------------------------------------------------
+	// Demo devices are not pre-registered; the protocol server auto-registers them.
 	demoUserID := userIDs["demo@motus.local"]
 
 	demoGeofences := []struct {
@@ -341,9 +187,6 @@ func Reset(ctx context.Context, pool *pgxpool.Pool, accounts []DemoAccount, devi
 		}
 	}
 
-	// -----------------------------------------------------------------------
-	// Phase 6: Re-create demo notification rules.
-	// -----------------------------------------------------------------------
 	if demoUserID > 0 {
 		_, err = tx.Exec(ctx, `
 			INSERT INTO notification_rules (user_id, name, event_types, channel, config, template, enabled)
@@ -361,7 +204,6 @@ func Reset(ctx context.Context, pool *pgxpool.Pool, accounts []DemoAccount, devi
 		result.NotificationRulesCreated = 1
 	}
 
-	// Commit the entire reset as one atomic operation.
 	if err := tx.Commit(ctx); err != nil {
 		return nil, fmt.Errorf("commit reset transaction: %w", err)
 	}
@@ -371,43 +213,28 @@ func Reset(ctx context.Context, pool *pgxpool.Pool, accounts []DemoAccount, devi
 
 // LogResult prints a summary of the reset operation.
 func LogResult(result *ResetResult) {
+	counts := []struct {
+		name string
+		n    int
+	}{
+		{"positions", result.PositionsDeleted},
+		{"events", result.EventsDeleted},
+		{"commands", result.CommandsDeleted},
+		{"shares", result.SharesDeleted},
+		{"sessions", result.SessionsDeleted},
+		{"notificationLogs", result.NotificationLogsDeleted},
+		{"auditLogs", result.AuditLogsDeleted},
+		{"apiKeys", result.ApiKeysDeleted},
+		{"passkeys", result.PasskeysDeleted},
+		{"rulesDeleted", result.NotificationRulesDeleted},
+		{"devicesDeleted", result.DevicesDeleted},
+		{"geofencesDeleted", result.GeofencesDeleted},
+	}
 	var parts []string
-
-	if result.PositionsDeleted > 0 {
-		parts = append(parts, fmt.Sprintf("positions=%d", result.PositionsDeleted))
-	}
-	if result.EventsDeleted > 0 {
-		parts = append(parts, fmt.Sprintf("events=%d", result.EventsDeleted))
-	}
-	if result.CommandsDeleted > 0 {
-		parts = append(parts, fmt.Sprintf("commands=%d", result.CommandsDeleted))
-	}
-	if result.SharesDeleted > 0 {
-		parts = append(parts, fmt.Sprintf("shares=%d", result.SharesDeleted))
-	}
-	if result.SessionsDeleted > 0 {
-		parts = append(parts, fmt.Sprintf("sessions=%d", result.SessionsDeleted))
-	}
-	if result.NotificationLogsDeleted > 0 {
-		parts = append(parts, fmt.Sprintf("notificationLogs=%d", result.NotificationLogsDeleted))
-	}
-	if result.AuditLogsDeleted > 0 {
-		parts = append(parts, fmt.Sprintf("auditLogs=%d", result.AuditLogsDeleted))
-	}
-	if result.ApiKeysDeleted > 0 {
-		parts = append(parts, fmt.Sprintf("apiKeys=%d", result.ApiKeysDeleted))
-	}
-	if result.PasskeysDeleted > 0 {
-		parts = append(parts, fmt.Sprintf("passkeys=%d", result.PasskeysDeleted))
-	}
-	if result.NotificationRulesDeleted > 0 {
-		parts = append(parts, fmt.Sprintf("rulesDeleted=%d", result.NotificationRulesDeleted))
-	}
-	if result.DevicesDeleted > 0 {
-		parts = append(parts, fmt.Sprintf("devicesDeleted=%d", result.DevicesDeleted))
-	}
-	if result.GeofencesDeleted > 0 {
-		parts = append(parts, fmt.Sprintf("geofencesDeleted=%d", result.GeofencesDeleted))
+	for _, c := range counts {
+		if c.n > 0 {
+			parts = append(parts, fmt.Sprintf("%s=%d", c.name, c.n))
+		}
 	}
 
 	deleted := "none"

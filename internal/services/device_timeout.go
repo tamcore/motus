@@ -1,6 +1,7 @@
 package services
 
 import (
+	"cmp"
 	"context"
 	"log/slog"
 	"time"
@@ -25,20 +26,14 @@ func NewDeviceTimeoutService(
 	deviceRepo repository.DeviceRepo,
 	hub *websocket.Hub,
 	timeout, interval time.Duration,
+	logger *slog.Logger,
 ) *DeviceTimeoutService {
 	return &DeviceTimeoutService{
 		deviceRepo: deviceRepo,
 		hub:        hub,
 		timeout:    timeout,
 		interval:   interval,
-		logger:     slog.Default(),
-	}
-}
-
-// SetLogger configures the structured logger for this service.
-func (s *DeviceTimeoutService) SetLogger(l *slog.Logger) {
-	if l != nil {
-		s.logger = l
+		logger:     cmp.Or(logger, slog.Default()),
 	}
 }
 

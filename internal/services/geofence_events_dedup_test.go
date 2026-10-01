@@ -16,7 +16,7 @@ const testGeoJSONEast = `{"type":"Polygon","coordinates":[[[13.45,52.51],[13.45,
 // device whose position alternates across a geofence boundary (GPS jitter)
 // emits exactly one enter and one exit instead of one event per oscillation.
 func TestGeofenceEvent_BoundaryJitterIsDeduplicated(t *testing.T) {
-	svc, geoRepo, eventRepo, deviceRepo, posRepo, userRepo := setupGeofenceService(t)
+	svc, geoRepo, _, deviceRepo, posRepo, userRepo := setupGeofenceService(t)
 	ctx := context.Background()
 
 	user := &model.User{Email: "jitter@example.com", PasswordHash: "h", Name: "J"}
@@ -57,7 +57,7 @@ func TestGeofenceEvent_BoundaryJitterIsDeduplicated(t *testing.T) {
 		}
 	}
 
-	events, err := eventRepo.GetByDevice(ctx, device.ID, 100)
+	events, err := deviceEvents(t, device.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,7 +83,7 @@ func TestGeofenceEvent_BoundaryJitterIsDeduplicated(t *testing.T) {
 // devices reporting time at second resolution) does not trigger a spurious
 // re-enter via the strict `<` lookup falling into the "no previous" branch.
 func TestGeofenceEvent_DuplicateTimestampDoesNotReEnter(t *testing.T) {
-	svc, geoRepo, eventRepo, deviceRepo, posRepo, userRepo := setupGeofenceService(t)
+	svc, geoRepo, _, deviceRepo, posRepo, userRepo := setupGeofenceService(t)
 	ctx := context.Background()
 
 	user := &model.User{Email: "dupts@example.com", PasswordHash: "h", Name: "DupTS"}
@@ -130,7 +130,7 @@ func TestGeofenceEvent_DuplicateTimestampDoesNotReEnter(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	events, err := eventRepo.GetByDevice(ctx, device.ID, 100)
+	events, err := deviceEvents(t, device.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -151,7 +151,7 @@ func TestGeofenceEvent_DuplicateTimestampDoesNotReEnter(t *testing.T) {
 // row per user-share. Notification fan-out happens at dispatch, not by
 // duplicating event rows.
 func TestGeofenceEvent_SharedDeviceProducesOneEvent(t *testing.T) {
-	svc, geoRepo, eventRepo, deviceRepo, posRepo, userRepo := setupGeofenceService(t)
+	svc, geoRepo, _, deviceRepo, posRepo, userRepo := setupGeofenceService(t)
 	ctx := context.Background()
 
 	userA := &model.User{Email: "share-a@example.com", PasswordHash: "h", Name: "A"}
@@ -195,7 +195,7 @@ func TestGeofenceEvent_SharedDeviceProducesOneEvent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	events, err := eventRepo.GetByDevice(ctx, device.ID, 100)
+	events, err := deviceEvents(t, device.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -214,7 +214,7 @@ func TestGeofenceEvent_SharedDeviceProducesOneEvent(t *testing.T) {
 // legitimate new transition for the same geofence well outside the dedup
 // window does fire — the dedup is a window, not a one-shot.
 func TestGeofenceEvent_NewSessionAfterWindowFiresAgain(t *testing.T) {
-	svc, geoRepo, eventRepo, deviceRepo, posRepo, userRepo := setupGeofenceService(t)
+	svc, geoRepo, _, deviceRepo, posRepo, userRepo := setupGeofenceService(t)
 	ctx := context.Background()
 
 	user := &model.User{Email: "session@example.com", PasswordHash: "h", Name: "Session"}
@@ -264,7 +264,7 @@ func TestGeofenceEvent_NewSessionAfterWindowFiresAgain(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	events, err := eventRepo.GetByDevice(ctx, device.ID, 100)
+	events, err := deviceEvents(t, device.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -289,7 +289,7 @@ func TestGeofenceEvent_NewSessionAfterWindowFiresAgain(t *testing.T) {
 // window only suppresses repeats for the SAME (device, geofence) pair — a
 // transition into a different geofence within the window must still fire.
 func TestGeofenceEvent_DifferentGeofencesNotShadowed(t *testing.T) {
-	svc, geoRepo, eventRepo, deviceRepo, posRepo, userRepo := setupGeofenceService(t)
+	svc, geoRepo, _, deviceRepo, posRepo, userRepo := setupGeofenceService(t)
 	ctx := context.Background()
 
 	user := &model.User{Email: "twofences@example.com", PasswordHash: "h", Name: "TF"}
@@ -338,7 +338,7 @@ func TestGeofenceEvent_DifferentGeofencesNotShadowed(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	events, err := eventRepo.GetByDevice(ctx, device.ID, 100)
+	events, err := deviceEvents(t, device.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -371,7 +371,7 @@ func TestGeofenceEvent_DifferentGeofencesNotShadowed(t *testing.T) {
 // dedup window. This reproduces the real Kuga bug where the old 2-minute window
 // let the second exit through.
 func TestGeofenceEvent_ExitTwoMinutesApartSuppressed(t *testing.T) {
-	svc, geoRepo, eventRepo, deviceRepo, posRepo, userRepo := setupGeofenceService(t)
+	svc, geoRepo, _, deviceRepo, posRepo, userRepo := setupGeofenceService(t)
 	ctx := context.Background()
 
 	user := &model.User{Email: "twomin@example.com", PasswordHash: "h", Name: "TwoMin"}
@@ -434,7 +434,7 @@ func TestGeofenceEvent_ExitTwoMinutesApartSuppressed(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	events, err := eventRepo.GetByDevice(ctx, device.ID, 100)
+	events, err := deviceEvents(t, device.ID)
 	if err != nil {
 		t.Fatal(err)
 	}

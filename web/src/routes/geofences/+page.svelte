@@ -693,7 +693,7 @@
 		</div>
 
 		{#if error}
-			<div class="error-banner">
+			<div class="geofence-error">
 				<span>{error}</span>
 				<button class="error-dismiss" on:click={() => (error = '')}>&#x2715;</button>
 			</div>
@@ -989,7 +989,7 @@
 		line-height: 1.5;
 	}
 
-	.error-banner {
+	.geofence-error {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
@@ -1198,12 +1198,6 @@
 		border-width: 2px;
 	}
 
-	@keyframes spin {
-		to {
-			transform: rotate(360deg);
-		}
-	}
-
 	/* Locate Me button — sits in top-right area, below Leaflet draw controls */
 	.locate-me-btn {
 		position: absolute;
@@ -1349,15 +1343,6 @@
 		font-size: var(--text-xs);
 		color: var(--text-tertiary);
 		font-style: italic;
-	}
-
-	.select {
-		padding: var(--space-3) var(--space-4);
-		background-color: var(--bg-secondary);
-		border: 1px solid var(--border-color);
-		border-radius: var(--radius-md);
-		color: var(--text-primary);
-		font-size: var(--text-base);
 	}
 
 	.select:hover:not(:disabled) {

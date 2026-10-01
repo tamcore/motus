@@ -97,77 +97,7 @@ func TestPositionRepository_GetLatestByDevice(t *testing.T) {
 	}
 }
 
-func TestPositionRepository_GetByDeviceAndTimeRange(t *testing.T) {
-	pool := testutil.SetupTestDB(t)
-	testutil.CleanTables(t, pool)
-	posRepo := repository.NewPositionRepository(pool)
-	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
-	ctx := context.Background()
-
-	_, device := createTestDevice(t, pool, deviceRepo, userRepo)
-
-	now := time.Now().UTC()
-	positions := []*model.Position{
-		{DeviceID: device.ID, Latitude: 52.0, Longitude: 13.0, Timestamp: now.Add(-3 * time.Hour)},
-		{DeviceID: device.ID, Latitude: 52.1, Longitude: 13.1, Timestamp: now.Add(-2 * time.Hour)},
-		{DeviceID: device.ID, Latitude: 52.2, Longitude: 13.2, Timestamp: now.Add(-1 * time.Hour)},
-		{DeviceID: device.ID, Latitude: 52.3, Longitude: 13.3, Timestamp: now},
-	}
-
-	for _, p := range positions {
-		if err := posRepo.Create(ctx, p); err != nil {
-			t.Fatalf("Create position failed: %v", err)
-		}
-	}
-
-	// Query for positions in the last 2.5 hours.
-	from := now.Add(-150 * time.Minute)
-	to := now.Add(time.Minute)
-
-	results, err := posRepo.GetByDeviceAndTimeRange(ctx, device.ID, from, to, 100)
-	if err != nil {
-		t.Fatalf("GetByDeviceAndTimeRange failed: %v", err)
-	}
-	if len(results) != 3 {
-		t.Errorf("expected 3 positions in range, got %d", len(results))
-	}
-}
-
-func TestPositionRepository_GetByDeviceAndTimeRange_NoLimit(t *testing.T) {
-	pool := testutil.SetupTestDB(t)
-	testutil.CleanTables(t, pool)
-	posRepo := repository.NewPositionRepository(pool)
-	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
-	ctx := context.Background()
-
-	_, device := createTestDevice(t, pool, deviceRepo, userRepo)
-
-	now := time.Now().UTC()
-	for i := range 5 {
-		p := &model.Position{
-			DeviceID:  device.ID,
-			Latitude:  52.0 + float64(i)*0.01,
-			Longitude: 13.0,
-			Timestamp: now.Add(time.Duration(-5+i) * time.Minute),
-		}
-		if err := posRepo.Create(ctx, p); err != nil {
-			t.Fatalf("Create failed: %v", err)
-		}
-	}
-
-	// limit=0 must return all positions without any cap.
-	results, err := posRepo.GetByDeviceAndTimeRange(ctx, device.ID, now.Add(-time.Hour), now.Add(time.Minute), 0)
-	if err != nil {
-		t.Fatalf("GetByDeviceAndTimeRange failed: %v", err)
-	}
-	if len(results) != 5 {
-		t.Errorf("expected 5 positions with no limit, got %d", len(results))
-	}
-}
-
-func TestPositionRepository_GetByDeviceAndTimeRange_NegativeLimitTreatedAsUnlimited(t *testing.T) {
+func TestPositionRepository_StreamByDeviceAndTimeRange_NegativeLimitTreatedAsUnlimited(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	posRepo := repository.NewPositionRepository(pool)
@@ -191,49 +121,16 @@ func TestPositionRepository_GetByDeviceAndTimeRange_NegativeLimitTreatedAsUnlimi
 	}
 
 	// Negative limit must behave the same as 0 (unlimited).
-	results, err := posRepo.GetByDeviceAndTimeRange(ctx, device.ID, now.Add(-time.Hour), now.Add(time.Minute), -1)
+	var results []*model.Position
+	err := posRepo.StreamByDeviceAndTimeRange(ctx, device.ID, now.Add(-time.Hour), now.Add(time.Minute), -1, func(p *model.Position) error {
+		results = append(results, p)
+		return nil
+	})
 	if err != nil {
-		t.Fatalf("GetByDeviceAndTimeRange failed: %v", err)
+		t.Fatalf("StreamByDeviceAndTimeRange failed: %v", err)
 	}
 	if len(results) != 3 {
 		t.Errorf("expected 3 positions for negative limit (treated as unlimited), got %d", len(results))
-	}
-}
-
-func TestPositionRepository_GetByDeviceAndTimeRange_PositiveLimitCaps(t *testing.T) {
-	pool := testutil.SetupTestDB(t)
-	testutil.CleanTables(t, pool)
-	posRepo := repository.NewPositionRepository(pool)
-	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
-	ctx := context.Background()
-
-	_, device := createTestDevice(t, pool, deviceRepo, userRepo)
-
-	now := time.Now().UTC()
-	for i := range 5 {
-		p := &model.Position{
-			DeviceID:  device.ID,
-			Latitude:  52.0 + float64(i)*0.01,
-			Longitude: 13.0,
-			Timestamp: now.Add(time.Duration(-5+i) * time.Minute),
-		}
-		if err := posRepo.Create(ctx, p); err != nil {
-			t.Fatalf("Create failed: %v", err)
-		}
-	}
-
-	// Explicit positive limit must cap at that value.
-	results, err := posRepo.GetByDeviceAndTimeRange(ctx, device.ID, now.Add(-time.Hour), now.Add(time.Minute), 2)
-	if err != nil {
-		t.Fatalf("GetByDeviceAndTimeRange failed: %v", err)
-	}
-	if len(results) != 2 {
-		t.Errorf("expected 2 positions for limit=2, got %d", len(results))
-	}
-	// Must be oldest-first (ASC order).
-	if results[0].Latitude >= results[1].Latitude {
-		t.Error("expected positions in ascending timestamp order")
 	}
 }
 
@@ -347,79 +244,6 @@ func TestPositionRepository_NullProtocol(t *testing.T) {
 	}
 	if positions[0].Protocol != "" {
 		t.Errorf("expected empty protocol, got %q", positions[0].Protocol)
-	}
-}
-
-func TestPositionRepository_GetByIDs(t *testing.T) {
-	pool := testutil.SetupTestDB(t)
-	testutil.CleanTables(t, pool)
-	posRepo := repository.NewPositionRepository(pool)
-	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
-	ctx := context.Background()
-
-	_, device := createTestDevice(t, pool, deviceRepo, userRepo)
-
-	now := time.Now().UTC()
-	p1 := &model.Position{DeviceID: device.ID, Latitude: 52.0, Longitude: 13.0, Timestamp: now.Add(-10 * time.Minute)}
-	p2 := &model.Position{DeviceID: device.ID, Latitude: 52.1, Longitude: 13.1, Timestamp: now.Add(-5 * time.Minute)}
-	p3 := &model.Position{DeviceID: device.ID, Latitude: 52.2, Longitude: 13.2, Timestamp: now}
-
-	for _, p := range []*model.Position{p1, p2, p3} {
-		if err := posRepo.Create(ctx, p); err != nil {
-			t.Fatalf("Create failed: %v", err)
-		}
-	}
-
-	// Fetch two of three by ID.
-	results, err := posRepo.GetByIDs(ctx, []int64{p1.ID, p3.ID})
-	if err != nil {
-		t.Fatalf("GetByIDs failed: %v", err)
-	}
-	if len(results) != 2 {
-		t.Fatalf("expected 2 positions, got %d", len(results))
-	}
-
-	// Verify IDs returned are the ones we asked for.
-	gotIDs := map[int64]bool{}
-	for _, p := range results {
-		gotIDs[p.ID] = true
-	}
-	if !gotIDs[p1.ID] || !gotIDs[p3.ID] {
-		t.Errorf("expected IDs %d and %d, got %v", p1.ID, p3.ID, gotIDs)
-	}
-	if gotIDs[p2.ID] {
-		t.Error("should not have returned p2")
-	}
-}
-
-func TestPositionRepository_GetByIDs_Empty(t *testing.T) {
-	pool := testutil.SetupTestDB(t)
-	testutil.CleanTables(t, pool)
-	posRepo := repository.NewPositionRepository(pool)
-	ctx := context.Background()
-
-	results, err := posRepo.GetByIDs(ctx, []int64{})
-	if err != nil {
-		t.Fatalf("GetByIDs with empty slice failed: %v", err)
-	}
-	if results != nil {
-		t.Errorf("expected nil for empty IDs, got %v", results)
-	}
-}
-
-func TestPositionRepository_GetByIDs_NonExistent(t *testing.T) {
-	pool := testutil.SetupTestDB(t)
-	testutil.CleanTables(t, pool)
-	posRepo := repository.NewPositionRepository(pool)
-	ctx := context.Background()
-
-	results, err := posRepo.GetByIDs(ctx, []int64{999999, 999998})
-	if err != nil {
-		t.Fatalf("GetByIDs with non-existent IDs failed: %v", err)
-	}
-	if len(results) != 0 {
-		t.Errorf("expected 0 results for non-existent IDs, got %d", len(results))
 	}
 }
 

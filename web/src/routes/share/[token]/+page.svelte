@@ -771,10 +771,6 @@
 		animation: spin 0.8s linear infinite;
 	}
 
-	@keyframes spin {
-		to { transform: rotate(360deg); }
-	}
-
 	.loading-screen p,
 	.error-screen p {
 		color: var(--text-secondary, #a0a0a0);

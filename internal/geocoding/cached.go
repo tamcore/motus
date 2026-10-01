@@ -1,6 +1,7 @@
 package geocoding
 
 import (
+	"cmp"
 	"context"
 	"log/slog"
 	"time"
@@ -22,19 +23,12 @@ type CachedGeocoder struct {
 }
 
 // NewCachedGeocoder creates a CachedGeocoder wrapping the given geocoder with
-// the specified cache TTL.
-func NewCachedGeocoder(geocoder Geocoder, cacheTTL time.Duration) *CachedGeocoder {
+// the specified cache TTL. A nil logger means slog.Default().
+func NewCachedGeocoder(geocoder Geocoder, cacheTTL time.Duration, logger *slog.Logger) *CachedGeocoder {
 	return &CachedGeocoder{
 		geocoder: geocoder,
 		cache:    NewCache(cacheTTL),
-		logger:   slog.Default(),
-	}
-}
-
-// SetLogger configures the structured logger.
-func (cg *CachedGeocoder) SetLogger(l *slog.Logger) {
-	if l != nil {
-		cg.logger = l
+		logger:   cmp.Or(logger, slog.Default()),
 	}
 }
 

@@ -306,6 +306,10 @@ func TestUpdateGeofence_GeometryAndArea_Integration(t *testing.T) {
 	if err := userRepo.Create(ctx, user); err != nil {
 		t.Fatalf("create user: %v", err)
 	}
+	device := &model.Device{UniqueID: "geo-oas-dev", Name: "Geo OAS Device", Status: "online"}
+	if err := repository.NewDeviceRepository(pool).Create(ctx, device, user.ID); err != nil {
+		t.Fatalf("create device: %v", err)
+	}
 
 	g := &model.Geofence{Name: "Shape Test", Geometry: testPolygonGeoJSON}
 	if err := geoRepo.Create(ctx, g); err != nil {
@@ -316,7 +320,7 @@ func TestUpdateGeofence_GeometryAndArea_Integration(t *testing.T) {
 	}
 
 	// Verify original point is contained.
-	insideOrig, _ := geoRepo.CheckContainment(ctx, user.ID, 52.52, 13.37)
+	insideOrig, _ := geoRepo.CheckContainmentForDevice(ctx, device.ID, 52.52, 13.37)
 	if len(insideOrig) == 0 {
 		t.Fatal("expected (52.52, 13.37) inside original polygon")
 	}
@@ -337,13 +341,13 @@ func TestUpdateGeofence_GeometryAndArea_Integration(t *testing.T) {
 	}
 
 	// Old point must now be outside.
-	nowOutside, _ := geoRepo.CheckContainment(ctx, user.ID, 52.52, 13.37)
+	nowOutside, _ := geoRepo.CheckContainmentForDevice(ctx, device.ID, 52.52, 13.37)
 	if len(nowOutside) > 0 {
 		t.Error("expected (52.52, 13.37) outside after geometry update")
 	}
 
 	// New point (inside east polygon) must now be contained.
-	nowInside, _ := geoRepo.CheckContainment(ctx, user.ID, 52.56, 13.62)
+	nowInside, _ := geoRepo.CheckContainmentForDevice(ctx, device.ID, 52.56, 13.62)
 	if len(nowInside) == 0 || nowInside[0] != g.ID {
 		t.Error("expected (52.56, 13.62) inside updated polygon")
 	}

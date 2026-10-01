@@ -127,29 +127,6 @@ func TestCheckOrigin(t *testing.T) {
 	}
 }
 
-func TestUserIDInSlice(t *testing.T) {
-	tests := []struct {
-		name string
-		id   int64
-		ids  []int64
-		want bool
-	}{
-		{"found", 1, []int64{1, 2, 3}, true},
-		{"not found", 4, []int64{1, 2, 3}, false},
-		{"empty slice", 1, nil, false},
-		{"single match", 5, []int64{5}, true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := userIDInSlice(tt.id, tt.ids)
-			if got != tt.want {
-				t.Errorf("userIDInSlice(%d, %v) = %v, want %v", tt.id, tt.ids, got, tt.want)
-			}
-		})
-	}
-}
-
 func TestClientCanReceive(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -352,33 +329,6 @@ func TestInvalidateDevice(t *testing.T) {
 	hub.getAllowedUserIDs(10)
 	if checker.callCount != 2 {
 		t.Errorf("expected 2 calls after invalidation, got %d", checker.callCount)
-	}
-}
-
-func TestInvalidateAllDevices(t *testing.T) {
-	checker := &mockAccessChecker{
-		deviceUsers: map[int64][]int64{
-			10: {1},
-			20: {2},
-		},
-	}
-	hub := NewHub(nil, checker, dummyExtractor)
-
-	// Populate cache for two devices.
-	hub.getAllowedUserIDs(10)
-	hub.getAllowedUserIDs(20)
-	if checker.callCount != 2 {
-		t.Fatalf("expected 2 calls, got %d", checker.callCount)
-	}
-
-	// Invalidate all.
-	hub.InvalidateAllDevices()
-
-	// Both should be cache misses now.
-	hub.getAllowedUserIDs(10)
-	hub.getAllowedUserIDs(20)
-	if checker.callCount != 4 {
-		t.Errorf("expected 4 calls after invalidateAll, got %d", checker.callCount)
 	}
 }
 

@@ -4,6 +4,7 @@
 	import type { Session } from '$lib/types/api';
 	import { formatDate } from '$lib/utils/formatting';
 	import Button from '$lib/components/Button.svelte';
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 
 	// ---------------------------------------------------------------------------
 	// List state
@@ -16,15 +17,11 @@
 	// Delete confirmation state
 	// ---------------------------------------------------------------------------
 	let confirmingDeleteId: string | null = null;
-	let deleting = false;
-	let deleteError = '';
 
 	// ---------------------------------------------------------------------------
 	// Revoke all state
 	// ---------------------------------------------------------------------------
 	let confirmingRevokeAll = false;
-	let revokingAll = false;
-	let revokeAllError = '';
 
 	$: otherSessionCount = sessions.filter((s) => !s.isCurrent).length;
 
@@ -56,70 +53,19 @@
 	// ---------------------------------------------------------------------------
 	// Delete
 	// ---------------------------------------------------------------------------
-	function requestDelete(id: string) {
-		confirmingDeleteId = id;
-		deleteError = '';
-	}
-
-	function cancelDelete() {
+	async function confirmDelete(id: string) {
+		await api.revokeSession(id);
+		sessions = sessions.filter((s) => s.id !== id);
 		confirmingDeleteId = null;
-		deleteError = '';
-	}
-
-	async function confirmDelete() {
-		if (confirmingDeleteId === null) return;
-
-		deleting = true;
-		deleteError = '';
-
-		try {
-			await api.revokeSession(confirmingDeleteId);
-			sessions = sessions.filter((s) => s.id !== confirmingDeleteId);
-			confirmingDeleteId = null;
-		} catch (e: unknown) {
-			if (e instanceof APIError) {
-				deleteError = e.message;
-			} else if (e instanceof Error) {
-				deleteError = e.message;
-			} else {
-				deleteError = 'Failed to revoke session. Please try again.';
-			}
-		} finally {
-			deleting = false;
-		}
 	}
 
 	// ---------------------------------------------------------------------------
 	// Revoke all
 	// ---------------------------------------------------------------------------
-	function requestRevokeAll() {
-		confirmingRevokeAll = true;
-		revokeAllError = '';
-	}
-
-	function cancelRevokeAll() {
-		confirmingRevokeAll = false;
-		revokeAllError = '';
-	}
-
 	async function confirmRevokeAll() {
-		revokingAll = true;
-		revokeAllError = '';
-		try {
-			await api.revokeAllOtherSessions();
-			await loadSessions();
-			confirmingRevokeAll = false;
-		} catch (e: unknown) {
-			if (e instanceof APIError) {
-				revokeAllError = e.message;
-			} else if (e instanceof Error) {
-				revokeAllError = e.message;
-			} else {
-				revokeAllError = 'Failed to revoke sessions. Please try again.';
-			}
-		} finally {
-			revokingAll = false;
-		}
+		await api.revokeAllOtherSessions();
+		await loadSessions();
+		confirmingRevokeAll = false;
 	}
 
 	// ---------------------------------------------------------------------------
@@ -145,7 +91,7 @@
 			</p>
 		</div>
 		{#if otherSessionCount > 0}
-			<Button variant="danger" size="sm" on:click={requestRevokeAll}>
+			<Button variant="danger" size="sm" on:click={() => (confirmingRevokeAll = true)}>
 				Revoke all other sessions
 			</Button>
 		{/if}
@@ -210,7 +156,7 @@
 						{#if session.isCurrent}
 							<span class="current-hint">Use logout to end</span>
 						{:else}
-							<Button variant="danger" size="sm" on:click={() => requestDelete(session.id)}>
+							<Button variant="danger" size="sm" on:click={() => (confirmingDeleteId = session.id)}>
 								Revoke
 							</Button>
 						{/if}
@@ -222,46 +168,31 @@
 
 	<!-- Revoke all confirmation -->
 	{#if confirmingRevokeAll}
-		<div class="confirm-overlay">
-			<div class="confirm-box">
-				<p class="confirm-text">
-					Are you sure you want to revoke all other sessions? Every session except this one will be
-					immediately logged out.
-				</p>
-				{#if revokeAllError}
-					<div class="message error">{revokeAllError}</div>
-				{/if}
-				<div class="confirm-actions">
-					<Button variant="secondary" size="sm" on:click={cancelRevokeAll}>Cancel</Button>
-					<Button variant="danger" size="sm" loading={revokingAll} on:click={confirmRevokeAll}>
-						{revokingAll ? 'Revoking...' : 'Revoke All Other Sessions'}
-					</Button>
-				</div>
-			</div>
-		</div>
+		<ConfirmDialog
+			confirmLabel="Revoke All Other Sessions"
+			busyLabel="Revoking..."
+			fallbackError="Failed to revoke sessions. Please try again."
+			onConfirm={confirmRevokeAll}
+			onCancel={() => (confirmingRevokeAll = false)}
+		>
+			Are you sure you want to revoke all other sessions? Every session except this one will be
+			immediately logged out.
+		</ConfirmDialog>
 	{/if}
 
 	<!-- Delete confirmation -->
 	{#if confirmingDeleteId !== null}
-		<div class="confirm-overlay">
-			<div class="confirm-box">
-				<p class="confirm-text">
-					Are you sure you want to revoke session <strong>{truncateId(confirmingDeleteId)}</strong>?
-					That session will be immediately logged out.
-				</p>
-				{#if deleteError}
-					<div class="message error">{deleteError}</div>
-				{/if}
-				<div class="confirm-actions">
-					<Button variant="secondary" size="sm" on:click={cancelDelete}>
-						Cancel
-					</Button>
-					<Button variant="danger" size="sm" loading={deleting} on:click={confirmDelete}>
-						{deleting ? 'Revoking...' : 'Revoke Session'}
-					</Button>
-				</div>
-			</div>
-		</div>
+		{@const id = confirmingDeleteId}
+		<ConfirmDialog
+			confirmLabel="Revoke Session"
+			busyLabel="Revoking..."
+			fallbackError="Failed to revoke session. Please try again."
+			onConfirm={() => confirmDelete(id)}
+			onCancel={() => (confirmingDeleteId = null)}
+		>
+			Are you sure you want to revoke session <strong>{truncateId(confirmingDeleteId)}</strong>?
+			That session will be immediately logged out.
+		</ConfirmDialog>
 	{/if}
 </section>
 
@@ -445,28 +376,6 @@
 		font-size: var(--text-xs);
 		color: var(--text-tertiary);
 		font-style: italic;
-	}
-
-	/* Delete confirmation */
-	.confirm-overlay {
-		margin-top: var(--space-4);
-		padding: var(--space-4);
-		background-color: rgba(255, 68, 68, 0.05);
-		border: 1px solid var(--error);
-		border-radius: var(--radius-md);
-	}
-
-	.confirm-text {
-		font-size: var(--text-sm);
-		color: var(--text-primary);
-		margin-bottom: var(--space-3);
-		line-height: 1.5;
-	}
-
-	.confirm-actions {
-		display: flex;
-		justify-content: flex-end;
-		gap: var(--space-3);
 	}
 
 	/* Messages */

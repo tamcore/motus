@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/tamcore/motus/internal/model"
 )
@@ -113,7 +114,7 @@ func (r *UserRepository) GetByToken(ctx context.Context, token string) (*model.U
 	u := &model.User{}
 	err := r.pool.QueryRow(ctx,
 		`SELECT id, email, COALESCE(password_hash, ''), name, role, token, created_at, oidc_subject, oidc_issuer
-		 FROM users WHERE token = $1`, hashToken(token),
+		 FROM users WHERE token = $1`, HashToken(token),
 	).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.Name, &u.Role, &u.Token, &u.CreatedAt, &u.OIDCSubject, &u.OIDCIssuer)
 	if err != nil {
 		return nil, fmt.Errorf("get user by token: %w", err)
@@ -131,17 +132,13 @@ func (r *UserRepository) ListAll(ctx context.Context) ([]*model.User, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list users: %w", err)
 	}
-	defer rows.Close()
-
-	users := make([]*model.User, 0, 16)
-	for rows.Next() {
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (*model.User, error) {
 		u := &model.User{}
-		if err := rows.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.Name, &u.Role, &u.Token, &u.CreatedAt, &u.OIDCSubject, &u.OIDCIssuer); err != nil {
+		if err := row.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.Name, &u.Role, &u.Token, &u.CreatedAt, &u.OIDCSubject, &u.OIDCIssuer); err != nil {
 			return nil, fmt.Errorf("scan user: %w", err)
 		}
-		users = append(users, u)
-	}
-	return users, rows.Err()
+		return u, nil
+	})
 }
 
 // Update modifies an existing user's name, email, and role.
@@ -175,28 +172,6 @@ func (r *UserRepository) Delete(ctx context.Context, id int64) error {
 		return fmt.Errorf("delete user: %w", err)
 	}
 	return nil
-}
-
-// GetDevicesForUser returns all device IDs assigned to a user.
-func (r *UserRepository) GetDevicesForUser(ctx context.Context, userID int64) ([]int64, error) {
-	rows, err := r.pool.Query(ctx,
-		`SELECT device_id FROM user_devices WHERE user_id = $1 ORDER BY device_id`,
-		userID,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("get devices for user: %w", err)
-	}
-	defer rows.Close()
-
-	var ids []int64
-	for rows.Next() {
-		var id int64
-		if err := rows.Scan(&id); err != nil {
-			return nil, fmt.Errorf("scan device id: %w", err)
-		}
-		ids = append(ids, id)
-	}
-	return ids, rows.Err()
 }
 
 // AssignDevice associates a device with a user. If the association already
@@ -237,7 +212,7 @@ func (r *UserRepository) GenerateToken(ctx context.Context, userID int64) (strin
 
 	_, err := r.pool.Exec(ctx,
 		`UPDATE users SET token = $1 WHERE id = $2`,
-		hashToken(token), userID,
+		HashToken(token), userID,
 	)
 	if err != nil {
 		return "", fmt.Errorf("store token: %w", err)

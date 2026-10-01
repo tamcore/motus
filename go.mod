@@ -6,7 +6,6 @@ require (
 	github.com/alicebob/miniredis/v2 v2.39.0
 	github.com/arran4/golang-ical v0.3.7
 	github.com/coreos/go-oidc/v3 v3.21.0
-	github.com/didip/tollbooth/v8 v8.0.1
 	github.com/go-chi/chi/v5 v5.3.2
 	github.com/go-faster/errors v0.8.0
 	github.com/go-faster/jx v1.2.0
@@ -65,7 +64,6 @@ require (
 	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
-	github.com/go-pkgz/expirable-cache/v3 v3.1.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/go-webauthn/x v0.3.1 // indirect
 	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect

@@ -1769,36 +1769,6 @@ func TestSourceMode(t *testing.T) {
 	}
 }
 
-func TestMinInt(t *testing.T) {
-	tests := []struct{ a, b, want int }{
-		{3, 5, 3},
-		{5, 3, 3},
-		{4, 4, 4},
-		{-1, 1, -1},
-	}
-	for _, tt := range tests {
-		got := minInt(tt.a, tt.b)
-		if got != tt.want {
-			t.Errorf("minInt(%d, %d) = %d, want %d", tt.a, tt.b, got, tt.want)
-		}
-	}
-}
-
-func TestExtractICalTimestamp_EdgeCases(t *testing.T) {
-	// No colon → empty string.
-	if got := extractICalTimestamp("NOCOTON"); got != "" {
-		t.Errorf("expected empty for line with no colon, got %q", got)
-	}
-	// Colon at the last char → empty string (nothing after it).
-	if got := extractICalTimestamp("DTSTART:"); got != "" {
-		t.Errorf("expected empty when nothing after colon, got %q", got)
-	}
-	// Normal case.
-	if got := extractICalTimestamp("DTSTART:20260115T090000Z"); got != "20260115T090000Z" {
-		t.Errorf("expected timestamp value, got %q", got)
-	}
-}
-
 func TestParseICalTimestamp_Formats(t *testing.T) {
 	tests := []struct {
 		input   string
@@ -1814,25 +1784,6 @@ func TestParseICalTimestamp_Formats(t *testing.T) {
 		if (err != nil) != tt.wantErr {
 			t.Errorf("parseICalTimestamp(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
 		}
-	}
-}
-
-func TestBuildAdjustedDTEnd_InvalidDTEnd(t *testing.T) {
-	// When DTEND cannot be parsed, fallback to dtstart + 24h.
-	dtstart := time.Date(2026, 1, 15, 9, 0, 0, 0, time.UTC)
-	got := buildAdjustedDTEnd("DTEND:BADVALUE", "DTSTART:20260115T090000Z", dtstart)
-	want := "DTEND:" + dtstart.Add(24*time.Hour).Format("20060102T150405Z")
-	if got != want {
-		t.Errorf("buildAdjustedDTEnd with invalid DTEND = %q, want %q", got, want)
-	}
-}
-
-func TestBuildAdjustedDTEnd_NoColonInDTEnd(t *testing.T) {
-	// When DTEND line has no colon, return it unchanged.
-	dtstart := time.Date(2026, 1, 15, 9, 0, 0, 0, time.UTC)
-	got := buildAdjustedDTEnd("DTEND_NO_COLON", "DTSTART:20260115T090000Z", dtstart)
-	if got != "DTEND_NO_COLON" {
-		t.Errorf("buildAdjustedDTEnd with no colon = %q, want unchanged", got)
 	}
 }
 
@@ -2209,7 +2160,7 @@ func TestParseDump_RealisticDump(t *testing.T) {
 	}
 	// Decoded bytea hex should contain the iCal header
 	if !strings.HasPrefix(calendars[0].Data, "BEGIN:VCALENDAR") {
-		t.Errorf("calendars[0].Data should start with BEGIN:VCALENDAR, got %q", calendars[0].Data[:minInt(40, len(calendars[0].Data))])
+		t.Errorf("calendars[0].Data should start with BEGIN:VCALENDAR, got %q", calendars[0].Data[:min(40, len(calendars[0].Data))])
 	}
 	if !strings.Contains(calendars[0].Data, "SUMMARY:Maintenance") {
 		t.Errorf("calendars[0].Data should contain SUMMARY:Maintenance")

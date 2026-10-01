@@ -11,6 +11,7 @@
 package partition
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"log/slog"
@@ -50,20 +51,14 @@ type Manager struct {
 //   - pool: database connection pool
 //   - retentionDays: drop partitions older than this many days (0 = disabled)
 //   - checkInterval: how often to run maintenance checks
-func NewManager(pool *pgxpool.Pool, retentionDays int, checkInterval time.Duration) *Manager {
+//   - logger: structured logger (nil = slog.Default())
+func NewManager(pool *pgxpool.Pool, retentionDays int, checkInterval time.Duration, logger *slog.Logger) *Manager {
 	return &Manager{
 		pool:          pool,
 		retentionDays: retentionDays,
 		checkInterval: checkInterval,
 		lookahead:     3, // create partitions 3 months ahead
-		logger:        slog.Default(),
-	}
-}
-
-// SetLogger configures the structured logger for this manager.
-func (m *Manager) SetLogger(l *slog.Logger) {
-	if l != nil {
-		m.logger = l
+		logger:        cmp.Or(logger, slog.Default()),
 	}
 }
 
@@ -77,8 +72,12 @@ func (m *Manager) Start(ctx context.Context) {
 		slog.Int("lookaheadMonths", m.lookahead),
 	)
 
-	// Run immediately on startup.
-	m.runMaintenance(ctx)
+	run := func() {
+		if err := m.RunOnce(ctx); err != nil {
+			m.logger.Error("partition maintenance error", slog.Any("error", err))
+		}
+	}
+	run()
 
 	ticker := time.NewTicker(m.checkInterval)
 	defer ticker.Stop()
@@ -89,26 +88,13 @@ func (m *Manager) Start(ctx context.Context) {
 			m.logger.Info("partition manager stopped")
 			return
 		case <-ticker.C:
-			m.runMaintenance(ctx)
+			run()
 		}
 	}
 }
 
-// RunOnce performs a single maintenance cycle. This is useful for testing
-// or manual invocation without the background loop.
+// RunOnce performs a single maintenance cycle.
 func (m *Manager) RunOnce(ctx context.Context) error {
-	return m.runMaintenanceWithError(ctx)
-}
-
-// runMaintenance performs a single maintenance cycle, logging any errors.
-func (m *Manager) runMaintenance(ctx context.Context) {
-	if err := m.runMaintenanceWithError(ctx); err != nil {
-		m.logger.Error("partition maintenance error", slog.Any("error", err))
-	}
-}
-
-// runMaintenanceWithError performs a single maintenance cycle, returning errors.
-func (m *Manager) runMaintenanceWithError(ctx context.Context) error {
 	if err := m.ensureFuturePartitions(ctx); err != nil {
 		return fmt.Errorf("ensure future partitions: %w", err)
 	}

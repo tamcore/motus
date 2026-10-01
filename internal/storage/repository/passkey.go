@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/tamcore/motus/internal/model"
 )
@@ -59,17 +60,9 @@ func (r *PasskeyRepository) ListByUser(ctx context.Context, userID int64) ([]*mo
 	if err != nil {
 		return nil, fmt.Errorf("list passkey credentials: %w", err)
 	}
-	defer rows.Close()
-
-	creds := make([]*model.PasskeyCredential, 0, 4)
-	for rows.Next() {
-		c, err := scanPasskey(rows)
-		if err != nil {
-			return nil, err
-		}
-		creds = append(creds, c)
-	}
-	return creds, rows.Err()
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (*model.PasskeyCredential, error) {
+		return scanPasskey(row)
+	})
 }
 
 // GetByCredentialID retrieves a passkey credential by its raw credential ID.

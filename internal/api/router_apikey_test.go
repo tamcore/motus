@@ -72,7 +72,7 @@ func TestRouter_ReadonlyApiKey_BlocksDelete(t *testing.T) {
 	}
 
 	routerCfg := api.RouterConfig{
-		Auth:        middleware.Auth(userRepo, sessionRepo, apiKeyRepo),
+		Auth:        middleware.LoadAuthContext(userRepo, sessionRepo, apiKeyRepo),
 		WriteAccess: middleware.RequireWriteAccess,
 	}
 	handler := handlers.NewHandler(handlers.HandlerConfig{
@@ -250,7 +250,7 @@ func TestRouter_ReadonlyApiKey_BlocksAllWriteEndpoints(t *testing.T) {
 	}
 
 	routerCfg := api.RouterConfig{
-		Auth:        middleware.Auth(userRepo, sessionRepo, apiKeyRepo),
+		Auth:        middleware.LoadAuthContext(userRepo, sessionRepo, apiKeyRepo),
 		WriteAccess: middleware.RequireWriteAccess,
 	}
 	handler := handlers.NewHandler(handlers.HandlerConfig{

@@ -86,11 +86,6 @@ func (s *Service) Start(ctx context.Context) {
 	}
 }
 
-// Accounts returns the demo accounts managed by this service.
-func (s *Service) Accounts() []DemoAccount {
-	return s.accounts
-}
-
 // IsDemoAccount checks whether the given email belongs to a demo account.
 func IsDemoAccount(email string) bool {
 	for _, acct := range DefaultAccounts {

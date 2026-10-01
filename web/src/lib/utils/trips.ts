@@ -1,3 +1,5 @@
+import { downloadCSV } from "./download";
+
 export interface Position {
   timestamp?: string;
   fixTime?: string;
@@ -203,21 +205,6 @@ export function detectTrips(
   return trips;
 }
 
-export function formatDate(date: string): string {
-  return new Date(date).toLocaleString();
-}
-
-export function formatDuration(seconds: number): string {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  if (hours > 0) return `${hours}h ${minutes}m`;
-  return `${minutes}m`;
-}
-
-export function formatDistance(km: number): string {
-  return `${km.toFixed(2)} km`;
-}
-
 export function exportTripsToCSV(trips: Trip[]): void {
   const headers = [
     "Device",
@@ -236,15 +223,5 @@ export function exportTripsToCSV(trips: Trip[]): void {
     trip.maxSpeed.toFixed(1),
   ]);
 
-  const csv = [headers.join(","), ...rows.map((row) => row.join(","))].join(
-    "\n",
-  );
-
-  const blob = new Blob([csv], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `motus-trips-${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
+  downloadCSV(headers, rows, `motus-trips-${new Date().toISOString().slice(0, 10)}.csv`);
 }

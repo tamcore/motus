@@ -23,3 +23,24 @@ type Position struct {
 	Outdated    bool           `json:"outdated"`
 	Attributes  map[string]any `json:"attributes"`
 }
+
+// CellNetwork builds a Traccar-style network map from cell towers and Wi-Fi
+// access points and copies the first cell tower to the mcc/mnc/lac/cellId
+// attributes. It returns nil when both lists are empty.
+func CellNetwork(cells, wifis []map[string]any, attrs map[string]any) map[string]any {
+	if len(cells) == 0 && len(wifis) == 0 {
+		return nil
+	}
+	network := map[string]any{"radioType": "gsm", "considerIp": false}
+	if len(cells) > 0 {
+		network["cellTowers"] = cells
+		attrs["mcc"] = cells[0]["mobileCountryCode"]
+		attrs["mnc"] = cells[0]["mobileNetworkCode"]
+		attrs["lac"] = cells[0]["locationAreaCode"]
+		attrs["cellId"] = cells[0]["cellId"]
+	}
+	if len(wifis) > 0 {
+		network["wifiAccessPoints"] = wifis
+	}
+	return network
+}

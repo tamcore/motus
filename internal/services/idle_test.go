@@ -29,12 +29,12 @@ func setupIdleService(t *testing.T) (
 	userRepo := repository.NewUserRepository(pool)
 	hub := websocket.NewHub(nil, nil, func(r *http.Request) int64 { return 0 })
 
-	svc := NewIdleService(deviceRepo, posRepo, eventRepo, hub, nil)
+	svc := NewIdleService(deviceRepo, posRepo, eventRepo, hub, nil, nil)
 	return svc, eventRepo, deviceRepo, posRepo, userRepo
 }
 
 func TestIdle_DeviceIdleLongEnough(t *testing.T) {
-	svc, eventRepo, deviceRepo, posRepo, userRepo := setupIdleService(t)
+	svc, _, deviceRepo, posRepo, userRepo := setupIdleService(t)
 	ctx := context.Background()
 
 	user := &model.User{Email: "idle@example.com", PasswordHash: "hash", Name: "Idle"}
@@ -59,9 +59,9 @@ func TestIdle_DeviceIdleLongEnough(t *testing.T) {
 		t.Fatalf("CheckIdle failed: %v", err)
 	}
 
-	events, err := eventRepo.GetByDevice(ctx, device.ID, 100)
+	events, err := deviceEvents(t, device.ID)
 	if err != nil {
-		t.Fatalf("GetByDevice failed: %v", err)
+		t.Fatalf("deviceEvents failed: %v", err)
 	}
 	if len(events) != 1 {
 		t.Fatalf("expected 1 idle event, got %d", len(events))
@@ -75,7 +75,7 @@ func TestIdle_DeviceIdleLongEnough(t *testing.T) {
 }
 
 func TestIdle_DeviceNotIdleLongEnough(t *testing.T) {
-	svc, eventRepo, deviceRepo, posRepo, userRepo := setupIdleService(t)
+	svc, _, deviceRepo, posRepo, userRepo := setupIdleService(t)
 	ctx := context.Background()
 
 	user := &model.User{Email: "notidle@example.com", PasswordHash: "hash", Name: "Not Idle"}
@@ -100,14 +100,14 @@ func TestIdle_DeviceNotIdleLongEnough(t *testing.T) {
 		t.Fatalf("CheckIdle failed: %v", err)
 	}
 
-	events, _ := eventRepo.GetByDevice(ctx, device.ID, 100)
+	events, _ := deviceEvents(t, device.ID)
 	if len(events) != 0 {
 		t.Errorf("expected 0 events for device not idle long enough, got %d", len(events))
 	}
 }
 
 func TestIdle_DeviceMoving(t *testing.T) {
-	svc, eventRepo, deviceRepo, posRepo, userRepo := setupIdleService(t)
+	svc, _, deviceRepo, posRepo, userRepo := setupIdleService(t)
 	ctx := context.Background()
 
 	user := &model.User{Email: "moving@example.com", PasswordHash: "hash", Name: "Moving"}
@@ -132,14 +132,14 @@ func TestIdle_DeviceMoving(t *testing.T) {
 		t.Fatalf("CheckIdle failed: %v", err)
 	}
 
-	events, _ := eventRepo.GetByDevice(ctx, device.ID, 100)
+	events, _ := deviceEvents(t, device.ID)
 	if len(events) != 0 {
 		t.Errorf("expected 0 events for moving device, got %d", len(events))
 	}
 }
 
 func TestIdle_Deduplication(t *testing.T) {
-	svc, eventRepo, deviceRepo, posRepo, userRepo := setupIdleService(t)
+	svc, _, deviceRepo, posRepo, userRepo := setupIdleService(t)
 	ctx := context.Background()
 
 	user := &model.User{Email: "dedup@example.com", PasswordHash: "hash", Name: "Dedup"}
@@ -165,7 +165,7 @@ func TestIdle_Deduplication(t *testing.T) {
 		t.Fatalf("first CheckIdle failed: %v", err)
 	}
 
-	events, _ := eventRepo.GetByDevice(ctx, device.ID, 100)
+	events, _ := deviceEvents(t, device.ID)
 	if len(events) != 1 {
 		t.Fatalf("expected 1 event after first check, got %d", len(events))
 	}
@@ -176,7 +176,7 @@ func TestIdle_Deduplication(t *testing.T) {
 		t.Fatalf("second CheckIdle failed: %v", err)
 	}
 
-	events, _ = eventRepo.GetByDevice(ctx, device.ID, 100)
+	events, _ = deviceEvents(t, device.ID)
 	if len(events) != 1 {
 		t.Errorf("expected still 1 event after second check (dedup), got %d", len(events))
 	}
@@ -187,7 +187,7 @@ func TestIdle_Deduplication(t *testing.T) {
 // deviceIdle event total, instead of one every IdleThreshold (which spammed
 // webhook subscribers for hours).
 func TestIdle_LongParkOnlyOneEvent(t *testing.T) {
-	svc, eventRepo, deviceRepo, posRepo, userRepo := setupIdleService(t)
+	svc, _, deviceRepo, posRepo, userRepo := setupIdleService(t)
 	ctx := context.Background()
 
 	user := &model.User{Email: "longpark@example.com", PasswordHash: "hash", Name: "LongPark"}
@@ -212,7 +212,7 @@ func TestIdle_LongParkOnlyOneEvent(t *testing.T) {
 		}
 	}
 
-	events, _ := eventRepo.GetByDevice(ctx, device.ID, 100)
+	events, _ := deviceEvents(t, device.ID)
 	idleCount := 0
 	for _, e := range events {
 		if e.Type == "deviceIdle" {
@@ -228,7 +228,7 @@ func TestIdle_LongParkOnlyOneEvent(t *testing.T) {
 // briefly moves (sends a fresh position) and then parks again, a second
 // deviceIdle event is correctly emitted.
 func TestIdle_NewPositionTriggersNewIdleEvent(t *testing.T) {
-	svc, eventRepo, deviceRepo, posRepo, userRepo := setupIdleService(t)
+	svc, _, deviceRepo, posRepo, userRepo := setupIdleService(t)
 	ctx := context.Background()
 
 	user := &model.User{Email: "park2@example.com", PasswordHash: "hash", Name: "Park2"}
@@ -260,7 +260,7 @@ func TestIdle_NewPositionTriggersNewIdleEvent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	events, _ := eventRepo.GetByDevice(ctx, device.ID, 100)
+	events, _ := deviceEvents(t, device.ID)
 	idleCount := 0
 	for _, e := range events {
 		if e.Type == "deviceIdle" {
@@ -273,7 +273,7 @@ func TestIdle_NewPositionTriggersNewIdleEvent(t *testing.T) {
 }
 
 func TestIdle_NoPositions(t *testing.T) {
-	svc, eventRepo, deviceRepo, _, userRepo := setupIdleService(t)
+	svc, _, deviceRepo, _, userRepo := setupIdleService(t)
 	ctx := context.Background()
 
 	user := &model.User{Email: "nopos@example.com", PasswordHash: "hash", Name: "No Pos"}
@@ -288,14 +288,14 @@ func TestIdle_NoPositions(t *testing.T) {
 		t.Fatalf("CheckIdle failed: %v", err)
 	}
 
-	events, _ := eventRepo.GetByDevice(ctx, device.ID, 100)
+	events, _ := deviceEvents(t, device.ID)
 	if len(events) != 0 {
 		t.Errorf("expected 0 events for device with no positions, got %d", len(events))
 	}
 }
 
 func TestIdle_NilSpeedTreatedAsZero(t *testing.T) {
-	svc, eventRepo, deviceRepo, posRepo, userRepo := setupIdleService(t)
+	svc, _, deviceRepo, posRepo, userRepo := setupIdleService(t)
 	ctx := context.Background()
 
 	user := &model.User{Email: "nilidle@example.com", PasswordHash: "hash", Name: "Nil Idle"}
@@ -318,7 +318,7 @@ func TestIdle_NilSpeedTreatedAsZero(t *testing.T) {
 		t.Fatalf("CheckIdle failed: %v", err)
 	}
 
-	events, _ := eventRepo.GetByDevice(ctx, device.ID, 100)
+	events, _ := deviceEvents(t, device.ID)
 	if len(events) != 1 {
 		t.Fatalf("expected 1 idle event for nil speed, got %d", len(events))
 	}

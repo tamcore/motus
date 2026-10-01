@@ -15,12 +15,10 @@ func TestIsDateOnly(t *testing.T) {
 
 	// Property with VALUE=DATE parameter → true
 	withValueDate := &ics.IANAProperty{
-		BaseProperty: ics.BaseProperty{
-			ICalParameters: map[string][]string{
-				"VALUE": {"DATE"},
-			},
-			Value: "20260115",
+		ICalParameters: map[string][]string{
+			"VALUE": {"DATE"},
 		},
+		Value: "20260115",
 	}
 	if !isDateOnly(withValueDate) {
 		t.Error("isDateOnly with VALUE=DATE should return true")
@@ -28,10 +26,8 @@ func TestIsDateOnly(t *testing.T) {
 
 	// Property with 8-char value and no T → true (DATE format by length)
 	byLength := &ics.IANAProperty{
-		BaseProperty: ics.BaseProperty{
-			ICalParameters: map[string][]string{},
-			Value:          "20260115",
-		},
+		ICalParameters: map[string][]string{},
+		Value:          "20260115",
 	}
 	if !isDateOnly(byLength) {
 		t.Error("isDateOnly with 8-char value without T should return true")
@@ -39,10 +35,8 @@ func TestIsDateOnly(t *testing.T) {
 
 	// Property with DATE-TIME value (contains T) → false
 	withTime := &ics.IANAProperty{
-		BaseProperty: ics.BaseProperty{
-			ICalParameters: map[string][]string{},
-			Value:          "20260115T090000Z",
-		},
+		ICalParameters: map[string][]string{},
+		Value:          "20260115T090000Z",
 	}
 	if isDateOnly(withTime) {
 		t.Error("isDateOnly with DATE-TIME value should return false")
@@ -50,12 +44,10 @@ func TestIsDateOnly(t *testing.T) {
 
 	// Property with VALUE=DATE-TIME parameter → false
 	withValueDateTime := &ics.IANAProperty{
-		BaseProperty: ics.BaseProperty{
-			ICalParameters: map[string][]string{
-				"VALUE": {"DATE-TIME"},
-			},
-			Value: "20260115T090000Z",
+		ICalParameters: map[string][]string{
+			"VALUE": {"DATE-TIME"},
 		},
+		Value: "20260115T090000Z",
 	}
 	if isDateOnly(withValueDateTime) {
 		t.Error("isDateOnly with VALUE=DATE-TIME should return false")
@@ -71,10 +63,8 @@ func TestParseICalTime_Nil(t *testing.T) {
 
 func TestParseICalTime_InvalidFormat(t *testing.T) {
 	prop := &ics.IANAProperty{
-		BaseProperty: ics.BaseProperty{
-			ICalParameters: map[string][]string{},
-			Value:          "not-a-date",
-		},
+		ICalParameters: map[string][]string{},
+		Value:          "not-a-date",
 	}
 	_, err := parseICalTime(prop)
 	if err == nil {
@@ -84,12 +74,10 @@ func TestParseICalTime_InvalidFormat(t *testing.T) {
 
 func TestParseICalTime_WithValidTZID(t *testing.T) {
 	prop := &ics.IANAProperty{
-		BaseProperty: ics.BaseProperty{
-			ICalParameters: map[string][]string{
-				"TZID": {"America/New_York"},
-			},
-			Value: "20260115T090000",
+		ICalParameters: map[string][]string{
+			"TZID": {"America/New_York"},
 		},
+		Value: "20260115T090000",
 	}
 	got, err := parseICalTime(prop)
 	if err != nil {
@@ -105,12 +93,10 @@ func TestParseICalTime_WithValidTZID(t *testing.T) {
 func TestParseICalTime_WithInvalidTZID(t *testing.T) {
 	// Invalid TZID should fall back to UTC.
 	prop := &ics.IANAProperty{
-		BaseProperty: ics.BaseProperty{
-			ICalParameters: map[string][]string{
-				"TZID": {"Not/ATimezone"},
-			},
-			Value: "20260115T090000",
+		ICalParameters: map[string][]string{
+			"TZID": {"Not/ATimezone"},
 		},
+		Value: "20260115T090000",
 	}
 	got, err := parseICalTime(prop)
 	if err != nil {

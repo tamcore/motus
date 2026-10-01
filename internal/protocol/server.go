@@ -3,6 +3,7 @@ package protocol
 import (
 	"bufio"
 	"bytes"
+	"cmp"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -37,8 +38,7 @@ type AutoCreateConfig struct {
 	DefaultUserEmail string
 }
 
-// maxConnections is the default maximum number of concurrent GPS device connections.
-// Override via SetMaxConnections(). Zero means unlimited (not recommended in production).
+// defaultMaxConnections is the maximum number of concurrent GPS device connections.
 const defaultMaxConnections int64 = 1000
 
 // Server is a TCP server that accepts GPS device connections,
@@ -166,13 +166,6 @@ func (s *Server) SetRegistry(r *DeviceRegistry) {
 // SetCommandRepo configures the command repository for storing device responses.
 func (s *Server) SetCommandRepo(r repository.CommandRepo) {
 	s.commands = r
-}
-
-// SetMaxConnections sets the maximum number of concurrent device connections.
-// When the limit is reached, new connections are rejected. Set to 0 to disable
-// the limit (not recommended in production).
-func (s *Server) SetMaxConnections(max int64) {
-	s.maxConnections = max
 }
 
 // resolveOrCreateDevice looks up a device by unique ID. If the device is not
@@ -420,10 +413,7 @@ func (s *Server) handleConnection(ctx context.Context, conn net.Conn) {
 	}
 
 	scanner := bufio.NewScanner(conn)
-	maxFrameSize := s.maxFrameSize
-	if maxFrameSize <= 0 {
-		maxFrameSize = defaultMaxFrameSize
-	}
+	maxFrameSize := cmp.Or(s.maxFrameSize, defaultMaxFrameSize)
 	scanner.Buffer(make([]byte, min(maxFrameSize, defaultMaxFrameSize)), maxFrameSize)
 	if s.scannerSplit != nil {
 		scanner.Split(s.scannerSplit)
@@ -909,13 +899,6 @@ func truncate(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen] + "..."
-}
-
-func ptrFloat(f *float64) float64 {
-	if f == nil {
-		return 0
-	}
-	return *f
 }
 
 // relayDialTimeout bounds how long the relay client waits when establishing a

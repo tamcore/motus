@@ -40,7 +40,6 @@ type UserRepo interface {
 	Update(ctx context.Context, user *model.User) error
 	UpdatePassword(ctx context.Context, userID int64, hash string) error
 	Delete(ctx context.Context, id int64) error
-	GetDevicesForUser(ctx context.Context, userID int64) ([]int64, error)
 	AssignDevice(ctx context.Context, userID, deviceID int64) error
 	UnassignDevice(ctx context.Context, userID, deviceID int64) error
 	GenerateToken(ctx context.Context, userID int64) (string, error)
@@ -76,15 +75,10 @@ type PositionRepo interface {
 	GetLatestByDevice(ctx context.Context, deviceID int64) (*model.Position, error)
 	GetLatestByUser(ctx context.Context, userID int64) ([]*model.Position, error)
 	GetLatestAll(ctx context.Context) ([]*model.Position, error)
-	GetByDeviceAndTimeRange(ctx context.Context, deviceID int64, from, to time.Time, limit int) ([]*model.Position, error)
-	GetByUserAndTimeRange(ctx context.Context, userID int64, from, to time.Time, limit int) ([]*model.Position, error)
-	GetAllByTimeRange(ctx context.Context, from, to time.Time, limit int) ([]*model.Position, error)
 	StreamByDeviceAndTimeRange(ctx context.Context, deviceID int64, from, to time.Time, limit int, fn func(*model.Position) error) error
 	StreamByUserAndTimeRange(ctx context.Context, userID int64, from, to time.Time, limit int, fn func(*model.Position) error) error
-	StreamAllByTimeRange(ctx context.Context, from, to time.Time, limit int, fn func(*model.Position) error) error
 	GetPreviousByDevice(ctx context.Context, deviceID int64, beforeTime time.Time) (*model.Position, error)
 	GetByID(ctx context.Context, id int64) (*model.Position, error)
-	GetByIDs(ctx context.Context, ids []int64) ([]*model.Position, error)
 	UpdateAddress(ctx context.Context, positionID int64, address string) error
 	UpdateGeofenceIDs(ctx context.Context, positionID int64, ids []int64) error
 	GetLastMovingPosition(ctx context.Context, deviceID int64, speedThreshold float64) (*model.Position, error)
@@ -102,7 +96,6 @@ type GeofenceRepo interface {
 	Delete(ctx context.Context, id int64) error
 	AssociateUser(ctx context.Context, userID, geofenceID int64) error
 	UserHasAccess(ctx context.Context, user *model.User, geofenceID int64) bool
-	CheckContainment(ctx context.Context, userID int64, lat, lon float64) ([]int64, error)
 	CheckContainmentForDevice(ctx context.Context, deviceID int64, lat, lon float64) ([]int64, error)
 }
 
@@ -110,7 +103,6 @@ type GeofenceRepo interface {
 // and event detection services.
 type EventRepo interface {
 	Create(ctx context.Context, e *model.Event) error
-	GetByDevice(ctx context.Context, deviceID int64, limit int) ([]*model.Event, error)
 	GetRecentByDeviceAndType(ctx context.Context, deviceID int64, eventType string, limit int) ([]*model.Event, error)
 	GetByUser(ctx context.Context, userID int64, limit int) ([]*model.Event, error)
 	GetByFilters(ctx context.Context, userID int64, deviceIDs []int64, eventTypes []string, from, to time.Time) ([]*model.Event, error)

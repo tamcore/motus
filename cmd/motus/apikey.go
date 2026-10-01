@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/spf13/cobra"
 	"github.com/tamcore/motus/internal/model"
 	"github.com/tamcore/motus/internal/storage/repository"
@@ -32,36 +33,24 @@ func newUserKeysListCmd() *cobra.Command {
 		Use:   "list",
 		Short: "List API keys for a user",
 		Run: func(cmd *cobra.Command, args []string) {
-			pool, err := connectDBFn()
-			if err != nil {
-				fatal("database connection failed", slog.Any("error", err))
-			}
-			defer pool.Close()
+			withDB(func(ctx context.Context, pool *pgxpool.Pool) {
+				u, err := repository.NewUserRepository(pool).GetByEmail(ctx, email)
+				if err != nil {
+					fatal("user not found", slog.String("email", email))
+				}
 
-			userRepo := repository.NewUserRepository(pool)
-			apiKeyRepo := repository.NewApiKeyRepository(pool)
+				keys, err := repository.NewApiKeyRepository(pool).ListByUser(ctx, u.ID)
+				if err != nil {
+					fatal("failed to list API keys", slog.Any("error", err))
+				}
 
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
+				if len(keys) == 0 {
+					fmt.Printf("No API keys for %s.\n", email)
+					return
+				}
 
-			u, err := userRepo.GetByEmail(ctx, email)
-			if err != nil {
-				fatal("user not found", slog.String("email", email))
-			}
-
-			keys, err := apiKeyRepo.ListByUser(ctx, u.ID)
-			if err != nil {
-				fatal("failed to list API keys", slog.Any("error", err))
-			}
-
-			if len(keys) == 0 {
-				fmt.Printf("No API keys for %s.\n", email)
-				return
-			}
-
-			switch output {
-			case "json":
 				items := make([]map[string]any, len(keys))
+				rows := make([][]string, len(keys))
 				for i, k := range keys {
 					item := map[string]any{
 						"id":          k.ID,
@@ -69,50 +58,28 @@ func newUserKeysListCmd() *cobra.Command {
 						"permissions": k.Permissions,
 						"createdAt":   k.CreatedAt.Format(time.RFC3339),
 					}
-					if k.ExpiresAt != nil {
-						item["expiresAt"] = k.ExpiresAt.Format(time.RFC3339)
-					}
-					if k.LastUsedAt != nil {
-						item["lastUsedAt"] = k.LastUsedAt.Format(time.RFC3339)
-					}
-					items[i] = item
-				}
-				printJSON(items)
-			case "csv":
-				headers := []string{"ID", "Name", "Permissions", "ExpiresAt", "LastUsedAt", "CreatedAt"}
-				rows := make([][]string, len(keys))
-				for i, k := range keys {
 					expiresAt := "never"
 					if k.ExpiresAt != nil {
+						item["expiresAt"] = k.ExpiresAt.Format(time.RFC3339)
 						expiresAt = k.ExpiresAt.Format("2006-01-02")
 					}
 					lastUsed := "-"
 					if k.LastUsedAt != nil {
+						item["lastUsedAt"] = k.LastUsedAt.Format(time.RFC3339)
 						lastUsed = k.LastUsedAt.Format("2006-01-02 15:04")
 					}
+					items[i] = item
 					rows[i] = []string{
 						fmt.Sprint(k.ID), k.Name, k.Permissions,
 						expiresAt, lastUsed, k.CreatedAt.Format("2006-01-02"),
 					}
 				}
-				printCSV(headers, rows)
-			default:
-				tw := NewTableWriter(os.Stdout)
-				tw.WriteHeader("ID", "NAME", "PERMISSIONS", "EXPIRES", "LAST USED", "CREATED")
-				for _, k := range keys {
-					expiresAt := "never"
-					if k.ExpiresAt != nil {
-						expiresAt = k.ExpiresAt.Format("2006-01-02")
-					}
-					lastUsed := "-"
-					if k.LastUsedAt != nil {
-						lastUsed = k.LastUsedAt.Format("2006-01-02 15:04")
-					}
-					tw.WriteRow(fmt.Sprint(k.ID), k.Name, k.Permissions,
-						expiresAt, lastUsed, k.CreatedAt.Format("2006-01-02"))
+				headers := []string{"ID", "NAME", "PERMISSIONS", "EXPIRES", "LAST USED", "CREATED"}
+				if output == "csv" {
+					headers = []string{"ID", "Name", "Permissions", "ExpiresAt", "LastUsedAt", "CreatedAt"}
 				}
-				tw.Flush()
-			}
+				render(output, items, headers, rows)
+			})
 		},
 	}
 
@@ -137,36 +104,20 @@ func newUserKeysAddCmd() *cobra.Command {
 				os.Exit(1)
 			}
 
-			pool, err := connectDBFn()
-			if err != nil {
-				fatal("database connection failed", slog.Any("error", err))
-			}
-			defer pool.Close()
-
-			userRepo := repository.NewUserRepository(pool)
-			apiKeyRepo := repository.NewApiKeyRepository(pool)
-
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
-
-			u, err := userRepo.GetByEmail(ctx, email)
-			if err != nil {
-				fatal("user not found", slog.String("email", email))
-			}
-
-			key := &model.ApiKey{
-				UserID:      u.ID,
-				Name:        name,
-				Permissions: permissions,
-			}
-			if expiresIn > 0 {
-				t := time.Now().Add(time.Duration(expiresIn) * time.Hour)
-				key.ExpiresAt = &t
-			}
-
-			if err := apiKeyRepo.Create(ctx, key); err != nil {
-				fatal("failed to create API key", slog.Any("error", err))
-			}
+			key := &model.ApiKey{Name: name, Permissions: permissions}
+			withDB(func(ctx context.Context, pool *pgxpool.Pool) {
+				u, err := repository.NewUserRepository(pool).GetByEmail(ctx, email)
+				if err != nil {
+					fatal("user not found", slog.String("email", email))
+				}
+				key.UserID = u.ID
+				if expiresIn > 0 {
+					key.ExpiresAt = new(time.Now().Add(time.Duration(expiresIn) * time.Hour))
+				}
+				if err := repository.NewApiKeyRepository(pool).Create(ctx, key); err != nil {
+					fatal("failed to create API key", slog.Any("error", err))
+				}
+			})
 
 			fmt.Printf("Created API key for %s:\n", email)
 			fmt.Printf("  ID:          %d\n", key.ID)
@@ -205,19 +156,11 @@ func newUserKeysDeleteCmd() *cobra.Command {
 				os.Exit(1)
 			}
 
-			pool, err := connectDBFn()
-			if err != nil {
-				fatal("database connection failed", slog.Any("error", err))
-			}
-			defer pool.Close()
-
-			apiKeyRepo := repository.NewApiKeyRepository(pool)
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
-
-			if err := apiKeyRepo.Delete(ctx, id); err != nil {
-				fatal("failed to delete API key", slog.Any("error", err))
-			}
+			withDB(func(ctx context.Context, pool *pgxpool.Pool) {
+				if err := repository.NewApiKeyRepository(pool).Delete(ctx, id); err != nil {
+					fatal("failed to delete API key", slog.Any("error", err))
+				}
+			})
 
 			fmt.Printf("Deleted API key: id=%d\n", id)
 		},

@@ -432,7 +432,7 @@
 
 		<!-- Error Message -->
 		{#if errorMsg}
-			<div class="error-banner" role="alert">
+			<div class="charts-error" role="alert">
 				<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
 					<circle cx="12" cy="12" r="10"/>
 					<line x1="12" y1="8" x2="12" y2="12"/>
@@ -518,13 +518,6 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-1);
-	}
-
-	.page-title {
-		font-size: var(--text-3xl);
-		font-weight: var(--font-bold);
-		color: var(--text-primary);
-		margin: 0;
 	}
 
 	.back-link {
@@ -666,7 +659,7 @@
 	}
 
 	/* Error */
-	.error-banner {
+	.charts-error {
 		display: flex;
 		align-items: center;
 		gap: var(--space-3);
@@ -726,11 +719,6 @@
 	}
 
 	/* Empty state */
-	.empty-state {
-		text-align: center;
-		padding: var(--space-16) var(--space-4);
-	}
-
 	.empty-state p {
 		color: var(--text-secondary);
 		margin-top: var(--space-4);

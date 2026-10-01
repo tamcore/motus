@@ -242,7 +242,11 @@ func TestImportGPX_Success(t *testing.T) {
 	// may differ from current time). Results are ordered timestamp ascending.
 	from := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	to := time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC)
-	positions, err := posRepo.GetByDeviceAndTimeRange(ctx, device.ID, from, to, 10)
+	var positions []*model.Position
+	err = posRepo.StreamByDeviceAndTimeRange(ctx, device.ID, from, to, 10, func(p *model.Position) error {
+		positions = append(positions, p)
+		return nil
+	})
 	if err != nil {
 		t.Fatalf("get positions: %v", err)
 	}
@@ -314,7 +318,11 @@ func TestImportGPX_UntimedPointsSkipped(t *testing.T) {
 	// (ImportGPXOK carries no skipped count, so assert via persistence.)
 	from := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	to := time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC)
-	positions, err := posRepo.GetByDeviceAndTimeRange(ctx, device.ID, from, to, 10)
+	var positions []*model.Position
+	err = posRepo.StreamByDeviceAndTimeRange(ctx, device.ID, from, to, 10, func(p *model.Position) error {
+		positions = append(positions, p)
+		return nil
+	})
 	if err != nil {
 		t.Fatalf("get positions: %v", err)
 	}

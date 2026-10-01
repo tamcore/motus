@@ -14,24 +14,27 @@ type DeviceSession struct {
 // DeviceRegistry tracks live device TCP connections by unique device ID.
 // It allows the HTTP command handler to deliver bytes to a connected device.
 type DeviceRegistry struct {
-	mu       sync.RWMutex
-	conns    map[string]chan<- []byte
-	sessions map[string]DeviceSession
+	mu    sync.RWMutex
+	conns map[string]registeredConn
+}
+
+type registeredConn struct {
+	ch      chan<- []byte
+	session *DeviceSession
 }
 
 // NewDeviceRegistry creates an empty DeviceRegistry.
 func NewDeviceRegistry() *DeviceRegistry {
-	return &DeviceRegistry{
-		conns:    make(map[string]chan<- []byte),
-		sessions: make(map[string]DeviceSession),
-	}
+	return &DeviceRegistry{conns: make(map[string]registeredConn)}
 }
 
 // Register associates uniqueID with an outbound write channel.
 // The server calls this as soon as it knows the device identity.
 func (r *DeviceRegistry) Register(uniqueID string, ch chan<- []byte) {
 	r.mu.Lock()
-	r.conns[uniqueID] = ch
+	c := r.conns[uniqueID]
+	c.ch = ch
+	r.conns[uniqueID] = c
 	r.mu.Unlock()
 }
 
@@ -39,7 +42,6 @@ func (r *DeviceRegistry) Register(uniqueID string, ch chan<- []byte) {
 func (r *DeviceRegistry) Deregister(uniqueID string) {
 	r.mu.Lock()
 	delete(r.conns, uniqueID)
-	delete(r.sessions, uniqueID)
 	r.mu.Unlock()
 }
 
@@ -47,8 +49,9 @@ func (r *DeviceRegistry) Deregister(uniqueID string) {
 // It is a no-op for devices without a registered connection.
 func (r *DeviceRegistry) SetSession(uniqueID string, s DeviceSession) {
 	r.mu.Lock()
-	if _, ok := r.conns[uniqueID]; ok {
-		r.sessions[uniqueID] = s
+	if c, ok := r.conns[uniqueID]; ok {
+		c.session = &s
+		r.conns[uniqueID] = c
 	}
 	r.mu.Unlock()
 }
@@ -56,9 +59,12 @@ func (r *DeviceRegistry) SetSession(uniqueID string, s DeviceSession) {
 // Session returns the protocol session details of a connected device.
 func (r *DeviceRegistry) Session(uniqueID string) (DeviceSession, bool) {
 	r.mu.RLock()
-	s, ok := r.sessions[uniqueID]
+	c := r.conns[uniqueID]
 	r.mu.RUnlock()
-	return s, ok
+	if c.session == nil {
+		return DeviceSession{}, false
+	}
+	return *c.session, true
 }
 
 // Send writes data to the outbound channel for uniqueID.
@@ -75,13 +81,13 @@ func (r *DeviceRegistry) Send(uniqueID string, data []byte) (ok bool) {
 	}()
 
 	r.mu.RLock()
-	ch, found := r.conns[uniqueID]
+	c, found := r.conns[uniqueID]
 	r.mu.RUnlock()
 	if !found {
 		return false
 	}
 	select {
-	case ch <- data:
+	case c.ch <- data:
 		return true
 	default:
 		// Channel full — drop the message rather than block.

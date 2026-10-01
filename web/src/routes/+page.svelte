@@ -315,19 +315,6 @@
 		margin-bottom: var(--space-6);
 	}
 
-	.error-banner {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		padding: var(--space-3) var(--space-4);
-		background-color: rgba(255, 59, 48, 0.15);
-		border: 1px solid var(--error);
-		border-radius: var(--radius-md);
-		color: var(--error);
-		margin-bottom: var(--space-4);
-		font-size: var(--text-sm);
-	}
-
 	.error-actions {
 		display: flex;
 		align-items: center;
@@ -494,11 +481,6 @@
 		font-size: var(--text-xs);
 		color: var(--text-tertiary);
 		margin-top: var(--space-2);
-	}
-
-	.empty-state {
-		text-align: center;
-		padding: var(--space-16) var(--space-4);
 	}
 
 	.empty-state p {

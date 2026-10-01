@@ -522,7 +522,7 @@ func clientCanReceive(client *Client, deviceID int64, allowedUserIDs []int64) bo
 		return true
 	}
 	// Regular authenticated client: checked against the access list.
-	return userIDInSlice(client.UserID, allowedUserIDs)
+	return slices.Contains(allowedUserIDs, client.UserID)
 }
 
 // broadcastForDevice sends a message only to clients whose user has access to
@@ -625,14 +625,4 @@ func (h *Hub) InvalidateDevice(deviceID int64) {
 			)
 		}
 	}
-}
-
-// InvalidateAllDevices removes all cached user-device access entries.
-// Useful for bulk operations like user deletion.
-func (h *Hub) InvalidateAllDevices() {
-	h.accessCache.invalidateAll()
-}
-
-func userIDInSlice(id int64, ids []int64) bool {
-	return slices.Contains(ids, id)
 }

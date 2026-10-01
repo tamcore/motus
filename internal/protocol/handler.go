@@ -22,19 +22,9 @@ type GeofenceChecker interface {
 	CheckGeofences(ctx context.Context, position *model.Position) error
 }
 
-// MotionChecker is the interface for detecting motion start events.
-type MotionChecker interface {
-	CheckMotion(ctx context.Context, position *model.Position) error
-}
-
-// IgnitionChecker is the interface for detecting ignition on/off transitions.
-type IgnitionChecker interface {
-	CheckIgnition(ctx context.Context, position *model.Position) error
-}
-
-// AlarmChecker is the interface for detecting hardware alarm conditions.
-type AlarmChecker interface {
-	CheckAlarm(ctx context.Context, position *model.Position) error
+type namedCheck struct {
+	name string
+	run  func(ctx context.Context, position *model.Position) error
 }
 
 // MileageChecker is the interface for tracking device mileage from positions.
@@ -56,9 +46,7 @@ type PositionHandler struct {
 	devices        repository.DeviceRepo
 	hub            *websocket.Hub
 	geofenceEvents GeofenceChecker
-	motion         MotionChecker
-	ignition       IgnitionChecker
-	alarm          AlarmChecker
+	checks         []namedCheck
 	mileage        MileageChecker
 	addressLookup  AddressLookup
 	logger         *slog.Logger
@@ -80,19 +68,10 @@ func NewPositionHandler(
 	}
 }
 
-// SetMotionChecker sets the motion detection service on the handler.
-func (h *PositionHandler) SetMotionChecker(checker MotionChecker) {
-	h.motion = checker
-}
-
-// SetIgnitionChecker sets the ignition detection service on the handler.
-func (h *PositionHandler) SetIgnitionChecker(checker IgnitionChecker) {
-	h.ignition = checker
-}
-
-// SetAlarmChecker sets the alarm detection service on the handler.
-func (h *PositionHandler) SetAlarmChecker(checker AlarmChecker) {
-	h.alarm = checker
+// AddCheck registers a check (e.g. motion, ignition, alarm) run on every stored
+// position in registration order. Failures are logged as "<name> check failed".
+func (h *PositionHandler) AddCheck(name string, check func(ctx context.Context, position *model.Position) error) {
+	h.checks = append(h.checks, namedCheck{name, check})
 }
 
 // SetMileageChecker sets the mileage tracking service on the handler.
@@ -240,30 +219,9 @@ func (h *PositionHandler) HandlePosition(ctx context.Context, pos *model.Positio
 	// Broadcast after geofence check so the position includes GeofenceIDs.
 	h.hub.BroadcastPosition(pos)
 
-	// Check motion events.
-	if h.motion != nil {
-		if err := h.motion.CheckMotion(ctx, pos); err != nil {
-			h.log().Error("motion check failed",
-				slog.Int64("deviceID", pos.DeviceID),
-				slog.Any("error", err),
-			)
-		}
-	}
-
-	// Check ignition on/off transitions.
-	if h.ignition != nil {
-		if err := h.ignition.CheckIgnition(ctx, pos); err != nil {
-			h.log().Error("ignition check failed",
-				slog.Int64("deviceID", pos.DeviceID),
-				slog.Any("error", err),
-			)
-		}
-	}
-
-	// Check hardware alarm conditions (SOS, power cut, vibration, overspeed).
-	if h.alarm != nil {
-		if err := h.alarm.CheckAlarm(ctx, pos); err != nil {
-			h.log().Error("alarm check failed",
+	for _, c := range h.checks {
+		if err := c.run(ctx, pos); err != nil {
+			h.log().Error(c.name+" check failed",
 				slog.Int64("deviceID", pos.DeviceID),
 				slog.Any("error", err),
 			)

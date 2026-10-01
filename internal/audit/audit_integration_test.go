@@ -83,7 +83,7 @@ func TestLogger_LogAction_NullableFields(t *testing.T) {
 	ctx := context.Background()
 
 	// Log with no user ID, no resource ID, no details, no IP, no user agent.
-	logger.Log(ctx, nil, ActionDeviceOnline, "", nil, nil, "", "")
+	logger.Log(ctx, nil, ActionDeviceCreate, "", nil, nil, "", "")
 
 	entries, total, err := logger.Query(ctx, QueryParams{})
 	if err != nil {
@@ -94,8 +94,8 @@ func TestLogger_LogAction_NullableFields(t *testing.T) {
 	}
 
 	e := entries[0]
-	if e.Action != ActionDeviceOnline {
-		t.Errorf("action: got %q, want %q", e.Action, ActionDeviceOnline)
+	if e.Action != ActionDeviceCreate {
+		t.Errorf("action: got %q, want %q", e.Action, ActionDeviceCreate)
 	}
 	if e.UserID != nil {
 		t.Errorf("userID should be nil, got %v", e.UserID)
@@ -136,7 +136,7 @@ func TestLogger_LogAction_InvalidIP(t *testing.T) {
 	}
 }
 
-func TestLogger_LogFromRequest(t *testing.T) {
+func TestLogger_LogRequestMetadata(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 
@@ -147,7 +147,7 @@ func TestLogger_LogFromRequest(t *testing.T) {
 	req.RemoteAddr = "192.168.1.100:54321"
 	req.Header.Set("User-Agent", "HomeAssistant/2025.11")
 
-	logger.LogFromRequest(req, &userID, ActionSessionLogin, ResourceSession, nil, nil)
+	logger.Log(req.Context(), &userID, ActionSessionLogin, ResourceSession, nil, nil, ExtractIP(req), req.UserAgent())
 
 	entries, _, err := logger.Query(req.Context(), QueryParams{})
 	if err != nil {
@@ -298,9 +298,9 @@ func TestQuery_FilterByResourceType(t *testing.T) {
 	logger := NewLogger(pool)
 	ctx := context.Background()
 
-	logger.Log(ctx, nil, ActionDeviceOnline, ResourceDevice, nil, nil, "", "")
+	logger.Log(ctx, nil, ActionDeviceCreate, ResourceDevice, nil, nil, "", "")
 	logger.Log(ctx, nil, ActionSessionLogin, ResourceSession, nil, nil, "", "")
-	logger.Log(ctx, nil, ActionNotifSent, ResourceNotification, nil, nil, "", "")
+	logger.Log(ctx, nil, ActionNotifCreate, ResourceNotification, nil, nil, "", "")
 
 	entries, total, err := logger.Query(ctx, QueryParams{ResourceType: ResourceDevice})
 	if err != nil {
@@ -514,7 +514,7 @@ func TestQuery_EmptyResults(t *testing.T) {
 	}
 }
 
-func TestLogger_LogFromRequest_IPv6(t *testing.T) {
+func TestLogger_LogRequestMetadata_IPv6(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 
@@ -524,7 +524,7 @@ func TestLogger_LogFromRequest_IPv6(t *testing.T) {
 	req.RemoteAddr = "[::1]:54321"
 	req.Header.Set("User-Agent", "TestAgent/1.0")
 
-	logger.LogFromRequest(req, nil, ActionSessionLogin, ResourceSession, nil, nil)
+	logger.Log(req.Context(), nil, ActionSessionLogin, ResourceSession, nil, nil, ExtractIP(req), req.UserAgent())
 
 	entries, _, err := logger.Query(req.Context(), QueryParams{})
 	if err != nil {

@@ -244,24 +244,3 @@ func TestShouldSkipLog(t *testing.T) {
 		})
 	}
 }
-
-func TestStatusRecorder_WriteHeaderCalledOnce(t *testing.T) {
-	rr := httptest.NewRecorder()
-	rec := &statusRecorder{ResponseWriter: rr, statusCode: http.StatusOK}
-
-	rec.WriteHeader(http.StatusNotFound)
-	rec.WriteHeader(http.StatusOK) // second call should not change recorded status
-
-	if rec.statusCode != http.StatusNotFound {
-		t.Errorf("expected first WriteHeader to win, got status %d", rec.statusCode)
-	}
-}
-
-func TestStatusRecorder_Unwrap(t *testing.T) {
-	rr := httptest.NewRecorder()
-	rec := &statusRecorder{ResponseWriter: rr}
-
-	if rec.Unwrap() != rr {
-		t.Error("Unwrap should return the underlying ResponseWriter")
-	}
-}

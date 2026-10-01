@@ -36,15 +36,12 @@ type AddressUpdater interface {
 // the idle threshold and creates deviceIdle events. It runs as a background
 // service, polling at a configured interval.
 type IdleService struct {
-	deviceRepo          repository.DeviceRepo
-	positionRepo        repository.PositionRepo
-	eventRepo           repository.EventRepo
-	hub                 *websocket.Hub
-	notificationService *NotificationService
-	mileageService      *MileageService
-	geocoder            AddressGeocoder
-	addressUpdater      AddressUpdater
-	logger              *slog.Logger
+	eventEmitter
+	deviceRepo     repository.DeviceRepo
+	positionRepo   repository.PositionRepo
+	mileageService *MileageService
+	geocoder       AddressGeocoder
+	addressUpdater AddressUpdater
 }
 
 // NewIdleService creates a new idle detection service.
@@ -54,21 +51,12 @@ func NewIdleService(
 	eventRepo repository.EventRepo,
 	hub *websocket.Hub,
 	notificationService *NotificationService,
+	logger *slog.Logger,
 ) *IdleService {
 	return &IdleService{
-		deviceRepo:          deviceRepo,
-		positionRepo:        positionRepo,
-		eventRepo:           eventRepo,
-		hub:                 hub,
-		notificationService: notificationService,
-		logger:              slog.Default(),
-	}
-}
-
-// SetLogger configures the structured logger for this service.
-func (s *IdleService) SetLogger(l *slog.Logger) {
-	if l != nil {
-		s.logger = l
+		eventEmitter: newEventEmitter(eventRepo, hub, notificationService, logger),
+		deviceRepo:   deviceRepo,
+		positionRepo: positionRepo,
 	}
 }
 
@@ -181,22 +169,9 @@ func (s *IdleService) CheckIdle(ctx context.Context) error {
 			},
 		}
 
-		if err := s.eventRepo.Create(ctx, event); err != nil {
-			s.logger.Error("failed to create idle event",
-				slog.Int64("deviceID", device.ID),
-				slog.Any("error", err),
-			)
-			continue
-		}
-
-		s.logger.Info("idle event detected",
-			slog.Int64("deviceID", device.ID),
-			slog.Float64("idleDurationMin", timeSincePosition.Minutes()),
-		)
-
 		// Geocode the stop location and store the address on the position.
-		// This only runs when the idle event is first created (not on
-		// subsequent checks), so the geocoder rate limit is respected.
+		// This only runs for a new idle event (not on subsequent checks), so
+		// the geocoder rate limit is respected.
 		if s.geocoder != nil && s.addressUpdater != nil && position.Address == nil {
 			addr := s.geocoder.Lookup(ctx, position.Latitude, position.Longitude)
 			if err := s.addressUpdater.UpdateAddress(ctx, position.ID, addr); err != nil {
@@ -212,19 +187,15 @@ func (s *IdleService) CheckIdle(ctx context.Context) error {
 			}
 		}
 
-		// Broadcast the event via WebSocket.
-		if s.hub != nil {
-			s.hub.BroadcastEvent(event)
-		}
-
-		// Trigger notifications for this event.
-		if s.notificationService != nil {
-			if err := s.notificationService.ProcessEvent(ctx, event); err != nil {
-				s.logger.Error("failed to process notifications for idle event",
-					slog.Int64("eventID", event.ID),
-					slog.Any("error", err),
-				)
-			}
+		err = s.emit(ctx, event, "idle event detected",
+			slog.Int64("deviceID", device.ID),
+			slog.Float64("idleDurationMin", timeSincePosition.Minutes()),
+		)
+		if err != nil {
+			s.logger.Error("failed to create idle event",
+				slog.Int64("deviceID", device.ID),
+				slog.Any("error", err),
+			)
 		}
 	}
 

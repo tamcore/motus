@@ -193,27 +193,6 @@ func TestDeviceAccessCache_InvalidateNonexistent(t *testing.T) {
 	c.invalidate(999)
 }
 
-func TestDeviceAccessCache_InvalidateAll(t *testing.T) {
-	c := newDeviceAccessCache(30 * time.Second)
-
-	c.set(10, []int64{1})
-	c.set(20, []int64{2})
-	c.set(30, []int64{3})
-
-	c.invalidateAll()
-
-	if c.len() != 0 {
-		t.Errorf("expected 0 entries after invalidateAll, got %d", c.len())
-	}
-
-	for _, deviceID := range []int64{10, 20, 30} {
-		_, ok := c.get(deviceID)
-		if ok {
-			t.Errorf("expected cache miss for device %d after invalidateAll", deviceID)
-		}
-	}
-}
-
 func TestDeviceAccessCache_DefaultTTL(t *testing.T) {
 	c := newDeviceAccessCache(0) // should use defaultCacheTTL
 	if c.ttl != defaultCacheTTL {

@@ -14,7 +14,6 @@ import (
 	"github.com/tamcore/motus/internal/websocket"
 )
 
-// mockMotionChecker is a test implementation of MotionChecker.
 type mockMotionChecker struct {
 	called bool
 	err    error
@@ -25,12 +24,12 @@ func (m *mockMotionChecker) CheckMotion(_ context.Context, _ *model.Position) er
 	return m.err
 }
 
-func TestPositionHandler_SetMotionChecker(t *testing.T) {
+func TestPositionHandler_AddCheck(t *testing.T) {
 	h := NewPositionHandler(nil, nil, nil, nil)
-	checker := &mockMotionChecker{}
-	h.SetMotionChecker(checker)
-	if h.motion != checker {
-		t.Error("expected motion checker to be set")
+	h.AddCheck("motion", (&mockMotionChecker{}).CheckMotion)
+	h.AddCheck("alarm", (&mockMotionChecker{}).CheckMotion)
+	if len(h.checks) != 2 || h.checks[0].name != "motion" || h.checks[1].name != "alarm" {
+		t.Errorf("checks = %+v", h.checks)
 	}
 }
 
@@ -59,7 +58,7 @@ func TestPositionHandler_HandlePosition_WithCheckers(t *testing.T) {
 	motionChecker := &mockMotionChecker{}
 
 	handler := NewPositionHandler(posRepo, deviceRepo, hub, geoChecker)
-	handler.SetMotionChecker(motionChecker)
+	handler.AddCheck("motion", motionChecker.CheckMotion)
 
 	speed := 120.0
 	course := 90.0
@@ -107,7 +106,7 @@ func TestPositionHandler_HandlePosition_CheckerErrors(t *testing.T) {
 	motionChecker := &mockMotionChecker{err: errors.New("motion check failed")}
 
 	handler := NewPositionHandler(posRepo, deviceRepo, hub, geoChecker)
-	handler.SetMotionChecker(motionChecker)
+	handler.AddCheck("motion", motionChecker.CheckMotion)
 
 	pos := &model.Position{
 		DeviceID:  device.ID,
@@ -170,22 +169,6 @@ func TestPositionHandler_HandlePosition_GeofenceError(t *testing.T) {
 	}
 	if !geoChecker.called {
 		t.Error("expected geofence checker to be called")
-	}
-}
-
-func TestPositionHandler_SetIgnitionChecker(t *testing.T) {
-	h := NewPositionHandler(nil, nil, nil, nil)
-	h.SetIgnitionChecker(nil) // nil is valid
-	if h.ignition != nil {
-		t.Error("expected ignition checker to be nil")
-	}
-}
-
-func TestPositionHandler_SetAlarmChecker(t *testing.T) {
-	h := NewPositionHandler(nil, nil, nil, nil)
-	h.SetAlarmChecker(nil) // nil is valid
-	if h.alarm != nil {
-		t.Error("expected alarm checker to be nil")
 	}
 }
 

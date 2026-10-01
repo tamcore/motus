@@ -536,14 +536,6 @@
 	// Chart
 	// ---------------------------------------------------------------------------
 
-	/** Convert hex color to rgba string. */
-	function hexToRgba(hex: string, alpha: number): string {
-		const r = parseInt(hex.slice(1, 3), 16);
-		const g = parseInt(hex.slice(3, 5), 16);
-		const b = parseInt(hex.slice(5, 7), 16);
-		return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-	}
-
 	function getChartData(): { labels: string[]; data: number[]; label: string; color: string } {
 		const labels = positions.map((p) => {
 			const d = new Date(getTime(p));
@@ -601,7 +593,7 @@
 					label: chartData.label,
 					data: chartData.data,
 					borderColor: chartData.color,
-					backgroundColor: hexToRgba(chartData.color, 0.15),
+					backgroundColor: `${chartData.color}26`,
 					fill: true,
 					tension: 0.2,
 					pointRadius: 0,
@@ -1221,10 +1213,6 @@
 		border-top-color: var(--accent-primary);
 		border-radius: 50%;
 		animation: spin 0.8s linear infinite;
-	}
-
-	@keyframes spin {
-		to { transform: rotate(360deg); }
 	}
 
 	/* Info overlay */

@@ -10,14 +10,13 @@
 // ---------------------------------------------------------------------------
 
 /** User roles supported by the backend. */
-export type UserRole = "admin" | "user" | "readonly";
 
 /** A system user as returned by the API. */
 export interface User {
   id: number;
   email: string;
   name: string;
-  role: UserRole;
+  role: "admin" | "user" | "readonly";
   token?: string | null;
   createdAt: string;
 
@@ -122,21 +121,6 @@ export interface UpdateDevicePayload {
 // Position
 // ---------------------------------------------------------------------------
 
-/** Known protocol-emitted position attributes. Open for forward-compat. */
-export interface PositionAttributes {
-  motion?: boolean;
-  ignition?: boolean;
-  flags?: string;
-  alarm?: string;
-  mcc?: number;
-  mnc?: number;
-  lac?: number;
-  cellId?: number;
-  iccid?: string;
-  satellites?: number;
-  [key: string]: unknown;
-}
-
 /** A GPS position report from a device. */
 export interface Position {
   id: number;
@@ -156,7 +140,7 @@ export interface Position {
   accuracy?: number | null;
   geofenceIds?: number[];
   outdated: boolean;
-  attributes?: PositionAttributes;
+  attributes?: Record<string, unknown>;
   network?: Record<string, unknown>;
 }
 
@@ -237,20 +221,6 @@ export interface UpdateGeofencePayload {
 // Event
 // ---------------------------------------------------------------------------
 
-export interface EventAttrIgnition { type: "ignitionOn" | "ignitionOff"; ignition: boolean; }
-export interface EventAttrAlarm { type: "alarm"; alarm: string; }
-export interface EventAttrMotion { type: "motion"; speed: number; previousSpeed: number; }
-export interface EventAttrTrip { type: "tripCompleted"; distance: number; mileage: number; }
-export interface EventAttrIdle { type: "deviceIdle"; idleDuration: number; }
-export interface EventAttrEmpty { type: "geofenceEnter" | "geofenceExit"; }
-export type EventAttributes =
-  | EventAttrIgnition
-  | EventAttrAlarm
-  | EventAttrMotion
-  | EventAttrTrip
-  | EventAttrIdle
-  | EventAttrEmpty;
-
 /** A system event (geofence enter/exit, alarm, etc). */
 export interface Event {
   id: number;
@@ -260,71 +230,28 @@ export interface Event {
   positionId?: number | null;
   /** The event time. Mapped from Go field `Timestamp` with JSON tag `eventTime`. */
   eventTime: string;
-  attributes?: EventAttributes;
+  attributes?: Record<string, unknown>;
 }
 
 // ---------------------------------------------------------------------------
 // Command
 // ---------------------------------------------------------------------------
 
-/** Supported command type identifiers. */
-export type CommandType =
-  | "rebootDevice"
-  | "positionPeriodic"
-  | "positionSingle"
-  | "sosNumber"
-  | "setSpeedAlarm"
-  | "custom";
-
-export interface CommandAttrCustom { type: "custom"; text: string; }
-export interface CommandAttrPositionPeriodic { type: "positionPeriodic"; frequency: number; }
-export interface CommandAttrSosNumber { type: "sosNumber"; phoneNumber: string; }
-export interface CommandAttrSetSpeedAlarm { type: "setSpeedAlarm"; speed: number; }
-export type CommandAttributes =
-  | CommandAttrCustom
-  | CommandAttrPositionPeriodic
-  | CommandAttrSosNumber
-  | CommandAttrSetSpeedAlarm;
-
 /** A control command sent to a device. */
 export interface Command {
   id: number;
   deviceId: number;
   type: string;
-  attributes?: CommandAttributes;
+  attributes?: Record<string, unknown>;
   status: string;
   result?: string | null;
   createdAt: string;
   executedAt?: string | null;
 }
 
-/** Payload for sending a command to a device. */
-export interface SendCommandPayload {
-  deviceId: number;
-  type: string;
-  attributes?: CommandAttributes;
-}
-
 // ---------------------------------------------------------------------------
 // Notification
 // ---------------------------------------------------------------------------
-
-/** Notification delivery channels. */
-export type NotificationChannel = "webhook";
-
-/** Event types that can trigger notifications. */
-export type NotificationEventType =
-  | "deviceOnline"
-  | "deviceOffline"
-  | "deviceMoving"
-  | "deviceStopped"
-  | "geofenceEnter"
-  | "geofenceExit"
-  | "alarm"
-  | "speedLimit"
-  | "ignitionOn"
-  | "ignitionOff"
-  | "tripCompleted";
 
 export interface NotificationConfigWebhook {
   channel: "webhook";
@@ -339,7 +266,7 @@ export interface NotificationRule {
   userId: number;
   name: string;
   eventTypes: string[];
-  channel: NotificationChannel;
+  channel: "webhook";
   config: NotificationConfig;
   template: string;
   enabled: boolean;
@@ -381,13 +308,6 @@ export interface NotificationLog {
   createdAt: string;
 }
 
-/** Response from testing a notification rule. */
-export interface TestNotificationResponse {
-  message: string;
-  status?: string;
-  error?: string;
-}
-
 // ---------------------------------------------------------------------------
 // Device Share
 // ---------------------------------------------------------------------------
@@ -401,12 +321,6 @@ export interface DeviceShare {
   createdBy: number;
   expiresAt: string | null;
   createdAt: string;
-}
-
-/** Response from the GET /api/share/:token endpoint. */
-export interface SharedDeviceResponse {
-  device: Device;
-  positions: Position[];
 }
 
 // ---------------------------------------------------------------------------
@@ -427,9 +341,6 @@ export interface Session {
   lastSeenIp?: string | null;
   lastSeenUserAgent?: string | null;
 }
-
-/** Response from login (POST /api/session). */
-export interface LoginResponse extends User {}
 
 /** Response from token generation (POST /api/session/token). */
 export interface TokenResponse {
@@ -617,14 +528,8 @@ export interface ServerInfo {
 
 export type ChatMessage =
   | { role: "user"; content: string }
-  | { role: "assistant"; content: string; toolCalls?: ChatToolCall[] }
+  | { role: "assistant"; content: string; toolCalls?: { id: string; name: string; arguments: unknown }[] }
   | { role: "tool"; toolCallId: string; name: string; content: string };
-
-export interface ChatToolCall {
-  id: string;
-  name: string;
-  arguments: unknown;
-}
 
 export type ChatEvent =
   | { type: "token"; delta: string }

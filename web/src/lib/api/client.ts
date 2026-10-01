@@ -25,7 +25,6 @@ import type {
   PlatformStats,
   Position,
   Session,
-  SharedDeviceResponse,
   SudoStatusResponse,
   TokenResponse,
   UpdateCalendarPayload,
@@ -187,9 +186,6 @@ export const api = {
 
   /** List all devices accessible to the current user. */
   getDevices: () => request<Device[]>("/devices"),
-
-  /** Get a single device by ID. */
-  getDevice: (id: number) => request<Device>(`/devices/${id}`),
 
   /** Create a new device. */
   createDevice: (device: CreateDevicePayload) =>
@@ -524,15 +520,6 @@ export const api = {
   deleteShare: (shareId: number) =>
     request<void>(`/shares/${shareId}`, { method: "DELETE" }),
 
-  /** Get the shared device and its latest positions by share token. */
-  getSharedDevice: (token: string) =>
-    request<SharedDeviceResponse>(`/share/${token}`).then((data) => ({
-      ...data,
-      positions: data.positions?.map((pos) =>
-        pos.speed != null ? { ...pos, speed: pos.speed * 1.852 } : pos,
-      ),
-    })),
-
   // ---------------------------------------------------------------------------
   // Calendars
   // ---------------------------------------------------------------------------
@@ -564,69 +551,40 @@ export const api = {
 };
 
 /**
- * Fetch devices respecting the admin "show all" setting.
- * Admins with the toggle enabled get all devices in the instance;
- * everyone else gets only their assigned devices.
+ * Fetch items respecting the admin "show all" setting.
+ * Admins with the toggle enabled get all items in the instance;
+ * everyone else gets only their own.
  */
-export async function fetchDevices(isAdmin: boolean): Promise<Device[]> {
+async function fetchScoped<T extends object>(
+  isAdmin: boolean,
+  all: () => Promise<T[]>,
+  own: () => Promise<T[]>,
+): Promise<T[]> {
   const { getSettings } = await import("$lib/stores/settings");
   if (isAdmin && getSettings().showAllDevices) {
-    const devices = await (api.getAllDevices() as Promise<Device[]>);
-    return stripOwnOwnerName(devices);
+    return stripOwnOwnerName(await all());
   }
-  return api.getDevices() as Promise<Device[]>;
+  return own();
 }
 
-/**
- * Fetch latest positions respecting the admin "show all" setting.
- * Admins with the toggle enabled get positions for all devices;
- * everyone else gets only their assigned devices' positions.
- */
-export async function fetchPositions(isAdmin: boolean): Promise<Position[]> {
-  const { getSettings } = await import("$lib/stores/settings");
-  if (isAdmin && getSettings().showAllDevices) {
-    return api.getAllPositions() as Promise<Position[]>;
-  }
-  return api.getPositions() as Promise<Position[]>;
-}
-
-/** Fetch geofences respecting the admin "show all" setting. */
-export async function fetchGeofences(isAdmin: boolean): Promise<Geofence[]> {
-  const { getSettings } = await import("$lib/stores/settings");
-  if (isAdmin && getSettings().showAllDevices) {
-    const geofences = await (api.getAllGeofences() as Promise<Geofence[]>);
-    return stripOwnOwnerName(geofences);
-  }
-  return api.getGeofences() as Promise<Geofence[]>;
-}
-
-/** Fetch calendars respecting the admin "show all" setting. */
-export async function fetchCalendars(isAdmin: boolean): Promise<Calendar[]> {
-  const { getSettings } = await import("$lib/stores/settings");
-  if (isAdmin && getSettings().showAllDevices) {
-    const calendars = await (api.getAllCalendars() as Promise<Calendar[]>);
-    return stripOwnOwnerName(calendars);
-  }
-  return api.getCalendars() as Promise<Calendar[]>;
-}
-
-/** Fetch notifications respecting the admin "show all" setting. */
-export async function fetchNotifications(isAdmin: boolean): Promise<NotificationRule[]> {
-  const { getSettings } = await import("$lib/stores/settings");
-  if (isAdmin && getSettings().showAllDevices) {
-    const rules = await (api.getAllNotifications() as Promise<NotificationRule[]>);
-    return stripOwnOwnerName(rules);
-  }
-  return api.getNotifications() as Promise<NotificationRule[]>;
-}
+export const fetchDevices = (isAdmin: boolean) =>
+  fetchScoped<Device>(isAdmin, api.getAllDevices, api.getDevices);
+export const fetchPositions = (isAdmin: boolean) =>
+  fetchScoped<Position>(isAdmin, () => api.getAllPositions(), () => api.getPositions());
+export const fetchGeofences = (isAdmin: boolean) =>
+  fetchScoped<Geofence>(isAdmin, api.getAllGeofences, api.getGeofences);
+export const fetchCalendars = (isAdmin: boolean) =>
+  fetchScoped<Calendar>(isAdmin, api.getAllCalendars, api.getCalendars);
+export const fetchNotifications = (isAdmin: boolean) =>
+  fetchScoped<NotificationRule>(isAdmin, api.getAllNotifications, api.getNotifications);
 
 /** Clear ownerName on items that belong to the current user so they don't get highlighted. */
-function stripOwnOwnerName<T extends { ownerName?: string }>(items: T[]): T[] {
+function stripOwnOwnerName<T extends object>(items: T[]): T[] {
   const { get } = svelteStore;
   const user = get(currentUser) as Record<string, unknown> | null;
   const myName = (user?.name as string) || "";
   if (!myName) return items;
   return items.map((item) =>
-    item.ownerName === myName ? { ...item, ownerName: undefined } : item
+    "ownerName" in item && item.ownerName === myName ? { ...item, ownerName: undefined } : item
   );
 }

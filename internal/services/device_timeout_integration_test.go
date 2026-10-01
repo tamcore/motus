@@ -57,7 +57,7 @@ func TestDeviceTimeoutService_CheckTimeouts_IntegrationTest(t *testing.T) {
 	}
 
 	// Create the service with a 5-minute timeout.
-	svc := NewDeviceTimeoutService(deviceRepo, hub, 5*time.Minute, 1*time.Minute)
+	svc := NewDeviceTimeoutService(deviceRepo, hub, 5*time.Minute, 1*time.Minute, nil)
 
 	// Run checkTimeouts.
 	if err := svc.checkTimeouts(ctx); err != nil {
@@ -109,7 +109,7 @@ func TestDeviceTimeoutService_CheckTimeouts_NilLastUpdate(t *testing.T) {
 	d := &model.Device{UniqueID: "timeout-nil-ls", Name: "Nil LastUpdate Device", Status: "online"}
 	_ = deviceRepo.Create(ctx, d, user.ID)
 
-	svc := NewDeviceTimeoutService(deviceRepo, hub, 5*time.Minute, 1*time.Minute)
+	svc := NewDeviceTimeoutService(deviceRepo, hub, 5*time.Minute, 1*time.Minute, nil)
 
 	if err := svc.checkTimeouts(ctx); err != nil {
 		t.Fatalf("checkTimeouts failed: %v", err)
@@ -129,7 +129,7 @@ func TestDeviceTimeoutService_Start_CancelsGracefully(t *testing.T) {
 	hub := websocket.NewHub(nil, nil, func(r *http.Request) int64 { return 0 })
 
 	// Use short interval so the ticker fires quickly.
-	svc := NewDeviceTimeoutService(deviceRepo, hub, 5*time.Minute, 50*time.Millisecond)
+	svc := NewDeviceTimeoutService(deviceRepo, hub, 5*time.Minute, 50*time.Millisecond, nil)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -188,7 +188,7 @@ func TestDeviceTimeoutService_CheckTimeouts_MovingDevice(t *testing.T) {
 		t.Fatalf("update device 2: %v", err)
 	}
 
-	svc := NewDeviceTimeoutService(deviceRepo, hub, 5*time.Minute, 1*time.Minute)
+	svc := NewDeviceTimeoutService(deviceRepo, hub, 5*time.Minute, 1*time.Minute, nil)
 
 	if err := svc.checkTimeouts(ctx); err != nil {
 		t.Fatalf("checkTimeouts failed: %v", err)
@@ -212,7 +212,7 @@ func TestNewDeviceTimeoutService(t *testing.T) {
 	deviceRepo := repository.NewDeviceRepository(pool)
 	hub := websocket.NewHub(nil, nil, func(r *http.Request) int64 { return 0 })
 
-	svc := NewDeviceTimeoutService(deviceRepo, hub, 10*time.Minute, 2*time.Minute)
+	svc := NewDeviceTimeoutService(deviceRepo, hub, 10*time.Minute, 2*time.Minute, nil)
 	if svc == nil {
 		t.Fatal("expected non-nil service")
 		return

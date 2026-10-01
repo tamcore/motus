@@ -1,5 +1,4 @@
 import { writable, derived } from "svelte/store";
-import { browser } from "$app/environment";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -42,7 +41,6 @@ function createPwaStore() {
   let updateWorker: ServiceWorker | null = null;
 
   function initialize(): void {
-    if (!browser) return;
     if (!("serviceWorker" in navigator)) return;
 
     // Check if already installed as standalone
@@ -164,9 +162,7 @@ function createPwaStore() {
   }
 
   function dismissInstall(): void {
-    if (browser) {
-      sessionStorage.setItem("motus_pwa_install_dismissed", "true");
-    }
+    sessionStorage.setItem("motus_pwa_install_dismissed", "true");
     update((s) => ({ ...s, installDismissed: true }));
   }
 
@@ -176,9 +172,7 @@ function createPwaStore() {
       updateWorker = null;
     }
     // Reload to activate the new service worker
-    if (browser) {
-      window.location.reload();
-    }
+    window.location.reload();
   }
 
   return {

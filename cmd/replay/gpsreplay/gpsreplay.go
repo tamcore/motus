@@ -88,19 +88,12 @@ func runReplay(config *Config) error {
 
 	slog.Info("connected to GPS server")
 
-	// Calculate inter-message delays if realtime playback
-	var delays []time.Duration
-	if config.Speed > 0 {
-		delays = calculateDelays(messages, config.Speed)
-	}
-
 	// Send messages
 	count := 0
 	for {
 		for i, msg := range messages {
-			// Apply delay if realtime playback
-			if config.Speed > 0 && i > 0 && i < len(delays) {
-				time.Sleep(delays[i])
+			if config.Speed > 0 && i > 0 {
+				time.Sleep(messageDelay(config.Speed))
 			}
 
 			// Send message
@@ -163,80 +156,43 @@ func extractMessages(config *Config) ([]string, error) {
 	return messages, err
 }
 
-// extractFromH02Log extracts H02 messages from h02.log format
+var h02Pattern = regexp.MustCompile(`\*HQ,[^#]+#`)
+
+// extractH02 returns the H02 messages in s, with the device ID replaced when deviceID is set.
+func extractH02(s, deviceID string) []string {
+	matches := h02Pattern.FindAllString(s, -1)
+	if deviceID == "" {
+		return matches
+	}
+	for i, match := range matches {
+		parts := strings.Split(match, ",")
+		parts[1] = deviceID
+		matches[i] = strings.Join(parts, ",")
+	}
+	return matches
+}
+
 func extractFromH02Log(f *os.File, config *Config) ([]string, error) {
 	var messages []string
 	scanner := bufio.NewScanner(f)
-
-	// H02 message pattern: *HQ,...#
-	h02Pattern := regexp.MustCompile(`\*HQ,[^#]+#`)
-
 	for scanner.Scan() {
-		line := scanner.Text()
-
-		// Extract H02 messages from line
-		matches := h02Pattern.FindAllString(line, -1)
-		for _, match := range matches {
-			// Replace device ID if specified
-			if config.DeviceID != "" {
-				// H02 format: *HQ,<device_id>,<command>,...#
-				// Replace device ID in message
-				parts := strings.Split(match, ",")
-				if len(parts) >= 2 {
-					parts[1] = config.DeviceID
-					match = strings.Join(parts, ",")
-				}
-			}
-			messages = append(messages, match)
-		}
+		messages = append(messages, extractH02(scanner.Text(), config.DeviceID)...)
 	}
-
 	return messages, scanner.Err()
 }
 
-// extractFromPcap extracts H02 messages from pcap file
-// This is a simple implementation that reads pcap as text and extracts H02 patterns
+// extractFromPcap scans the raw pcap bytes for H02 messages; it does not parse pcap framing.
 func extractFromPcap(config *Config) ([]string, error) {
-	// Read pcap file as binary
 	data, err := os.ReadFile(config.InputFile)
 	if err != nil {
 		return nil, err
 	}
-
-	// Extract H02 messages from pcap payload
-	// H02 messages are typically in the TCP payload
-	h02Pattern := regexp.MustCompile(`\*HQ,[^#]+#`)
-	matches := h02Pattern.FindAllString(string(data), -1)
-
-	var messages []string
-	for _, match := range matches {
-		// Replace device ID if specified
-		if config.DeviceID != "" {
-			parts := strings.Split(match, ",")
-			if len(parts) >= 2 {
-				parts[1] = config.DeviceID
-				match = strings.Join(parts, ",")
-			}
-		}
-		messages = append(messages, match)
-	}
-
-	return messages, nil
+	return extractH02(string(data), config.DeviceID), nil
 }
 
-// calculateDelays calculates inter-message delays based on timestamps
-// For now, just use a fixed delay since extracting timestamps from H02 log is complex
-func calculateDelays(messages []string, speedMultiplier float64) []time.Duration {
-	delays := make([]time.Duration, len(messages))
-
-	// For H02 replay, use a fixed 5-second interval between messages (typical GPS update rate)
-	baseDelay := time.Duration(5000/speedMultiplier) * time.Millisecond
-
-	for i := range delays {
-		delays[i] = baseDelay
-	}
-
-	return delays
+// messageDelay is a fixed 5s GPS update interval scaled by the playback speed.
+func messageDelay(speed float64) time.Duration {
+	return time.Duration(5000/speed) * time.Millisecond
 }
 
 func truncate(s string, maxLen int) string {

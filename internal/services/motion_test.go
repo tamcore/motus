@@ -29,12 +29,12 @@ func setupMotionService(t *testing.T) (
 	userRepo := repository.NewUserRepository(pool)
 	hub := websocket.NewHub(nil, nil, func(r *http.Request) int64 { return 0 })
 
-	svc := NewMotionService(posRepo, eventRepo, hub, nil)
+	svc := NewMotionService(posRepo, eventRepo, hub, nil, nil)
 	return svc, eventRepo, deviceRepo, posRepo, userRepo
 }
 
 func TestMotion_StartedMoving(t *testing.T) {
-	svc, eventRepo, deviceRepo, posRepo, userRepo := setupMotionService(t)
+	svc, _, deviceRepo, posRepo, userRepo := setupMotionService(t)
 	ctx := context.Background()
 
 	user := &model.User{Email: "motion@example.com", PasswordHash: "hash", Name: "Motion"}
@@ -72,9 +72,9 @@ func TestMotion_StartedMoving(t *testing.T) {
 		t.Fatalf("CheckMotion failed: %v", err)
 	}
 
-	events, err := eventRepo.GetByDevice(ctx, device.ID, 100)
+	events, err := deviceEvents(t, device.ID)
 	if err != nil {
-		t.Fatalf("GetByDevice failed: %v", err)
+		t.Fatalf("deviceEvents failed: %v", err)
 	}
 	if len(events) != 1 {
 		t.Fatalf("expected 1 motion event, got %d", len(events))
@@ -85,7 +85,7 @@ func TestMotion_StartedMoving(t *testing.T) {
 }
 
 func TestMotion_AlreadyMoving(t *testing.T) {
-	svc, eventRepo, deviceRepo, posRepo, userRepo := setupMotionService(t)
+	svc, _, deviceRepo, posRepo, userRepo := setupMotionService(t)
 	ctx := context.Background()
 
 	user := &model.User{Email: "already@example.com", PasswordHash: "hash", Name: "Already Moving"}
@@ -122,14 +122,14 @@ func TestMotion_AlreadyMoving(t *testing.T) {
 		t.Fatalf("CheckMotion failed: %v", err)
 	}
 
-	events, _ := eventRepo.GetByDevice(ctx, device.ID, 100)
+	events, _ := deviceEvents(t, device.ID)
 	if len(events) != 0 {
 		t.Errorf("expected 0 events for already moving device, got %d", len(events))
 	}
 }
 
 func TestMotion_StillStationary(t *testing.T) {
-	svc, eventRepo, deviceRepo, posRepo, userRepo := setupMotionService(t)
+	svc, _, deviceRepo, posRepo, userRepo := setupMotionService(t)
 	ctx := context.Background()
 
 	user := &model.User{Email: "still@example.com", PasswordHash: "hash", Name: "Still"}
@@ -166,14 +166,14 @@ func TestMotion_StillStationary(t *testing.T) {
 		t.Fatalf("CheckMotion failed: %v", err)
 	}
 
-	events, _ := eventRepo.GetByDevice(ctx, device.ID, 100)
+	events, _ := deviceEvents(t, device.ID)
 	if len(events) != 0 {
 		t.Errorf("expected 0 events for stationary device, got %d", len(events))
 	}
 }
 
 func TestMotion_NoPreviousPosition(t *testing.T) {
-	svc, eventRepo, deviceRepo, posRepo, userRepo := setupMotionService(t)
+	svc, _, deviceRepo, posRepo, userRepo := setupMotionService(t)
 	ctx := context.Background()
 
 	user := &model.User{Email: "noprev@example.com", PasswordHash: "hash", Name: "No Prev"}
@@ -198,14 +198,14 @@ func TestMotion_NoPreviousPosition(t *testing.T) {
 		t.Fatalf("CheckMotion failed: %v", err)
 	}
 
-	events, _ := eventRepo.GetByDevice(ctx, device.ID, 100)
+	events, _ := deviceEvents(t, device.ID)
 	if len(events) != 0 {
 		t.Errorf("expected 0 events for first position, got %d", len(events))
 	}
 }
 
 func TestMotion_NilSpeedTreatedAsZero(t *testing.T) {
-	svc, eventRepo, deviceRepo, posRepo, userRepo := setupMotionService(t)
+	svc, _, deviceRepo, posRepo, userRepo := setupMotionService(t)
 	ctx := context.Background()
 
 	user := &model.User{Email: "nilmotion@example.com", PasswordHash: "hash", Name: "Nil Motion"}
@@ -241,7 +241,7 @@ func TestMotion_NilSpeedTreatedAsZero(t *testing.T) {
 		t.Fatalf("CheckMotion failed: %v", err)
 	}
 
-	events, _ := eventRepo.GetByDevice(ctx, device.ID, 100)
+	events, _ := deviceEvents(t, device.ID)
 	if len(events) != 1 {
 		t.Fatalf("expected 1 motion event for nil->fast transition, got %d", len(events))
 	}
@@ -251,7 +251,7 @@ func TestMotion_NilSpeedTreatedAsZero(t *testing.T) {
 }
 
 func TestMotion_ThresholdBoundary(t *testing.T) {
-	svc, eventRepo, deviceRepo, posRepo, userRepo := setupMotionService(t)
+	svc, _, deviceRepo, posRepo, userRepo := setupMotionService(t)
 	ctx := context.Background()
 
 	user := &model.User{Email: "boundary@example.com", PasswordHash: "hash", Name: "Boundary"}
@@ -289,7 +289,7 @@ func TestMotion_ThresholdBoundary(t *testing.T) {
 		t.Fatalf("CheckMotion failed: %v", err)
 	}
 
-	events, _ := eventRepo.GetByDevice(ctx, device.ID, 100)
+	events, _ := deviceEvents(t, device.ID)
 	if len(events) != 1 {
 		t.Fatalf("expected 1 motion event at exact threshold, got %d", len(events))
 	}

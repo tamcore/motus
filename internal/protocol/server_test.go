@@ -174,16 +174,6 @@ func TestTruncate(t *testing.T) {
 	}
 }
 
-func TestPtrFloat(t *testing.T) {
-	f := 42.5
-	if ptrFloat(&f) != 42.5 {
-		t.Error("ptrFloat should return the value")
-	}
-	if ptrFloat(nil) != 0 {
-		t.Error("ptrFloat(nil) should return 0")
-	}
-}
-
 // Verify coordinate parsing end-to-end through the H02 decoder.
 func TestH02CoordinateParsing(t *testing.T) {
 	// We can test the decoder output indirectly by using the h02 package directly.

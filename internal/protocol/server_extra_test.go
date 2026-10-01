@@ -248,32 +248,6 @@ func TestTruncate_AdditionalCases(t *testing.T) {
 	}
 }
 
-func TestPtrFloat_Values(t *testing.T) {
-	zero := 0.0
-	negative := -42.5
-	large := 999999.99
-
-	tests := []struct {
-		name string
-		f    *float64
-		want float64
-	}{
-		{"nil", nil, 0},
-		{"zero", &zero, 0},
-		{"negative", &negative, -42.5},
-		{"large", &large, 999999.99},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := ptrFloat(tt.f)
-			if got != tt.want {
-				t.Errorf("ptrFloat() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestServer_SetLogger(t *testing.T) {
 	srv := NewH02Server("5014", nil, nil)
 	srv.SetLogger(nil) // nil should not change the logger

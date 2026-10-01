@@ -71,8 +71,3 @@ func (w *connWriter) IsStale(threshold time.Duration) bool {
 func (w *connWriter) Close() error {
 	return w.conn.Close()
 }
-
-// RemoteAddr returns the remote address of the underlying connection.
-func (w *connWriter) RemoteAddr() net.Addr {
-	return w.conn.RemoteAddr()
-}

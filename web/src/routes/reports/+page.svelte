@@ -523,10 +523,6 @@
 		display: flex; justify-content: space-between; align-items: center;
 		margin-bottom: var(--space-6);
 	}
-	.page-title {
-		font-size: var(--text-3xl); font-weight: var(--font-bold);
-		color: var(--text-primary); margin: 0;
-	}
 	.chart-container {
 		height: 300px; margin-bottom: var(--space-6); padding: var(--space-4);
 		background-color: var(--bg-secondary); border: 1px solid var(--border-color);
@@ -653,7 +649,6 @@
 	.address-cell {
 		max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 	}
-	.empty-state { text-align: center; padding: var(--space-16) var(--space-4); }
 	.empty-state p { color: var(--text-secondary); margin-top: var(--space-4); }
 	.empty-hint { font-size: var(--text-sm); color: var(--text-tertiary); }
 	.loading-state { padding: var(--space-4); }

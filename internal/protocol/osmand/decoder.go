@@ -24,6 +24,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/tamcore/motus/internal/model"
 )
 
 // ErrMissingDeviceID is returned when a report does not identify the device.
@@ -139,7 +141,7 @@ func DecodeQuery(params url.Values, now time.Time) (*Message, error) {
 		m.HasLocation = true
 		m.Latitude, m.Longitude = *lat, *lon
 	}
-	m.setNetwork(cells, wifis)
+	m.Network = model.CellNetwork(cells, wifis, m.Attributes)
 	return m, nil
 }
 
@@ -360,23 +362,4 @@ func parseWifi(value string) (map[string]any, error) {
 		"macAddress":     strings.ReplaceAll(mac, "-", ":"),
 		"signalStrength": signal,
 	}, nil
-}
-
-// setNetwork stores cell towers and Wi-Fi access points, and copies the
-// first cell tower to the mcc/mnc/lac/cellId attributes like other protocols.
-func (m *Message) setNetwork(cells, wifis []map[string]any) {
-	if len(cells) == 0 && len(wifis) == 0 {
-		return
-	}
-	m.Network = map[string]any{"radioType": "gsm", "considerIp": false}
-	if len(cells) > 0 {
-		m.Network["cellTowers"] = cells
-		m.Attributes["mcc"] = cells[0]["mobileCountryCode"]
-		m.Attributes["mnc"] = cells[0]["mobileNetworkCode"]
-		m.Attributes["lac"] = cells[0]["locationAreaCode"]
-		m.Attributes["cellId"] = cells[0]["cellId"]
-	}
-	if len(wifis) > 0 {
-		m.Network["wifiAccessPoints"] = wifis
-	}
 }

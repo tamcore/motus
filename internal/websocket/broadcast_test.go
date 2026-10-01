@@ -127,7 +127,7 @@ func TestBroadcastEvent_AllowedUser(t *testing.T) {
 
 func TestBroadcast_NilAccessChecker(t *testing.T) {
 	// With nil access checker, getAllowedUserIDs returns nil,
-	// and userIDInSlice returns false for any ID, so no messages delivered.
+	// and no client user ID matches for any ID, so no messages delivered.
 	hub := NewHub(nil, nil, func(_ *http.Request) int64 { return 1 })
 	conn := connectClient(t, hub)
 

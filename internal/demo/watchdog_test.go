@@ -90,7 +90,7 @@ func TestSimulateDevice_ResumesFromProgress(t *testing.T) {
 	var (
 		mu            sync.Mutex
 		receivedMsgs  []string
-		connCount     int32
+		connCount     atomic.Int32
 		firstDropAt   int
 		secondStartAt int
 	)
@@ -108,7 +108,7 @@ func TestSimulateDevice_ResumesFromProgress(t *testing.T) {
 				return
 			}
 
-			count := atomic.AddInt32(&connCount, 1)
+			count := connCount.Add(1)
 
 			go func(conn net.Conn, connNum int32) {
 				defer func() { _ = conn.Close() }()
@@ -166,10 +166,10 @@ func TestSimulateDevice_ResumesFromProgress(t *testing.T) {
 
 	// Wait for at least 2 connections.
 	deadline := time.After(12 * time.Second)
-	for atomic.LoadInt32(&connCount) < 2 {
+	for connCount.Load() < 2 {
 		select {
 		case <-deadline:
-			t.Logf("only got %d connections, test inconclusive", atomic.LoadInt32(&connCount))
+			t.Logf("only got %d connections, test inconclusive", connCount.Load())
 			cancel()
 			<-done
 			return
@@ -189,10 +189,10 @@ func TestSimulateDevice_ResumesFromProgress(t *testing.T) {
 	mu.Unlock()
 
 	t.Logf("total messages: %d, first drop at: %d, second start at: %d, connections: %d",
-		totalMsgs, drop, start, atomic.LoadInt32(&connCount))
+		totalMsgs, drop, start, connCount.Load())
 
-	if atomic.LoadInt32(&connCount) < 2 {
-		t.Errorf("expected at least 2 connections, got %d", atomic.LoadInt32(&connCount))
+	if connCount.Load() < 2 {
+		t.Errorf("expected at least 2 connections, got %d", connCount.Load())
 	}
 }
 

@@ -15,52 +15,20 @@ export function formatDate(date: string | Date): string {
   const timezone = s.timezone === "local" ? undefined : s.timezone;
 
   switch (s.dateFormat) {
-    case "iso": {
-      const opts: Intl.DateTimeFormatOptions = {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        hour12: false,
-      };
-      if (timezone) opts.timeZone = timezone;
-
-      return new Intl.DateTimeFormat("en-CA", opts)
-        .formatToParts(d)
-        .reduce((acc, part) => {
-          if (part.type === "literal")
-            return acc + (acc.length < 10 ? "-" : acc.length === 10 ? " " : part.value);
-          return acc + part.value;
-        }, "")
-        .replace(",", "");
-    }
     case "locale":
       return d.toLocaleString(undefined, { timeZone: timezone });
     case "relative":
       return formatRelative(d);
-    default: {
-      const opts: Intl.DateTimeFormatOptions = {
+    default:
+      return new Intl.DateTimeFormat("sv-SE", {
         year: "numeric",
         month: "2-digit",
         day: "2-digit",
         hour: "2-digit",
         minute: "2-digit",
         second: "2-digit",
-        hour12: false,
-      };
-      if (timezone) opts.timeZone = timezone;
-
-      return new Intl.DateTimeFormat("en-CA", opts)
-        .formatToParts(d)
-        .reduce((acc, part) => {
-          if (part.type === "literal")
-            return acc + (acc.length < 10 ? "-" : acc.length === 10 ? " " : part.value);
-          return acc + part.value;
-        }, "")
-        .replace(",", "");
-    }
+        timeZone: timezone,
+      }).format(d);
   }
 }
 

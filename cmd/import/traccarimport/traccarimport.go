@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	ics "github.com/arran4/golang-ical"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/spf13/cobra"
 	"github.com/tamcore/motus/internal/geocoding"
@@ -924,7 +925,7 @@ func importDevices(ctx context.Context, pool *pgxpool.Pool, devices []TraccarDev
 		name := d.Name
 		// If the name is the same as the uniqueID (placeholder devices), make it more descriptive
 		if name == d.UniqueID {
-			name = fmt.Sprintf("Device %s", d.UniqueID[:minInt(8, len(d.UniqueID))])
+			name = fmt.Sprintf("Device %s", d.UniqueID[:min(8, len(d.UniqueID))])
 		}
 
 		if config.Verbose {
@@ -1102,7 +1103,7 @@ func logParsedData(devices []TraccarDevice, positions []TraccarPosition, geofenc
 	}
 
 	for _, c := range calendars {
-		dataPreview := c.Data[:minInt(60, len(c.Data))]
+		dataPreview := c.Data[:min(60, len(c.Data))]
 		slog.Info("calendar",
 			slog.Int64("traccarID", c.ID),
 			slog.String("name", c.Name),
@@ -1118,7 +1119,7 @@ func logParsedData(devices []TraccarDevice, positions []TraccarPosition, geofenc
 			slog.Int64("traccarID", g.ID),
 			slog.String("name", g.Name),
 			slog.String("calendarID", calStr),
-			slog.String("areaPreview", g.Area[:minInt(80, len(g.Area))]))
+			slog.String("areaPreview", g.Area[:min(80, len(g.Area))]))
 	}
 
 	if len(positions) > 0 {
@@ -1152,7 +1153,7 @@ func importGeofences(ctx context.Context, pool *pgxpool.Pool, geofences []Tracca
 		if config.Verbose {
 			slog.Debug("importing geofence",
 				slog.String("name", g.Name),
-				slog.String("areaPreview", g.Area[:minInt(60, len(g.Area))]))
+				slog.String("areaPreview", g.Area[:min(60, len(g.Area))]))
 		}
 
 		if config.DryRun {
@@ -1185,7 +1186,7 @@ func importGeofences(ctx context.Context, pool *pgxpool.Pool, geofences []Tracca
 			// POLYGON or other WKT: swap coordinates from Traccar's lat,lon to PostGIS's lon,lat.
 			swapped := swapWKTCoordinates(g.Area)
 			if config.Verbose {
-				slog.Debug("swapped WKT coordinates", slog.String("wktPreview", swapped[:minInt(80, len(swapped))]))
+				slog.Debug("swapped WKT coordinates", slog.String("wktPreview", swapped[:min(80, len(swapped))]))
 			}
 			err = pool.QueryRow(ctx, `
 				INSERT INTO geofences (name, description, geometry, created_at, updated_at)
@@ -1312,115 +1313,47 @@ func importCalendars(ctx context.Context, pool *pgxpool.Pool, calendars []Tracca
 //
 // If the data cannot be parsed or does not match the pattern, it is returned unchanged.
 func normalizeTraccarCalendar(icalData string) string {
-	if strings.TrimSpace(icalData) == "" {
+	cal, err := ics.ParseCalendar(strings.NewReader(icalData))
+	if err != nil {
+		return icalData
+	}
+	events := cal.Events()
+	if len(events) == 0 {
+		return icalData
+	}
+	ev := events[0]
+	start := ev.GetProperty(ics.ComponentPropertyDtStart)
+	end := ev.GetProperty(ics.ComponentPropertyDtEnd)
+	rrule := ev.GetProperty(ics.ComponentPropertyRrule)
+	if start == nil || end == nil || rrule == nil {
 		return icalData
 	}
 
-	// Detect line ending style.
-	lineEnding := "\r\n"
-	if !strings.Contains(icalData, "\r\n") {
-		lineEnding = "\n"
-	}
-
-	lines := strings.Split(icalData, lineEnding)
-
-	// Extract DTSTART, DTEND, and RRULE lines from the first VEVENT.
-	var (
-		dtstartLine string
-		dtstartIdx  int
-		dtendLine   string
-		dtendIdx    int
-		rruleLine   string
-		rruleIdx    int
-		inEvent     bool
-	)
-
-	for i, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "BEGIN:VEVENT" {
-			inEvent = true
-			continue
-		}
-		if trimmed == "END:VEVENT" {
-			break // Only process the first VEVENT.
-		}
-		if !inEvent {
-			continue
-		}
-		if strings.HasPrefix(trimmed, "DTSTART") {
-			dtstartLine = trimmed
-			dtstartIdx = i
-		}
-		if strings.HasPrefix(trimmed, "DTEND") {
-			dtendLine = trimmed
-			dtendIdx = i
-		}
-		if strings.HasPrefix(trimmed, "RRULE:") {
-			rruleLine = trimmed
-			rruleIdx = i
-		}
-	}
-
-	// No RRULE means nothing to fix.
-	if rruleLine == "" {
-		return icalData
-	}
-
-	// If RRULE already has UNTIL or COUNT, don't modify.
-	rruleUpper := strings.ToUpper(rruleLine)
+	rruleUpper := strings.ToUpper(rrule.Value)
 	if strings.Contains(rruleUpper, "UNTIL=") || strings.Contains(rruleUpper, "COUNT=") {
 		return icalData
 	}
 
-	// Parse DTSTART and DTEND values.
-	dtstartVal := extractICalTimestamp(dtstartLine)
-	dtendVal := extractICalTimestamp(dtendLine)
-	if dtstartVal == "" || dtendVal == "" {
-		return icalData
-	}
-
-	dtstart, err := parseICalTimestamp(dtstartVal)
+	dtstart, err := parseICalTimestamp(start.Value)
 	if err != nil {
 		return icalData
 	}
-	dtend, err := parseICalTimestamp(dtendVal)
+	dtend, err := parseICalTimestamp(end.Value)
 	if err != nil {
 		return icalData
 	}
-
-	// Only normalize when DTEND - DTSTART > 24 hours (multi-day span).
 	if dtend.Sub(dtstart) <= 24*time.Hour {
 		return icalData
 	}
 
-	// Build the UNTIL value from the DTEND timestamp, preserving its format.
-	untilVal := dtendVal
+	rrule.Value += ";UNTIL=" + end.Value
+	end.Value = adjustedDTEnd(dtstart, dtend, start.Value)
 
-	// Add UNTIL to the RRULE.
-	newRRule := rruleLine + ";UNTIL=" + untilVal
-
-	// Adjust DTEND to DTSTART + 24h (the actual event duration for one occurrence).
-	newDTEnd := buildAdjustedDTEnd(dtendLine, dtstartLine, dtstart)
-
-	// Replace the lines.
-	_ = dtstartIdx // DTSTART stays unchanged.
-	lines[rruleIdx] = newRRule
-	lines[dtendIdx] = newDTEnd
-
-	return strings.Join(lines, lineEnding)
-}
-
-// extractICalTimestamp extracts the timestamp value from a DTSTART or DTEND line.
-// Example: "DTSTART;TZID=Europe/Berlin:20251105T200000" -> "20251105T200000"
-// Example: "DTEND:20251105T200000Z" -> "20251105T200000Z"
-// Example: "DTSTART;VALUE=DATE:20251105" -> "20251105"
-func extractICalTimestamp(line string) string {
-	// The value is after the last colon.
-	idx := strings.LastIndex(line, ":")
-	if idx < 0 || idx >= len(line)-1 {
-		return ""
+	lineEnding := ics.WithNewLineWindows
+	if !strings.Contains(icalData, "\r\n") {
+		lineEnding = ics.WithNewLineUnix
 	}
-	return strings.TrimSpace(line[idx+1:])
+	return cal.Serialize(lineEnding)
 }
 
 // parseICalTimestamp parses a bare iCalendar timestamp value (no property prefix).
@@ -1439,52 +1372,27 @@ func parseICalTimestamp(val string) (time.Time, error) {
 	return time.Time{}, fmt.Errorf("cannot parse iCal timestamp %q", val)
 }
 
-// buildAdjustedDTEnd creates a new DTEND line with the time from the original DTEND
-// but on the same date as DTSTART (to represent the daily event duration).
-// If this would result in DTEND <= DTSTART, uses DTSTART + 24h instead.
-// It preserves the DTEND property parameters (TZID, VALUE, etc.).
-func buildAdjustedDTEnd(dtendLine, dtstartLine string, dtstart time.Time) string {
-	// Extract the original DTEND time (hour, minute, second)
-	dtendVal := extractICalTimestamp(dtendLine)
-	dtend, err := parseICalTimestamp(dtendVal)
-	var newEnd time.Time
-
-	if err != nil {
-		// Fallback: use DTSTART + 24h
+// adjustedDTEnd returns the DTEND value for one occurrence: the DTSTART date with
+// the original DTEND time, or DTSTART+24h when that is not after DTSTART. It is
+// formatted like startVal.
+func adjustedDTEnd(dtstart, dtend time.Time, startVal string) string {
+	newEnd := time.Date(
+		dtstart.Year(), dtstart.Month(), dtstart.Day(),
+		dtend.Hour(), dtend.Minute(), dtend.Second(),
+		0, dtstart.Location(),
+	)
+	if !newEnd.After(dtstart) {
 		newEnd = dtstart.Add(24 * time.Hour)
-	} else {
-		// Build new end time: DTSTART date + DTEND time
-		newEnd = time.Date(
-			dtstart.Year(), dtstart.Month(), dtstart.Day(),
-			dtend.Hour(), dtend.Minute(), dtend.Second(),
-			0, dtstart.Location(),
-		)
-
-		// If end <= start on same day, use DTSTART + 24h instead
-		if !newEnd.After(dtstart) {
-			newEnd = dtstart.Add(24 * time.Hour)
-		}
 	}
 
-	// Determine the format from the original DTSTART value.
-	dtstartVal := extractICalTimestamp(dtstartLine)
-	var formatted string
 	switch {
-	case strings.HasSuffix(dtstartVal, "Z"):
-		formatted = newEnd.Format("20060102T150405Z")
-	case strings.Contains(dtstartVal, "T"):
-		formatted = newEnd.Format("20060102T150405")
+	case strings.HasSuffix(startVal, "Z"):
+		return newEnd.Format("20060102T150405Z")
+	case strings.Contains(startVal, "T"):
+		return newEnd.Format("20060102T150405")
 	default:
-		// Date-only format.
-		formatted = newEnd.Format("20060102")
+		return newEnd.Format("20060102")
 	}
-
-	// Replace the value portion of the DTEND line (everything after the last colon).
-	colonIdx := strings.LastIndex(dtendLine, ":")
-	if colonIdx < 0 {
-		return dtendLine
-	}
-	return dtendLine[:colonIdx+1] + formatted
 }
 
 // --- Helpers ---
@@ -1632,13 +1540,6 @@ func knotsToKmh(knots float64) float64 {
 	return knots * 1.852
 }
 
-func minInt(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 // geocodeRecentPositions reverse-geocodes recently imported positions that don't have addresses.
 // It uses the Nominatim geocoder with rate limiting (1 req/sec per OSM policy).
 // If RecentDays is set, only geocodes positions within that time range (matching import filter).
@@ -1704,7 +1605,6 @@ func geocodeRecentPositions(ctx context.Context, pool *pgxpool.Pool, config *Con
 		Timeout:   10 * time.Second,
 		UserAgent: "Motus GPS Tracker Import Tool (https://github.com/tamcore/motus)",
 	})
-	geocoder.SetLogger(slog.Default())
 
 	geocoded := 0
 	failed := 0

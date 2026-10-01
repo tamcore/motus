@@ -1,5 +1,6 @@
 import type { Position } from './trips';
 import { getPositionTime } from './trips';
+import { downloadCSV } from './download';
 
 export interface Stop {
 	id: string;
@@ -153,13 +154,5 @@ export function exportStopsToCSV(stops: Stop[]): void {
 		stop.longitude.toFixed(6)
 	]);
 
-	const csv = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n');
-
-	const blob = new Blob([csv], { type: 'text/csv' });
-	const url = URL.createObjectURL(blob);
-	const a = document.createElement('a');
-	a.href = url;
-	a.download = `motus-stops-${new Date().toISOString().slice(0, 10)}.csv`;
-	a.click();
-	URL.revokeObjectURL(url);
+	downloadCSV(headers, rows, `motus-stops-${new Date().toISOString().slice(0, 10)}.csv`);
 }

@@ -41,7 +41,7 @@ func TestAuthMiddleware_ValidBearerToken(t *testing.T) {
 		t.Fatalf("generate token: %v", err)
 	}
 
-	mw := middleware.Auth(userRepo, sessionRepo, repository.NewApiKeyRepository(pool))
+	mw := middleware.LoadAuthContext(userRepo, sessionRepo, repository.NewApiKeyRepository(pool))
 	var gotUser *model.User
 	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotUser = api.UserFromContext(r.Context())
@@ -84,7 +84,7 @@ func TestAuthMiddleware_ValidSessionCookie(t *testing.T) {
 		t.Fatalf("create session: %v", err)
 	}
 
-	mw := middleware.Auth(userRepo, sessionRepo, repository.NewApiKeyRepository(pool))
+	mw := middleware.LoadAuthContext(userRepo, sessionRepo, repository.NewApiKeyRepository(pool))
 	var gotUser *model.User
 	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotUser = api.UserFromContext(r.Context())
@@ -127,7 +127,7 @@ func TestAuthMiddleware_InvalidBearerFallsToSession(t *testing.T) {
 		t.Fatalf("create session: %v", err)
 	}
 
-	mw := middleware.Auth(userRepo, sessionRepo, repository.NewApiKeyRepository(pool))
+	mw := middleware.LoadAuthContext(userRepo, sessionRepo, repository.NewApiKeyRepository(pool))
 	var gotUser *model.User
 	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotUser = api.UserFromContext(r.Context())
@@ -158,10 +158,10 @@ func TestAuthMiddleware_InvalidSessionCookie(t *testing.T) {
 	userRepo := repository.NewUserRepository(pool)
 	sessionRepo := repository.NewSessionRepository(pool)
 
-	mw := middleware.Auth(userRepo, sessionRepo, repository.NewApiKeyRepository(pool))
-	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mw := middleware.LoadAuthContext(userRepo, sessionRepo, repository.NewApiKeyRepository(pool))
+	handler := mw(requireUser(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-	}))
+	})))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/devices", nil)
 	req.AddCookie(&http.Cookie{Name: "session_id", Value: "nonexistent-session-id"})
@@ -182,10 +182,10 @@ func TestAuthMiddleware_InvalidBearerToken(t *testing.T) {
 	userRepo := repository.NewUserRepository(pool)
 	sessionRepo := repository.NewSessionRepository(pool)
 
-	mw := middleware.Auth(userRepo, sessionRepo, repository.NewApiKeyRepository(pool))
-	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mw := middleware.LoadAuthContext(userRepo, sessionRepo, repository.NewApiKeyRepository(pool))
+	handler := mw(requireUser(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-	}))
+	})))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/devices", nil)
 	req.Header.Set("Authorization", "Bearer completely-invalid-token")

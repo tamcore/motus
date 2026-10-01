@@ -1,7 +1,7 @@
 <script lang="ts">
 	export let width: string = '100%';
 	export let height: string = '1rem';
-	export let variant: 'text' | 'rect' | 'circle' = 'text';
+	export let variant: 'text' | 'rect' = 'text';
 </script>
 
 <div
@@ -29,10 +29,6 @@
 
 	.skeleton-rect {
 		border-radius: var(--radius-md);
-	}
-
-	.skeleton-circle {
-		border-radius: 50%;
 	}
 
 	@keyframes loading {

@@ -3,6 +3,7 @@ package chat
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	openai "github.com/openai/openai-go/v3"
@@ -84,11 +85,11 @@ const guardrailLogSnippetLen = 120
 // lastUserMessageSnippet returns the beginning of the most recent user
 // message for refusal logging, truncated to guardrailLogSnippetLen runes.
 func lastUserMessageSnippet(msgs []Message) string {
-	for i := len(msgs) - 1; i >= 0; i-- {
-		if msgs[i].Role != "user" {
+	for _, msg := range slices.Backward(msgs) {
+		if msg.Role != "user" {
 			continue
 		}
-		content := []rune(msgs[i].Content)
+		content := []rune(msg.Content)
 		if len(content) > guardrailLogSnippetLen {
 			return string(content[:guardrailLogSnippetLen]) + "…"
 		}
@@ -111,10 +112,6 @@ func recentTextMessages(msgs []Message, n int) []Message {
 		}
 		recent = append(recent, m)
 	}
-	// Reverse into chronological order.
-	out := make([]Message, len(recent))
-	for i, m := range recent {
-		out[len(recent)-1-i] = m
-	}
-	return out
+	slices.Reverse(recent)
+	return recent
 }

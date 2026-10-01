@@ -22,7 +22,7 @@ func TestPartitionManager_EnsureFuturePartitions(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 
-	mgr := partition.NewManager(pool, 0, 1*time.Hour)
+	mgr := partition.NewManager(pool, 0, 1*time.Hour, nil)
 
 	ctx := context.Background()
 	if err := mgr.RunOnce(ctx); err != nil {
@@ -63,7 +63,7 @@ func TestPartitionManager_Idempotent(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 
-	mgr := partition.NewManager(pool, 0, 1*time.Hour)
+	mgr := partition.NewManager(pool, 0, 1*time.Hour, nil)
 
 	ctx := context.Background()
 	// Run twice - should not error on existing partitions.
@@ -88,7 +88,7 @@ func TestPartitionManager_InsertIntoPartition(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 
-	mgr := partition.NewManager(pool, 0, 1*time.Hour)
+	mgr := partition.NewManager(pool, 0, 1*time.Hour, nil)
 	ctx := context.Background()
 
 	if err := mgr.RunOnce(ctx); err != nil {
@@ -149,7 +149,7 @@ func TestPartitionManager_TimeRangeQuery(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 
-	mgr := partition.NewManager(pool, 0, 1*time.Hour)
+	mgr := partition.NewManager(pool, 0, 1*time.Hour, nil)
 	ctx := context.Background()
 
 	if err := mgr.RunOnce(ctx); err != nil {
@@ -194,9 +194,13 @@ func TestPartitionManager_TimeRangeQuery(t *testing.T) {
 	// Query the last 2.5 hours.
 	from := now.Add(-150 * time.Minute)
 	to := now.Add(time.Minute)
-	results, err := posRepo.GetByDeviceAndTimeRange(ctx, device.ID, from, to, 100)
+	var results []*model.Position
+	err := posRepo.StreamByDeviceAndTimeRange(ctx, device.ID, from, to, 100, func(p *model.Position) error {
+		results = append(results, p)
+		return nil
+	})
 	if err != nil {
-		t.Fatalf("GetByDeviceAndTimeRange failed: %v", err)
+		t.Fatalf("StreamByDeviceAndTimeRange failed: %v", err)
 	}
 	if len(results) != 3 {
 		t.Errorf("expected 3 positions in range, got %d", len(results))
@@ -208,7 +212,7 @@ func TestPartitionManager_DropRetentionDisabled(t *testing.T) {
 	testutil.CleanTables(t, pool)
 
 	// retentionDays = 0 means disabled.
-	mgr := partition.NewManager(pool, 0, 1*time.Hour)
+	mgr := partition.NewManager(pool, 0, 1*time.Hour, nil)
 	ctx := context.Background()
 
 	if err := mgr.RunOnce(ctx); err != nil {
@@ -245,7 +249,7 @@ func TestPartitionManager_DropExpiredPartitions(t *testing.T) {
 	ctx := context.Background()
 
 	// First, ensure current/future partitions are created.
-	setupMgr := partition.NewManager(pool, 0, time.Hour)
+	setupMgr := partition.NewManager(pool, 0, time.Hour, nil)
 	if err := setupMgr.RunOnce(ctx); err != nil {
 		t.Fatalf("setup RunOnce failed: %v", err)
 	}
@@ -289,7 +293,7 @@ func TestPartitionManager_DropExpiredPartitions(t *testing.T) {
 	}
 
 	// Run with 1-day retention — should drop the 2020 partition.
-	retentionMgr := partition.NewManager(pool, 1, time.Hour)
+	retentionMgr := partition.NewManager(pool, 1, time.Hour, nil)
 	if err := retentionMgr.RunOnce(ctx); err != nil {
 		t.Fatalf("RunOnce with retention failed: %v", err)
 	}
@@ -311,7 +315,7 @@ func TestPartitionManager_Start_ContextCancel(t *testing.T) {
 	testutil.CleanTables(t, pool)
 
 	// Use a very long check interval so the goroutine blocks in the select loop.
-	mgr := partition.NewManager(pool, 0, 24*time.Hour)
+	mgr := partition.NewManager(pool, 0, 24*time.Hour, nil)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -341,7 +345,7 @@ func TestPartitionManager_Start_ErrorPath(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 
-	mgr := partition.NewManager(pool, 0, 24*time.Hour)
+	mgr := partition.NewManager(pool, 0, 24*time.Hour, nil)
 
 	// Cancel the context before calling Start. The initial runMaintenance(ctx)
 	// inside Start will fail because DB queries reject a cancelled context.
@@ -370,7 +374,7 @@ func TestPartitionManager_RunOnce_WithRetention_NoExpired(t *testing.T) {
 	testutil.CleanTables(t, pool)
 
 	// 365-day retention — nothing should be dropped (all partitions are recent).
-	mgr := partition.NewManager(pool, 365, time.Hour)
+	mgr := partition.NewManager(pool, 365, time.Hour, nil)
 	ctx := context.Background()
 
 	if err := mgr.RunOnce(ctx); err != nil {
@@ -385,7 +389,7 @@ func TestPartitionManager_CreatePartitionIfNotExists_CreationPath(t *testing.T) 
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 
-	mgr := partition.NewManager(pool, 0, time.Hour)
+	mgr := partition.NewManager(pool, 0, time.Hour, nil)
 	ctx := context.Background()
 
 	// Initial run — creates current + 3 months ahead (all via the creation path

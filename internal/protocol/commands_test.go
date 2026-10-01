@@ -141,7 +141,7 @@ func TestH02CommandEncoder_FactoryReset(t *testing.T) {
 }
 
 func TestEncoderRegistry(t *testing.T) {
-	reg := protocol.NewEncoderRegistry()
+	reg := protocol.NewEncoderRegistry(nil)
 
 	enc := reg.Get("h02")
 	if enc == nil {
@@ -245,14 +245,14 @@ func TestWatchCommandEncoder_UsesConnectionSession(t *testing.T) {
 }
 
 func TestEncoderRegistry_Watch(t *testing.T) {
-	enc := protocol.NewEncoderRegistry().Get("watch")
+	enc := protocol.NewEncoderRegistry(nil).Get("watch")
 	if enc == nil || enc.Protocol() != "watch" {
 		t.Fatalf("expected watch encoder, got %v", enc)
 	}
 }
 
 func TestEncoderRegistry_SupportedCommands(t *testing.T) {
-	reg := protocol.NewEncoderRegistry()
+	reg := protocol.NewEncoderRegistry(nil)
 	tests := []struct {
 		protocol string
 		want     []string

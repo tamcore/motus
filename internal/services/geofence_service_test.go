@@ -35,6 +35,15 @@ func createTestUserAndGeofence(t *testing.T, ctx context.Context, svc *GeofenceS
 	return user, g
 }
 
+func createTestDevice(t *testing.T, ctx context.Context, user *model.User) *model.Device {
+	t.Helper()
+	d := &model.Device{UniqueID: "geo-svc-" + user.Email, Name: "Geo Service Device", Status: "online"}
+	if err := repository.NewDeviceRepository(testutil.SetupTestDB(t)).Create(ctx, d, user.ID); err != nil {
+		t.Fatalf("create device: %v", err)
+	}
+	return d
+}
+
 func TestGeofenceService_UpdateForUser_RenameName(t *testing.T) {
 	svc, _, _, userRepo := setupGeofenceServiceCRUD(t)
 	ctx := context.Background()
@@ -109,9 +118,10 @@ func TestGeofenceService_UpdateForUser_ShapeChange(t *testing.T) {
 	svc, geoRepo, _, userRepo := setupGeofenceServiceCRUD(t)
 	ctx := context.Background()
 	user, g := createTestUserAndGeofence(t, ctx, svc, userRepo, "geo-shape@example.com")
+	device := createTestDevice(t, ctx, user)
 
 	// Point inside original polygon.
-	insideOrig, _ := geoRepo.CheckContainment(ctx, user.ID, 52.52, 13.41)
+	insideOrig, _ := geoRepo.CheckContainmentForDevice(ctx, device.ID, 52.52, 13.41)
 	if len(insideOrig) == 0 {
 		t.Fatal("expected point inside original polygon before update")
 	}
@@ -127,13 +137,13 @@ func TestGeofenceService_UpdateForUser_ShapeChange(t *testing.T) {
 	}
 
 	// Old point must now be outside the updated shape.
-	nowOutside, _ := geoRepo.CheckContainment(ctx, user.ID, 52.52, 13.41)
+	nowOutside, _ := geoRepo.CheckContainmentForDevice(ctx, device.ID, 52.52, 13.41)
 	if len(nowOutside) > 0 {
 		t.Error("expected (52.52, 13.41) to be OUTSIDE updated polygon")
 	}
 
 	// New point must be inside.
-	nowInside, _ := geoRepo.CheckContainment(ctx, user.ID, 52.56, 13.62)
+	nowInside, _ := geoRepo.CheckContainmentForDevice(ctx, device.ID, 52.56, 13.62)
 	if len(nowInside) == 0 || nowInside[0] != g.ID {
 		t.Error("expected (52.56, 13.62) to be INSIDE updated polygon")
 	}
@@ -143,6 +153,7 @@ func TestGeofenceService_UpdateForUser_AreaWKT(t *testing.T) {
 	svc, geoRepo, _, userRepo := setupGeofenceServiceCRUD(t)
 	ctx := context.Background()
 	user, g := createTestUserAndGeofence(t, ctx, svc, userRepo, "geo-area@example.com")
+	device := createTestDevice(t, ctx, user)
 
 	// Update via WKT area string (east polygon).
 	newArea := "POLYGON((13.60 52.55, 13.60 52.57, 13.65 52.57, 13.65 52.55, 13.60 52.55))"
@@ -155,7 +166,7 @@ func TestGeofenceService_UpdateForUser_AreaWKT(t *testing.T) {
 	}
 
 	// New point inside the WKT polygon must now be contained.
-	nowInside, _ := geoRepo.CheckContainment(ctx, user.ID, 52.56, 13.62)
+	nowInside, _ := geoRepo.CheckContainmentForDevice(ctx, device.ID, 52.56, 13.62)
 	if len(nowInside) == 0 || nowInside[0] != g.ID {
 		t.Error("expected (52.56, 13.62) to be INSIDE updated WKT polygon")
 	}

@@ -4,6 +4,7 @@
 package validation
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -14,6 +15,12 @@ const maxEmailLength = 254
 
 // maxNameLength is the maximum allowed name or label length.
 const maxNameLength = 255
+
+// maxDisplayNameLength is the maximum allowed display name length.
+const maxDisplayNameLength = 200
+
+// maxDescriptionLength is the maximum allowed description length.
+const maxDescriptionLength = 2000
 
 // maxDeviceIDLength is the maximum allowed device unique ID length.
 const maxDeviceIDLength = 128
@@ -71,6 +78,39 @@ func ValidateName(name string) error {
 	}
 	if strings.ContainsAny(name, dangerousNameChars) {
 		return fmt.Errorf("name contains invalid characters")
+	}
+	return nil
+}
+
+// ValidateDisplayName checks that a display name (geofence name, calendar
+// name, etc.) is within length limits and contains no HTML-injectable or
+// control characters. An empty string is accepted.
+func ValidateDisplayName(name string) error {
+	if len(name) > maxDisplayNameLength {
+		return errors.New("name exceeds maximum length")
+	}
+	return validateTextChars(name)
+}
+
+// ValidateDescription checks that a description is within length limits and
+// contains no HTML-injectable or control characters.
+func ValidateDescription(desc string) error {
+	if len(desc) > maxDescriptionLength {
+		return errors.New("description exceeds maximum length")
+	}
+	return validateTextChars(desc)
+}
+
+// validateTextChars rejects angle brackets and control characters other than
+// newline and horizontal tab.
+func validateTextChars(s string) error {
+	if strings.ContainsAny(s, "<>") {
+		return errors.New("value contains invalid characters")
+	}
+	for _, r := range s {
+		if r < 0x20 && r != '\n' && r != '\t' {
+			return errors.New("value contains invalid characters")
+		}
 	}
 	return nil
 }

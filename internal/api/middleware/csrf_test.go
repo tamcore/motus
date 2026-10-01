@@ -313,25 +313,3 @@ func TestCSRF_POSTWithXAuthToken_NilValidator_NotExempt(t *testing.T) {
 		t.Errorf("POST with X-Auth-Token and nil validator: expected 403, got %d", rr.Code)
 	}
 }
-
-func TestExemptLogin_CallsInnerHandler(t *testing.T) {
-	called := false
-	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		called = true
-		w.WriteHeader(http.StatusOK)
-	})
-
-	// ExemptLogin wraps the handler — use it directly without the CSRF middleware
-	// to verify it invokes the inner handler normally.
-	handler := middleware.ExemptLogin(inner)
-	req := httptest.NewRequest(http.MethodPost, "/auth/login", nil)
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
-
-	if !called {
-		t.Error("ExemptLogin: inner handler was not called")
-	}
-	if rr.Code != http.StatusOK {
-		t.Errorf("ExemptLogin: expected 200, got %d", rr.Code)
-	}
-}

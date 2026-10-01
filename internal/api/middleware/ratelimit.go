@@ -2,14 +2,18 @@ package middleware
 
 import (
 	"encoding/json"
+	"fmt"
+	"maps"
 	"math"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
+	"sync"
 	"time"
 
-	"github.com/didip/tollbooth/v8"
-	"github.com/didip/tollbooth/v8/limiter"
+	"golang.org/x/time/rate"
 )
 
 // RateLimitConfig holds rate limiting parameters.
@@ -44,24 +48,57 @@ func DefaultAPIRateLimit() RateLimitConfig {
 	return RateLimitConfig{Max: max, Period: time.Minute}
 }
 
-// newLimiter creates a tollbooth limiter from a RateLimitConfig.
-// It uses a token-bucket approach where the refill rate is Max/Period
-// (requests per second) and the burst size equals Max, allowing up to
-// Max requests in a single burst before throttling begins.
-func newLimiter(cfg RateLimitConfig) *limiter.Limiter {
-	// tollbooth's max is requests per second; convert from requests per period.
-	rps := cfg.Max / cfg.Period.Seconds()
-	lmt := tollbooth.NewLimiter(rps, &limiter.ExpirableOptions{
-		DefaultExpirationTTL: cfg.Period,
-	})
-	// Allow a burst equal to the full period quota so that clients can make
-	// up to Max requests immediately before tokens need to refill.
-	lmt.SetBurst(int(math.Max(1, cfg.Max)))
-	// chi's RealIP middleware already rewrites RemoteAddr to the client IP,
-	// so key the rate limiter off RemoteAddr. tollbooth v8 accepts a single
-	// lookup instead of an ordered list.
-	lmt.SetIPLookup(limiter.IPLookup{Name: "RemoteAddr", IndexFromRight: 0})
-	return lmt
+type bucket struct {
+	limiter *rate.Limiter
+	expires time.Time
+}
+
+type bucketStore struct {
+	mu        sync.Mutex
+	buckets   map[string]*bucket
+	nextSweep time.Time
+	limit     rate.Limit
+	burst     int
+	ttl       time.Duration
+}
+
+// allow reports whether a request for key may proceed and how many tokens
+// remain. A bucket lives for ttl after creation, then starts full again.
+func (s *bucketStore) allow(key string) (bool, int) {
+	now := time.Now()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if now.After(s.nextSweep) {
+		maps.DeleteFunc(s.buckets, func(_ string, b *bucket) bool { return now.After(b.expires) })
+		s.nextSweep = now.Add(s.ttl)
+	}
+	b, ok := s.buckets[key]
+	if !ok || now.After(b.expires) {
+		b = &bucket{limiter: rate.NewLimiter(s.limit, s.burst), expires: now.Add(s.ttl)}
+		s.buckets[key] = b
+	}
+	if !b.limiter.AllowN(now, 1) {
+		return false, 0
+	}
+	return true, int(b.limiter.TokensAt(now))
+}
+
+// clientIP returns the RemoteAddr host (chi's RealIP has already rewritten
+// it to the client IP), reduced to its /64 prefix for IPv6.
+func clientIP(remoteAddr string) string {
+	ip, _, err := net.SplitHostPort(remoteAddr)
+	if err != nil {
+		ip = remoteAddr
+	}
+	if i := strings.IndexAny(ip, ".:"); i < 0 || ip[i] == '.' {
+		return ip
+	}
+	v6 := net.ParseIP(ip)
+	if v6 == nil {
+		return ip
+	}
+	clear(v6[8:])
+	return v6.String()
 }
 
 // rateLimitResponse writes a JSON 429 response matching the project's error format.
@@ -72,13 +109,38 @@ func rateLimitResponse(w http.ResponseWriter) {
 	_ = json.NewEncoder(w).Encode(map[string]string{"error": "rate limit exceeded"})
 }
 
-// RateLimit returns middleware that applies the given rate limit configuration.
+// RateLimit returns middleware that applies a token bucket per client IP and
+// path, refilling at Max/Period with a burst of Max.
 func RateLimit(cfg RateLimitConfig) func(http.Handler) http.Handler {
-	lmt := newLimiter(cfg)
+	rps := cfg.Max / cfg.Period.Seconds()
+	store := &bucketStore{
+		buckets: map[string]*bucket{},
+		limit:   rate.Limit(rps),
+		burst:   int(max(1, cfg.Max)),
+		ttl:     cfg.Period,
+	}
+	limitHeader := fmt.Sprintf("%.2f", rps)
+	roundedLimit := strconv.Itoa(int(math.Round(rps)))
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			httpError := tollbooth.LimitByRequest(lmt, w, r)
-			if httpError != nil {
+			h := w.Header()
+			h.Add("X-Rate-Limit-Limit", limitHeader)
+			h.Add("X-Rate-Limit-Duration", "1")
+			if xff := r.Header.Get("X-Forwarded-For"); strings.TrimSpace(xff) != "" {
+				h.Add("X-Rate-Limit-Request-Forwarded-For", xff)
+			}
+			h.Add("X-Rate-Limit-Request-Remote-Addr", r.RemoteAddr)
+
+			ip := clientIP(r.RemoteAddr)
+			if ip == "" {
+				next.ServeHTTP(w, r)
+				return
+			}
+			allowed, remaining := store.allow(ip + "|" + r.URL.Path)
+			h.Add("RateLimit-Limit", roundedLimit)
+			h.Add("RateLimit-Reset", "1")
+			h.Add("RateLimit-Remaining", strconv.Itoa(remaining))
+			if !allowed {
 				rateLimitResponse(w)
 				return
 			}

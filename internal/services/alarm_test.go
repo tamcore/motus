@@ -55,28 +55,12 @@ func (r *alarmMockEventRepo) Create(_ context.Context, e *model.Event) error {
 }
 
 // Satisfy the full EventRepo interface with no-ops.
-func (r *alarmMockEventRepo) GetByID(_ context.Context, _ int64) (*model.Event, error) {
-	return nil, nil
-}
-func (r *alarmMockEventRepo) GetByDevice(_ context.Context, _ int64, _ int) ([]*model.Event, error) {
-	return nil, nil
-}
-func (r *alarmMockEventRepo) GetByUser(_ context.Context, _ int64, _ int) ([]*model.Event, error) {
-	return nil, nil
-}
 func (r *alarmMockEventRepo) GetRecentByDeviceAndType(_ context.Context, _ int64, _ string, _ int) ([]*model.Event, error) {
 	return nil, nil
 }
-func (r *alarmMockEventRepo) GetByFilters(_ context.Context, _ int64, _ []int64, _ []string, _, _ time.Time) ([]*model.Event, error) {
-	return nil, nil
-}
-func (r *alarmMockEventRepo) SumTripDistance(_ context.Context, _ []int64, _, _ time.Time) ([]repository.DeviceTripTotal, float64, error) {
-	return nil, 0, nil
-}
-
 func TestCheckAlarm_NoAlarmAttribute(t *testing.T) {
 	repo := &alarmMockEventRepo{}
-	svc := NewAlarmService(repo, nil, nil)
+	svc := NewAlarmService(repo, nil, nil, nil)
 
 	pos := &model.Position{
 		ID:         1,
@@ -95,7 +79,7 @@ func TestCheckAlarm_NoAlarmAttribute(t *testing.T) {
 
 func TestCheckAlarm_NilAttributes(t *testing.T) {
 	repo := &alarmMockEventRepo{}
-	svc := NewAlarmService(repo, nil, nil)
+	svc := NewAlarmService(repo, nil, nil, nil)
 
 	pos := &model.Position{ID: 1, DeviceID: 42, Timestamp: time.Now()}
 
@@ -109,7 +93,7 @@ func TestCheckAlarm_NilAttributes(t *testing.T) {
 
 func TestCheckAlarm_SOSAlarm(t *testing.T) {
 	repo := &alarmMockEventRepo{}
-	svc := NewAlarmService(repo, nil, nil)
+	svc := NewAlarmService(repo, nil, nil, nil)
 
 	pos := &model.Position{
 		ID:        1,
@@ -144,7 +128,7 @@ func TestCheckAlarm_SOSAlarm(t *testing.T) {
 
 func TestCheckAlarm_PowerCutAlarm(t *testing.T) {
 	repo := &alarmMockEventRepo{}
-	svc := NewAlarmService(repo, nil, nil)
+	svc := NewAlarmService(repo, nil, nil, nil)
 
 	pos := &model.Position{
 		ID:         1,
@@ -168,7 +152,7 @@ func TestCheckAlarm_EachAlarmFiresImmediately(t *testing.T) {
 	// Two consecutive positions both with alarm — both should emit events
 	// (no deduplication, matching Traccar's behaviour).
 	repo := &alarmMockEventRepo{}
-	svc := NewAlarmService(repo, nil, nil)
+	svc := NewAlarmService(repo, nil, nil, nil)
 
 	ts := time.Now()
 	for i := int64(1); i <= 2; i++ {
@@ -193,7 +177,7 @@ func TestCheckAlarm_EachAlarmFiresImmediately(t *testing.T) {
 func TestCheckAlarm_WithHub(t *testing.T) {
 	repo := &alarmMockEventRepo{}
 	hub := websocket.NewHub(nil, nil, func(_ *http.Request) int64 { return 0 })
-	svc := NewAlarmService(repo, hub, nil)
+	svc := NewAlarmService(repo, hub, nil, nil)
 
 	pos := &model.Position{
 		ID:        10,
@@ -231,7 +215,7 @@ func TestCheckAlarm_WithNotificationService(t *testing.T) {
 	// (the "alarm" type is not in the DB constraint, but we only need to
 	// exercise the notificationService branch, not the DB write).
 	mockRepo := &alarmMockEventRepo{}
-	svc := NewAlarmService(mockRepo, nil, notifSvc)
+	svc := NewAlarmService(mockRepo, nil, notifSvc, nil)
 
 	// Seed a user + device so ProcessEvent can look up the device owner.
 	user := &model.User{Email: "alarm-notif@example.com", PasswordHash: "hash", Name: "Alarm Notif"}

@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/tamcore/motus/internal/model"
-	"github.com/tamcore/motus/internal/storage/repository"
 )
 
 // --- Mock repos for mileage tests ---
@@ -17,36 +16,8 @@ type mileageMockPositionRepo struct {
 	lastMoving *model.Position
 }
 
-func (r *mileageMockPositionRepo) Create(_ context.Context, _ *model.Position) error { return nil }
-func (r *mileageMockPositionRepo) GetByID(_ context.Context, _ int64) (*model.Position, error) {
-	return nil, nil
-}
-func (r *mileageMockPositionRepo) GetByIDs(_ context.Context, _ []int64) ([]*model.Position, error) {
-	return nil, nil
-}
 func (r *mileageMockPositionRepo) GetLatestByDevice(_ context.Context, _ int64) (*model.Position, error) {
 	return r.latest, nil
-}
-func (r *mileageMockPositionRepo) GetLatestByUser(_ context.Context, _ int64) ([]*model.Position, error) {
-	return nil, nil
-}
-func (r *mileageMockPositionRepo) GetLatestAll(_ context.Context) ([]*model.Position, error) {
-	return nil, nil
-}
-func (r *mileageMockPositionRepo) UpdateGeofenceIDs(_ context.Context, _ int64, _ []int64) error {
-	return nil
-}
-func (r *mileageMockPositionRepo) GetByDeviceAndTimeRange(_ context.Context, _ int64, _, _ time.Time, _ int) ([]*model.Position, error) {
-	return nil, nil
-}
-func (r *mileageMockPositionRepo) GetByUserAndTimeRange(_ context.Context, _ int64, _, _ time.Time, _ int) ([]*model.Position, error) {
-	return nil, nil
-}
-func (r *mileageMockPositionRepo) GetAllByTimeRange(_ context.Context, _, _ time.Time, _ int) ([]*model.Position, error) {
-	return nil, nil
-}
-func (r *mileageMockPositionRepo) UpdateAddress(_ context.Context, _ int64, _ string) error {
-	return nil
 }
 func (r *mileageMockPositionRepo) GetPreviousByDevice(_ context.Context, _ int64, _ time.Time) (*model.Position, error) {
 	return r.prev, nil
@@ -54,54 +25,13 @@ func (r *mileageMockPositionRepo) GetPreviousByDevice(_ context.Context, _ int64
 func (r *mileageMockPositionRepo) GetLastMovingPosition(_ context.Context, _ int64, _ float64) (*model.Position, error) {
 	return r.lastMoving, nil
 }
-func (r *mileageMockPositionRepo) StreamByDeviceAndTimeRange(_ context.Context, _ int64, _, _ time.Time, _ int, _ func(*model.Position) error) error {
-	return nil
-}
-func (r *mileageMockPositionRepo) StreamByUserAndTimeRange(_ context.Context, _ int64, _, _ time.Time, _ int, _ func(*model.Position) error) error {
-	return nil
-}
-func (r *mileageMockPositionRepo) StreamAllByTimeRange(_ context.Context, _, _ time.Time, _ int, _ func(*model.Position) error) error {
-	return nil
-}
 
 type mileageMockDeviceRepo struct {
 	updated *model.Device
 }
 
-func (r *mileageMockDeviceRepo) UserHasAccess(_ context.Context, _ *model.User, _ int64) bool {
-	return true
-}
-func (r *mileageMockDeviceRepo) GetByID(_ context.Context, _ int64) (*model.Device, error) {
-	return nil, nil
-}
-func (r *mileageMockDeviceRepo) GetByUniqueID(_ context.Context, _ string) (*model.Device, error) {
-	return nil, nil
-}
-func (r *mileageMockDeviceRepo) GetByUser(_ context.Context, _ int64) ([]*model.Device, error) {
-	return nil, nil
-}
-func (r *mileageMockDeviceRepo) GetAll(_ context.Context) ([]model.Device, error) { return nil, nil }
-func (r *mileageMockDeviceRepo) GetAllWithOwners(_ context.Context) ([]model.Device, error) {
-	return nil, nil
-}
-func (r *mileageMockDeviceRepo) GetTimedOut(_ context.Context, _ time.Time) ([]model.Device, error) {
-	return nil, nil
-}
-func (r *mileageMockDeviceRepo) GetUserIDs(_ context.Context, _ int64) ([]int64, error) {
-	return nil, nil
-}
-func (r *mileageMockDeviceRepo) Create(_ context.Context, _ *model.Device, _ int64) error {
-	return nil
-}
 func (r *mileageMockDeviceRepo) Update(_ context.Context, d *model.Device) error {
 	r.updated = d
-	return nil
-}
-func (r *mileageMockDeviceRepo) Delete(_ context.Context, _ int64) error { return nil }
-func (r *mileageMockDeviceRepo) UpdateIgnitionState(_ context.Context, _ int64, _ bool, _ time.Time) error {
-	return nil
-}
-func (r *mileageMockDeviceRepo) UpdateProtocol(_ context.Context, _ int64, _ string) error {
 	return nil
 }
 
@@ -114,20 +44,8 @@ func (r *mileageMockEventRepo) Create(_ context.Context, ev *model.Event) error 
 	r.created = append(r.created, ev)
 	return nil
 }
-func (r *mileageMockEventRepo) GetByDevice(_ context.Context, _ int64, _ int) ([]*model.Event, error) {
-	return nil, nil
-}
 func (r *mileageMockEventRepo) GetRecentByDeviceAndType(_ context.Context, _ int64, _ string, _ int) ([]*model.Event, error) {
 	return nil, nil
-}
-func (r *mileageMockEventRepo) GetByUser(_ context.Context, _ int64, _ int) ([]*model.Event, error) {
-	return nil, nil
-}
-func (r *mileageMockEventRepo) GetByFilters(_ context.Context, _ int64, _ []int64, _ []string, _, _ time.Time) ([]*model.Event, error) {
-	return nil, nil
-}
-func (r *mileageMockEventRepo) SumTripDistance(_ context.Context, _ []int64, _, _ time.Time) ([]repository.DeviceTripTotal, float64, error) {
-	return nil, 0, nil
 }
 
 // --- Helper functions ---
@@ -158,7 +76,7 @@ func makeStoppedPos(deviceID int64, lat, lon float64, ts time.Time) *model.Posit
 // --- Tests ---
 
 func TestProcessPosition_SkipsWhenMileageNil(t *testing.T) {
-	svc := NewMileageService(nil, nil, nil, nil, nil)
+	svc := NewMileageService(nil, nil, nil, nil, nil, nil)
 
 	device := &model.Device{ID: 1, Mileage: nil}
 	pos := makeMovingPos(1, 52.52, 13.405, 60, time.Now())
@@ -177,7 +95,7 @@ func TestProcessPosition_AccumulatesDistanceWhenMoving(t *testing.T) {
 	prev := makeMovingPos(1, 52.52, 13.405, 60, now.Add(-10*time.Second))
 	posRepo := &mileageMockPositionRepo{prev: prev}
 	devRepo := &mileageMockDeviceRepo{}
-	svc := NewMileageService(posRepo, devRepo, nil, nil, nil)
+	svc := NewMileageService(posRepo, devRepo, nil, nil, nil, nil)
 
 	mileage := 1000.0
 	device := &model.Device{ID: 1, Mileage: &mileage, PendingMileage: 0}
@@ -209,7 +127,7 @@ func TestProcessPosition_DoesNotAccumulateWhenStopped(t *testing.T) {
 	now := time.Now()
 	prev := makeStoppedPos(1, 52.52, 13.405, now.Add(-10*time.Second))
 	posRepo := &mileageMockPositionRepo{prev: prev}
-	svc := NewMileageService(posRepo, nil, nil, nil, nil)
+	svc := NewMileageService(posRepo, nil, nil, nil, nil, nil)
 
 	mileage := 1000.0
 	device := &model.Device{ID: 1, Mileage: &mileage, PendingMileage: 0}
@@ -232,7 +150,7 @@ func TestProcessPosition_CommitsOnTripCompletion(t *testing.T) {
 	posRepo := &mileageMockPositionRepo{prev: prev, lastMoving: lastMoving}
 	devRepo := &mileageMockDeviceRepo{}
 	evRepo := &mileageMockEventRepo{}
-	svc := NewMileageService(posRepo, devRepo, evRepo, nil, nil)
+	svc := NewMileageService(posRepo, devRepo, evRepo, nil, nil, nil)
 
 	mileage := 1000.0
 	device := &model.Device{ID: 1, Mileage: &mileage, PendingMileage: 25.5}
@@ -275,7 +193,7 @@ func TestProcessPosition_DoesNotCommitOnBriefStop(t *testing.T) {
 	lastMoving := makeMovingPos(1, 52.52, 13.405, 60, now.Add(-2*time.Minute))
 
 	posRepo := &mileageMockPositionRepo{prev: prev, lastMoving: lastMoving}
-	svc := NewMileageService(posRepo, nil, nil, nil, nil)
+	svc := NewMileageService(posRepo, nil, nil, nil, nil, nil)
 
 	mileage := 1000.0
 	device := &model.Device{ID: 1, Mileage: &mileage, PendingMileage: 25.5}
@@ -297,7 +215,7 @@ func TestProcessPosition_FiltersGPSJumps(t *testing.T) {
 	// Previous position: Berlin. Current: very far away (GPS jump).
 	prev := makeMovingPos(1, 52.52, 13.405, 60, now.Add(-10*time.Second))
 	posRepo := &mileageMockPositionRepo{prev: prev}
-	svc := NewMileageService(posRepo, nil, nil, nil, nil)
+	svc := NewMileageService(posRepo, nil, nil, nil, nil, nil)
 
 	mileage := 1000.0
 	device := &model.Device{ID: 1, Mileage: &mileage, PendingMileage: 0}
@@ -319,7 +237,7 @@ func TestCommitPendingMileage_CommitsAndCreatesEvent(t *testing.T) {
 	posRepo := &mileageMockPositionRepo{latest: latest}
 	devRepo := &mileageMockDeviceRepo{}
 	evRepo := &mileageMockEventRepo{}
-	svc := NewMileageService(posRepo, devRepo, evRepo, nil, nil)
+	svc := NewMileageService(posRepo, devRepo, evRepo, nil, nil, nil)
 
 	mileage := 5000.0
 	device := &model.Device{ID: 1, Mileage: &mileage, PendingMileage: 42.3}
@@ -343,7 +261,7 @@ func TestCommitPendingMileage_CommitsAndCreatesEvent(t *testing.T) {
 }
 
 func TestCommitPendingMileage_SkipsWhenNoPending(t *testing.T) {
-	svc := NewMileageService(nil, nil, nil, nil, nil)
+	svc := NewMileageService(nil, nil, nil, nil, nil, nil)
 
 	mileage := 1000.0
 	device := &model.Device{ID: 1, Mileage: &mileage, PendingMileage: 0}
@@ -357,7 +275,7 @@ func TestCommitPendingMileage_SkipsWhenNoPending(t *testing.T) {
 }
 
 func TestCommitPendingMileage_SkipsWhenMileageNil(t *testing.T) {
-	svc := NewMileageService(nil, nil, nil, nil, nil)
+	svc := NewMileageService(nil, nil, nil, nil, nil, nil)
 
 	device := &model.Device{ID: 1, Mileage: nil, PendingMileage: 10}
 

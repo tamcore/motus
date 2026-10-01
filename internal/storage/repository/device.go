@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/tamcore/motus/internal/model"
 )
@@ -112,17 +113,13 @@ func (r *DeviceRepository) GetByUser(ctx context.Context, userID int64) ([]*mode
 	if err != nil {
 		return nil, fmt.Errorf("get devices by user: %w", err)
 	}
-	defer rows.Close()
-
-	devices := make([]*model.Device, 0, 32)
-	for rows.Next() {
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (*model.Device, error) {
 		d := &model.Device{}
-		if err := scanDevice(rows, d); err != nil {
+		if err := scanDevice(row, d); err != nil {
 			return nil, fmt.Errorf("scan device: %w", err)
 		}
-		devices = append(devices, d)
-	}
-	return devices, rows.Err()
+		return d, nil
+	})
 }
 
 // GetAll retrieves all devices, ordered by name.
@@ -133,17 +130,7 @@ func (r *DeviceRepository) GetAll(ctx context.Context) ([]model.Device, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get all devices: %w", err)
 	}
-	defer rows.Close()
-
-	devices := make([]model.Device, 0, 32)
-	for rows.Next() {
-		var d model.Device
-		if err := scanDevice(rows, &d); err != nil {
-			return nil, fmt.Errorf("scan device: %w", err)
-		}
-		devices = append(devices, d)
-	}
-	return devices, rows.Err()
+	return pgx.CollectRows(rows, rowToDevice)
 }
 
 // GetAllWithOwners returns all devices with owner name from user_devices join.
@@ -159,13 +146,10 @@ func (r *DeviceRepository) GetAllWithOwners(ctx context.Context) ([]model.Device
 	if err != nil {
 		return nil, fmt.Errorf("get all devices with owners: %w", err)
 	}
-	defer rows.Close()
-
-	devices := make([]model.Device, 0, 32)
-	for rows.Next() {
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (model.Device, error) {
 		var d model.Device
 		var attrs []byte
-		err := rows.Scan(
+		err := row.Scan(
 			&d.ID, &d.UniqueID, &d.Name, &d.Protocol, &d.Status, &d.SpeedLimit, &d.LastUpdate,
 			&d.PositionID, &d.GroupID, &d.Phone, &d.Model, &d.Contact, &d.Category, &d.Disabled,
 			&d.Mileage, &d.PendingMileage,
@@ -174,7 +158,7 @@ func (r *DeviceRepository) GetAllWithOwners(ctx context.Context) ([]model.Device
 			&d.OwnerName,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("scan device with owner: %w", err)
+			return model.Device{}, fmt.Errorf("scan device with owner: %w", err)
 		}
 		if len(attrs) > 0 {
 			if err := json.Unmarshal(attrs, &d.Attributes); err != nil {
@@ -187,9 +171,8 @@ func (r *DeviceRepository) GetAllWithOwners(ctx context.Context) ([]model.Device
 		if d.Attributes == nil {
 			d.Attributes = make(map[string]any)
 		}
-		devices = append(devices, d)
-	}
-	return devices, rows.Err()
+		return d, nil
+	})
 }
 
 // GetTimedOut returns devices with status 'online' or 'moving' whose
@@ -204,17 +187,7 @@ func (r *DeviceRepository) GetTimedOut(ctx context.Context, cutoff time.Time) ([
 	if err != nil {
 		return nil, fmt.Errorf("get timed out devices: %w", err)
 	}
-	defer rows.Close()
-
-	devices := make([]model.Device, 0, 16)
-	for rows.Next() {
-		var d model.Device
-		if err := scanDevice(rows, &d); err != nil {
-			return nil, fmt.Errorf("scan device: %w", err)
-		}
-		devices = append(devices, d)
-	}
-	return devices, rows.Err()
+	return pgx.CollectRows(rows, rowToDevice)
 }
 
 // GetUserIDs returns the user IDs associated with a device.
@@ -225,17 +198,7 @@ func (r *DeviceRepository) GetUserIDs(ctx context.Context, deviceID int64) ([]in
 	if err != nil {
 		return nil, fmt.Errorf("get user ids for device: %w", err)
 	}
-	defer rows.Close()
-
-	var ids []int64
-	for rows.Next() {
-		var id int64
-		if err := rows.Scan(&id); err != nil {
-			return nil, fmt.Errorf("scan user id: %w", err)
-		}
-		ids = append(ids, id)
-	}
-	return ids, rows.Err()
+	return pgx.AppendRows([]int64(nil), rows, pgx.RowTo[int64])
 }
 
 // Create inserts a new device and associates it with a user.
@@ -329,4 +292,12 @@ func (r *DeviceRepository) Delete(ctx context.Context, id int64) error {
 		return fmt.Errorf("delete device: %w", err)
 	}
 	return nil
+}
+
+func rowToDevice(row pgx.CollectableRow) (model.Device, error) {
+	var d model.Device
+	if err := scanDevice(row, &d); err != nil {
+		return model.Device{}, fmt.Errorf("scan device: %w", err)
+	}
+	return d, nil
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/tamcore/motus/internal/model"
 )
@@ -68,17 +69,13 @@ func (r *CalendarRepository) GetByUser(ctx context.Context, userID int64) ([]*mo
 	if err != nil {
 		return nil, fmt.Errorf("get calendars by user: %w", err)
 	}
-	defer rows.Close()
-
-	calendars := make([]*model.Calendar, 0, 8)
-	for rows.Next() {
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (*model.Calendar, error) {
 		var c model.Calendar
-		if err := rows.Scan(&c.ID, &c.UserID, &c.Name, &c.Data, &c.CreatedAt, &c.UpdatedAt); err != nil {
+		if err := row.Scan(&c.ID, &c.UserID, &c.Name, &c.Data, &c.CreatedAt, &c.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan calendar: %w", err)
 		}
-		calendars = append(calendars, &c)
-	}
-	return calendars, rows.Err()
+		return &c, nil
+	})
 }
 
 // GetAll retrieves all calendars with owner names.
@@ -93,17 +90,13 @@ func (r *CalendarRepository) GetAll(ctx context.Context) ([]*model.Calendar, err
 	if err != nil {
 		return nil, fmt.Errorf("get all calendars: %w", err)
 	}
-	defer rows.Close()
-
-	calendars := make([]*model.Calendar, 0, 8)
-	for rows.Next() {
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (*model.Calendar, error) {
 		var c model.Calendar
-		if err := rows.Scan(&c.ID, &c.UserID, &c.Name, &c.Data, &c.CreatedAt, &c.UpdatedAt, &c.OwnerName); err != nil {
+		if err := row.Scan(&c.ID, &c.UserID, &c.Name, &c.Data, &c.CreatedAt, &c.UpdatedAt, &c.OwnerName); err != nil {
 			return nil, fmt.Errorf("scan calendar: %w", err)
 		}
-		calendars = append(calendars, &c)
-	}
-	return calendars, rows.Err()
+		return &c, nil
+	})
 }
 
 // Update modifies an existing calendar.

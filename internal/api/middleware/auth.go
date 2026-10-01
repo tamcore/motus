@@ -11,17 +11,6 @@ import (
 	"github.com/tamcore/motus/internal/storage/repository"
 )
 
-// Auth returns middleware that authenticates requests via bearer token
-// (API key), legacy user token, X-Auth-Token header, or session cookie.
-// Unauthenticated requests receive a 401 response.
-//
-// Use LoadAuthContext when wrapping an ogen server — ogen's SecurityHandler
-// handles per-operation auth enforcement, so the chi-level middleware only
-// needs to populate context (not block).
-func Auth(users repository.UserRepo, sessions repository.SessionRepo, apiKeys repository.ApiKeyRepo) func(http.Handler) http.Handler {
-	return buildAuthMiddleware(users, sessions, apiKeys, true)
-}
-
 // LoadAuthContext returns middleware that loads auth context from the request
 // when credentials are present but always passes through unauthenticated
 // requests unchanged.
@@ -30,12 +19,6 @@ func Auth(users repository.UserRepo, sessions repository.SessionRepo, apiKeys re
 // before the ogen SecurityHandler runs. The SecurityHandler enforces auth
 // requirements per-operation (e.g. /api/health needs no auth, /api/devices does).
 func LoadAuthContext(users repository.UserRepo, sessions repository.SessionRepo, apiKeys repository.ApiKeyRepo) func(http.Handler) http.Handler {
-	return buildAuthMiddleware(users, sessions, apiKeys, false)
-}
-
-// buildAuthMiddleware is the shared implementation. requireAuth=true returns 401
-// for unauthenticated requests; requireAuth=false passes them through unchanged.
-func buildAuthMiddleware(users repository.UserRepo, sessions repository.SessionRepo, apiKeys repository.ApiKeyRepo, requireAuth bool) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Try bearer token first (Home Assistant, Traccar Manager, API clients).
@@ -142,10 +125,6 @@ func buildAuthMiddleware(users repository.UserRepo, sessions repository.SessionR
 				}
 			}
 
-			if requireAuth {
-				api.RespondError(w, http.StatusUnauthorized, "authentication required")
-				return
-			}
 			next.ServeHTTP(w, r)
 		})
 	}

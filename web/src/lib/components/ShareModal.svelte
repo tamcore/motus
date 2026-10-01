@@ -212,15 +212,6 @@
 		color: var(--text-primary);
 	}
 
-	.select {
-		padding: var(--space-3) var(--space-4);
-		background-color: var(--bg-secondary);
-		border: 1px solid var(--border-color);
-		border-radius: var(--radius-md);
-		color: var(--text-primary);
-		font-size: var(--text-base);
-	}
-
 	.select:focus {
 		outline: none;
 		border-color: var(--accent-primary);

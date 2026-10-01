@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/tamcore/motus/internal/model"
 )
@@ -41,44 +42,6 @@ func (r *EventRepository) Create(ctx context.Context, e *model.Event) error {
 	return nil
 }
 
-// GetByDevice retrieves the most recent events for a device.
-func (r *EventRepository) GetByDevice(ctx context.Context, deviceID int64, limit int) ([]*model.Event, error) {
-	if limit <= 0 || limit > 100 {
-		limit = 100
-	}
-
-	rows, err := r.pool.Query(ctx, `
-		SELECT id, device_id, geofence_id, type, position_id, timestamp, attributes
-		FROM events
-		WHERE device_id = $1
-		ORDER BY timestamp DESC
-		LIMIT $2
-	`, deviceID, limit)
-	if err != nil {
-		return nil, fmt.Errorf("get events by device: %w", err)
-	}
-	defer rows.Close()
-
-	events := make([]*model.Event, 0, 32)
-	for rows.Next() {
-		var e model.Event
-		var attrs []byte
-		if err := rows.Scan(&e.ID, &e.DeviceID, &e.GeofenceID, &e.Type, &e.PositionID, &e.Timestamp, &attrs); err != nil {
-			return nil, fmt.Errorf("scan event: %w", err)
-		}
-		if len(attrs) > 0 {
-			if err := json.Unmarshal(attrs, &e.Attributes); err != nil {
-				slog.Warn("failed to unmarshal event attributes",
-					slog.Int64("eventID", e.ID),
-					slog.Any("error", err))
-				e.Attributes = make(map[string]any)
-			}
-		}
-		events = append(events, &e)
-	}
-	return events, rows.Err()
-}
-
 // GetRecentByDeviceAndType retrieves the most recent events for a device
 // filtered by event type, limited to the specified count.
 func (r *EventRepository) GetRecentByDeviceAndType(ctx context.Context, deviceID int64, eventType string, limit int) ([]*model.Event, error) {
@@ -96,26 +59,7 @@ func (r *EventRepository) GetRecentByDeviceAndType(ctx context.Context, deviceID
 	if err != nil {
 		return nil, fmt.Errorf("get recent events by device and type: %w", err)
 	}
-	defer rows.Close()
-
-	events := make([]*model.Event, 0, 32)
-	for rows.Next() {
-		var e model.Event
-		var attrs []byte
-		if err := rows.Scan(&e.ID, &e.DeviceID, &e.GeofenceID, &e.Type, &e.PositionID, &e.Timestamp, &attrs); err != nil {
-			return nil, fmt.Errorf("scan event: %w", err)
-		}
-		if len(attrs) > 0 {
-			if err := json.Unmarshal(attrs, &e.Attributes); err != nil {
-				slog.Warn("failed to unmarshal event attributes",
-					slog.Int64("eventID", e.ID),
-					slog.Any("error", err))
-				e.Attributes = make(map[string]any)
-			}
-		}
-		events = append(events, &e)
-	}
-	return events, rows.Err()
+	return pgx.CollectRows(rows, rowToEvent)
 }
 
 // GetByUser retrieves the most recent events for all devices a user has access to.
@@ -135,26 +79,7 @@ func (r *EventRepository) GetByUser(ctx context.Context, userID int64, limit int
 	if err != nil {
 		return nil, fmt.Errorf("get events by user: %w", err)
 	}
-	defer rows.Close()
-
-	events := make([]*model.Event, 0, 32)
-	for rows.Next() {
-		var e model.Event
-		var attrs []byte
-		if err := rows.Scan(&e.ID, &e.DeviceID, &e.GeofenceID, &e.Type, &e.PositionID, &e.Timestamp, &attrs); err != nil {
-			return nil, fmt.Errorf("scan event: %w", err)
-		}
-		if len(attrs) > 0 {
-			if err := json.Unmarshal(attrs, &e.Attributes); err != nil {
-				slog.Warn("failed to unmarshal event attributes",
-					slog.Int64("eventID", e.ID),
-					slog.Any("error", err))
-				e.Attributes = make(map[string]any)
-			}
-		}
-		events = append(events, &e)
-	}
-	return events, rows.Err()
+	return pgx.CollectRows(rows, rowToEvent)
 }
 
 // DeviceTripTotal holds the aggregate trip distance for a single device.
@@ -244,24 +169,22 @@ func (r *EventRepository) GetByFilters(ctx context.Context, userID int64, device
 	if err != nil {
 		return nil, fmt.Errorf("get events by filters: %w", err)
 	}
-	defer rows.Close()
+	return pgx.CollectRows(rows, rowToEvent)
+}
 
-	events := make([]*model.Event, 0, 32)
-	for rows.Next() {
-		var e model.Event
-		var attrs []byte
-		if err := rows.Scan(&e.ID, &e.DeviceID, &e.GeofenceID, &e.Type, &e.PositionID, &e.Timestamp, &attrs); err != nil {
-			return nil, fmt.Errorf("scan event: %w", err)
-		}
-		if len(attrs) > 0 {
-			if err := json.Unmarshal(attrs, &e.Attributes); err != nil {
-				slog.Warn("failed to unmarshal event attributes",
-					slog.Int64("eventID", e.ID),
-					slog.Any("error", err))
-				e.Attributes = make(map[string]any)
-			}
-		}
-		events = append(events, &e)
+func rowToEvent(row pgx.CollectableRow) (*model.Event, error) {
+	var e model.Event
+	var attrs []byte
+	if err := row.Scan(&e.ID, &e.DeviceID, &e.GeofenceID, &e.Type, &e.PositionID, &e.Timestamp, &attrs); err != nil {
+		return nil, fmt.Errorf("scan event: %w", err)
 	}
-	return events, rows.Err()
+	if len(attrs) > 0 {
+		if err := json.Unmarshal(attrs, &e.Attributes); err != nil {
+			slog.Warn("failed to unmarshal event attributes",
+				slog.Int64("eventID", e.ID),
+				slog.Any("error", err))
+			e.Attributes = make(map[string]any)
+		}
+	}
+	return &e, nil
 }

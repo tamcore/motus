@@ -334,11 +334,21 @@ func TestUserRepository_DeviceAssignment(t *testing.T) {
 	device := &model.Device{UniqueID: "dev-assign-001", Name: "Test Device", Status: "unknown"}
 	_ = deviceRepo.Create(ctx, device, owner.ID)
 
-	// Initially no devices for user.
-	ids, err := userRepo.GetDevicesForUser(ctx, user.ID)
-	if err != nil {
-		t.Fatalf("GetDevicesForUser failed: %v", err)
+	deviceIDs := func() []int64 {
+		t.Helper()
+		devices, err := deviceRepo.GetByUser(ctx, user.ID)
+		if err != nil {
+			t.Fatalf("GetByUser failed: %v", err)
+		}
+		ids := make([]int64, 0, len(devices))
+		for _, d := range devices {
+			ids = append(ids, d.ID)
+		}
+		return ids
 	}
+
+	// Initially no devices for user.
+	ids := deviceIDs()
 	if len(ids) != 0 {
 		t.Errorf("expected 0 devices, got %d", len(ids))
 	}
@@ -348,10 +358,7 @@ func TestUserRepository_DeviceAssignment(t *testing.T) {
 		t.Fatalf("AssignDevice failed: %v", err)
 	}
 
-	ids, err = userRepo.GetDevicesForUser(ctx, user.ID)
-	if err != nil {
-		t.Fatalf("GetDevicesForUser failed: %v", err)
-	}
+	ids = deviceIDs()
 	if len(ids) != 1 || ids[0] != device.ID {
 		t.Errorf("expected [%d], got %v", device.ID, ids)
 	}
@@ -361,7 +368,7 @@ func TestUserRepository_DeviceAssignment(t *testing.T) {
 		t.Fatalf("duplicate AssignDevice failed: %v", err)
 	}
 
-	ids, _ = userRepo.GetDevicesForUser(ctx, user.ID)
+	ids = deviceIDs()
 	if len(ids) != 1 {
 		t.Errorf("expected 1 device after duplicate assign, got %d", len(ids))
 	}
@@ -371,7 +378,7 @@ func TestUserRepository_DeviceAssignment(t *testing.T) {
 		t.Fatalf("UnassignDevice failed: %v", err)
 	}
 
-	ids, _ = userRepo.GetDevicesForUser(ctx, user.ID)
+	ids = deviceIDs()
 	if len(ids) != 0 {
 		t.Errorf("expected 0 devices after unassign, got %d", len(ids))
 	}

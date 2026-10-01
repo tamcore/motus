@@ -1,5 +1,4 @@
 import { writable, get } from "svelte/store";
-import { browser } from "$app/environment";
 
 export interface UserSettings {
   dateFormat: "iso" | "locale" | "relative";
@@ -33,8 +32,6 @@ const defaultSettings: UserSettings = {
 };
 
 function loadSettings(): UserSettings {
-  if (!browser) return defaultSettings;
-
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
@@ -50,11 +47,9 @@ function loadSettings(): UserSettings {
 function createSettingsStore() {
   const { subscribe, set, update } = writable<UserSettings>(loadSettings());
 
-  if (browser) {
-    subscribe((value) => {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
-    });
-  }
+  subscribe((value) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
+  });
 
   return {
     subscribe,

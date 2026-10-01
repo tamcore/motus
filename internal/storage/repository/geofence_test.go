@@ -3,7 +3,6 @@ package repository_test
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/tamcore/motus/internal/model"
 	"github.com/tamcore/motus/internal/storage/repository"
@@ -257,10 +256,7 @@ func TestGeofenceRepository_Update_Geometry(t *testing.T) {
 	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{Email: "geoupdate-geom@example.com", PasswordHash: "hash", Name: "Geom Update"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("Create user failed: %v", err)
-	}
+	user, device := createTestDevice(t, pool, repository.NewDeviceRepository(pool), userRepo)
 
 	// Create with the central-Berlin polygon (covers 52.51-52.53, 13.35-13.40).
 	g := &model.Geofence{Name: "Shape Test", Geometry: berlinPolygonGeoJSON}
@@ -272,9 +268,9 @@ func TestGeofenceRepository_Update_Geometry(t *testing.T) {
 	}
 
 	// A point inside the original polygon but outside the new one.
-	insideOld, err := geoRepo.CheckContainment(ctx, user.ID, 52.52, 13.37)
+	insideOld, err := geoRepo.CheckContainmentForDevice(ctx, device.ID, 52.52, 13.37)
 	if err != nil {
-		t.Fatalf("CheckContainment before update failed: %v", err)
+		t.Fatalf("CheckContainmentForDevice before update failed: %v", err)
 	}
 	if len(insideOld) == 0 {
 		t.Fatal("expected point (52.52, 13.37) to be inside original polygon")
@@ -287,39 +283,32 @@ func TestGeofenceRepository_Update_Geometry(t *testing.T) {
 	}
 
 	// Old point is now outside the new polygon.
-	nowOutside, err := geoRepo.CheckContainment(ctx, user.ID, 52.52, 13.37)
+	nowOutside, err := geoRepo.CheckContainmentForDevice(ctx, device.ID, 52.52, 13.37)
 	if err != nil {
-		t.Fatalf("CheckContainment after update (old point) failed: %v", err)
+		t.Fatalf("CheckContainmentForDevice after update (old point) failed: %v", err)
 	}
 	if len(nowOutside) > 0 {
 		t.Error("expected (52.52, 13.37) to be OUTSIDE the updated polygon")
 	}
 
 	// New point inside the new polygon.
-	nowInside, err := geoRepo.CheckContainment(ctx, user.ID, 52.56, 13.62)
+	nowInside, err := geoRepo.CheckContainmentForDevice(ctx, device.ID, 52.56, 13.62)
 	if err != nil {
-		t.Fatalf("CheckContainment after update (new point) failed: %v", err)
+		t.Fatalf("CheckContainmentForDevice after update (new point) failed: %v", err)
 	}
 	if len(nowInside) == 0 || nowInside[0] != g.ID {
 		t.Error("expected (52.56, 13.62) to be INSIDE the updated polygon")
 	}
 }
 
-func TestGeofenceRepository_CheckContainment(t *testing.T) {
+func TestGeofenceRepository_CheckContainmentForDevice(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	geoRepo := repository.NewGeofenceRepository(pool)
 	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{
-		Email:        "contain-" + time.Now().Format("150405") + "@example.com",
-		PasswordHash: "hash",
-		Name:         "Containment User",
-	}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("Create user failed: %v", err)
-	}
+	user, device := createTestDevice(t, pool, repository.NewDeviceRepository(pool), userRepo)
 
 	// Polygon around central Berlin: lat 52.51-52.53, lon 13.35-13.40
 	g := &model.Geofence{Name: "Berlin Center", Geometry: berlinPolygonGeoJSON}
@@ -343,9 +332,9 @@ func TestGeofenceRepository_CheckContainment(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ids, err := geoRepo.CheckContainment(ctx, user.ID, tt.lat, tt.lon)
+			ids, err := geoRepo.CheckContainmentForDevice(ctx, device.ID, tt.lat, tt.lon)
 			if err != nil {
-				t.Fatalf("CheckContainment failed: %v", err)
+				t.Fatalf("CheckContainmentForDevice failed: %v", err)
 			}
 			found := len(ids) > 0 && ids[0] == g.ID
 			if found != tt.inside {

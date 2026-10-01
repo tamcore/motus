@@ -50,40 +50,21 @@ func TestTruncate(t *testing.T) {
 	}
 }
 
-// --- calculateDelays ---
+// --- messageDelay ---
 
-func TestCalculateDelays(t *testing.T) {
+func TestMessageDelay(t *testing.T) {
 	tests := []struct {
-		n     int
 		speed float64
 		want  time.Duration
 	}{
-		{3, 1.0, 5000 * time.Millisecond},
-		{3, 2.0, 2500 * time.Millisecond},
-		{3, 0.5, 10000 * time.Millisecond},
+		{1.0, 5000 * time.Millisecond},
+		{2.0, 2500 * time.Millisecond},
+		{0.5, 10000 * time.Millisecond},
 	}
-
 	for _, tt := range tests {
-		messages := make([]string, tt.n)
-		delays := calculateDelays(messages, tt.speed)
-		if len(delays) != tt.n {
-			t.Errorf("calculateDelays(n=%d, speed=%.1f): got %d delays, want %d",
-				tt.n, tt.speed, len(delays), tt.n)
-			continue
+		if got := messageDelay(tt.speed); got != tt.want {
+			t.Errorf("messageDelay(%.1f) = %v, want %v", tt.speed, got, tt.want)
 		}
-		for i, d := range delays {
-			if d != tt.want {
-				t.Errorf("calculateDelays(n=%d, speed=%.1f)[%d] = %v, want %v",
-					tt.n, tt.speed, i, d, tt.want)
-			}
-		}
-	}
-}
-
-func TestCalculateDelays_Empty(t *testing.T) {
-	delays := calculateDelays(nil, 1.0)
-	if len(delays) != 0 {
-		t.Errorf("calculateDelays(nil): got %d delays, want 0", len(delays))
 	}
 }
 

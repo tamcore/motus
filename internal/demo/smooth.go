@@ -1,6 +1,9 @@
 package demo
 
-import "math"
+import (
+	"math"
+	"slices"
+)
 
 // Default smoothing parameters.
 const (
@@ -32,20 +35,9 @@ const (
 	maxAcceleration = 8.0
 )
 
-// SmoothRoute takes a raw route and produces a refined version with:
-//   - estimated speeds when the GPX data has none
-//   - interpolated intermediate points for long segments
-//   - smoothed speed transitions (no abrupt jumps)
-//
-// It uses the default interpolation interval of 100 meters.
-// The original route is not modified; a new Route is returned.
-func SmoothRoute(route *Route) *Route {
-	return SmoothRouteWithInterval(route, defaultInterpolationInterval)
-}
-
-// SmoothRouteWithInterval is like SmoothRoute but uses a custom interpolation
-// interval (in meters). A smaller interval produces more points and smoother
-// visual movement on the map. For example, 100m with a 100 km/h speed yields
+// SmoothRouteWithInterval produces a refined route with estimated speeds,
+// interpolated points every interval meters and smoothed speed transitions.
+// A smaller interval produces more points and smoother visual movement on the map. For example, 100m with a 100 km/h speed yields
 // a position update roughly every 3.6 seconds.
 //
 // If interval is <= 0, the default (100m) is used.
@@ -95,10 +87,10 @@ func estimateSpeeds(points []RoutePoint) []RoutePoint {
 	}
 	if hasSpeed {
 		// GPX has speed data -- keep it as-is.
-		return copyPoints(points)
+		return slices.Clone(points)
 	}
 
-	out := copyPoints(points)
+	out := slices.Clone(points)
 
 	for i := range out {
 		if i == 0 {
@@ -256,7 +248,7 @@ func smoothSpeeds(points []RoutePoint) []RoutePoint {
 		return points
 	}
 
-	out := copyPoints(points)
+	out := slices.Clone(points)
 	window := speedSmoothingWindow
 
 	for i := 1; i < len(out)-1; i++ {
@@ -291,7 +283,7 @@ func enforceAccelerationLimits(points []RoutePoint) []RoutePoint {
 		return points
 	}
 
-	out := copyPoints(points)
+	out := slices.Clone(points)
 
 	// Forward pass: limit acceleration.
 	for i := 1; i < len(out); i++ {
@@ -316,16 +308,5 @@ func enforceAccelerationLimits(points []RoutePoint) []RoutePoint {
 		}
 	}
 
-	return out
-}
-
-// --------------------------------------------------------------------
-// Helpers
-// --------------------------------------------------------------------
-
-// copyPoints returns a deep copy of a point slice.
-func copyPoints(points []RoutePoint) []RoutePoint {
-	out := make([]RoutePoint, len(points))
-	copy(out, points)
 	return out
 }

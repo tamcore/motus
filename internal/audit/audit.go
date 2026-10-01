@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -45,8 +46,6 @@ const (
 	ActionDeviceCreate   = "device.create"
 	ActionDeviceUpdate   = "device.update"
 	ActionDeviceDelete   = "device.delete"
-	ActionDeviceOnline   = "device.online"
-	ActionDeviceOffline  = "device.offline"
 	ActionDeviceAssign   = "device.assign"
 	ActionDeviceUnassign = "device.unassign"
 
@@ -64,8 +63,6 @@ const (
 	ActionNotifCreate = "notification.create"
 	ActionNotifUpdate = "notification.update"
 	ActionNotifDelete = "notification.delete"
-	ActionNotifSent   = "notification.sent"
-	ActionNotifFailed = "notification.failed"
 
 	// API key actions.
 	ActionApiKeyCreate = "apikey.create"
@@ -122,13 +119,6 @@ type Logger struct {
 // NewLogger creates a new audit logger.
 func NewLogger(pool *pgxpool.Pool) *Logger {
 	return &Logger{pool: pool, logger: slog.Default()}
-}
-
-// SetLogger configures the structured logger for audit operations.
-func (l *Logger) SetLogger(sl *slog.Logger) {
-	if l != nil && sl != nil {
-		l.logger = sl
-	}
 }
 
 // Log records an audit event. Errors are logged but never returned to
@@ -204,14 +194,6 @@ func (l *Logger) Log(ctx context.Context, userID *int64, action, resourceType st
 	l.logger.LogAttrs(ctx, slog.LevelInfo, "audit", attrs...)
 }
 
-// LogFromRequest is a convenience method that extracts IP and User-Agent
-// from an HTTP request.
-func (l *Logger) LogFromRequest(r *http.Request, userID *int64, action, resourceType string, resourceID *int64, details map[string]any) {
-	ip := ExtractIP(r)
-	ua := r.UserAgent()
-	l.Log(r.Context(), userID, action, resourceType, resourceID, details, ip, ua)
-}
-
 // Query retrieves audit log entries with optional filtering.
 type QueryParams struct {
 	UserID       *int64
@@ -230,7 +212,6 @@ func (l *Logger) Query(ctx context.Context, params QueryParams) ([]Entry, int64,
 		params.Offset = 0
 	}
 
-	// Validate filter strings before they reach the query builder.
 	if params.Action != "" {
 		if err := validateAuditFilter("action", params.Action); err != nil {
 			return nil, 0, err
@@ -242,69 +223,40 @@ func (l *Logger) Query(ctx context.Context, params QueryParams) ([]Entry, int64,
 		}
 	}
 
-	// Build the WHERE clause dynamically.
-	where := "WHERE 1=1"
-	args := []any{}
-	argIdx := 1
+	const where = `WHERE ($1::bigint IS NULL OR user_id = $1)
+		AND ($2::text = '' OR action = $2)
+		AND ($3::text = '' OR resource_type = $3)`
+	args := []any{params.UserID, params.Action, params.ResourceType}
 
-	if params.UserID != nil {
-		where += fmt.Sprintf(" AND user_id = $%d", argIdx)
-		args = append(args, *params.UserID)
-		argIdx++
-	}
-	if params.Action != "" {
-		where += fmt.Sprintf(" AND action = $%d", argIdx)
-		args = append(args, params.Action)
-		argIdx++
-	}
-	if params.ResourceType != "" {
-		where += fmt.Sprintf(" AND resource_type = $%d", argIdx)
-		args = append(args, params.ResourceType)
-		argIdx++
-	}
-
-	// Get total count for pagination.
-	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM audit_log %s", where)
 	var total int64
-	err := l.pool.QueryRow(ctx, countQuery, args...).Scan(&total)
-	if err != nil {
+	if err := l.pool.QueryRow(ctx, `SELECT COUNT(*) FROM audit_log `+where, args...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count audit entries: %w", err)
 	}
 
-	// Fetch entries.
-	query := fmt.Sprintf(`
+	rows, err := l.pool.Query(ctx, `
 		SELECT id, timestamp, user_id, action, resource_type, resource_id, details,
 		       host(ip_address)::text, user_agent
-		FROM audit_log %s
+		FROM audit_log `+where+`
 		ORDER BY timestamp DESC
-		LIMIT $%d OFFSET $%d
-	`, where, argIdx, argIdx+1)
-	args = append(args, params.Limit, params.Offset)
-
-	rows, err := l.pool.Query(ctx, query, args...)
+		LIMIT $4 OFFSET $5`, append(args, params.Limit, params.Offset)...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("query audit log: %w", err)
 	}
-	defer rows.Close()
-
-	var entries []Entry
-	for rows.Next() {
+	entries, err := pgx.AppendRows([]Entry(nil), rows, func(row pgx.CollectableRow) (Entry, error) {
 		var e Entry
 		var detailsJSON []byte
-		err := rows.Scan(&e.ID, &e.Timestamp, &e.UserID, &e.Action,
-			&e.ResourceType, &e.ResourceID, &detailsJSON, &e.IPAddress, &e.UserAgent)
-		if err != nil {
-			return nil, 0, fmt.Errorf("scan audit entry: %w", err)
+		if err := row.Scan(&e.ID, &e.Timestamp, &e.UserID, &e.Action,
+			&e.ResourceType, &e.ResourceID, &detailsJSON, &e.IPAddress, &e.UserAgent); err != nil {
+			return Entry{}, fmt.Errorf("scan audit entry: %w", err)
 		}
 		if len(detailsJSON) > 0 {
 			_ = json.Unmarshal(detailsJSON, &e.Details)
 		}
-		entries = append(entries, e)
-	}
-	if err := rows.Err(); err != nil {
+		return e, nil
+	})
+	if err != nil {
 		return nil, 0, fmt.Errorf("audit rows: %w", err)
 	}
-
 	return entries, total, nil
 }
 

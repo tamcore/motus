@@ -6,19 +6,9 @@ package pubsub
 
 import "context"
 
-// Publisher can publish messages to a channel.
-type Publisher interface {
-	Publish(ctx context.Context, message any) error
-}
-
-// Subscriber can subscribe to a channel and receive messages.
-type Subscriber interface {
-	Subscribe(ctx context.Context, handler func([]byte)) error
-}
-
 // PubSub combines publishing and subscribing capabilities.
 type PubSub interface {
-	Publisher
-	Subscriber
+	Publish(ctx context.Context, message any) error
+	Subscribe(ctx context.Context, handler func([]byte)) error
 	Close() error
 }

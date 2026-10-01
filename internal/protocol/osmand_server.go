@@ -26,15 +26,14 @@ const osmandMaxBodySize = 64 << 10
 // (Traccar's default port 5055). Unlike H02 and WATCH, every report is a
 // separate HTTP request, so there is no persistent connection: devices are
 // marked offline by the device timeout service only.
+// It embeds Server for device resolution, auto-creation and logging.
 type OsmAndServer struct {
-	// core provides device resolution/auto-creation, the position handler
-	// and logging shared with the TCP protocol servers.
-	core *Server
+	*Server
 }
 
 // NewOsmAndServer creates an HTTP server for the OsmAnd protocol.
 func NewOsmAndServer(port string, devices repository.DeviceRepo, handler *PositionHandler) *OsmAndServer {
-	return &OsmAndServer{core: &Server{
+	return &OsmAndServer{&Server{
 		name:    "osmand",
 		port:    port,
 		devices: devices,
@@ -43,20 +42,12 @@ func NewOsmAndServer(port string, devices repository.DeviceRepo, handler *Positi
 	}}
 }
 
-// SetLogger configures the structured logger for this server.
-func (s *OsmAndServer) SetLogger(l *slog.Logger) { s.core.SetLogger(l) }
-
-// SetAutoCreate configures device auto-creation for unknown device IDs.
-func (s *OsmAndServer) SetAutoCreate(cfg AutoCreateConfig, users repository.UserRepo) {
-	s.core.SetAutoCreate(cfg, users)
-}
-
 // Start listens for OsmAnd HTTP reports. It blocks until ctx is cancelled and
 // then shuts the server down gracefully.
 func (s *OsmAndServer) Start(ctx context.Context) error {
-	ln, err := net.Listen("tcp", ":"+s.core.port)
+	ln, err := net.Listen("tcp", ":"+s.port)
 	if err != nil {
-		return fmt.Errorf("%s: listen on port %s: %w", s.core.name, s.core.port, err)
+		return fmt.Errorf("%s: listen on port %s: %w", s.name, s.port, err)
 	}
 
 	srv := &http.Server{
@@ -69,10 +60,10 @@ func (s *OsmAndServer) Start(ctx context.Context) error {
 		BaseContext:       func(net.Listener) context.Context { return ctx },
 	}
 
-	s.core.log().Info("GPS protocol server listening",
+	s.log().Info("GPS protocol server listening",
 		slog.String("type", "gps"),
-		slog.String("protocol", s.core.name),
-		slog.String("port", s.core.port),
+		slog.String("protocol", s.name),
+		slog.String("port", s.port),
 	)
 
 	errCh := make(chan error, 1)
@@ -80,16 +71,16 @@ func (s *OsmAndServer) Start(ctx context.Context) error {
 
 	select {
 	case err := <-errCh:
-		return fmt.Errorf("%s: serve: %w", s.core.name, err)
+		return fmt.Errorf("%s: serve: %w", s.name, err)
 	case <-ctx.Done():
 	}
 
 	shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(shutdownCtx); err != nil {
-		s.core.log().Warn("shutdown timeout, connections still active",
+		s.log().Warn("shutdown timeout, connections still active",
 			slog.String("type", "gps"),
-			slog.String("protocol", s.core.name),
+			slog.String("protocol", s.name),
 			slog.Any("error", err),
 		)
 	}
@@ -109,8 +100,7 @@ func (s *OsmAndServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, osmandMaxBodySize))
 	if err != nil {
-		var tooLarge *http.MaxBytesError
-		if errors.As(err, &tooLarge) {
+		if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
 			http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
 			return
 		}
@@ -134,24 +124,24 @@ func (s *OsmAndServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if err != nil {
-		s.core.log().Warn("decode error",
+		s.log().Warn("decode error",
 			slog.String("type", "gps"),
-			slog.String("protocol", s.core.name),
+			slog.String("protocol", s.name),
 			slog.String("remoteAddr", r.RemoteAddr),
 			slog.Any("error", err),
 		)
-		metrics.GPSDecodeErrors.WithLabelValues(s.core.name).Inc()
+		metrics.GPSDecodeErrors.WithLabelValues(s.name).Inc()
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
-	metrics.GPSMessagesReceived.WithLabelValues(s.core.name).Inc()
+	metrics.GPSMessagesReceived.WithLabelValues(s.name).Inc()
 
 	ctx := r.Context()
-	device, err := s.core.resolveOrCreateDevice(ctx, msg.DeviceID)
+	device, err := s.resolveOrCreateDevice(ctx, msg.DeviceID)
 	if err != nil {
-		s.core.log().Warn("unknown device",
+		s.log().Warn("unknown device",
 			slog.String("type", "gps"),
-			slog.String("protocol", s.core.name),
+			slog.String("protocol", s.name),
 			slog.String("remoteAddr", r.RemoteAddr),
 			slog.String("device", msg.DeviceID),
 			slog.Any("error", err),
@@ -165,10 +155,10 @@ func (s *OsmAndServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if position := s.position(ctx, device, msg); position != nil {
-		if err := s.core.handler.HandlePosition(ctx, position); err != nil {
-			s.core.log().Error("handle position error",
+		if err := s.handler.HandlePosition(ctx, position); err != nil {
+			s.log().Error("handle position error",
 				slog.String("type", "gps"),
-				slog.String("protocol", s.core.name),
+				slog.String("protocol", s.name),
 				slog.String("device", msg.DeviceID),
 				slog.Any("error", err),
 			)
@@ -190,7 +180,7 @@ func (s *OsmAndServer) position(ctx context.Context, device *model.Device, msg *
 
 	p := &model.Position{
 		DeviceID:   device.ID,
-		Protocol:   s.core.name,
+		Protocol:   s.name,
 		ServerTime: &now,
 		DeviceTime: &deviceTime,
 		Timestamp:  msg.Timestamp,
@@ -208,31 +198,10 @@ func (s *OsmAndServer) position(ctx context.Context, device *model.Device, msg *
 		return p
 	}
 
-	last := s.lastPosition(ctx, device.ID)
+	last := s.handler.LastPosition(ctx, device.ID)
 	if last == nil {
 		return nil
 	}
-	p.Timestamp = last.Timestamp
-	p.Valid = last.Valid
-	p.Latitude = last.Latitude
-	p.Longitude = last.Longitude
-	p.Altitude = last.Altitude
-	p.Speed = last.Speed
-	p.Course = last.Course
-	p.Accuracy = last.Accuracy
-	p.Outdated = true
-	return p
-}
-
-// lastPosition returns the most recent stored position of a device, or nil.
-func (s *OsmAndServer) lastPosition(ctx context.Context, deviceID int64) *model.Position {
-	h := s.core.handler
-	if h == nil || h.positions == nil {
-		return nil
-	}
-	p, err := h.positions.GetLatestByDevice(ctx, deviceID)
-	if err != nil {
-		return nil
-	}
+	applyLastLocation(p, last)
 	return p
 }

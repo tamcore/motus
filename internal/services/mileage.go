@@ -7,7 +7,6 @@ import (
 
 	"github.com/tamcore/motus/internal/geo"
 	"github.com/tamcore/motus/internal/model"
-	"github.com/tamcore/motus/internal/storage/repository"
 	"github.com/tamcore/motus/internal/websocket"
 )
 
@@ -28,36 +27,34 @@ const (
 // MileageService tracks device mileage by accumulating distance from GPS
 // positions during motion and committing the total when a trip completes.
 type MileageService struct {
-	positionRepo        repository.PositionRepo
-	deviceRepo          repository.DeviceRepo
-	eventRepo           repository.EventRepo
-	hub                 *websocket.Hub
-	notificationService *NotificationService
-	logger              *slog.Logger
+	eventEmitter
+	positionRepo mileagePositionStore
+	deviceRepo   mileageDeviceStore
+}
+
+type mileagePositionStore interface {
+	GetLatestByDevice(ctx context.Context, deviceID int64) (*model.Position, error)
+	GetPreviousByDevice(ctx context.Context, deviceID int64, beforeTime time.Time) (*model.Position, error)
+	GetLastMovingPosition(ctx context.Context, deviceID int64, speedThreshold float64) (*model.Position, error)
+}
+
+type mileageDeviceStore interface {
+	Update(ctx context.Context, d *model.Device) error
 }
 
 // NewMileageService creates a new mileage tracking service.
 func NewMileageService(
-	positionRepo repository.PositionRepo,
-	deviceRepo repository.DeviceRepo,
-	eventRepo repository.EventRepo,
+	positionRepo mileagePositionStore,
+	deviceRepo mileageDeviceStore,
+	eventRepo eventStore,
 	hub *websocket.Hub,
 	notificationService *NotificationService,
+	logger *slog.Logger,
 ) *MileageService {
 	return &MileageService{
-		positionRepo:        positionRepo,
-		deviceRepo:          deviceRepo,
-		eventRepo:           eventRepo,
-		hub:                 hub,
-		notificationService: notificationService,
-		logger:              slog.Default(),
-	}
-}
-
-// SetLogger configures the structured logger for this service.
-func (s *MileageService) SetLogger(l *slog.Logger) {
-	if l != nil {
-		s.logger = l
+		eventEmitter: newEventEmitter(eventRepo, hub, notificationService, logger),
+		positionRepo: positionRepo,
+		deviceRepo:   deviceRepo,
 	}
 }
 
@@ -155,32 +152,16 @@ func (s *MileageService) commitMileage(ctx context.Context, pos *model.Position,
 		},
 	}
 
-	if err := s.eventRepo.Create(ctx, event); err != nil {
-		s.logger.Error("failed to create tripCompleted event",
-			slog.Int64("deviceID", device.ID),
-			slog.Any("error", err),
-		)
-		return nil // Non-fatal: mileage is already committed.
-	}
-
-	s.logger.Info("trip completed",
+	err := s.emit(ctx, event, "trip completed",
 		slog.Int64("deviceID", device.ID),
 		slog.Float64("distanceKm", tripDistance),
 		slog.Float64("mileageKm", *device.Mileage),
 	)
-
-	if s.hub != nil {
-		s.hub.BroadcastEvent(event)
+	if err != nil {
+		s.logger.Error("failed to create tripCompleted event",
+			slog.Int64("deviceID", device.ID),
+			slog.Any("error", err),
+		)
 	}
-
-	if s.notificationService != nil {
-		if err := s.notificationService.ProcessEvent(ctx, event); err != nil {
-			s.logger.Error("failed to process notifications for trip event",
-				slog.Int64("eventID", event.ID),
-				slog.Any("error", err),
-			)
-		}
-	}
-
 	return nil
 }

@@ -5,13 +5,7 @@
 	import { currentUser } from '$lib/stores/auth';
 	import { refreshHandler } from '$lib/stores/refresh';
 	import { mileageToDisplay, mileageFromDisplay, formatMileage, formatRelative } from '$lib/utils/formatting';
-	import { DEVICE_PROTOCOLS } from '$lib/utils/protocols';
-	import {
-		commandAttributesPayload,
-		commandTypeOptions,
-		COMMAND_TYPE_LABELS,
-		type CommandTypeOption
-	} from '$lib/utils/commands';
+	import { commandAttributesPayload, COMMAND_TYPE_LABELS } from '$lib/utils/commands';
 	import { settings } from '$lib/stores/settings';
 	import AllDevicesToggle from '$lib/components/AllDevicesToggle.svelte';
 	import Button from '$lib/components/Button.svelte';
@@ -69,7 +63,7 @@
 	let commandResultTimer: ReturnType<typeof setTimeout> | null = null;
 	let commandSpeed = '';
 	// Command types the device protocol supports (GET /api/commands/types?deviceId).
-	let commandOptions: CommandTypeOption[] = [];
+	let commandOptions: string[] = [];
 	let commandTypesLoading = false;
 
 	async function openCommandModal(device: Device) {
@@ -87,8 +81,8 @@
 		commandTypesLoading = true;
 		try {
 			const types = await api.getCommandTypes(device.id);
-			commandOptions = commandTypeOptions(types.map((t) => t.type));
-			commandType = commandOptions[0]?.value ?? '';
+			commandOptions = types.map((t) => t.type);
+			commandType = commandOptions[0] ?? '';
 		} catch {
 			commandError = 'Failed to load command types';
 		} finally {
@@ -702,9 +696,9 @@
 			<label for="protocol" class="input-label">Protocol</label>
 			<select id="protocol" name="protocol" class="cmd-select" bind:value={formProtocol}>
 				<option value="">— none —</option>
-				{#each DEVICE_PROTOCOLS as protocol}
-					<option value={protocol.value}>{protocol.label}</option>
-				{/each}
+				<option value="h02">H02</option>
+				<option value="watch">Watch</option>
+				<option value="osmand">OsmAnd (Traccar Client)</option>
 			</select>
 		</div>
 		<Input
@@ -767,8 +761,8 @@
 			<div class="form-group">
 				<label class="form-label" for="cmd-type">Command Type</label>
 				<select id="cmd-type" class="cmd-select" bind:value={commandType} disabled={commandTypesLoading}>
-					{#each commandOptions as option}
-						<option value={option.value}>{option.label}</option>
+					{#each commandOptions as type}
+						<option value={type}>{COMMAND_TYPE_LABELS[type] ?? type}</option>
 					{/each}
 				</select>
 			</div>
@@ -1178,11 +1172,6 @@
 	}
 
 	/* ---- Empty state ---- */
-	.empty-state {
-		text-align: center;
-		padding: var(--space-16) var(--space-4);
-	}
-
 	.empty-state p {
 		color: var(--text-secondary);
 		margin: var(--space-4) 0;

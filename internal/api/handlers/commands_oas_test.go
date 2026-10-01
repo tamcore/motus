@@ -280,7 +280,7 @@ func TestSendCommand_OnlineDeviceSends(t *testing.T) {
 	reg.Register("online-dev", outCh)
 
 	h := newCommandTestHandler(cmdRepo, accessGrantingDeviceRepo("online-dev", "h02"),
-		reg, protocol.NewEncoderRegistry())
+		reg, protocol.NewEncoderRegistry(nil))
 
 	res, err := h.SendCommand(commandTestUserCtx(1), &oas.SendCommandRequest{
 		DeviceId: 5,
@@ -491,8 +491,7 @@ func TestSendCommand_WatchCommandsAreFramed(t *testing.T) {
 	outCh := make(chan []byte, 4)
 	reg.Register("9705141740", outCh)
 	reg.SetSession("9705141740", protocol.DeviceSession{Manufacturer: "3G"})
-	encoders := protocol.NewEncoderRegistry()
-	encoders.Register(protocol.NewWatchCommandEncoder(reg))
+	encoders := protocol.NewEncoderRegistry(reg)
 
 	h := newCommandTestHandler(&mockCommandRepo{}, accessGrantingDeviceRepo("9705141740", "watch"), reg, encoders)
 
@@ -518,7 +517,7 @@ func TestSendCommand_WatchCommandsAreFramed(t *testing.T) {
 
 func TestSendCommand_WatchUnsupportedCommand(t *testing.T) {
 	h := newCommandTestHandler(&mockCommandRepo{}, accessGrantingDeviceRepo("9705141740", "watch"),
-		nil, protocol.NewEncoderRegistry())
+		nil, protocol.NewEncoderRegistry(nil))
 
 	res, err := h.SendCommand(commandTestUserCtx(1), &oas.SendCommandRequest{DeviceId: 5, Type: "factoryReset"})
 	if err != nil {
@@ -555,7 +554,7 @@ func TestGetCommandTypes_PerDevice(t *testing.T) {
 		{"", []string{"rebootDevice", "positionPeriodic", "positionSingle", "sosNumber", "custom", "setSpeedAlarm", "factoryReset"}},
 	}
 	for _, tt := range tests {
-		h := newCommandTestHandler(&mockCommandRepo{}, accessGrantingDeviceRepo("dev", tt.protocol), nil, protocol.NewEncoderRegistry())
+		h := newCommandTestHandler(&mockCommandRepo{}, accessGrantingDeviceRepo("dev", tt.protocol), nil, protocol.NewEncoderRegistry(nil))
 		res, err := h.GetCommandTypes(commandTestUserCtx(1), oas.GetCommandTypesParams{DeviceId: oas.NewOptInt64(5)})
 		if err != nil {
 			t.Fatalf("%q: %v", tt.protocol, err)
@@ -569,13 +568,13 @@ func TestGetCommandTypes_PerDevice(t *testing.T) {
 func TestGetCommandTypes_PerDeviceErrors(t *testing.T) {
 	params := oas.GetCommandTypesParams{DeviceId: oas.NewOptInt64(5)}
 
-	h := newCommandTestHandler(&mockCommandRepo{}, accessGrantingDeviceRepo("dev", "h02"), nil, protocol.NewEncoderRegistry())
+	h := newCommandTestHandler(&mockCommandRepo{}, accessGrantingDeviceRepo("dev", "h02"), nil, protocol.NewEncoderRegistry(nil))
 	if res, _ := h.GetCommandTypes(context.Background(), params); !isType[*oas.GetCommandTypesUnauthorized](res) {
 		t.Errorf("no user: got %T", res)
 	}
 
 	denied := &mockDeviceRepo{userHasAccessFn: func(context.Context, *model.User, int64) bool { return false }}
-	h = newCommandTestHandler(&mockCommandRepo{}, denied, nil, protocol.NewEncoderRegistry())
+	h = newCommandTestHandler(&mockCommandRepo{}, denied, nil, protocol.NewEncoderRegistry(nil))
 	if res, _ := h.GetCommandTypes(commandTestUserCtx(1), params); !isType[*oas.GetCommandTypesForbidden](res) {
 		t.Errorf("foreign device: got %T", res)
 	}
@@ -584,7 +583,7 @@ func TestGetCommandTypes_PerDeviceErrors(t *testing.T) {
 		userHasAccessFn: func(context.Context, *model.User, int64) bool { return true },
 		getByIDFn:       func(context.Context, int64) (*model.Device, error) { return nil, errors.New("not found") },
 	}
-	h = newCommandTestHandler(&mockCommandRepo{}, missing, nil, protocol.NewEncoderRegistry())
+	h = newCommandTestHandler(&mockCommandRepo{}, missing, nil, protocol.NewEncoderRegistry(nil))
 	if res, _ := h.GetCommandTypes(commandTestUserCtx(1), params); !isType[*oas.GetCommandTypesNotFound](res) {
 		t.Errorf("missing device: got %T", res)
 	}
@@ -600,7 +599,7 @@ func TestSendCommand_RejectsUnsupportedType(t *testing.T) {
 	} {
 		created := false
 		cmdRepo := &mockCommandRepo{createFn: func(context.Context, *model.Command) error { created = true; return nil }}
-		h := newCommandTestHandler(cmdRepo, accessGrantingDeviceRepo("dev", tt.protocol), nil, protocol.NewEncoderRegistry())
+		h := newCommandTestHandler(cmdRepo, accessGrantingDeviceRepo("dev", tt.protocol), nil, protocol.NewEncoderRegistry(nil))
 
 		req := &oas.SendCommandRequest{DeviceId: 5, Type: tt.typ}
 		switch tt.typ {

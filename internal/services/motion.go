@@ -22,33 +22,21 @@ const MotionDedupWindow = 5 * time.Minute
 // MotionService detects when a device transitions from stationary to moving
 // and creates motion events.
 type MotionService struct {
-	positionRepo        repository.PositionRepo
-	eventRepo           repository.EventRepo
-	hub                 *websocket.Hub
-	notificationService *NotificationService
-	logger              *slog.Logger
+	eventEmitter
+	positionRepo repository.PositionRepo
 }
 
 // NewMotionService creates a new motion detection service.
 func NewMotionService(
 	positionRepo repository.PositionRepo,
-	eventRepo repository.EventRepo,
+	eventRepo eventStore,
 	hub *websocket.Hub,
 	notificationService *NotificationService,
+	logger *slog.Logger,
 ) *MotionService {
 	return &MotionService{
-		positionRepo:        positionRepo,
-		eventRepo:           eventRepo,
-		hub:                 hub,
-		notificationService: notificationService,
-		logger:              slog.Default(),
-	}
-}
-
-// SetLogger configures the structured logger for this service.
-func (s *MotionService) SetLogger(l *slog.Logger) {
-	if l != nil {
-		s.logger = l
+		eventEmitter: newEventEmitter(eventRepo, hub, notificationService, logger),
+		positionRepo: positionRepo,
 	}
 }
 
@@ -92,30 +80,11 @@ func (s *MotionService) CheckMotion(ctx context.Context, position *model.Positio
 			},
 		}
 
-		if err := s.eventRepo.Create(ctx, event); err != nil {
-			return err
-		}
-
-		s.logger.Info("motion event detected",
+		return s.emit(ctx, event, "motion event detected",
 			slog.Int64("deviceID", position.DeviceID),
 			slog.Float64("speed", currSpeed),
 			slog.Float64("previousSpeed", prevSpeed),
 		)
-
-		// Broadcast the event via WebSocket.
-		if s.hub != nil {
-			s.hub.BroadcastEvent(event)
-		}
-
-		// Trigger notifications for this event.
-		if s.notificationService != nil {
-			if err := s.notificationService.ProcessEvent(ctx, event); err != nil {
-				s.logger.Error("failed to process notifications for motion event",
-					slog.Int64("eventID", event.ID),
-					slog.Any("error", err),
-				)
-			}
-		}
 	}
 
 	return nil

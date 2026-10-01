@@ -24,42 +24,22 @@ const (
 	dialTimeout = 10 * time.Second
 )
 
-// backoff tracks exponential backoff state for connection retries.
-// It is not safe for concurrent use; each device goroutine gets its own.
+// backoff tracks exponential backoff state; each device goroutine owns one.
 type backoff struct {
 	current time.Duration
 }
 
-// newBackoff creates a backoff starting at the initial delay.
 func newBackoff() backoff {
 	return backoff{current: initialBackoff}
 }
 
-// next returns the current backoff delay without modifying state.
-func (b *backoff) next() time.Duration {
-	return b.current
-}
-
-// withJitter returns the current backoff with random jitter applied.
-// The jittered value falls within [0.5*current, 1.5*current] to prevent
-// thundering herd when multiple devices retry simultaneously.
+// withJitter returns current scaled into [0.5, 1.5) to avoid a thundering herd.
 func (b *backoff) withJitter() time.Duration {
-	// jitter factor in [0.5, 1.5)
-	jitter := 0.5 + rand.Float64()
-	return time.Duration(float64(b.current) * jitter)
+	return time.Duration(float64(b.current) * (0.5 + rand.Float64()))
 }
 
-// increment doubles the backoff delay, capping at maxBackoff.
 func (b *backoff) increment() {
-	b.current *= backoffMultiplier
-	if b.current > maxBackoff {
-		b.current = maxBackoff
-	}
-}
-
-// reset returns the backoff to its initial state after a successful connection.
-func (b *backoff) reset() {
-	b.current = initialBackoff
+	b.current = min(b.current*backoffMultiplier, maxBackoff)
 }
 
 // connectWithBackoff attempts to dial the target TCP address with exponential
@@ -69,8 +49,7 @@ func connectWithBackoff(ctx context.Context, target string, b *backoff) (net.Con
 	for {
 		conn, err := net.DialTimeout("tcp", target, dialTimeout)
 		if err == nil {
-			// Connection succeeded -- reset backoff for next failure cycle.
-			b.reset()
+			b.current = initialBackoff
 			return conn, nil
 		}
 

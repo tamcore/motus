@@ -1,15 +1,16 @@
 package main
 
 import (
+	"cmp"
 	"context"
-	"crypto/rand"
 	"fmt"
 	"log/slog"
 	"os"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/spf13/cobra"
 	"github.com/tamcore/motus/internal/model"
 	"github.com/tamcore/motus/internal/storage/repository"
@@ -46,34 +47,27 @@ func newUserAddCmd() *cobra.Command {
 				os.Exit(1)
 			}
 
-			pool, err := connectDBFn()
-			if err != nil {
-				fatal("database connection failed", slog.Any("error", err))
-			}
-			defer pool.Close()
-
-			hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-			if err != nil {
-				fatal("failed to hash password", slog.Any("error", err))
-			}
-
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
-
-			var userID int64
-			err = pool.QueryRow(ctx, `
-				INSERT INTO users (email, name, password_hash, role, created_at)
-				VALUES ($1, $2, $3, $4, NOW())
-				RETURNING id
-			`, email, name, string(hash), role).Scan(&userID)
-			if err != nil {
-				if strings.Contains(err.Error(), "duplicate key") {
-					fatal("user already exists", slog.String("email", email))
+			withDB(func(ctx context.Context, pool *pgxpool.Pool) {
+				hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+				if err != nil {
+					fatal("failed to hash password", slog.Any("error", err))
 				}
-				fatal("failed to create user", slog.Any("error", err))
-			}
 
-			fmt.Printf("Created user: id=%d, email=%s, name=%s, role=%s\n", userID, email, name, role)
+				var userID int64
+				err = pool.QueryRow(ctx, `
+					INSERT INTO users (email, name, password_hash, role, created_at)
+					VALUES ($1, $2, $3, $4, NOW())
+					RETURNING id
+				`, email, name, string(hash), role).Scan(&userID)
+				if err != nil {
+					if strings.Contains(err.Error(), "duplicate key") {
+						fatal("user already exists", slog.String("email", email))
+					}
+					fatal("failed to create user", slog.Any("error", err))
+				}
+
+				fmt.Printf("Created user: id=%d, email=%s, name=%s, role=%s\n", userID, email, name, role)
+			})
 		},
 	}
 
@@ -96,39 +90,29 @@ func newUserListCmd() *cobra.Command {
 		Use:   "list",
 		Short: "List all users",
 		Run: func(cmd *cobra.Command, args []string) {
-			pool, err := connectDBFn()
-			if err != nil {
-				fatal("database connection failed", slog.Any("error", err))
-			}
-			defer pool.Close()
+			withDB(func(ctx context.Context, pool *pgxpool.Pool) {
+				users, err := repository.NewUserRepository(pool).ListAll(ctx)
+				if err != nil {
+					fatal("failed to list users", slog.Any("error", err))
+				}
 
-			userRepo := repository.NewUserRepository(pool)
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
-
-			users, err := userRepo.ListAll(ctx)
-			if err != nil {
-				fatal("failed to list users", slog.Any("error", err))
-			}
-
-			if len(users) == 0 {
-				fmt.Println("No users found.")
-				return
-			}
-
-			if filter != "" {
-				users = filterUsers(users, filter)
 				if len(users) == 0 {
-					fmt.Println("No users match the filter.")
+					fmt.Println("No users found.")
 					return
 				}
-			}
 
-			sortUsers(users, sortField)
+				if filter != "" {
+					users = filterUsers(users, filter)
+					if len(users) == 0 {
+						fmt.Println("No users match the filter.")
+						return
+					}
+				}
 
-			switch output {
-			case "json":
+				sortUsers(users, sortField)
+
 				items := make([]map[string]any, len(users))
+				rows := make([][]string, len(users))
 				for i, u := range users {
 					items[i] = map[string]any{
 						"id":        u.ID,
@@ -137,27 +121,17 @@ func newUserListCmd() *cobra.Command {
 						"role":      u.Role,
 						"createdAt": u.CreatedAt.Format(time.RFC3339),
 					}
-				}
-				printJSON(items)
-			case "csv":
-				headers := []string{"ID", "Email", "Name", "Role", "Created"}
-				rows := make([][]string, len(users))
-				for i, u := range users {
 					rows[i] = []string{
 						fmt.Sprint(u.ID), u.Email, u.Name, u.Role,
 						u.CreatedAt.Format("2006-01-02"),
 					}
 				}
-				printCSV(headers, rows)
-			default:
-				tw := NewTableWriter(os.Stdout)
-				tw.WriteHeader("ID", "EMAIL", "NAME", "ROLE", "CREATED")
-				for _, u := range users {
-					tw.WriteRow(fmt.Sprint(u.ID), u.Email, u.Name, u.Role,
-						u.CreatedAt.Format("2006-01-02"))
+				headers := []string{"ID", "EMAIL", "NAME", "ROLE", "CREATED"}
+				if output == "csv" {
+					headers = []string{"ID", "Email", "Name", "Role", "Created"}
 				}
-				tw.Flush()
-			}
+				render(output, items, headers, rows)
+			})
 		},
 	}
 
@@ -176,25 +150,18 @@ func newUserDeleteCmd() *cobra.Command {
 		Use:   "delete",
 		Short: "Delete a user by email",
 		Run: func(cmd *cobra.Command, args []string) {
-			pool, err := connectDBFn()
-			if err != nil {
-				fatal("database connection failed", slog.Any("error", err))
-			}
-			defer pool.Close()
+			withDB(func(ctx context.Context, pool *pgxpool.Pool) {
+				tag, err := pool.Exec(ctx, `DELETE FROM users WHERE email = $1`, email)
+				if err != nil {
+					fatal("failed to delete user", slog.Any("error", err))
+				}
+				if tag.RowsAffected() == 0 {
+					fmt.Fprintf(os.Stderr, "No user found with email %q\n", email)
+					os.Exit(1)
+				}
 
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
-
-			tag, err := pool.Exec(ctx, `DELETE FROM users WHERE email = $1`, email)
-			if err != nil {
-				fatal("failed to delete user", slog.Any("error", err))
-			}
-			if tag.RowsAffected() == 0 {
-				fmt.Fprintf(os.Stderr, "No user found with email %q\n", email)
-				os.Exit(1)
-			}
-
-			fmt.Printf("Deleted user: %s\n", email)
+				fmt.Printf("Deleted user: %s\n", email)
+			})
 		},
 	}
 
@@ -232,36 +199,29 @@ func newUserUpdateCmd() *cobra.Command {
 				os.Exit(1)
 			}
 
-			pool, err := connectDBFn()
-			if err != nil {
-				fatal("database connection failed", slog.Any("error", err))
-			}
-			defer pool.Close()
+			withDB(func(ctx context.Context, pool *pgxpool.Pool) {
+				userRepo := repository.NewUserRepository(pool)
+				u, err := userRepo.GetByEmail(ctx, email)
+				if err != nil {
+					fatal("user not found", slog.String("email", email))
+				}
 
-			userRepo := repository.NewUserRepository(pool)
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
+				if newEmail != "" {
+					u.Email = newEmail
+				}
+				if name != "" {
+					u.Name = name
+				}
+				if role != "" {
+					u.Role = role
+				}
 
-			u, err := userRepo.GetByEmail(ctx, email)
-			if err != nil {
-				fatal("user not found", slog.String("email", email))
-			}
+				if err := userRepo.Update(ctx, u); err != nil {
+					fatal("failed to update user", slog.Any("error", err))
+				}
 
-			if newEmail != "" {
-				u.Email = newEmail
-			}
-			if name != "" {
-				u.Name = name
-			}
-			if role != "" {
-				u.Role = role
-			}
-
-			if err := userRepo.Update(ctx, u); err != nil {
-				fatal("failed to update user", slog.Any("error", err))
-			}
-
-			fmt.Printf("Updated user: id=%d, email=%s, name=%s, role=%s\n", u.ID, u.Email, u.Name, u.Role)
+				fmt.Printf("Updated user: id=%d, email=%s, name=%s, role=%s\n", u.ID, u.Email, u.Name, u.Role)
+			})
 		},
 	}
 
@@ -287,31 +247,24 @@ func newUserSetPasswordCmd() *cobra.Command {
 				os.Exit(1)
 			}
 
-			pool, err := connectDBFn()
-			if err != nil {
-				fatal("database connection failed", slog.Any("error", err))
-			}
-			defer pool.Close()
+			withDB(func(ctx context.Context, pool *pgxpool.Pool) {
+				userRepo := repository.NewUserRepository(pool)
+				u, err := userRepo.GetByEmail(ctx, email)
+				if err != nil {
+					fatal("user not found", slog.String("email", email))
+				}
 
-			userRepo := repository.NewUserRepository(pool)
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
+				hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+				if err != nil {
+					fatal("failed to hash password", slog.Any("error", err))
+				}
 
-			u, err := userRepo.GetByEmail(ctx, email)
-			if err != nil {
-				fatal("user not found", slog.String("email", email))
-			}
+				if err := userRepo.UpdatePassword(ctx, u.ID, string(hash)); err != nil {
+					fatal("failed to update password", slog.Any("error", err))
+				}
 
-			hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-			if err != nil {
-				fatal("failed to hash password", slog.Any("error", err))
-			}
-
-			if err := userRepo.UpdatePassword(ctx, u.ID, string(hash)); err != nil {
-				fatal("failed to update password", slog.Any("error", err))
-			}
-
-			fmt.Printf("Password reset for %s\n", email)
+				fmt.Printf("Password reset for %s\n", email)
+			})
 		},
 	}
 
@@ -360,27 +313,14 @@ func filterUsers(users []*model.User, filter string) []*model.User {
 func sortUsers(users []*model.User, field string) {
 	switch strings.ToLower(field) {
 	case "email":
-		sort.Slice(users, func(i, j int) bool { return users[i].Email < users[j].Email })
+		slices.SortFunc(users, func(a, b *model.User) int { return cmp.Compare(a.Email, b.Email) })
 	case "name":
-		sort.Slice(users, func(i, j int) bool { return users[i].Name < users[j].Name })
+		slices.SortFunc(users, func(a, b *model.User) int { return cmp.Compare(a.Name, b.Name) })
 	case "role":
-		sort.Slice(users, func(i, j int) bool { return users[i].Role < users[j].Role })
+		slices.SortFunc(users, func(a, b *model.User) int { return cmp.Compare(a.Role, b.Role) })
 	case "created":
-		sort.Slice(users, func(i, j int) bool { return users[i].CreatedAt.Before(users[j].CreatedAt) })
-	default: // "id" or unrecognized
-		sort.Slice(users, func(i, j int) bool { return users[i].ID < users[j].ID })
+		slices.SortFunc(users, func(a, b *model.User) int { return a.CreatedAt.Compare(b.CreatedAt) })
+	default:
+		slices.SortFunc(users, func(a, b *model.User) int { return cmp.Compare(a.ID, b.ID) })
 	}
-}
-
-// generatePassword creates a cryptographically random alphanumeric password.
-func generatePassword(length int) (string, error) {
-	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	b := make([]byte, length)
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
-	for i := range b {
-		b[i] = chars[int(b[i])%len(chars)]
-	}
-	return string(b), nil
 }

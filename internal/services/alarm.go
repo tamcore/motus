@@ -5,7 +5,6 @@ import (
 	"log/slog"
 
 	"github.com/tamcore/motus/internal/model"
-	"github.com/tamcore/motus/internal/storage/repository"
 	"github.com/tamcore/motus/internal/websocket"
 )
 
@@ -15,31 +14,17 @@ import (
 // (ignition, motion), alarms fire on every position that reports an active
 // alarm — there is no deduplication, matching Traccar's behaviour.
 type AlarmService struct {
-	eventRepo           repository.EventRepo
-	hub                 *websocket.Hub
-	notificationService *NotificationService
-	logger              *slog.Logger
+	eventEmitter
 }
 
 // NewAlarmService creates a new alarm detection service.
 func NewAlarmService(
-	eventRepo repository.EventRepo,
+	eventRepo eventStore,
 	hub *websocket.Hub,
 	notificationService *NotificationService,
+	logger *slog.Logger,
 ) *AlarmService {
-	return &AlarmService{
-		eventRepo:           eventRepo,
-		hub:                 hub,
-		notificationService: notificationService,
-		logger:              slog.Default(),
-	}
-}
-
-// SetLogger configures the structured logger for this service.
-func (s *AlarmService) SetLogger(l *slog.Logger) {
-	if l != nil {
-		s.logger = l
-	}
+	return &AlarmService{newEventEmitter(eventRepo, hub, notificationService, logger)}
 }
 
 // CheckAlarm reads the "alarm" attribute written by the H02 decoder and emits
@@ -60,30 +45,10 @@ func (s *AlarmService) CheckAlarm(ctx context.Context, position *model.Position)
 			"alarm": alarmType,
 		},
 	}
-
-	if err := s.eventRepo.Create(ctx, event); err != nil {
-		return err
-	}
-
-	s.logger.Info("alarm event detected",
+	return s.emit(ctx, event, "alarm event detected",
 		slog.Int64("deviceID", position.DeviceID),
 		slog.String("alarm", alarmType),
 	)
-
-	if s.hub != nil {
-		s.hub.BroadcastEvent(event)
-	}
-
-	if s.notificationService != nil {
-		if err := s.notificationService.ProcessEvent(ctx, event); err != nil {
-			s.logger.Error("failed to process notifications for alarm event",
-				slog.Int64("eventID", event.ID),
-				slog.Any("error", err),
-			)
-		}
-	}
-
-	return nil
 }
 
 // alarmFromAttributes extracts the alarm type string from a position's

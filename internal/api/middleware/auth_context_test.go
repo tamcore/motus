@@ -143,7 +143,7 @@ func TestAuth_SessionGoroutine_InheritsRequestContext(t *testing.T) {
 		},
 	}
 
-	mw := middleware.Auth(users, sessions, nil)
+	mw := middleware.LoadAuthContext(users, sessions, nil)
 	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))

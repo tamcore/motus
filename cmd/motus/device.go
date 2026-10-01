@@ -1,14 +1,16 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"log/slog"
 	"os"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/spf13/cobra"
 	"github.com/tamcore/motus/internal/model"
 	"github.com/tamcore/motus/internal/storage/repository"
@@ -36,13 +38,7 @@ const defaultDeviceOwner = "admin@motus.local"
 // to: the --user flag, else MOTUS_DEVICE_AUTO_CREATE_USER (the owner of
 // auto-created GPS devices), else admin@motus.local.
 func deviceOwnerEmail(flag string) string {
-	if flag != "" {
-		return flag
-	}
-	if env := os.Getenv("MOTUS_DEVICE_AUTO_CREATE_USER"); env != "" {
-		return env
-	}
-	return defaultDeviceOwner
+	return cmp.Or(flag, os.Getenv("MOTUS_DEVICE_AUTO_CREATE_USER"), defaultDeviceOwner)
 }
 
 func newDeviceAddCmd() *cobra.Command {
@@ -54,38 +50,31 @@ func newDeviceAddCmd() *cobra.Command {
 		Long: "Register a new device and assign it to a user. Devices are only " +
 			"visible in the UI to the users they are assigned to.",
 		Run: func(cmd *cobra.Command, args []string) {
-			pool, err := connectDBFn()
-			if err != nil {
-				fatal("database connection failed", slog.Any("error", err))
-			}
-			defer pool.Close()
-
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
-
-			owner := deviceOwnerEmail(userEmail)
-			user, err := repository.NewUserRepository(pool).GetByEmail(ctx, owner)
-			if err != nil {
-				fatalFn("user not found; pass --user with an existing user's email",
-					slog.String("user", owner), slog.Any("error", err))
-				return
-			}
-
-			device := &model.Device{
-				UniqueID: uniqueID,
-				Name:     name,
-				Protocol: protocol,
-				Status:   "offline",
-			}
-			if err := repository.NewDeviceRepository(pool).Create(ctx, device, user.ID); err != nil {
-				if strings.Contains(err.Error(), "duplicate key") {
-					fatal("device already exists", slog.String("uniqueID", uniqueID))
+			withDB(func(ctx context.Context, pool *pgxpool.Pool) {
+				owner := deviceOwnerEmail(userEmail)
+				user, err := repository.NewUserRepository(pool).GetByEmail(ctx, owner)
+				if err != nil {
+					fatalFn("user not found; pass --user with an existing user's email",
+						slog.String("user", owner), slog.Any("error", err))
+					return
 				}
-				fatal("failed to create device", slog.Any("error", err))
-			}
 
-			fmt.Printf("Created device: id=%d, unique_id=%s, name=%s, protocol=%s, owner=%s\n",
-				device.ID, uniqueID, name, protocol, user.Email)
+				device := &model.Device{
+					UniqueID: uniqueID,
+					Name:     name,
+					Protocol: protocol,
+					Status:   "offline",
+				}
+				if err := repository.NewDeviceRepository(pool).Create(ctx, device, user.ID); err != nil {
+					if strings.Contains(err.Error(), "duplicate key") {
+						fatal("device already exists", slog.String("uniqueID", uniqueID))
+					}
+					fatal("failed to create device", slog.Any("error", err))
+				}
+
+				fmt.Printf("Created device: id=%d, unique_id=%s, name=%s, protocol=%s, owner=%s\n",
+					device.ID, uniqueID, name, protocol, user.Email)
+			})
 		},
 	}
 
@@ -108,39 +97,30 @@ func newDeviceListCmd() *cobra.Command {
 		Use:   "list",
 		Short: "List all devices",
 		Run: func(cmd *cobra.Command, args []string) {
-			pool, err := connectDBFn()
-			if err != nil {
-				fatal("database connection failed", slog.Any("error", err))
-			}
-			defer pool.Close()
+			withDB(func(ctx context.Context, pool *pgxpool.Pool) {
+				devices, err := repository.NewDeviceRepository(pool).GetAll(ctx)
+				if err != nil {
+					fatal("failed to list devices", slog.Any("error", err))
+				}
 
-			deviceRepo := repository.NewDeviceRepository(pool)
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
-
-			devices, err := deviceRepo.GetAll(ctx)
-			if err != nil {
-				fatal("failed to list devices", slog.Any("error", err))
-			}
-
-			if len(devices) == 0 {
-				fmt.Println("No devices found.")
-				return
-			}
-
-			if filter != "" {
-				devices = filterDevices(devices, filter)
 				if len(devices) == 0 {
-					fmt.Println("No devices match the filter.")
+					fmt.Println("No devices found.")
 					return
 				}
-			}
 
-			sortDevices(devices, sortField)
+				if filter != "" {
+					devices = filterDevices(devices, filter)
+					if len(devices) == 0 {
+						fmt.Println("No devices match the filter.")
+						return
+					}
+				}
 
-			switch output {
-			case "json":
+				sortDevices(devices, sortField)
+
+				isCSV := output == "csv"
 				items := make([]map[string]any, len(devices))
+				rows := make([][]string, len(devices))
 				for i, d := range devices {
 					item := map[string]any{
 						"id":       d.ID,
@@ -149,37 +129,26 @@ func newDeviceListCmd() *cobra.Command {
 						"protocol": d.Protocol,
 						"status":   d.Status,
 					}
+					lastUpdate := "-"
+					if isCSV {
+						lastUpdate = ""
+					}
 					if d.LastUpdate != nil {
 						item["lastUpdate"] = d.LastUpdate.Format(time.RFC3339)
+						lastUpdate = d.LastUpdate.Format("2006-01-02 15:04")
+						if isCSV {
+							lastUpdate = d.LastUpdate.Format("2006-01-02 15:04:05")
+						}
 					}
 					items[i] = item
+					rows[i] = []string{fmt.Sprint(d.ID), d.UniqueID, d.Name, d.Protocol, d.Status, lastUpdate}
 				}
-				printJSON(items)
-			case "csv":
-				headers := []string{"ID", "UniqueID", "Name", "Protocol", "Status", "LastUpdate"}
-				rows := make([][]string, len(devices))
-				for i, d := range devices {
-					lastUpdate := ""
-					if d.LastUpdate != nil {
-						lastUpdate = d.LastUpdate.Format("2006-01-02 15:04:05")
-					}
-					rows[i] = []string{
-						fmt.Sprint(d.ID), d.UniqueID, d.Name, d.Protocol, d.Status, lastUpdate,
-					}
+				headers := []string{"ID", "UNIQUE ID", "NAME", "PROTOCOL", "STATUS", "LAST UPDATE"}
+				if isCSV {
+					headers = []string{"ID", "UniqueID", "Name", "Protocol", "Status", "LastUpdate"}
 				}
-				printCSV(headers, rows)
-			default:
-				tw := NewTableWriter(os.Stdout)
-				tw.WriteHeader("ID", "UNIQUE ID", "NAME", "PROTOCOL", "STATUS", "LAST UPDATE")
-				for _, d := range devices {
-					lastUpdate := "-"
-					if d.LastUpdate != nil {
-						lastUpdate = d.LastUpdate.Format("2006-01-02 15:04")
-					}
-					tw.WriteRow(fmt.Sprint(d.ID), d.UniqueID, d.Name, d.Protocol, d.Status, lastUpdate)
-				}
-				tw.Flush()
-			}
+				render(output, items, headers, rows)
+			})
 		},
 	}
 
@@ -198,23 +167,16 @@ func newDeviceDeleteCmd() *cobra.Command {
 		Use:   "delete",
 		Short: "Delete a device by unique ID",
 		Run: func(cmd *cobra.Command, args []string) {
-			pool, err := connectDBFn()
-			if err != nil {
-				fatal("database connection failed", slog.Any("error", err))
-			}
-			defer pool.Close()
-
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
-
-			tag, err := pool.Exec(ctx, `DELETE FROM devices WHERE unique_id = $1`, uniqueID)
-			if err != nil {
-				fatal("failed to delete device", slog.Any("error", err))
-			}
-			if tag.RowsAffected() == 0 {
-				fmt.Fprintf(os.Stderr, "No device found with unique_id %q\n", uniqueID)
-				os.Exit(1)
-			}
+			withDB(func(ctx context.Context, pool *pgxpool.Pool) {
+				tag, err := pool.Exec(ctx, `DELETE FROM devices WHERE unique_id = $1`, uniqueID)
+				if err != nil {
+					fatal("failed to delete device", slog.Any("error", err))
+				}
+				if tag.RowsAffected() == 0 {
+					fmt.Fprintf(os.Stderr, "No device found with unique_id %q\n", uniqueID)
+					os.Exit(1)
+				}
+			})
 
 			fmt.Printf("Deleted device: %s\n", uniqueID)
 		},
@@ -244,43 +206,36 @@ func newDeviceUpdateCmd() *cobra.Command {
 				os.Exit(1)
 			}
 
-			pool, err := connectDBFn()
-			if err != nil {
-				fatal("database connection failed", slog.Any("error", err))
-			}
-			defer pool.Close()
+			withDB(func(ctx context.Context, pool *pgxpool.Pool) {
+				deviceRepo := repository.NewDeviceRepository(pool)
+				d, err := deviceRepo.GetByUniqueID(ctx, uniqueID)
+				if err != nil {
+					fatal("device not found", slog.String("uniqueID", uniqueID))
+				}
 
-			deviceRepo := repository.NewDeviceRepository(pool)
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
+				if name != "" {
+					d.Name = name
+				}
+				if protocol != "" {
+					d.Protocol = protocol
+				}
+				if clearSpeedLimit {
+					d.SpeedLimit = nil
+				} else if speedLimit > 0 {
+					d.SpeedLimit = &speedLimit
+				}
 
-			d, err := deviceRepo.GetByUniqueID(ctx, uniqueID)
-			if err != nil {
-				fatal("device not found", slog.String("uniqueID", uniqueID))
-			}
+				if err := deviceRepo.Update(ctx, d); err != nil {
+					fatal("failed to update device", slog.Any("error", err))
+				}
 
-			if name != "" {
-				d.Name = name
-			}
-			if protocol != "" {
-				d.Protocol = protocol
-			}
-			if clearSpeedLimit {
-				d.SpeedLimit = nil
-			} else if speedLimit > 0 {
-				d.SpeedLimit = &speedLimit
-			}
-
-			if err := deviceRepo.Update(ctx, d); err != nil {
-				fatal("failed to update device", slog.Any("error", err))
-			}
-
-			speedStr := "-"
-			if d.SpeedLimit != nil {
-				speedStr = fmt.Sprintf("%.1f km/h", *d.SpeedLimit)
-			}
-			fmt.Printf("Updated device: id=%d, unique_id=%s, name=%s, protocol=%s, speed_limit=%s\n",
-				d.ID, d.UniqueID, d.Name, d.Protocol, speedStr)
+				speedStr := "-"
+				if d.SpeedLimit != nil {
+					speedStr = fmt.Sprintf("%.1f km/h", *d.SpeedLimit)
+				}
+				fmt.Printf("Updated device: id=%d, unique_id=%s, name=%s, protocol=%s, speed_limit=%s\n",
+					d.ID, d.UniqueID, d.Name, d.Protocol, speedStr)
+			})
 		},
 	}
 
@@ -336,14 +291,14 @@ func filterDevices(devices []model.Device, filter string) []model.Device {
 func sortDevices(devices []model.Device, field string) {
 	switch strings.ToLower(field) {
 	case "name":
-		sort.Slice(devices, func(i, j int) bool { return devices[i].Name < devices[j].Name })
+		slices.SortFunc(devices, func(a, b model.Device) int { return cmp.Compare(a.Name, b.Name) })
 	case "unique-id", "uniqueid":
-		sort.Slice(devices, func(i, j int) bool { return devices[i].UniqueID < devices[j].UniqueID })
+		slices.SortFunc(devices, func(a, b model.Device) int { return cmp.Compare(a.UniqueID, b.UniqueID) })
 	case "status":
-		sort.Slice(devices, func(i, j int) bool { return devices[i].Status < devices[j].Status })
+		slices.SortFunc(devices, func(a, b model.Device) int { return cmp.Compare(a.Status, b.Status) })
 	case "protocol":
-		sort.Slice(devices, func(i, j int) bool { return devices[i].Protocol < devices[j].Protocol })
-	default: // "id" or unrecognized
-		sort.Slice(devices, func(i, j int) bool { return devices[i].ID < devices[j].ID })
+		slices.SortFunc(devices, func(a, b model.Device) int { return cmp.Compare(a.Protocol, b.Protocol) })
+	default:
+		slices.SortFunc(devices, func(a, b model.Device) int { return cmp.Compare(a.ID, b.ID) })
 	}
 }

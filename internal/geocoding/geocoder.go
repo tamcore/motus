@@ -4,6 +4,7 @@
 package geocoding
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -49,6 +50,9 @@ type NominatimConfig struct {
 	// UserAgent is sent as the User-Agent header (required by OSM).
 	// Default: "Motus GPS Tracker (https://github.com/tamcore/motus)"
 	UserAgent string
+
+	// Logger receives geocoder logs. Default: slog.Default()
+	Logger *slog.Logger
 }
 
 // nominatimResponse is the JSON structure returned by Nominatim /reverse.
@@ -88,14 +92,7 @@ func NewNominatimGeocoder(cfg NominatimConfig) *NominatimGeocoder {
 		},
 		limiter:   rate.NewLimiter(rate.Limit(cfg.RateLimit), 1),
 		userAgent: cfg.UserAgent,
-		logger:    slog.Default(),
-	}
-}
-
-// SetLogger configures the structured logger for the geocoder.
-func (g *NominatimGeocoder) SetLogger(l *slog.Logger) {
-	if l != nil {
-		g.logger = l
+		logger:    cmp.Or(cfg.Logger, slog.Default()),
 	}
 }
 

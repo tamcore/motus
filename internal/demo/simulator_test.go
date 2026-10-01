@@ -416,3 +416,21 @@ func containsSubstr(s, substr string) bool {
 	}
 	return false
 }
+
+func TestRouteProgress_FinishDirection(t *testing.T) {
+	p := &routeProgress{pointIndex: 100}
+
+	p.finishDirection()
+	if p.direction != directionReverse || p.pointIndex != 0 || p.loopCount != 0 {
+		t.Fatalf("after forward: %+v", *p)
+	}
+
+	p.pointIndex = 50
+	p.finishDirection()
+	if p.direction != directionForward || p.pointIndex != 0 || p.loopCount != 1 {
+		t.Fatalf("after reverse: %+v", *p)
+	}
+	if directionForward.String() != "forward" || directionReverse.String() != "reverse" {
+		t.Fatal("direction labels")
+	}
+}

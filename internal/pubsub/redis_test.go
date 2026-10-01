@@ -79,6 +79,16 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
+func newRedisPubSub(t *testing.T, url, channel string) (*pubsub.RedisPubSub, error) {
+	t.Helper()
+	client, err := pubsub.NewRedisClient(url)
+	if err != nil {
+		return nil, err
+	}
+	t.Cleanup(func() { _ = client.Close() })
+	return pubsub.NewRedisPubSubFromClient(client, channel)
+}
+
 func TestNewRedisClient_InvalidURL(t *testing.T) {
 	_, err := pubsub.NewRedisClient("not-a-valid-url")
 	if err == nil {
@@ -118,35 +128,10 @@ func TestNewRedisPubSubFromClient_Success(t *testing.T) {
 	defer func() { _ = ps.Close() }()
 }
 
-func TestNewRedisPubSub_InvalidURL(t *testing.T) {
-	_, err := pubsub.NewRedisPubSub("not-a-valid-url", "test-channel")
-	if err == nil {
-		t.Fatal("expected error for invalid Redis URL")
-	}
-}
-
-func TestNewRedisPubSub_UnreachableRedis(t *testing.T) {
-	// Valid URL format but no Redis server running there.
-	_, err := pubsub.NewRedisPubSub("redis://127.0.0.1:59999", "test-channel")
-	if err == nil {
-		t.Fatal("expected error for unreachable Redis")
-	}
-}
-
-func TestNewRedisPubSub_Success(t *testing.T) {
-	url := setupRedis(t)
-
-	ps, err := pubsub.NewRedisPubSub(url, "test-channel")
-	if err != nil {
-		t.Fatalf("failed to create RedisPubSub: %v", err)
-	}
-	defer func() { _ = ps.Close() }()
-}
-
 func TestRedisPublishSubscribe(t *testing.T) {
 	url := setupRedis(t)
 
-	ps, err := pubsub.NewRedisPubSub(url, "test-pubsub")
+	ps, err := newRedisPubSub(t, url, "test-pubsub")
 	if err != nil {
 		t.Fatalf("create pubsub: %v", err)
 	}
@@ -191,7 +176,7 @@ func TestRedisPublishSubscribe(t *testing.T) {
 func TestRedisPublishSubscribe_MultipleMessages(t *testing.T) {
 	url := setupRedis(t)
 
-	ps, err := pubsub.NewRedisPubSub(url, "test-multi-msg")
+	ps, err := newRedisPubSub(t, url, "test-multi-msg")
 	if err != nil {
 		t.Fatalf("create pubsub: %v", err)
 	}
@@ -236,7 +221,7 @@ func TestRedisPublishSubscribe_MultipleMessages(t *testing.T) {
 func TestRedisPublishSubscribe_JSONSerialisation(t *testing.T) {
 	url := setupRedis(t)
 
-	ps, err := pubsub.NewRedisPubSub(url, "test-json")
+	ps, err := newRedisPubSub(t, url, "test-json")
 	if err != nil {
 		t.Fatalf("create pubsub: %v", err)
 	}
@@ -298,7 +283,7 @@ func TestRedisPublishSubscribe_JSONSerialisation(t *testing.T) {
 func TestRedisPublish_MarshalError(t *testing.T) {
 	url := setupRedis(t)
 
-	ps, err := pubsub.NewRedisPubSub(url, "test-marshal-err")
+	ps, err := newRedisPubSub(t, url, "test-marshal-err")
 	if err != nil {
 		t.Fatalf("create pubsub: %v", err)
 	}
@@ -314,7 +299,7 @@ func TestRedisPublish_MarshalError(t *testing.T) {
 func TestRedisSubscribe_ContextCancellation(t *testing.T) {
 	url := setupRedis(t)
 
-	ps, err := pubsub.NewRedisPubSub(url, "test-ctx-cancel")
+	ps, err := newRedisPubSub(t, url, "test-ctx-cancel")
 	if err != nil {
 		t.Fatalf("create pubsub: %v", err)
 	}
@@ -358,13 +343,13 @@ func TestMultipleSubscribers(t *testing.T) {
 	url := setupRedis(t)
 
 	// Two separate PubSub instances on the same channel simulate two pods.
-	ps1, err := pubsub.NewRedisPubSub(url, "test-multi-sub")
+	ps1, err := newRedisPubSub(t, url, "test-multi-sub")
 	if err != nil {
 		t.Fatalf("create ps1: %v", err)
 	}
 	defer func() { _ = ps1.Close() }()
 
-	ps2, err := pubsub.NewRedisPubSub(url, "test-multi-sub")
+	ps2, err := newRedisPubSub(t, url, "test-multi-sub")
 	if err != nil {
 		t.Fatalf("create ps2: %v", err)
 	}
@@ -427,7 +412,7 @@ func TestMultipleSubscribers(t *testing.T) {
 func TestRedisClose(t *testing.T) {
 	url := setupRedis(t)
 
-	ps, err := pubsub.NewRedisPubSub(url, "test-close")
+	ps, err := newRedisPubSub(t, url, "test-close")
 	if err != nil {
 		t.Fatalf("create pubsub: %v", err)
 	}
@@ -449,7 +434,7 @@ func TestRedisClose(t *testing.T) {
 func TestRedisClose_WithoutSubscribe(t *testing.T) {
 	url := setupRedis(t)
 
-	ps, err := pubsub.NewRedisPubSub(url, "test-close-nosub")
+	ps, err := newRedisPubSub(t, url, "test-close-nosub")
 	if err != nil {
 		t.Fatalf("create pubsub: %v", err)
 	}
@@ -457,22 +442,5 @@ func TestRedisClose_WithoutSubscribe(t *testing.T) {
 	// Close without having subscribed (r.sub is nil).
 	if err := ps.Close(); err != nil {
 		t.Errorf("close error: %v", err)
-	}
-}
-
-func TestRedisPublish_AfterClose(t *testing.T) {
-	url := setupRedis(t)
-
-	ps, err := pubsub.NewRedisPubSub(url, "test-publish-closed")
-	if err != nil {
-		t.Fatalf("create pubsub: %v", err)
-	}
-
-	_ = ps.Close()
-
-	// Publishing after close should return an error.
-	err = ps.Publish(context.Background(), "test")
-	if err == nil {
-		t.Fatal("expected error when publishing after close")
 	}
 }

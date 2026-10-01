@@ -386,7 +386,7 @@ func TestOsmAndServer_StartAndShutdown(t *testing.T) {
 	_ = ln.Close()
 
 	env := newOsmAndTestEnv(t)
-	env.srv = NewOsmAndServer(port, env.devices, env.srv.core.handler)
+	env.srv = NewOsmAndServer(port, env.devices, env.srv.handler)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)

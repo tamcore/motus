@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/tamcore/motus/internal/geo"
+	"github.com/tamcore/motus/internal/geocoding"
 	"github.com/tamcore/motus/internal/metrics"
 	"github.com/tamcore/motus/internal/model"
 	"github.com/tamcore/motus/internal/storage/repository"
@@ -40,7 +41,8 @@ type MileageChecker interface {
 // is handled separately by the idle service for stopped positions.
 type AddressLookup interface {
 	Peek(lat, lon float64) (string, bool)
-	Prefetch(lat, lon float64)
+	Prefetch(key int64, lat, lon float64)
+	Resolved(key int64) (geocoding.Resolved, bool)
 }
 
 const (
@@ -50,23 +52,12 @@ const (
 	// addressStaleMeters bounds how far a device may be from its last address
 	// while a fresher lookup is pending.
 	addressStaleMeters = 1000.0
-	// addressRetryAfter re-queues a pending lookup that was dropped or failed.
-	addressRetryAfter = 30 * time.Second
 )
 
-type geoPoint struct{ lat, lon float64 }
-
 type deviceAddress struct {
-	known      geoPoint
-	address    string
-	hasAddress bool
-	pending    geoPoint
-	pendingAt  time.Time
-	hasPending bool
-}
-
-func (d *deviceAddress) within(p geoPoint, meters float64) bool {
-	return d.hasAddress && geo.HaversineDistance(d.known.lat, d.known.lon, p.lat, p.lon)*1000 < meters
+	lat, lon float64
+	address  string
+	at       time.Time
 }
 
 // PositionHandler processes incoming GPS positions from protocol decoders.
@@ -79,7 +70,7 @@ type PositionHandler struct {
 	mileage        MileageChecker
 	addressLookup  AddressLookup
 	addressMu      sync.Mutex
-	addresses      map[int64]*deviceAddress
+	addresses      map[int64]deviceAddress
 	logger         *slog.Logger
 }
 
@@ -95,7 +86,7 @@ func NewPositionHandler(
 		devices:        devices,
 		hub:            hub,
 		geofenceEvents: geofenceEvents,
-		addresses:      make(map[int64]*deviceAddress),
+		addresses:      make(map[int64]deviceAddress),
 		logger:         slog.Default(),
 	}
 }
@@ -170,34 +161,28 @@ func (h *PositionHandler) LastPosition(ctx context.Context, deviceID int64) *mod
 }
 
 // address returns the live address for pos without blocking: the device's
-// last address when close enough, else a cached one. A miss queues one
-// background lookup per device whose result the device picks up on a later fix.
+// last address when close enough, else a cached one. A miss requests a
+// background lookup for the device, whose result a later fix picks up.
 func (h *PositionHandler) address(pos *model.Position) *string {
 	h.addressMu.Lock()
 	defer h.addressMu.Unlock()
-	d := h.addresses[pos.DeviceID]
-	if d == nil {
-		d = &deviceAddress{}
+	d, known := h.addresses[pos.DeviceID]
+	if r, ok := h.addressLookup.Resolved(pos.DeviceID); ok && (!known || r.RequestedAt.After(d.at)) {
+		d, known = deviceAddress{r.Lat, r.Lon, r.Address, r.RequestedAt}, true
 		h.addresses[pos.DeviceID] = d
 	}
-	if d.hasPending {
-		if addr, ok := h.addressLookup.Peek(d.pending.lat, d.pending.lon); ok {
-			d.known, d.address, d.hasAddress, d.hasPending = d.pending, addr, true, false
-		}
+	distance := func() float64 {
+		return geo.HaversineDistance(d.lat, d.lon, pos.Latitude, pos.Longitude) * 1000
 	}
-	p := geoPoint{pos.Latitude, pos.Longitude}
-	if d.within(p, addressReuseMeters) {
+	if known && distance() < addressReuseMeters {
 		return new(d.address)
 	}
-	if addr, ok := h.addressLookup.Peek(p.lat, p.lon); ok {
-		d.known, d.address, d.hasAddress, d.hasPending = p, addr, true, false
-		return new(d.address)
+	if addr, ok := h.addressLookup.Peek(pos.Latitude, pos.Longitude); ok {
+		h.addresses[pos.DeviceID] = deviceAddress{pos.Latitude, pos.Longitude, addr, time.Now()}
+		return new(addr)
 	}
-	if now := time.Now(); !d.hasPending || now.Sub(d.pendingAt) > addressRetryAfter {
-		h.addressLookup.Prefetch(p.lat, p.lon)
-		d.pending, d.pendingAt, d.hasPending = p, now, true
-	}
-	if d.within(p, addressStaleMeters) {
+	h.addressLookup.Prefetch(pos.DeviceID, pos.Latitude, pos.Longitude)
+	if known && distance() < addressStaleMeters {
 		return new(d.address)
 	}
 	return nil

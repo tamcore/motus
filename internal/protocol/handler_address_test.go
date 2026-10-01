@@ -2,28 +2,38 @@ package protocol
 
 import (
 	"testing"
+	"time"
 
+	"github.com/tamcore/motus/internal/geocoding"
 	"github.com/tamcore/motus/internal/model"
 )
 
+type point struct{ lat, lon float64 }
+
 type fakeAddressLookup struct {
-	cache      map[geoPoint]string
+	cache      map[point]string
+	resolved   map[int64]geocoding.Resolved
 	peeks      int
-	prefetched []geoPoint
+	prefetched map[int64]point
 }
 
 func (f *fakeAddressLookup) Peek(lat, lon float64) (string, bool) {
 	f.peeks++
-	addr, ok := f.cache[geoPoint{lat, lon}]
+	addr, ok := f.cache[point{lat, lon}]
 	return addr, ok
 }
 
-func (f *fakeAddressLookup) Prefetch(lat, lon float64) {
-	f.prefetched = append(f.prefetched, geoPoint{lat, lon})
+func (f *fakeAddressLookup) Prefetch(key int64, lat, lon float64) {
+	f.prefetched[key] = point{lat, lon}
 }
 
-func newAddressHandler(cache map[geoPoint]string) (*PositionHandler, *fakeAddressLookup) {
-	lookup := &fakeAddressLookup{cache: cache}
+func (f *fakeAddressLookup) Resolved(key int64) (geocoding.Resolved, bool) {
+	r, ok := f.resolved[key]
+	return r, ok
+}
+
+func newAddressHandler(cache map[point]string) (*PositionHandler, *fakeAddressLookup) {
+	lookup := &fakeAddressLookup{cache: cache, resolved: map[int64]geocoding.Resolved{}, prefetched: map[int64]point{}}
 	h := NewPositionHandler(nil, nil, nil, nil)
 	h.SetAddressLookup(lookup)
 	return h, lookup
@@ -37,7 +47,7 @@ func addressAt(h *PositionHandler, device int64, lat, lon float64) string {
 }
 
 func TestPositionHandler_AddressCacheHitAndReuse(t *testing.T) {
-	h, lookup := newAddressHandler(map[geoPoint]string{{52.52, 13.405}: "Berlin"})
+	h, lookup := newAddressHandler(map[point]string{{52.52, 13.405}: "Berlin"})
 
 	if got := addressAt(h, 1, 52.52, 13.405); got != "Berlin" {
 		t.Fatalf("cache hit = %q, want Berlin", got)
@@ -51,30 +61,37 @@ func TestPositionHandler_AddressCacheHitAndReuse(t *testing.T) {
 	}
 }
 
-func TestPositionHandler_AddressMissQueuesOneLookupPerDevice(t *testing.T) {
-	h, lookup := newAddressHandler(map[geoPoint]string{})
+func TestPositionHandler_AddressMissPrefetchesLatestPoint(t *testing.T) {
+	h, lookup := newAddressHandler(map[point]string{})
 
 	if got := addressAt(h, 1, 48.1, 11.5); got != "<nil>" {
 		t.Errorf("first miss = %q, want <nil>", got)
 	}
 	addressAt(h, 1, 48.11, 11.5)
-	addressAt(h, 1, 48.12, 11.5)
-	if len(lookup.prefetched) != 1 {
-		t.Errorf("prefetched %d, want 1 while a lookup is pending", len(lookup.prefetched))
+	if p := lookup.prefetched[1]; p != (point{48.11, 11.5}) {
+		t.Errorf("prefetched %v, want latest point {48.11 11.5}", p)
 	}
 }
 
-func TestPositionHandler_AddressPicksUpPendingResult(t *testing.T) {
-	cache := map[geoPoint]string{}
-	h, _ := newAddressHandler(cache)
-
+func TestPositionHandler_AddressPicksUpResolvedResult(t *testing.T) {
+	h, lookup := newAddressHandler(map[point]string{})
 	addressAt(h, 1, 48.1, 11.5)
-	cache[geoPoint{48.1, 11.5}] = "Munich"
+	lookup.resolved[1] = geocoding.Resolved{Lat: 48.1, Lon: 11.5, Address: "Munich", RequestedAt: time.Now()}
 
 	if got := addressAt(h, 1, 48.105, 11.5); got != "Munich" {
 		t.Errorf("~550 m on = %q, want stale Munich while refreshing", got)
 	}
 	if got := addressAt(h, 1, 48.2, 11.5); got != "<nil>" {
 		t.Errorf("~11 km on = %q, want <nil> (too stale)", got)
+	}
+}
+
+func TestPositionHandler_AddressIgnoresOlderResolvedResult(t *testing.T) {
+	h, lookup := newAddressHandler(map[point]string{{52.52, 13.405}: "Berlin"})
+	lookup.resolved[1] = geocoding.Resolved{Lat: 52.52, Lon: 13.41, Address: "Old", RequestedAt: time.Now().Add(-time.Minute)}
+
+	addressAt(h, 1, 52.52, 13.405)
+	if got := addressAt(h, 1, 52.5201, 13.405); got != "Berlin" {
+		t.Errorf("after cache hit = %q, want Berlin (older resolved result ignored)", got)
 	}
 }

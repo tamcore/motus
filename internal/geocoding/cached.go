@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/tamcore/motus/internal/metrics"
@@ -21,12 +22,26 @@ type CachedGeocoder struct {
 	geocoder Geocoder
 	cache    *Cache
 	logger   *slog.Logger
-	queue    chan point
+
+	queue   chan int64
+	mu      sync.Mutex
+	pending map[int64]request
+	results map[int64]Resolved
 }
 
-type point struct{ lat, lon float64 }
+type request struct {
+	lat, lon float64
+	at       time.Time
+}
 
-// prefetchQueueSize bounds pending background lookups; Prefetch drops beyond it.
+// Resolved is the latest background lookup result for a Prefetch key.
+type Resolved struct {
+	Lat, Lon    float64
+	Address     string
+	RequestedAt time.Time
+}
+
+// prefetchQueueSize bounds the number of keys waiting for a background lookup.
 const prefetchQueueSize = 256
 
 // NewCachedGeocoder creates a CachedGeocoder wrapping the given geocoder with
@@ -36,7 +51,9 @@ func NewCachedGeocoder(geocoder Geocoder, cacheTTL time.Duration, logger *slog.L
 		geocoder: geocoder,
 		cache:    NewCache(cacheTTL),
 		logger:   cmp.Or(logger, slog.Default()),
-		queue:    make(chan point, prefetchQueueSize),
+		queue:    make(chan int64, prefetchQueueSize),
+		pending:  make(map[int64]request),
+		results:  make(map[int64]Resolved),
 	}
 }
 
@@ -45,14 +62,33 @@ func (cg *CachedGeocoder) Peek(lat, lon float64) (string, bool) {
 	return cg.cache.Get(lat, lon)
 }
 
-// Prefetch queues a background lookup that fills the cache. It never blocks;
-// when the queue is full the request is dropped.
-func (cg *CachedGeocoder) Prefetch(lat, lon float64) {
+// Prefetch requests a background lookup for key (e.g. a device ID) without
+// blocking. Requests coalesce per key: only the latest coordinates are looked
+// up, so a slow geocoder never builds a backlog of outdated points.
+func (cg *CachedGeocoder) Prefetch(key int64, lat, lon float64) {
+	cg.mu.Lock()
+	_, queued := cg.pending[key]
+	cg.pending[key] = request{lat, lon, time.Now()}
+	cg.mu.Unlock()
+	if queued {
+		return
+	}
 	select {
-	case cg.queue <- point{lat, lon}:
+	case cg.queue <- key:
 	default:
+		cg.mu.Lock()
+		delete(cg.pending, key)
+		cg.mu.Unlock()
 		metrics.GeocodingPrefetchDropped.Inc()
 	}
+}
+
+// Resolved returns the latest successful background lookup for key.
+func (cg *CachedGeocoder) Resolved(key int64) (Resolved, bool) {
+	cg.mu.Lock()
+	defer cg.mu.Unlock()
+	r, ok := cg.results[key]
+	return r, ok
 }
 
 // StartPrefetch serves Prefetch requests until ctx is cancelled.
@@ -61,9 +97,15 @@ func (cg *CachedGeocoder) StartPrefetch(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
-		case p := <-cg.queue:
-			if _, ok := cg.cache.Get(p.lat, p.lon); !ok {
-				cg.Lookup(ctx, p.lat, p.lon)
+		case key := <-cg.queue:
+			cg.mu.Lock()
+			req := cg.pending[key]
+			delete(cg.pending, key)
+			cg.mu.Unlock()
+			if addr, ok := cg.lookup(ctx, req.lat, req.lon); ok {
+				cg.mu.Lock()
+				cg.results[key] = Resolved{req.lat, req.lon, addr, req.at}
+				cg.mu.Unlock()
 			}
 		}
 	}
@@ -74,9 +116,13 @@ func (cg *CachedGeocoder) StartPrefetch(ctx context.Context) {
 // result, and returns it. If geocoding fails, the fallback coordinate string
 // is returned but NOT cached (so subsequent requests will retry).
 func (cg *CachedGeocoder) Lookup(ctx context.Context, lat, lon float64) string {
-	// Check cache first.
+	addr, _ := cg.lookup(ctx, lat, lon)
+	return addr
+}
+
+func (cg *CachedGeocoder) lookup(ctx context.Context, lat, lon float64) (string, bool) {
 	if addr, ok := cg.cache.Get(lat, lon); ok {
-		return addr
+		return addr, true
 	}
 
 	// Cache miss: call the geocoder.
@@ -89,12 +135,11 @@ func (cg *CachedGeocoder) Lookup(ctx context.Context, lat, lon float64) string {
 		)
 		// Return the fallback (which ReverseGeocode already provides) but
 		// do NOT cache it so subsequent requests will retry.
-		return coordinateFallback(lat, lon)
+		return coordinateFallback(lat, lon), false
 	}
 
-	// Cache the result.
 	cg.cache.Set(lat, lon, addr)
-	return addr
+	return addr, true
 }
 
 // Cache returns the underlying cache for inspection or cleanup.

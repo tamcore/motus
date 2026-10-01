@@ -2,6 +2,7 @@ package geocoding
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sync/atomic"
@@ -158,33 +159,59 @@ func TestCachedGeocoder_Logger(t *testing.T) {
 	}
 }
 
-func TestCachedGeocoder_PrefetchFillsCache(t *testing.T) {
+func waitResolved(t *testing.T, cg *CachedGeocoder, key int64) Resolved {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		if r, ok := cg.Resolved(key); ok {
+			return r
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("prefetch did not resolve")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}
+
+func TestCachedGeocoder_PrefetchResolvesAndFillsCache(t *testing.T) {
 	mock := &mockGeocoder{response: "Berlin, Germany"}
 	cg := NewCachedGeocoder(mock, time.Minute, nil)
 	go cg.StartPrefetch(t.Context())
 
-	if _, ok := cg.Peek(52.52, 13.405); ok {
-		t.Fatal("Peek hit on empty cache")
+	cg.Prefetch(7, 52.52, 13.405)
+	r := waitResolved(t, cg, 7)
+	if r.Address != "Berlin, Germany" || r.Lat != 52.52 || r.Lon != 13.405 {
+		t.Errorf("Resolved = %+v, want Berlin at 52.52,13.405", r)
 	}
-	cg.Prefetch(52.52, 13.405)
-	cg.Prefetch(52.52, 13.405)
+	if addr, ok := cg.Peek(52.52, 13.405); !ok || addr != "Berlin, Germany" {
+		t.Errorf("Peek = %q,%v, want cached Berlin", addr, ok)
+	}
+}
 
-	deadline := time.Now().Add(2 * time.Second)
-	for {
-		if addr, ok := cg.Peek(52.52, 13.405); ok {
-			if addr != "Berlin, Germany" {
-				t.Errorf("Peek = %q, want Berlin, Germany", addr)
-			}
-			break
-		}
-		if time.Now().After(deadline) {
-			t.Fatal("prefetch did not fill the cache")
-		}
-		time.Sleep(5 * time.Millisecond)
+func TestCachedGeocoder_PrefetchCoalescesPerKey(t *testing.T) {
+	mock := &mockGeocoder{response: "somewhere"}
+	cg := NewCachedGeocoder(mock, time.Minute, nil)
+	for i := range 10 {
+		cg.Prefetch(1, float64(i), 0)
+	}
+	go cg.StartPrefetch(t.Context())
+
+	if r := waitResolved(t, cg, 1); r.Lat != 9 {
+		t.Errorf("resolved lat = %v, want latest 9", r.Lat)
 	}
 	time.Sleep(20 * time.Millisecond)
 	if n := mock.calls.Load(); n != 1 {
-		t.Errorf("geocoder calls = %d, want 1 (duplicate prefetch served from cache)", n)
+		t.Errorf("geocoder calls = %d, want 1 for 10 coalesced requests", n)
+	}
+}
+
+func TestCachedGeocoder_PrefetchSkipsFailedLookups(t *testing.T) {
+	cg := NewCachedGeocoder(&mockGeocoder{err: errors.New("down")}, time.Minute, nil)
+	go cg.StartPrefetch(t.Context())
+	cg.Prefetch(1, 1, 1)
+	time.Sleep(50 * time.Millisecond)
+	if _, ok := cg.Resolved(1); ok {
+		t.Error("failed lookup reported as resolved")
 	}
 }
 
@@ -193,7 +220,7 @@ func TestCachedGeocoder_PrefetchNeverBlocks(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		for i := range prefetchQueueSize * 2 {
-			cg.Prefetch(float64(i), 0)
+			cg.Prefetch(int64(i), float64(i), 0)
 		}
 		close(done)
 	}()

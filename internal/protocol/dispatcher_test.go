@@ -10,6 +10,7 @@ import (
 
 	"github.com/tamcore/motus/internal/model"
 	"github.com/tamcore/motus/internal/protocol"
+	"github.com/tamcore/motus/internal/storage/repository"
 )
 
 // --- minimal mock implementations ---
@@ -18,6 +19,7 @@ type mockCommandRepo struct {
 	mu       sync.Mutex
 	pending  map[int64][]*model.Command
 	statuses map[int64]string
+	devices  map[string]*model.Device
 }
 
 func newMockCommandRepo() *mockCommandRepo {
@@ -29,10 +31,31 @@ func newMockCommandRepo() *mockCommandRepo {
 
 func (m *mockCommandRepo) Create(_ context.Context, _ *model.Command) error { return nil }
 
-func (m *mockCommandRepo) GetPendingByDevice(_ context.Context, deviceID int64) ([]*model.Command, error) {
+func (m *mockCommandRepo) GetPendingByUniqueIDs(_ context.Context, uniqueIDs []string) ([]repository.PendingCommand, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return m.pending[deviceID], nil
+	var out []repository.PendingCommand
+	for _, id := range uniqueIDs {
+		dev, ok := m.devices[id]
+		if !ok {
+			continue
+		}
+		for _, cmd := range m.pending[dev.ID] {
+			out = append(out, repository.PendingCommand{Command: cmd, UniqueID: id, Protocol: dev.Protocol})
+		}
+	}
+	return out, nil
+}
+
+func (m *mockCommandRepo) setDevices(devices map[string]*model.Device) { m.devices = devices }
+
+// withDevices lets the command mock resolve unique IDs like the real join does.
+func withDevices[T interface {
+	repository.CommandRepo
+	setDevices(map[string]*model.Device)
+}](repo T, devRepo *mockDeviceRepo) T {
+	repo.setDevices(devRepo.devices)
+	return repo
 }
 
 func (m *mockCommandRepo) UpdateStatus(_ context.Context, id int64, status string) error {
@@ -56,38 +79,6 @@ type mockDeviceRepo struct {
 	devices map[string]*model.Device
 }
 
-func (m *mockDeviceRepo) GetByUniqueID(_ context.Context, uniqueID string) (*model.Device, error) {
-	dev, ok := m.devices[uniqueID]
-	if !ok {
-		return nil, nil
-	}
-	return dev, nil
-}
-
-// Unused interface methods — satisfy repository.DeviceRepo.
-func (m *mockDeviceRepo) UserHasAccess(_ context.Context, _ *model.User, _ int64) bool { return false }
-func (m *mockDeviceRepo) GetByID(_ context.Context, _ int64) (*model.Device, error)    { return nil, nil }
-func (m *mockDeviceRepo) GetByUser(_ context.Context, _ int64) ([]*model.Device, error) {
-	return nil, nil
-}
-func (m *mockDeviceRepo) GetAll(_ context.Context) ([]model.Device, error) { return nil, nil }
-func (m *mockDeviceRepo) GetAllWithOwners(_ context.Context) ([]model.Device, error) {
-	return nil, nil
-}
-func (m *mockDeviceRepo) GetTimedOut(_ context.Context, _ time.Time) ([]model.Device, error) {
-	return nil, nil
-}
-func (m *mockDeviceRepo) GetUserIDs(_ context.Context, _ int64) ([]int64, error) {
-	return nil, nil
-}
-func (m *mockDeviceRepo) Create(_ context.Context, _ *model.Device, _ int64) error { return nil }
-func (m *mockDeviceRepo) Update(_ context.Context, _ *model.Device) error          { return nil }
-func (m *mockDeviceRepo) Delete(_ context.Context, _ int64) error                  { return nil }
-func (m *mockDeviceRepo) UpdateIgnitionState(_ context.Context, _ int64, _ bool, _ time.Time) error {
-	return nil
-}
-func (m *mockDeviceRepo) UpdateProtocol(_ context.Context, _ int64, _ string) error { return nil }
-
 // --- tests ---
 
 func TestCommandDispatcher_DispatchesPendingCommand(t *testing.T) {
@@ -110,7 +101,7 @@ func TestCommandDispatcher_DispatchesPendingCommand(t *testing.T) {
 		},
 	}
 
-	d := protocol.NewCommandDispatcher(registry, cmdRepo, devRepo, protocol.NewEncoderRegistry(nil))
+	d := protocol.NewCommandDispatcher(registry, withDevices(cmdRepo, devRepo), protocol.NewEncoderRegistry(nil))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -151,7 +142,7 @@ func TestCommandDispatcher_SkipsOfflineDevice(t *testing.T) {
 		},
 	}
 
-	d := protocol.NewCommandDispatcher(registry, cmdRepo, devRepo, protocol.NewEncoderRegistry(nil))
+	d := protocol.NewCommandDispatcher(registry, withDevices(cmdRepo, devRepo), protocol.NewEncoderRegistry(nil))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
@@ -187,7 +178,7 @@ func TestCommandDispatcher_CustomCommand(t *testing.T) {
 		},
 	}
 
-	d := protocol.NewCommandDispatcher(registry, cmdRepo, devRepo, protocol.NewEncoderRegistry(nil))
+	d := protocol.NewCommandDispatcher(registry, withDevices(cmdRepo, devRepo), protocol.NewEncoderRegistry(nil))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -216,7 +207,7 @@ func TestCommandDispatcher_NoPendingCommands(t *testing.T) {
 		},
 	}
 
-	d := protocol.NewCommandDispatcher(registry, cmdRepo, devRepo, protocol.NewEncoderRegistry(nil))
+	d := protocol.NewCommandDispatcher(registry, withDevices(cmdRepo, devRepo), protocol.NewEncoderRegistry(nil))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
@@ -228,7 +219,7 @@ func TestCommandDispatcher_NoPendingCommands(t *testing.T) {
 }
 
 func TestCommandDispatcher_SetLogger(t *testing.T) {
-	d := protocol.NewCommandDispatcher(nil, nil, nil, nil)
+	d := protocol.NewCommandDispatcher(nil, nil, nil)
 	d.SetLogger(slog.Default())
 }
 
@@ -258,7 +249,7 @@ func TestCommandDispatcher_SendFails_RevertsStatus(t *testing.T) {
 		},
 	}
 
-	d := protocol.NewCommandDispatcher(registry, cmdRepo, devRepo, protocol.NewEncoderRegistry(nil))
+	d := protocol.NewCommandDispatcher(registry, withDevices(cmdRepo, devRepo), protocol.NewEncoderRegistry(nil))
 
 	// Run one dispatch tick synchronously.
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -290,7 +281,7 @@ func TestCommandDispatcher_DispatchForDevice_DeviceNotFound(t *testing.T) {
 	// devRepo has no entry for IMEI006.
 	devRepo := &mockDeviceRepo{devices: map[string]*model.Device{}}
 
-	d := protocol.NewCommandDispatcher(registry, cmdRepo, devRepo, protocol.NewEncoderRegistry(nil))
+	d := protocol.NewCommandDispatcher(registry, withDevices(cmdRepo, devRepo), protocol.NewEncoderRegistry(nil))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
 	defer cancel()
@@ -301,15 +292,15 @@ func TestCommandDispatcher_DispatchForDevice_DeviceNotFound(t *testing.T) {
 	}
 }
 
-// failingCommandRepo returns an error from GetPendingByDevice.
+// failingCommandRepo returns an error from GetPendingByUniqueIDs.
 type failingCommandRepo struct{ mockCommandRepo }
 
-func (r *failingCommandRepo) GetPendingByDevice(_ context.Context, _ int64) ([]*model.Command, error) {
+func (r *failingCommandRepo) GetPendingByUniqueIDs(_ context.Context, _ []string) ([]repository.PendingCommand, error) {
 	return nil, fmt.Errorf("db error")
 }
 
-// TestCommandDispatcher_GetPendingError covers the GetPendingByDevice error
-// branch in dispatchForDevice. Uses a 1.5s timeout to exceed the 1s dispatch
+// TestCommandDispatcher_GetPendingError covers the GetPendingByUniqueIDs error
+// branch in dispatch. Uses a 1.5s timeout to exceed the 1s dispatch
 // interval and ensure at least one tick fires.
 func TestCommandDispatcher_GetPendingError(t *testing.T) {
 	registry := protocol.NewDeviceRegistry()
@@ -323,14 +314,14 @@ func TestCommandDispatcher_GetPendingError(t *testing.T) {
 		},
 	}
 
-	d := protocol.NewCommandDispatcher(registry, cmdRepo, devRepo, protocol.NewEncoderRegistry(nil))
+	d := protocol.NewCommandDispatcher(registry, withDevices(cmdRepo, devRepo), protocol.NewEncoderRegistry(nil))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
 	defer cancel()
 	d.Start(ctx)
 
 	if len(outCh) != 0 {
-		t.Errorf("expected no dispatch on GetPendingByDevice error, got %d messages", len(outCh))
+		t.Errorf("expected no dispatch on GetPendingByUniqueIDs error, got %d messages", len(outCh))
 	}
 }
 
@@ -357,7 +348,7 @@ func TestCommandDispatcher_EncodeError(t *testing.T) {
 		},
 	}
 
-	d := protocol.NewCommandDispatcher(registry, cmdRepo, devRepo, protocol.NewEncoderRegistry(nil))
+	d := protocol.NewCommandDispatcher(registry, withDevices(cmdRepo, devRepo), protocol.NewEncoderRegistry(nil))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -395,7 +386,7 @@ func TestCommandDispatcher_WatchCommandsAreFramed(t *testing.T) {
 	}
 
 	encoders := protocol.NewEncoderRegistry(registry)
-	d := protocol.NewCommandDispatcher(registry, cmdRepo, devRepo, encoders)
+	d := protocol.NewCommandDispatcher(registry, withDevices(cmdRepo, devRepo), encoders)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()

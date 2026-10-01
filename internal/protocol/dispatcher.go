@@ -19,7 +19,6 @@ const dispatchInterval = 1 * time.Second
 type CommandDispatcher struct {
 	registry *DeviceRegistry
 	cmdRepo  repository.CommandRepo
-	devRepo  repository.DeviceRepo
 	encoders *EncoderRegistry
 	interval time.Duration
 	logger   *slog.Logger
@@ -29,13 +28,11 @@ type CommandDispatcher struct {
 func NewCommandDispatcher(
 	registry *DeviceRegistry,
 	cmdRepo repository.CommandRepo,
-	devRepo repository.DeviceRepo,
 	encoders *EncoderRegistry,
 ) *CommandDispatcher {
 	return &CommandDispatcher{
 		registry: registry,
 		cmdRepo:  cmdRepo,
-		devRepo:  devRepo,
 		encoders: encoders,
 		interval: dispatchInterval,
 		logger:   slog.Default(),
@@ -59,31 +56,23 @@ func (d *CommandDispatcher) Start(ctx context.Context) {
 	}
 }
 
-// dispatch iterates over all locally online devices and delivers their pending commands.
+// dispatch delivers the pending commands of all locally online devices,
+// fetched in one query.
 func (d *CommandDispatcher) dispatch(ctx context.Context) {
-	for _, uniqueID := range d.registry.OnlineDeviceIDs() {
-		d.dispatchForDevice(ctx, uniqueID)
-	}
-}
-
-// dispatchForDevice fetches and sends all pending commands for one device.
-func (d *CommandDispatcher) dispatchForDevice(ctx context.Context, uniqueID string) {
-	dev, err := d.devRepo.GetByUniqueID(ctx, uniqueID)
-	if err != nil || dev == nil {
+	online := d.registry.OnlineDeviceIDs()
+	if len(online) == 0 {
 		return
 	}
-
-	cmds, err := d.cmdRepo.GetPendingByDevice(ctx, dev.ID)
+	pending, err := d.cmdRepo.GetPendingByUniqueIDs(ctx, online)
 	if err != nil {
 		d.logger.Warn("dispatcher: failed to fetch pending commands",
-			slog.String("device", uniqueID),
+			slog.Int("devices", len(online)),
 			slog.Any("error", err),
 		)
 		return
 	}
-
-	for _, cmd := range cmds {
-		d.sendCommand(ctx, dev, uniqueID, cmd)
+	for _, pc := range pending {
+		d.sendCommand(ctx, pc.Protocol, pc.UniqueID, pc.Command)
 	}
 }
 
@@ -94,8 +83,8 @@ func (d *CommandDispatcher) dispatchForDevice(ctx context.Context, uniqueID stri
 // status update completes, causing GetLatestSentByDevice to miss the command.
 // If registry.Send fails after the DB update, the status is reverted to
 // "pending" so the next dispatcher tick retries it.
-func (d *CommandDispatcher) sendCommand(ctx context.Context, dev *model.Device, uniqueID string, cmd *model.Command) {
-	payload, err := d.encodePayload(dev, uniqueID, cmd)
+func (d *CommandDispatcher) sendCommand(ctx context.Context, protocol, uniqueID string, cmd *model.Command) {
+	payload, err := d.encodePayload(protocol, uniqueID, cmd)
 	if err != nil {
 		d.logger.Warn("dispatcher: encode error",
 			slog.String("device", uniqueID),
@@ -140,8 +129,8 @@ func (d *CommandDispatcher) sendCommand(ctx context.Context, dev *model.Device, 
 // encodePayload returns the wire bytes for cmd via the EncoderRegistry.
 // Commands for protocols without an encoder are skipped silently (nil payload),
 // except custom commands, which are then sent verbatim.
-func (d *CommandDispatcher) encodePayload(dev *model.Device, uniqueID string, cmd *model.Command) ([]byte, error) {
-	payload, err := d.encoders.Encode(dev.Protocol, cmd, uniqueID)
+func (d *CommandDispatcher) encodePayload(protocol, uniqueID string, cmd *model.Command) ([]byte, error) {
+	payload, err := d.encoders.Encode(protocol, cmd, uniqueID)
 	if errors.Is(err, ErrNoEncoder) {
 		return nil, nil
 	}

@@ -39,18 +39,40 @@ func (r *CommandRepository) Create(ctx context.Context, cmd *model.Command) erro
 	return nil
 }
 
-// GetPendingByDevice returns all pending commands for a device.
-func (r *CommandRepository) GetPendingByDevice(ctx context.Context, deviceID int64) ([]*model.Command, error) {
+// PendingCommand is a pending command with the device fields needed to send it.
+type PendingCommand struct {
+	Command  *model.Command
+	UniqueID string
+	Protocol string
+}
+
+// GetPendingByUniqueIDs returns the pending commands of the given devices in one
+// query, oldest first.
+func (r *CommandRepository) GetPendingByUniqueIDs(ctx context.Context, uniqueIDs []string) ([]PendingCommand, error) {
 	rows, err := r.pool.Query(ctx,
-		`SELECT id, device_id, type, attributes, status, result, created_at, executed_at
-		 FROM commands
-		 WHERE device_id = $1 AND status = 'pending'
-		 ORDER BY created_at ASC`, deviceID,
+		`SELECT c.id, c.device_id, c.type, c.attributes, c.status, c.result, c.created_at, c.executed_at,
+		        d.unique_id, d.protocol
+		 FROM commands c
+		 JOIN devices d ON d.id = c.device_id
+		 WHERE c.status = 'pending' AND d.unique_id = ANY($1)
+		 ORDER BY c.created_at ASC, c.id ASC`, uniqueIDs,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("get pending commands: %w", err)
 	}
-	return pgx.AppendRows([]*model.Command(nil), rows, rowToCommand)
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (PendingCommand, error) {
+		pc := PendingCommand{Command: &model.Command{}}
+		var attrs []byte
+		cmd := pc.Command
+		if err := row.Scan(&cmd.ID, &cmd.DeviceID, &cmd.Type, &attrs, &cmd.Status, &cmd.Result, &cmd.CreatedAt, &cmd.ExecutedAt,
+			&pc.UniqueID, &pc.Protocol); err != nil {
+			return pc, fmt.Errorf("scan pending command: %w", err)
+		}
+		if len(attrs) > 0 {
+			_ = json.Unmarshal(attrs, &cmd.Attributes)
+		}
+		return pc, nil
+	})
 }
 
 // UpdateStatus updates the status of a command and optionally sets executed_at.

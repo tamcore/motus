@@ -483,7 +483,7 @@ func Run() {
 	// Background command dispatcher: delivers pending commands to locally online
 	// devices. Runs on every replica so the pod that holds a device's TCP
 	// connection will always pick up commands saved by any pod.
-	dispatcher := protocol.NewCommandDispatcher(deviceRegistry, commandRepo, deviceRepo, encoderRegistry)
+	dispatcher := protocol.NewCommandDispatcher(deviceRegistry, commandRepo, encoderRegistry)
 	dispatcher.SetLogger(protoLogger.With(slog.String("component", "dispatcher")))
 	go dispatcher.Start(gpsCtx)
 

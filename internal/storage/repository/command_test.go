@@ -2,6 +2,7 @@ package repository_test
 
 import (
 	"context"
+	"slices"
 	"testing"
 	"time"
 
@@ -44,7 +45,7 @@ func TestCommandRepository_Create(t *testing.T) {
 	}
 }
 
-func TestCommandRepository_GetPendingByDevice(t *testing.T) {
+func TestCommandRepository_GetPendingByUniqueIDs(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	cmdRepo := repository.NewCommandRepository(pool)
@@ -53,45 +54,41 @@ func TestCommandRepository_GetPendingByDevice(t *testing.T) {
 	ctx := context.Background()
 
 	user := createTestUser(t, userRepo)
-	device := &model.Device{UniqueID: "cmdpend-" + time.Now().Format("150405.000"), Name: "Pending Device", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	a := &model.Device{UniqueID: "cmdpend-a", Name: "A", Status: "online", Protocol: "h02"}
+	b := &model.Device{UniqueID: "cmdpend-b", Name: "B", Status: "online", Protocol: "watch"}
+	other := &model.Device{UniqueID: "cmdpend-other", Name: "Other", Status: "online"}
+	for _, d := range []*model.Device{a, b, other} {
+		if err := deviceRepo.Create(ctx, d, user.ID); err != nil {
+			t.Fatalf("Create device: %v", err)
+		}
+	}
+	for _, c := range []*model.Command{
+		{DeviceID: a.ID, Type: "rebootDevice", Status: "pending"},
+		{DeviceID: b.ID, Type: "positionSingle", Status: "pending"},
+		{DeviceID: a.ID, Type: "positionPeriodic", Status: "executed"},
+		{DeviceID: other.ID, Type: "rebootDevice", Status: "pending"},
+	} {
+		if err := cmdRepo.Create(ctx, c); err != nil {
+			t.Fatalf("Create command: %v", err)
+		}
+	}
 
-	// Create 2 pending and 1 executed command.
-	c1 := &model.Command{DeviceID: device.ID, Type: "rebootDevice", Status: "pending"}
-	c2 := &model.Command{DeviceID: device.ID, Type: "positionSingle", Status: "pending"}
-	c3 := &model.Command{DeviceID: device.ID, Type: "positionPeriodic", Status: "executed"}
-
-	_ = cmdRepo.Create(ctx, c1)
-	_ = cmdRepo.Create(ctx, c2)
-	_ = cmdRepo.Create(ctx, c3)
-
-	pending, err := cmdRepo.GetPendingByDevice(ctx, device.ID)
+	pending, err := cmdRepo.GetPendingByUniqueIDs(ctx, []string{"cmdpend-a", "cmdpend-b", "unknown"})
 	if err != nil {
-		t.Fatalf("GetPendingByDevice failed: %v", err)
+		t.Fatalf("GetPendingByUniqueIDs: %v", err)
 	}
-	if len(pending) != 2 {
-		t.Errorf("expected 2 pending commands, got %d", len(pending))
+	got := make([]string, 0, len(pending))
+	for _, pc := range pending {
+		got = append(got, pc.UniqueID+"/"+pc.Protocol+"/"+pc.Command.Type)
 	}
-}
-
-func TestCommandRepository_GetPendingByDevice_Empty(t *testing.T) {
-	pool := testutil.SetupTestDB(t)
-	testutil.CleanTables(t, pool)
-	cmdRepo := repository.NewCommandRepository(pool)
-	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
-	ctx := context.Background()
-
-	user := createTestUser(t, userRepo)
-	device := &model.Device{UniqueID: "cmdnone-" + time.Now().Format("150405.000"), Name: "No Cmd Device", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
-
-	pending, err := cmdRepo.GetPendingByDevice(ctx, device.ID)
-	if err != nil {
-		t.Fatalf("GetPendingByDevice failed: %v", err)
+	want := []string{"cmdpend-a/h02/rebootDevice", "cmdpend-b/watch/positionSingle"}
+	if !slices.Equal(got, want) {
+		t.Errorf("pending = %v, want %v (oldest first, pending only, requested devices only)", got, want)
 	}
-	if pending != nil {
-		t.Errorf("expected nil for no pending commands, got %d", len(pending))
+
+	none, err := cmdRepo.GetPendingByUniqueIDs(ctx, []string{"unknown"})
+	if err != nil || len(none) != 0 {
+		t.Errorf("unknown device: got %d commands, err %v; want none", len(none), err)
 	}
 }
 
@@ -115,9 +112,9 @@ func TestCommandRepository_UpdateStatus(t *testing.T) {
 	}
 
 	// Verify it's no longer pending.
-	pending, err := cmdRepo.GetPendingByDevice(ctx, device.ID)
+	pending, err := cmdRepo.GetPendingByUniqueIDs(ctx, []string{device.UniqueID})
 	if err != nil {
-		t.Fatalf("GetPendingByDevice failed: %v", err)
+		t.Fatalf("GetPendingByUniqueIDs failed: %v", err)
 	}
 	if len(pending) != 0 {
 		t.Errorf("expected 0 pending commands after status update, got %d", len(pending))

@@ -35,7 +35,6 @@ type mockCommandRepo struct {
 	createFn         func(ctx context.Context, cmd *model.Command) error
 	updateStatusFn   func(ctx context.Context, id int64, status string) error
 	listByDeviceFn   func(ctx context.Context, deviceID int64, limit int) ([]*model.Command, error)
-	getPendingFn     func(ctx context.Context, deviceID int64) ([]*model.Command, error)
 	appendResultFn   func(ctx context.Context, id int64, chunk string) error
 	getLatestSentFn  func(ctx context.Context, deviceID int64) (*model.Command, error)
 	statusTransition []string // records UpdateStatus calls
@@ -66,10 +65,7 @@ func (m *mockCommandRepo) ListByDevice(ctx context.Context, deviceID int64, limi
 	return nil, nil
 }
 
-func (m *mockCommandRepo) GetPendingByDevice(ctx context.Context, deviceID int64) ([]*model.Command, error) {
-	if m.getPendingFn != nil {
-		return m.getPendingFn(ctx, deviceID)
-	}
+func (m *mockCommandRepo) GetPendingByUniqueIDs(context.Context, []string) ([]repository.PendingCommand, error) {
 	return nil, nil
 }
 

@@ -112,7 +112,7 @@ type EventRepo interface {
 // CommandRepo defines the operations on the commands table.
 type CommandRepo interface {
 	Create(ctx context.Context, cmd *model.Command) error
-	GetPendingByDevice(ctx context.Context, deviceID int64) ([]*model.Command, error)
+	GetPendingByUniqueIDs(ctx context.Context, uniqueIDs []string) ([]PendingCommand, error)
 	UpdateStatus(ctx context.Context, id int64, status string) error
 	ListByDevice(ctx context.Context, deviceID int64, limit int) ([]*model.Command, error)
 	AppendResult(ctx context.Context, id int64, chunk string) error

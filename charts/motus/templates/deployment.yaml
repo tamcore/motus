@@ -143,6 +143,10 @@ spec:
         - name: MOTUS_DEMO_INTERPOLATION_INTERVAL
           value: {{ .Values.demo.interpolationInterval | quote }}
         {{- end }}
+        {{- if .Values.metrics.pprof.enabled }}
+        - name: MOTUS_PPROF_ENABLED
+          value: "true"
+        {{- end }}
         {{- if .Values.oidc.enabled }}
         - name: MOTUS_OIDC_ENABLED
           value: "true"

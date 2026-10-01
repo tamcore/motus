@@ -195,6 +195,9 @@ webauthn:
 metrics:
   enabled: false
   port: 9090
+  # Exposes /debug/pprof/ on the metrics port. Heap dumps can contain secrets.
+  pprof:
+    enabled: false
   serviceMonitor:
     enabled: false
     interval: 30s

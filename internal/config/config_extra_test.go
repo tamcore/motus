@@ -378,3 +378,21 @@ func TestMetricsPortHandlesKubernetesServiceURL(t *testing.T) {
 		})
 	}
 }
+
+func TestPprofDefaultsOff(t *testing.T) {
+	for _, tt := range []struct {
+		envValue string
+		want     bool
+	}{{"", false}, {"true", true}, {"false", false}} {
+		t.Run(tt.envValue, func(t *testing.T) {
+			t.Setenv("MOTUS_PPROF_ENABLED", tt.envValue)
+			cfg, err := config.LoadFromEnv()
+			if err != nil {
+				t.Fatalf("LoadFromEnv() error = %v", err)
+			}
+			if cfg.Metrics.Pprof != tt.want {
+				t.Errorf("Metrics.Pprof = %v, want %v", cfg.Metrics.Pprof, tt.want)
+			}
+		})
+	}
+}

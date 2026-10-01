@@ -155,6 +155,7 @@ Set this to your domain (e.g., `https://motus.example.com`) in production. An em
 |---|---|---|
 | `metrics.enabled` | Enable Prometheus metrics endpoint | `false` |
 | `metrics.port` | Metrics server port | `9090` |
+| `metrics.pprof.enabled` | Expose `/debug/pprof/` on the metrics port (`MOTUS_PPROF_ENABLED`) | `false` |
 | `metrics.serviceMonitor.enabled` | Create a Prometheus ServiceMonitor | `false` |
 | `metrics.serviceMonitor.interval` | Scrape interval | `30s` |
 | `metrics.serviceMonitor.labels` | Additional labels for ServiceMonitor | `{}` |

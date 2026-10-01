@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/http/pprof"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -568,6 +570,9 @@ func Run() {
 		metricsAddr := fmt.Sprintf(":%s", cfg.Metrics.Port)
 		metricsMux := http.NewServeMux()
 		metricsMux.Handle("/metrics", promhttp.Handler())
+		if cfg.Metrics.Pprof {
+			registerPprof(metricsMux)
+		}
 		go func() {
 			slog.Info("metrics server listening", slog.String("addr", metricsAddr))
 			metricsSrv := &http.Server{
@@ -693,3 +698,19 @@ func newRedisPubSub(client *redislib.Client, channel, purpose string) pubsub.Pub
 	slog.Info("Redis pub/sub enabled for cross-pod " + purpose)
 	return ps
 }
+
+func registerPprof(mux *http.ServeMux) {
+	runtime.SetMutexProfileFraction(pprofMutexFraction)
+	runtime.SetBlockProfileRate(pprofBlockRateNs)
+	mux.HandleFunc("/debug/pprof/", pprof.Index)
+	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+	slog.Warn("pprof enabled on metrics port; do not expose publicly")
+}
+
+const (
+	pprofMutexFraction = 5
+	pprofBlockRateNs   = 1_000_000
+)

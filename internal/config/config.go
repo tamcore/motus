@@ -200,6 +200,9 @@ type MetricsConfig struct {
 	// Enabled controls whether the metrics server is started.
 	// Loaded from MOTUS_METRICS_ENABLED. Default: true.
 	Enabled bool
+	// Pprof exposes net/http/pprof under /debug/pprof/ on the metrics port.
+	// Loaded from MOTUS_PPROF_ENABLED. Default: false.
+	Pprof bool
 }
 
 // DemoConfig holds demo mode settings.
@@ -391,6 +394,7 @@ func LoadFromEnv() (*Config, error) {
 		Metrics: MetricsConfig{
 			Port:    getPort("MOTUS_METRICS_PORT", "9090"),
 			Enabled: parseEnv("MOTUS_METRICS_ENABLED", true, strconv.ParseBool),
+			Pprof:   parseEnv("MOTUS_PPROF_ENABLED", false, strconv.ParseBool),
 		},
 		Security: SecurityConfig{
 			CSRFSecret:          getEnv("MOTUS_CSRF_SECRET", ""),

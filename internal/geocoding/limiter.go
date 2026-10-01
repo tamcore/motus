@@ -2,7 +2,6 @@ package geocoding
 
 import (
 	"context"
-	"math/rand/v2"
 	"time"
 
 	"github.com/go-redis/redis_rate/v10"
@@ -56,7 +55,16 @@ func (l *RedisLimiter) Wait(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-time.After(res.RetryAfter + rand.N(l.limit.Period/retryJitterDivisor)):
+		case <-time.After(res.RetryAfter + jitter(l.limit.Period/retryJitterDivisor)):
 		}
 	}
+}
+
+// jitter returns a duration in [0, maxJitter) from the clock's low bits. It only
+// has to differ between pods, not be unpredictable.
+func jitter(maxJitter time.Duration) time.Duration {
+	if maxJitter <= 0 {
+		return 0
+	}
+	return time.Duration(time.Now().UnixNano()) % maxJitter
 }

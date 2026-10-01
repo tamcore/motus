@@ -58,6 +58,19 @@ func (r *osmandDeviceRepo) GetByID(_ context.Context, id int64) (*model.Device, 
 	return nil, fmt.Errorf("device %d not found", id)
 }
 
+func (r *osmandDeviceRepo) MarkOnline(_ context.Context, id, positionID int64, at time.Time) (*model.Device, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, d := range r.devices {
+		if d.ID == id {
+			d.Status, d.LastUpdate, d.PositionID, d.Disabled = "online", &at, &positionID, false
+			c := *d
+			return &c, nil
+		}
+	}
+	return nil, fmt.Errorf("device %d not found", id)
+}
+
 func (r *osmandDeviceRepo) Create(_ context.Context, d *model.Device, _ int64) error {
 	r.add(d)
 	return nil

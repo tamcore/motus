@@ -23,6 +23,7 @@ type DeviceRepo interface {
 	Update(ctx context.Context, d *model.Device) error
 	UpdateIgnitionState(ctx context.Context, id int64, on bool, ts time.Time) error
 	UpdateProtocol(ctx context.Context, id int64, protocol string) error
+	MarkOnline(ctx context.Context, id, positionID int64, at time.Time) (*model.Device, error)
 	Delete(ctx context.Context, id int64) error
 }
 

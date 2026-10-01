@@ -357,3 +357,7 @@ func (m *mockDeviceRepo) UpdateIgnitionState(_ context.Context, _ int64, _ bool,
 func (m *mockDeviceRepo) UpdateProtocol(_ context.Context, _ int64, _ string) error {
 	return nil
 }
+
+func (m *mockDeviceRepo) MarkOnline(_ context.Context, _, _ int64, _ time.Time) (*model.Device, error) {
+	return nil, nil
+}

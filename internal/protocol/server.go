@@ -58,6 +58,9 @@ type Server struct {
 	defaultUserID int64      // cached user ID for auto-creation (protected by userIDMu)
 	userIDMu      sync.Mutex // protects defaultUserID caching
 
+	// deviceCache maps unique ID to cachedDevice for deviceCacheTTL.
+	deviceCache sync.Map
+
 	// Optional relay target: "host:port" or "" if relay is disabled.
 	relayTarget string
 
@@ -168,10 +171,35 @@ func (s *Server) SetCommandRepo(r repository.CommandRepo) {
 	s.commands = r
 }
 
-// resolveOrCreateDevice looks up a device by unique ID. If the device is not
+// deviceCacheTTL bounds how long a resolved device is reused without reading it
+// again, so renames, deletions and protocol changes apply within this window.
+const deviceCacheTTL = 30 * time.Second
+
+type cachedDevice struct {
+	device  model.Device
+	expires time.Time
+}
+
+// resolveOrCreateDevice is lookupOrCreateDevice with a short per-server cache,
+// so a connected device is not looked up on every message.
+func (s *Server) resolveOrCreateDevice(ctx context.Context, uniqueID string) (*model.Device, error) {
+	if v, ok := s.deviceCache.Load(uniqueID); ok {
+		if c := v.(cachedDevice); time.Now().Before(c.expires) {
+			return new(c.device), nil
+		}
+	}
+	device, err := s.lookupOrCreateDevice(ctx, uniqueID)
+	if err != nil {
+		return nil, err
+	}
+	s.deviceCache.Store(uniqueID, cachedDevice{*device, time.Now().Add(deviceCacheTTL)})
+	return device, nil
+}
+
+// lookupOrCreateDevice looks up a device by unique ID. If the device is not
 // found and auto-creation is enabled, it creates the device and assigns it to
 // the configured default user. Returns the device or an error.
-func (s *Server) resolveOrCreateDevice(ctx context.Context, uniqueID string) (*model.Device, error) {
+func (s *Server) lookupOrCreateDevice(ctx context.Context, uniqueID string) (*model.Device, error) {
 	device, err := s.devices.GetByUniqueID(ctx, uniqueID)
 	if err == nil {
 		if device.Protocol != s.name {

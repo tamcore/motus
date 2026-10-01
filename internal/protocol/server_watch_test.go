@@ -58,6 +58,19 @@ func (r *memDeviceRepo) GetByID(_ context.Context, id int64) (*model.Device, err
 	return nil, fmt.Errorf("device %d not found", id)
 }
 
+func (r *memDeviceRepo) MarkOnline(_ context.Context, id, positionID int64, at time.Time) (*model.Device, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, d := range r.devices {
+		if d.ID == id {
+			d.Status, d.LastUpdate, d.PositionID, d.Disabled = "online", &at, &positionID, false
+			c := *d
+			return &c, nil
+		}
+	}
+	return nil, fmt.Errorf("device %d not found", id)
+}
+
 func (r *memDeviceRepo) Update(_ context.Context, d *model.Device) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()

@@ -215,32 +215,17 @@ func (h *PositionHandler) HandlePosition(ctx context.Context, pos *model.Positio
 		pos.Address = h.address(pos)
 	}
 
-	// Update device status and record last_update.
-	device, err := h.devices.GetByID(ctx, pos.DeviceID)
+	// Always set status to "online" for Home Assistant compatibility: HA
+	// binary_sensor.status only treats "online" as active; motion state is in
+	// position.attributes.motion. A first position also clears the disabled
+	// flag set on devices auto-excluded as "unknown".
+	device, err := h.devices.MarkOnline(ctx, pos.DeviceID, pos.ID, time.Now().UTC())
 	if err != nil {
-		h.log().Error("failed to get device for status update",
+		h.log().Error("failed to update device status",
 			slog.Int64("deviceID", pos.DeviceID),
 			slog.Any("error", err),
 		)
 	} else {
-		now := time.Now().UTC()
-		// Always set status to "online" for Home Assistant compatibility.
-		// HA binary_sensor.status only recognizes "online" as active (True).
-		// Actual motion state is communicated via position.attributes.motion.
-		device.Status = "online"
-		device.LastUpdate = &now
-		device.PositionID = &pos.ID
-		// Clear the disabled flag when a device sends its first position.
-		// This re-enables devices that were auto-excluded as "unknown".
-		if device.Disabled {
-			device.Disabled = false
-		}
-		if err := h.devices.Update(ctx, device); err != nil {
-			h.log().Error("failed to update device status",
-				slog.Int64("deviceID", pos.DeviceID),
-				slog.Any("error", err),
-			)
-		}
 		h.hub.BroadcastDeviceStatus(device)
 	}
 

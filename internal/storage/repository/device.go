@@ -271,6 +271,22 @@ func (r *DeviceRepository) UpdateIgnitionState(ctx context.Context, id int64, on
 	return nil
 }
 
+// MarkOnline records a new position on a device: status online, last_update,
+// position_id, and clears disabled. Only these columns are written, so
+// concurrent edits to other fields are kept. Returns the updated device.
+func (r *DeviceRepository) MarkOnline(ctx context.Context, id, positionID int64, at time.Time) (*model.Device, error) {
+	d := &model.Device{}
+	err := scanDevice(r.pool.QueryRow(ctx,
+		`UPDATE devices SET status = 'online', last_update = $2, position_id = $3, disabled = false, updated_at = NOW()
+		 WHERE id = $1
+		 RETURNING `+deviceColumns, id, at, positionID,
+	), d)
+	if err != nil {
+		return nil, fmt.Errorf("mark device online: %w", err)
+	}
+	return d, nil
+}
+
 // UpdateProtocol sets the protocol field on a device without touching other
 // columns. Used by the protocol server to resync the protocol when a known
 // device starts sending packets via a different protocol than what is stored.

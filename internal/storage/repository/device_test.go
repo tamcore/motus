@@ -353,3 +353,41 @@ func TestDeviceRepository_UpdateProtocol_Clear(t *testing.T) {
 		t.Errorf("Protocol: got %q, want empty", found.Protocol)
 	}
 }
+
+func TestDeviceRepository_MarkOnline(t *testing.T) {
+	pool := testutil.SetupTestDB(t)
+	testutil.CleanTables(t, pool)
+	deviceRepo := repository.NewDeviceRepository(pool)
+	userRepo := repository.NewUserRepository(pool)
+	ctx := context.Background()
+
+	user := createTestUser(t, userRepo)
+	device := &model.Device{UniqueID: "mark-online", Name: "Before", Status: "unknown", Disabled: true}
+	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	stale := *device
+	stale.Name = "Renamed"
+	if err := deviceRepo.Update(ctx, &stale); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+
+	at := time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
+	pos := &model.Position{DeviceID: device.ID, Timestamp: at, Valid: true, Latitude: 52.5, Longitude: 13.4}
+	if err := repository.NewPositionRepository(pool).Create(ctx, pos); err != nil {
+		t.Fatalf("Create position: %v", err)
+	}
+	got, err := deviceRepo.MarkOnline(ctx, device.ID, pos.ID, at)
+	if err != nil {
+		t.Fatalf("MarkOnline: %v", err)
+	}
+	if got.Status != "online" || got.Disabled || got.LastUpdate == nil || !got.LastUpdate.Equal(at) {
+		t.Errorf("MarkOnline = status %q disabled %v lastUpdate %v, want online, false, %v", got.Status, got.Disabled, got.LastUpdate, at)
+	}
+	if got.PositionID == nil || *got.PositionID != pos.ID {
+		t.Errorf("PositionID = %v, want %d", got.PositionID, pos.ID)
+	}
+	if got.Name != "Renamed" {
+		t.Errorf("Name = %q, want concurrent rename kept", got.Name)
+	}
+}

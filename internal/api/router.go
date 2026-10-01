@@ -30,6 +30,8 @@ func limitRequestBody(next http.Handler) http.Handler {
 
 // RouterConfig holds optional middleware for the router.
 type RouterConfig struct {
+	// RealIP rewrites RemoteAddr to the client IP from trusted proxy headers.
+	RealIP func(http.Handler) http.Handler
 	// LoginRateLimit is applied only to POST /api/session.
 	LoginRateLimit func(http.Handler) http.Handler
 	// APIRateLimit is applied to all routes handled by the ogen server.
@@ -131,11 +133,9 @@ func NewRouter(h oas.Handler, sec oas.SecurityHandler, hub *websocket.Hub, opts 
 		r.Use(cfg.Logger)
 	}
 	r.Use(chimw.Recoverer)
-	// RealIP rewrites RemoteAddr from proxy headers so the rate limiter and
-	// access logs see the true client IP. chi v5.3.1 deprecates it over
-	// spoofing risk when directly exposed; motus only runs behind a trusted
-	// reverse proxy / k8s ingress that sets X-Forwarded-For, so it is safe here.
-	r.Use(chimw.RealIP) //nolint:staticcheck // trusted-proxy deployment only
+	if cfg.RealIP != nil {
+		r.Use(cfg.RealIP)
+	}
 	r.Use(limitRequestBody)
 	if cfg.SecurityHeaders != nil {
 		r.Use(cfg.SecurityHeaders)

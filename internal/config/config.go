@@ -3,6 +3,7 @@ package config
 import (
 	"cmp"
 	"fmt"
+	"net/netip"
 	"net/url"
 	"os"
 	"strconv"
@@ -190,6 +191,11 @@ type SecurityConfig struct {
 	// without disabling SSRF protection globally.
 	// Loaded from MOTUS_WEBHOOK_ALLOWED_HOSTS (comma-separated).
 	WebhookAllowedHosts []string
+	// TrustedProxies lists the IPs or CIDRs of reverse proxies whose
+	// X-Forwarded-For / X-Real-Ip headers are honoured for the client IP.
+	// Loaded from MOTUS_TRUSTED_PROXIES (comma-separated).
+	// Default: loopback and private ranges.
+	TrustedProxies []string
 }
 
 // MetricsConfig holds Prometheus metrics server settings.
@@ -400,6 +406,7 @@ func LoadFromEnv() (*Config, error) {
 			CSRFSecret:          getEnv("MOTUS_CSRF_SECRET", ""),
 			Env:                 getEnv("MOTUS_ENV", "production"),
 			WebhookAllowedHosts: parseEnv("MOTUS_WEBHOOK_ALLOWED_HOSTS", nil, parseList),
+			TrustedProxies:      parseEnv("MOTUS_TRUSTED_PROXIES", defaultTrustedProxies, parseList),
 		},
 		Positions: PositionsConfig{
 			RetentionDays: parseEnv("MOTUS_POSITION_RETENTION_DAYS", 0, strconv.Atoi),
@@ -468,6 +475,29 @@ func getPort(key, defaultValue string) string {
 }
 
 // parseEnv returns parse(os.Getenv(key)), or defaultValue when unset or invalid.
+// defaultTrustedProxies covers reverse proxies on the same host or private
+// network, such as a Kubernetes ingress or a Docker Compose proxy.
+var defaultTrustedProxies = []string{
+	"127.0.0.0/8", "::1/128", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "fc00::/7",
+}
+
+// TrustedProxyPrefixes parses TrustedProxies. A bare IP becomes a single-host prefix.
+func (s SecurityConfig) TrustedProxyPrefixes() ([]netip.Prefix, error) {
+	prefixes := make([]netip.Prefix, 0, len(s.TrustedProxies))
+	for _, v := range s.TrustedProxies {
+		if p, err := netip.ParsePrefix(v); err == nil {
+			prefixes = append(prefixes, p.Masked())
+			continue
+		}
+		ip, err := netip.ParseAddr(v)
+		if err != nil {
+			return nil, fmt.Errorf("MOTUS_TRUSTED_PROXIES: %q is not an IP or CIDR", v)
+		}
+		prefixes = append(prefixes, netip.PrefixFrom(ip, ip.BitLen()))
+	}
+	return prefixes, nil
+}
+
 func parseEnv[T any](key string, defaultValue T, parse func(string) (T, error)) T {
 	v := os.Getenv(key)
 	if v == "" {

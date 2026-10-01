@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"sync"
 	"testing"
 	"time"
@@ -146,32 +147,33 @@ func TestRedisLoginRateLimit_DifferentIPsAreIndependent(t *testing.T) {
 	}
 }
 
-func TestRedisLoginRateLimit_XForwardedForUsed(t *testing.T) {
+func TestRedisLoginRateLimit_SpoofedXForwardedForSharesBucket(t *testing.T) {
 	client := setupRedisForRateLimit(t)
-
-	cfg := middleware.RateLimitConfig{Max: 1, Period: time.Minute}
-	mw := middleware.NewRedisLoginRateLimit(client, cfg)
-	handler := mw(redisOKHandler())
-
 	_ = client.FlushDB(context.Background())
 
-	// First request from forwarded IP passes.
-	req := httptest.NewRequest(http.MethodPost, "/api/session", nil)
-	req.RemoteAddr = "127.0.0.1:8080"
-	req.Header.Set("X-Forwarded-For", "203.0.113.5")
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
-	if rr.Code != http.StatusOK {
-		t.Errorf("first request: expected 200, got %d", rr.Code)
+	trusted := []netip.Prefix{netip.MustParsePrefix("10.0.0.0/8")}
+	limiter := middleware.NewRedisLoginRateLimit(client, middleware.RateLimitConfig{Max: 1, Period: time.Minute})
+	handler := middleware.RealIP(trusted)(limiter(redisOKHandler()))
+
+	send := func(remoteAddr, xff string) int {
+		req := httptest.NewRequest(http.MethodPost, "/api/session", nil)
+		req.RemoteAddr = remoteAddr
+		req.Header.Set("X-Forwarded-For", xff)
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+		return rr.Code
 	}
 
-	// Second request with same forwarded IP is blocked.
-	req2 := httptest.NewRequest(http.MethodPost, "/api/session", nil)
-	req2.RemoteAddr = "127.0.0.1:8080"
-	req2.Header.Set("X-Forwarded-For", "203.0.113.5")
-	rr2 := httptest.NewRecorder()
-	handler.ServeHTTP(rr2, req2)
-	if rr2.Code != http.StatusTooManyRequests {
-		t.Errorf("second request: expected 429, got %d", rr2.Code)
+	if code := send("198.51.100.7:1234", "203.0.113.1"); code != http.StatusOK {
+		t.Fatalf("first direct request: got %d, want 200", code)
+	}
+	if code := send("198.51.100.7:1234", "203.0.113.2"); code != http.StatusTooManyRequests {
+		t.Errorf("spoofed X-Forwarded-For from untrusted peer: got %d, want 429", code)
+	}
+	if code := send("10.0.0.5:1234", "203.0.113.5"); code != http.StatusOK {
+		t.Errorf("client behind trusted proxy: got %d, want 200", code)
+	}
+	if code := send("10.0.0.5:1234", "203.0.113.5"); code != http.StatusTooManyRequests {
+		t.Errorf("same client behind trusted proxy: got %d, want 429", code)
 	}
 }

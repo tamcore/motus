@@ -105,6 +105,10 @@ func (c *Config) Validate() error {
 		}
 	}
 
+	if _, err := c.Security.TrustedProxyPrefixes(); err != nil {
+		errs = append(errs, err.Error())
+	}
+
 	// Redis validation (only when enabled).
 	if c.Redis.Enabled && c.Redis.URL == "" {
 		errs = append(errs, "MOTUS_REDIS_URL must be set when Redis is enabled")

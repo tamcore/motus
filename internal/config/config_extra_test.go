@@ -1,7 +1,10 @@
 package config_test
 
 import (
+	"net/netip"
 	"os"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -395,4 +398,43 @@ func TestPprofDefaultsOff(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestTrustedProxyPrefixes(t *testing.T) {
+	t.Run("default covers loopback and private ranges", func(t *testing.T) {
+		cfg, err := config.LoadFromEnv()
+		if err != nil {
+			t.Fatalf("LoadFromEnv() error = %v", err)
+		}
+		prefixes, err := cfg.Security.TrustedProxyPrefixes()
+		if err != nil {
+			t.Fatalf("TrustedProxyPrefixes() error = %v", err)
+		}
+		for _, ip := range []string{"127.0.0.1", "10.1.2.3", "172.20.0.1", "192.168.1.1", "::1", "fd00::1"} {
+			if !slices.ContainsFunc(prefixes, func(p netip.Prefix) bool { return p.Contains(netip.MustParseAddr(ip)) }) {
+				t.Errorf("default does not trust %s", ip)
+			}
+		}
+		if slices.ContainsFunc(prefixes, func(p netip.Prefix) bool { return p.Contains(netip.MustParseAddr("203.0.113.1")) }) {
+			t.Error("default trusts a public IP")
+		}
+	})
+	t.Run("bare IPs and CIDRs", func(t *testing.T) {
+		t.Setenv("MOTUS_TRUSTED_PROXIES", "203.0.113.10, 2001:db8::/32")
+		cfg, _ := config.LoadFromEnv()
+		prefixes, err := cfg.Security.TrustedProxyPrefixes()
+		if err != nil {
+			t.Fatalf("TrustedProxyPrefixes() error = %v", err)
+		}
+		want := []netip.Prefix{netip.MustParsePrefix("203.0.113.10/32"), netip.MustParsePrefix("2001:db8::/32")}
+		if !slices.Equal(prefixes, want) {
+			t.Errorf("prefixes = %v, want %v", prefixes, want)
+		}
+	})
+	t.Run("invalid entry fails validation", func(t *testing.T) {
+		t.Setenv("MOTUS_TRUSTED_PROXIES", "10.0.0.0/8,not-an-ip")
+		if _, err := config.LoadFromEnv(); err == nil || !strings.Contains(err.Error(), "MOTUS_TRUSTED_PROXIES") {
+			t.Errorf("LoadFromEnv() error = %v, want MOTUS_TRUSTED_PROXIES error", err)
+		}
+	})
 }

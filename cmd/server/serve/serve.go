@@ -346,7 +346,13 @@ func Run() {
 	}
 	handler.SetAIEnabled(cfg.AI.Enabled)
 
+	trustedProxies, err := cfg.Security.TrustedProxyPrefixes()
+	if err != nil {
+		slog.Error("invalid trusted proxies", slog.Any("error", err))
+		os.Exit(1)
+	}
 	routerCfg := api.RouterConfig{
+		RealIP:          middleware.RealIP(trustedProxies),
 		LoginRateLimit:  loginRateLimit,
 		APIRateLimit:    middleware.APIRateLimit(),
 		SecurityHeaders: middleware.SecurityHeaders,

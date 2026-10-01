@@ -10,7 +10,12 @@ import (
 	"golang.org/x/time/rate"
 )
 
-const redisLimiterKey = "motus:ratelimit:geocoding"
+const (
+	redisLimiterKey = "motus:ratelimit:geocoding"
+	// retryJitterDivisor sets the retry jitter to a fraction of the period:
+	// enough to break ties between pods while wasting little capacity.
+	retryJitterDivisor = 10
+)
 
 // Limiter blocks until the caller may send the next geocoding request.
 type Limiter interface {
@@ -51,7 +56,7 @@ func (l *RedisLimiter) Wait(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-time.After(res.RetryAfter + rand.N(l.limit.Period)):
+		case <-time.After(res.RetryAfter + rand.N(l.limit.Period/retryJitterDivisor)):
 		}
 	}
 }

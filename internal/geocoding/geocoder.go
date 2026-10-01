@@ -17,6 +17,8 @@ import (
 	"time"
 
 	"golang.org/x/time/rate"
+
+	"github.com/tamcore/motus/internal/metrics"
 )
 
 // Geocoder converts latitude/longitude coordinates into a human-readable address.
@@ -117,6 +119,16 @@ func (g *NominatimGeocoder) ReverseGeocode(ctx context.Context, lat, lon float64
 		return fallback, fmt.Errorf("rate limit wait: %w", err)
 	}
 
+	addr, err := g.reverseGeocode(ctx, lat, lon, fallback)
+	result := "ok"
+	if err != nil {
+		result = "error"
+	}
+	metrics.GeocodingRequests.WithLabelValues(result).Inc()
+	return addr, err
+}
+
+func (g *NominatimGeocoder) reverseGeocode(ctx context.Context, lat, lon float64, fallback string) (string, error) {
 	reqURL := fmt.Sprintf("%s?lat=%.6f&lon=%.6f&format=json&zoom=18&addressdetails=0", g.url, lat, lon)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)

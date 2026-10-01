@@ -5,22 +5,29 @@ import (
 	"context"
 	"log/slog"
 	"time"
+
+	"github.com/tamcore/motus/internal/metrics"
 )
 
 // CachedGeocoder wraps a Geocoder with a TTL-based address cache.
 // It provides two modes of operation:
 //
-//   - Lookup: Returns a cached address or performs geocoding and caches the result.
-//     Used for live tracking where the address is set on the API response but
-//     not persisted to the database.
+//   - Lookup: Returns a cached address or blocks to geocode and cache it.
+//     Used by the idle service for stopped positions.
 //
-//   - LookupAndStore: Same as Lookup, but intended for idle/stopped positions
-//     where the address should be persisted in the database.
+//   - Peek + Prefetch: Non-blocking cache read, with misses geocoded in the
+//     background by StartPrefetch. Used on the GPS ingest path.
 type CachedGeocoder struct {
 	geocoder Geocoder
 	cache    *Cache
 	logger   *slog.Logger
+	queue    chan point
 }
+
+type point struct{ lat, lon float64 }
+
+// prefetchQueueSize bounds pending background lookups; Prefetch drops beyond it.
+const prefetchQueueSize = 256
 
 // NewCachedGeocoder creates a CachedGeocoder wrapping the given geocoder with
 // the specified cache TTL. A nil logger means slog.Default().
@@ -29,6 +36,36 @@ func NewCachedGeocoder(geocoder Geocoder, cacheTTL time.Duration, logger *slog.L
 		geocoder: geocoder,
 		cache:    NewCache(cacheTTL),
 		logger:   cmp.Or(logger, slog.Default()),
+		queue:    make(chan point, prefetchQueueSize),
+	}
+}
+
+// Peek returns the cached address for the coordinates without geocoding.
+func (cg *CachedGeocoder) Peek(lat, lon float64) (string, bool) {
+	return cg.cache.Get(lat, lon)
+}
+
+// Prefetch queues a background lookup that fills the cache. It never blocks;
+// when the queue is full the request is dropped.
+func (cg *CachedGeocoder) Prefetch(lat, lon float64) {
+	select {
+	case cg.queue <- point{lat, lon}:
+	default:
+		metrics.GeocodingPrefetchDropped.Inc()
+	}
+}
+
+// StartPrefetch serves Prefetch requests until ctx is cancelled.
+func (cg *CachedGeocoder) StartPrefetch(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case p := <-cg.queue:
+			if _, ok := cg.cache.Get(p.lat, p.lon); !ok {
+				cg.Lookup(ctx, p.lat, p.lon)
+			}
+		}
 	}
 }
 

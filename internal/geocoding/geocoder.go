@@ -53,6 +53,10 @@ type NominatimConfig struct {
 
 	// Logger receives geocoder logs. Default: slog.Default()
 	Logger *slog.Logger
+
+	// Limiter overrides the per-process RateLimit limiter, e.g. with a
+	// RedisLimiter shared by all pods.
+	Limiter Limiter
 }
 
 // nominatimResponse is the JSON structure returned by Nominatim /reverse.
@@ -65,7 +69,7 @@ type nominatimResponse struct {
 type NominatimGeocoder struct {
 	url       string
 	client    *http.Client
-	limiter   *rate.Limiter
+	limiter   Limiter
 	userAgent string
 	logger    *slog.Logger
 }
@@ -90,7 +94,7 @@ func NewNominatimGeocoder(cfg NominatimConfig) *NominatimGeocoder {
 		client: &http.Client{
 			Timeout: cfg.Timeout,
 		},
-		limiter:   rate.NewLimiter(rate.Limit(cfg.RateLimit), 1),
+		limiter:   cmp.Or[Limiter](cfg.Limiter, rate.NewLimiter(rate.Limit(cfg.RateLimit), 1)),
 		userAgent: cfg.UserAgent,
 		logger:    cmp.Or(cfg.Logger, slog.Default()),
 	}

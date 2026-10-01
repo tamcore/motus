@@ -282,10 +282,15 @@ func Run() {
 	var forwardGeocoder geocoding.ForwardGeocoder
 	if cfg.Geocoding.Enabled || cfg.AI.Enabled {
 		geocodeLogger := appLogger.With(slog.String("component", "geocoding"))
+		var geocodeLimiter geocoding.Limiter
+		if redisClient != nil && cfg.Geocoding.RateLimit > 0 {
+			geocodeLimiter = geocoding.NewRedisLimiter(redisClient, cfg.Geocoding.RateLimit)
+		}
 		nominatim := geocoding.NewNominatimGeocoder(geocoding.NominatimConfig{
 			URL:       cfg.Geocoding.URL,
 			RateLimit: cfg.Geocoding.RateLimit,
 			Logger:    geocodeLogger,
+			Limiter:   geocodeLimiter,
 		})
 		if cfg.Geocoding.Enabled {
 			cachedGeocoder = geocoding.NewCachedGeocoder(nominatim, cfg.Geocoding.CacheTTL, geocodeLogger)
@@ -293,6 +298,7 @@ func Run() {
 				slog.String("provider", cfg.Geocoding.Provider),
 				slog.String("cacheTTL", cfg.Geocoding.CacheTTL.String()),
 				slog.Float64("rateLimit", cfg.Geocoding.RateLimit),
+				slog.Bool("sharedRateLimit", geocodeLimiter != nil),
 			)
 		}
 		forwardGeocoder = nominatim
@@ -406,6 +412,7 @@ func Run() {
 	// Start geocoding cache cleanup (if enabled).
 	if cachedGeocoder != nil {
 		go cachedGeocoder.StartCleanup(gpsCtx, 5*time.Minute)
+		go cachedGeocoder.StartPrefetch(gpsCtx)
 	}
 
 	// GPS protocol TCP servers.

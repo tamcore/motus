@@ -157,3 +157,49 @@ func TestCachedGeocoder_Logger(t *testing.T) {
 		t.Error("custom logger should be kept")
 	}
 }
+
+func TestCachedGeocoder_PrefetchFillsCache(t *testing.T) {
+	mock := &mockGeocoder{response: "Berlin, Germany"}
+	cg := NewCachedGeocoder(mock, time.Minute, nil)
+	go cg.StartPrefetch(t.Context())
+
+	if _, ok := cg.Peek(52.52, 13.405); ok {
+		t.Fatal("Peek hit on empty cache")
+	}
+	cg.Prefetch(52.52, 13.405)
+	cg.Prefetch(52.52, 13.405)
+
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		if addr, ok := cg.Peek(52.52, 13.405); ok {
+			if addr != "Berlin, Germany" {
+				t.Errorf("Peek = %q, want Berlin, Germany", addr)
+			}
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("prefetch did not fill the cache")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	time.Sleep(20 * time.Millisecond)
+	if n := mock.calls.Load(); n != 1 {
+		t.Errorf("geocoder calls = %d, want 1 (duplicate prefetch served from cache)", n)
+	}
+}
+
+func TestCachedGeocoder_PrefetchNeverBlocks(t *testing.T) {
+	cg := NewCachedGeocoder(&mockGeocoder{}, time.Minute, nil)
+	done := make(chan struct{})
+	go func() {
+		for i := range prefetchQueueSize * 2 {
+			cg.Prefetch(float64(i), 0)
+		}
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("Prefetch blocked with a full queue and no worker")
+	}
+}

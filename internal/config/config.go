@@ -147,7 +147,7 @@ type GeocodingConfig struct {
 	// Loaded from MOTUS_GEOCODING_URL. Default: "https://nominatim.openstreetmap.org/reverse".
 	URL string
 	// CacheTTL is how long geocoded addresses are cached in memory.
-	// Loaded from MOTUS_GEOCODING_CACHE_TTL. Default: 30s.
+	// Loaded from MOTUS_GEOCODING_CACHE_TTL. Default: 1h.
 	CacheTTL time.Duration
 	// RateLimit is the maximum number of geocoding requests per second.
 	// Nominatim's usage policy requires at most 1 req/sec.
@@ -412,7 +412,7 @@ func LoadFromEnv() (*Config, error) {
 			Enabled:   parseEnv("MOTUS_GEOCODING_ENABLED", true, strconv.ParseBool),
 			Provider:  getEnv("MOTUS_GEOCODING_PROVIDER", "nominatim"),
 			URL:       getEnv("MOTUS_GEOCODING_URL", "https://nominatim.openstreetmap.org/reverse"),
-			CacheTTL:  parseEnv("MOTUS_GEOCODING_CACHE_TTL", 30*time.Second, time.ParseDuration),
+			CacheTTL:  parseEnv("MOTUS_GEOCODING_CACHE_TTL", time.Hour, time.ParseDuration),
 			RateLimit: parseEnv("MOTUS_GEOCODING_RATE_LIMIT", 1.0, parseFloat),
 		},
 		OIDC: OIDCConfig{

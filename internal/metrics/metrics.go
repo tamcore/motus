@@ -68,4 +68,13 @@ var (
 		},
 		[]string{"channel", "status"},
 	)
+
+	// GeocodingPrefetchDropped counts background geocoding requests dropped
+	// because the prefetch queue was full.
+	GeocodingPrefetchDropped = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "motus_geocoding_prefetch_dropped_total",
+			Help: "Background geocoding requests dropped because the queue was full",
+		},
+	)
 )

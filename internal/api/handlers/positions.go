@@ -140,9 +140,8 @@ func (h *Handler) GetPositions(ctx context.Context, params oas.GetPositionsParam
 	return &result, nil
 }
 
-// collectPositions gathers streamed positions as pointers and converts them
-// into an exactly sized response; appending the large oas.Position values
-// directly roughly doubled the allocations through slice regrowth.
+// collectPositions collects pointers first so the response slice of large
+// oas.Position values is allocated once at exact size.
 func collectPositions(stream func(func(*model.Position) error) error) (oas.GetPositionsOKApplicationJSON, error) {
 	var positions []*model.Position
 	if err := stream(func(p *model.Position) error {
@@ -154,6 +153,7 @@ func collectPositions(stream func(func(*model.Position) error) error) (oas.GetPo
 	result := make(oas.GetPositionsOKApplicationJSON, len(positions))
 	for i, p := range positions {
 		result[i] = positionToOAS(positionInKnots(p))
+		positions[i] = nil // lets GC free converted positions mid-loop
 	}
 	return result, nil
 }

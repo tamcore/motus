@@ -38,8 +38,9 @@ func TestCollectPositions(t *testing.T) {
 	})
 	t.Run("stream error is returned", func(t *testing.T) {
 		want := errors.New("boom")
-		if _, err := collectPositions(func(func(*model.Position) error) error { return want }); !errors.Is(err, want) {
-			t.Fatalf("err = %v, want %v", err, want)
+		got, err := collectPositions(func(func(*model.Position) error) error { return want })
+		if !errors.Is(err, want) || got != nil {
+			t.Fatalf("collectPositions = %v, %v; want nil, %v", got, err, want)
 		}
 	})
 	t.Run("keeps order and converts speed to knots", func(t *testing.T) {

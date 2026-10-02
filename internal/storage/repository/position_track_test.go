@@ -2,6 +2,7 @@ package repository_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -85,5 +86,63 @@ func TestPositionRepository_StreamTrackByDeviceAndTimeRange(t *testing.T) {
 		if g.id != 0 || g.deviceID != 0 || g.hasExtraFieldsSet {
 			t.Errorf("position %d: only track columns may be populated, got %+v", i, g)
 		}
+	}
+}
+
+func TestPositionRepository_StreamTrack_NoStaleValuesAndAbort(t *testing.T) {
+	pool := testutil.SetupTestDB(t)
+	testutil.CleanTables(t, pool)
+	posRepo := repository.NewPositionRepository(pool)
+	ctx := context.Background()
+	_, device := createTestDevice(t, pool, repository.NewDeviceRepository(pool), repository.NewUserRepository(pool))
+
+	from := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	s1, s2, a1, a2 := 10.0, 20.0, "A", "B"
+	// value, NULL, value2, NULL: the reused scan value must not leak into NULL rows.
+	rows := []struct {
+		speed *float64
+		addr  *string
+	}{{&s1, &a1}, {nil, nil}, {&s2, &a2}, {nil, nil}}
+	for i, r := range rows {
+		p := &model.Position{DeviceID: device.ID, Timestamp: from.Add(time.Duration(i) * time.Minute),
+			Latitude: 52, Longitude: 13, Speed: r.speed, Address: r.addr}
+		if err := posRepo.Create(ctx, p); err != nil {
+			t.Fatalf("create position: %v", err)
+		}
+	}
+
+	var got []trackRow
+	err := posRepo.StreamTrackByDeviceAndTimeRange(ctx, device.ID, from, from.Add(time.Hour), func(p *model.Position) error {
+		var r trackRow
+		if p.Speed != nil {
+			r.speed = *p.Speed
+		}
+		if p.Address != nil {
+			r.address = *p.Address
+		}
+		got = append(got, r)
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("stream failed: %v", err)
+	}
+	want := []trackRow{{speed: s1, address: a1}, {}, {speed: s2, address: a2}, {}}
+	if len(got) != len(want) {
+		t.Fatalf("expected %d rows, got %d", len(want), len(got))
+	}
+	for i := range want {
+		if got[i].speed != want[i].speed || got[i].address != want[i].address {
+			t.Errorf("row %d speed/address = %v/%v, want %v/%v", i, got[i].speed, got[i].address, want[i].speed, want[i].address)
+		}
+	}
+
+	errStop := errors.New("stop")
+	calls := 0
+	err = posRepo.StreamTrackByDeviceAndTimeRange(ctx, device.ID, from, from.Add(time.Hour), func(*model.Position) error {
+		calls++
+		return errStop
+	})
+	if !errors.Is(err, errStop) || calls != 1 {
+		t.Fatalf("callback error must abort the stream: err=%v calls=%d", err, calls)
 	}
 }

@@ -273,12 +273,27 @@ func TestPositionRepository_GetLatestByUser(t *testing.T) {
 	_ = posRepo.Create(ctx, &model.Position{DeviceID: device2.ID, Latitude: 51.0, Longitude: 12.0, Timestamp: now.Add(-5 * time.Minute)})
 	_ = posRepo.Create(ctx, &model.Position{DeviceID: device2.ID, Latitude: 51.1, Longitude: 12.1, Timestamp: now})
 
+	empty := &model.Device{UniqueID: "latuser-empty-" + time.Now().Format("20060102150405.000000000"), Name: "No Positions", Status: "online"}
+	if err := deviceRepo.Create(ctx, empty, user.ID); err != nil {
+		t.Fatalf("Create empty device failed: %v", err)
+	}
+
 	latest, err := posRepo.GetLatestByUser(ctx, user.ID)
 	if err != nil {
 		t.Fatalf("GetLatestByUser failed: %v", err)
 	}
 	if len(latest) != 2 {
-		t.Fatalf("expected 2 latest positions (one per device), got %d", len(latest))
+		t.Fatalf("expected 2 latest positions (one per device with positions), got %d", len(latest))
+	}
+	assertLatest(t, latest, map[int64]float64{device1.ID: 52.1, device2.ID: 51.1})
+}
+
+func assertLatest(t *testing.T, latest []*model.Position, wantLat map[int64]float64) {
+	t.Helper()
+	for _, p := range latest {
+		if want, ok := wantLat[p.DeviceID]; !ok || p.Latitude != want {
+			t.Errorf("device %d: latitude %v, want newest position %v", p.DeviceID, p.Latitude, want)
+		}
 	}
 }
 
@@ -467,4 +482,5 @@ func TestPositionRepository_GetLatestAll(t *testing.T) {
 	if len(latest) != 2 {
 		t.Fatalf("expected 2 latest positions (one per device), got %d", len(latest))
 	}
+	assertLatest(t, latest, map[int64]float64{device1.ID: 52.1, device2.ID: 51.1})
 }

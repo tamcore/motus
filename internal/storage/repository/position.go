@@ -77,16 +77,17 @@ func (r *PositionRepository) GetLatestByDevice(ctx context.Context, deviceID int
 }
 
 // GetLatestByUser returns the latest position for each device the user has access to.
+// The per-device LATERAL lookup uses the (device_id, timestamp DESC) index instead
+// of sorting every position of the user's devices.
 func (r *PositionRepository) GetLatestByUser(ctx context.Context, userID int64) ([]*model.Position, error) {
 	rows, err := r.pool.Query(ctx,
-		`SELECT DISTINCT ON (p.device_id)
-			p.id, p.device_id, p.protocol, p.server_time, p.device_time,
-			p.timestamp, p.valid, p.latitude, p.longitude, p.altitude, p.speed, p.course,
-			p.address, p.accuracy, p.network, p.geofence_ids, p.outdated, p.attributes
-		 FROM positions p
-		 JOIN user_devices ud ON ud.device_id = p.device_id
+		`SELECT p.* FROM user_devices ud
+		 CROSS JOIN LATERAL (
+			SELECT `+positionColumns+` FROM positions
+			WHERE device_id = ud.device_id ORDER BY timestamp DESC LIMIT 1
+		 ) p
 		 WHERE ud.user_id = $1
-		 ORDER BY p.device_id, p.timestamp DESC`, userID,
+		 ORDER BY p.device_id`, userID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("get latest positions by user: %w", err)
@@ -99,12 +100,12 @@ func (r *PositionRepository) GetLatestByUser(ctx context.Context, userID int64) 
 // GetLatestAll returns the latest position for every device in the system (admin use).
 func (r *PositionRepository) GetLatestAll(ctx context.Context) ([]*model.Position, error) {
 	rows, err := r.pool.Query(ctx,
-		`SELECT DISTINCT ON (p.device_id)
-			p.id, p.device_id, p.protocol, p.server_time, p.device_time,
-			p.timestamp, p.valid, p.latitude, p.longitude, p.altitude, p.speed, p.course,
-			p.address, p.accuracy, p.network, p.geofence_ids, p.outdated, p.attributes
-		 FROM positions p
-		 ORDER BY p.device_id, p.timestamp DESC`,
+		`SELECT p.* FROM devices d
+		 CROSS JOIN LATERAL (
+			SELECT `+positionColumns+` FROM positions
+			WHERE device_id = d.id ORDER BY timestamp DESC LIMIT 1
+		 ) p
+		 ORDER BY p.device_id`,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("get latest positions (all): %w", err)

@@ -20,8 +20,7 @@ type IgnitionService struct {
 }
 
 type ignitionDeviceStore interface {
-	GetByID(ctx context.Context, id int64) (*model.Device, error)
-	UpdateIgnitionState(ctx context.Context, id int64, on bool, ts time.Time) error
+	SetIgnitionState(ctx context.Context, id int64, on bool, ts time.Time) (bool, error)
 }
 
 // NewIgnitionService creates a new ignition detection service.
@@ -49,28 +48,8 @@ func (s *IgnitionService) CheckIgnition(ctx context.Context, position *model.Pos
 		return nil
 	}
 
-	device, err := s.deviceRepo.GetByID(ctx, position.DeviceID)
-	if err != nil {
-		return err
-	}
-
-	// Skip out-of-order positions: if the device already has a newer ignition
-	// state change recorded, this position is stale.
-	if device.LastIgnitionTime != nil && position.Timestamp.Before(*device.LastIgnitionTime) {
-		return nil
-	}
-
-	// No state change — update last_ignition_time if the position is newer
-	// (keeps the guard timestamp fresh) but don't fire an event.
-	if currIgnition == device.IgnitionOn {
-		if currIgnition && (device.LastIgnitionTime == nil || !position.Timestamp.Before(*device.LastIgnitionTime)) {
-			_ = s.deviceRepo.UpdateIgnitionState(ctx, device.ID, true, position.Timestamp)
-		}
-		return nil
-	}
-
-	// State changed: update device and fire event.
-	if err := s.deviceRepo.UpdateIgnitionState(ctx, device.ID, currIgnition, position.Timestamp); err != nil {
+	changed, err := s.deviceRepo.SetIgnitionState(ctx, position.DeviceID, currIgnition, position.Timestamp)
+	if err != nil || !changed {
 		return err
 	}
 

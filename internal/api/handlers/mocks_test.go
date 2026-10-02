@@ -350,8 +350,8 @@ func (m *mockDeviceRepo) GetAllWithOwners(ctx context.Context) ([]model.Device, 
 	return nil, nil
 }
 
-func (m *mockDeviceRepo) UpdateIgnitionState(_ context.Context, _ int64, _ bool, _ time.Time) error {
-	return nil
+func (m *mockDeviceRepo) SetIgnitionState(_ context.Context, _ int64, _ bool, _ time.Time) (bool, error) {
+	return false, nil
 }
 
 func (m *mockDeviceRepo) UpdateProtocol(_ context.Context, _ int64, _ string) error {

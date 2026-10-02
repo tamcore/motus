@@ -2,6 +2,8 @@ package repository_test
 
 import (
 	"context"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -389,5 +391,82 @@ func TestDeviceRepository_MarkOnline(t *testing.T) {
 	}
 	if got.Name != "Renamed" {
 		t.Errorf("Name = %q, want concurrent rename kept", got.Name)
+	}
+}
+
+func TestDeviceRepository_SetIgnitionState(t *testing.T) {
+	pool := testutil.SetupTestDB(t)
+	testutil.CleanTables(t, pool)
+	deviceRepo := repository.NewDeviceRepository(pool)
+	ctx := context.Background()
+	user := createTestUser(t, repository.NewUserRepository(pool))
+	device := &model.Device{UniqueID: "ignition-atomic", Name: "Ign", Status: "online"}
+	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	t0 := time.Date(2026, 10, 2, 12, 0, 0, 0, time.UTC)
+	steps := []struct {
+		name        string
+		on          bool
+		ts          time.Time
+		wantChanged bool
+		wantOn      bool
+		wantLast    time.Time
+	}{
+		{"off while off writes nothing", false, t0, false, false, time.Time{}},
+		{"on is a change", true, t0, true, true, t0},
+		{"on again refreshes the time", true, t0.Add(time.Minute), false, true, t0.Add(time.Minute)},
+		{"older position is ignored", false, t0, false, true, t0.Add(time.Minute)},
+		{"off is a change", false, t0.Add(2 * time.Minute), true, false, t0.Add(2 * time.Minute)},
+		{"off again writes nothing", false, t0.Add(3 * time.Minute), false, false, t0.Add(2 * time.Minute)},
+	}
+	for _, s := range steps {
+		changed, err := deviceRepo.SetIgnitionState(ctx, device.ID, s.on, s.ts)
+		if err != nil {
+			t.Fatalf("%s: %v", s.name, err)
+		}
+		got, err := deviceRepo.GetByID(ctx, device.ID)
+		if err != nil {
+			t.Fatalf("%s: GetByID: %v", s.name, err)
+		}
+		var last time.Time
+		if got.LastIgnitionTime != nil {
+			last = got.LastIgnitionTime.UTC()
+		}
+		if changed != s.wantChanged || got.IgnitionOn != s.wantOn || !last.Equal(s.wantLast) {
+			t.Errorf("%s: changed=%v on=%v last=%v, want %v %v %v", s.name, changed, got.IgnitionOn, last, s.wantChanged, s.wantOn, s.wantLast)
+		}
+	}
+}
+
+func TestDeviceRepository_SetIgnitionState_ConcurrentReportsChangeOnce(t *testing.T) {
+	pool := testutil.SetupTestDB(t)
+	testutil.CleanTables(t, pool)
+	deviceRepo := repository.NewDeviceRepository(pool)
+	ctx := context.Background()
+	user := createTestUser(t, repository.NewUserRepository(pool))
+	device := &model.Device{UniqueID: "ignition-race", Name: "Ign", Status: "online"}
+	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	ts := time.Date(2026, 10, 2, 12, 0, 0, 0, time.UTC)
+	var changes atomic.Int32
+	var wg sync.WaitGroup
+	for range 10 {
+		wg.Go(func() {
+			changed, err := deviceRepo.SetIgnitionState(ctx, device.ID, true, ts)
+			if err != nil {
+				t.Errorf("SetIgnitionState: %v", err)
+			}
+			if changed {
+				changes.Add(1)
+			}
+		})
+	}
+	wg.Wait()
+	if n := changes.Load(); n != 1 {
+		t.Errorf("concurrent off→on reported %d changes, want exactly 1", n)
 	}
 }

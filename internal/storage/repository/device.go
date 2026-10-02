@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -256,19 +257,30 @@ func (r *DeviceRepository) Update(ctx context.Context, d *model.Device) error {
 	return nil
 }
 
-// UpdateIgnitionState atomically sets the ignition_on flag and
-// last_ignition_time on a device. This is used by the IgnitionService to
-// track state transitions without a full Update (which writes every column
-// and could race with the handler's status update).
-func (r *DeviceRepository) UpdateIgnitionState(ctx context.Context, id int64, on bool, ts time.Time) error {
-	_, err := r.pool.Exec(ctx,
-		`UPDATE devices SET ignition_on = $1, last_ignition_time = $2 WHERE id = $3`,
-		on, ts, id,
-	)
-	if err != nil {
-		return fmt.Errorf("update ignition state: %w", err)
+// SetIgnitionState records the ignition state of a position at ts and reports
+// whether it changed. Positions older than last_ignition_time are ignored. An
+// unchanged "on" state refreshes last_ignition_time; an unchanged "off" state
+// writes nothing. The row lock makes concurrent positions see each other's
+// writes, so one change reports changed exactly once.
+func (r *DeviceRepository) SetIgnitionState(ctx context.Context, id int64, on bool, ts time.Time) (bool, error) {
+	var prev bool
+	err := r.pool.QueryRow(ctx,
+		`WITH prev AS (SELECT ignition_on FROM devices WHERE id = $1 FOR UPDATE)
+		 UPDATE devices d SET ignition_on = $2, last_ignition_time = $3
+		 FROM prev
+		 WHERE d.id = $1
+		   AND (d.last_ignition_time IS NULL OR d.last_ignition_time <= $3)
+		   AND (prev.ignition_on <> $2 OR $2)
+		 RETURNING prev.ignition_on`,
+		id, on, ts,
+	).Scan(&prev)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
 	}
-	return nil
+	if err != nil {
+		return false, fmt.Errorf("set ignition state: %w", err)
+	}
+	return prev != on, nil
 }
 
 // MarkOnline records a new position on a device: status online, last_update,

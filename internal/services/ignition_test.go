@@ -47,14 +47,18 @@ type ignitionMockDeviceRepo struct {
 	device *model.Device
 }
 
-func (r *ignitionMockDeviceRepo) GetByID(_ context.Context, id int64) (*model.Device, error) {
-	return r.device, nil
-}
-
-func (r *ignitionMockDeviceRepo) UpdateIgnitionState(_ context.Context, _ int64, on bool, ts time.Time) error {
-	r.device.IgnitionOn = on
-	r.device.LastIgnitionTime = &ts
-	return nil
+// SetIgnitionState mirrors the SQL in DeviceRepository.SetIgnitionState.
+func (r *ignitionMockDeviceRepo) SetIgnitionState(_ context.Context, _ int64, on bool, ts time.Time) (bool, error) {
+	d := r.device
+	if d.LastIgnitionTime != nil && ts.Before(*d.LastIgnitionTime) {
+		return false, nil
+	}
+	if d.IgnitionOn == on && !on {
+		return false, nil
+	}
+	changed := d.IgnitionOn != on
+	d.IgnitionOn, d.LastIgnitionTime = on, &ts
+	return changed, nil
 }
 
 // Satisfy the full DeviceRepo interface with no-ops.

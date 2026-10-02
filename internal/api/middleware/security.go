@@ -30,7 +30,7 @@ func SecurityHeaders(next http.Handler) http.Handler {
 			"default-src 'self'; "+
 				"script-src 'self' 'unsafe-inline'; "+
 				"style-src 'self' 'unsafe-inline'; "+
-				"img-src 'self' data: https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com; "+
+				"img-src 'self' data: https://*.tile.openstreetmap.org; "+
 				"connect-src 'self' wss:; "+
 				"font-src 'self'; "+
 				"worker-src 'self'; "+

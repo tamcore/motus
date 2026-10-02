@@ -74,32 +74,11 @@
 
 	$: gradient = currentTheme === 'dark' ? darkGradient : lightGradient;
 
-	$: if (mapReady) {
-		updateTileLayer(currentTheme);
-	}
-
-	function updateTileLayer(themeMode: string) {
-		const tileLayer = leafletMap.getTileLayer();
-		if (!tileLayer) return;
-		const url =
-			themeMode === 'dark'
-				? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-				: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-		tileLayer.setUrl(url);
-	}
-
 	onMount(async () => {
-		const isDark = currentTheme === 'dark';
-		const tileUrl = isDark
-			? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-			: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-
 		// Initialize map via composable
 		await leafletMap.initialize(mapContainer, {
 			center: [49.79, 9.95],
 			zoom: 12,
-			tileUrl,
-			tileAttribution: '&copy; OpenStreetMap contributors &copy; CARTO',
 		});
 
 		// leaflet.heat is a legacy browser plugin that extends the global `L` object.
@@ -593,7 +572,7 @@
 
 	<!-- Map -->
 	<div class="map-wrapper">
-		<div class="map-container" bind:this={mapContainer}></div>
+		<div class="map-container" class:dark-tiles={currentTheme === 'dark'} bind:this={mapContainer}></div>
 
 		<!-- On-map floating legend -->
 		{#if showHeatmap && positions.length > 0 && !loading}
@@ -870,6 +849,10 @@
 		height: 100%;
 		width: 100%;
 		background-color: var(--bg-tertiary);
+	}
+
+	.map-container.dark-tiles :global(.leaflet-tile-pane) {
+		filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.9);
 	}
 
 	/* On-map floating legend */

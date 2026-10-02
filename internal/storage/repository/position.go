@@ -266,10 +266,11 @@ func (r *PositionRepository) streamSampled(ctx context.Context, fn func(*model.P
 	// buffer every row of the range before emitting the first one.
 	var total int64
 	if err := r.pool.QueryRow(ctx, `SELECT count(*) FROM (`+query+`) s`, args...).Scan(&total); err != nil {
-		return err
+		return fmt.Errorf("count: %w", err)
 	}
+	// LIMIT keeps the bound when rows arrive between the count and the scan.
 	if total <= int64(limit) {
-		return r.stream(ctx, fn, query+` ORDER BY timestamp ASC`, args...)
+		return r.stream(ctx, fn, query+` ORDER BY timestamp ASC LIMIT $4`, append(args, limit)...)
 	}
 	stride := (total + int64(limit) - 1) / int64(limit)
 	return r.stream(ctx, fn, `SELECT `+positionColumns+` FROM (
@@ -277,7 +278,8 @@ func (r *PositionRepository) streamSampled(ctx context.Context, fn func(*model.P
 			FROM (`+query+`) s
 		 ) w
 		 WHERE rn % $4 = 0
-		 ORDER BY timestamp ASC`, append(args, stride)...)
+		 ORDER BY timestamp ASC
+		 LIMIT $5`, append(args, stride, limit)...)
 }
 
 func (r *PositionRepository) stream(ctx context.Context, fn func(*model.Position) error, query string, args ...any) error {

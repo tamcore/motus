@@ -449,6 +449,12 @@ func TestPositionRepository_StreamByDeviceAndTimeRange_WithLimit(t *testing.T) {
 	if got := sampled(50); len(got) != 10 {
 		t.Errorf("limit above total returned %d positions, want all 10", len(got))
 	}
+	if got := sampled(10); len(got) != 10 {
+		t.Errorf("limit equal to total returned %d positions, want all 10", len(got))
+	}
+	if got := sampled(9); !slices.Equal(got, []float64{0, 2, 4, 6, 8}) {
+		t.Errorf("limit one below total returned positions %v, want every 2nd", got)
+	}
 }
 
 func TestPositionRepository_StreamByUserAndTimeRange_WithLimit(t *testing.T) {

@@ -24,6 +24,7 @@ import type {
   PasskeyCredentialInfo,
   PlatformStats,
   Position,
+  PositionPoint,
   Session,
   SudoStatusResponse,
   TokenResponse,
@@ -298,6 +299,21 @@ export const api = {
     request<Omit<Stop, "id">[]>(`/reports/stops?${reportQuery(params)}`).then((stops) =>
       stops.map((s, i) => ({ ...s, id: `stop-${s.deviceId}-${i}` })),
     ),
+
+  /** Compact range points (lat, lon, speed, fixTime), sampled to `limit` by the server. */
+  getPositionPoints: (params: {
+    deviceId?: number;
+    from: string;
+    to: string;
+    limit?: number;
+  }) => {
+    const query = new URLSearchParams({ from: params.from, to: params.to });
+    if (params.deviceId) query.set("deviceId", String(params.deviceId));
+    if (params.limit) query.set("limit", String(params.limit));
+    return request<PositionPoint[]>(`/positions/points?${query}`).then((points) =>
+      points.map((p) => ({ ...p, speed: p.speed * KNOTS_TO_KMH })),
+    );
+  },
 
   // ---------------------------------------------------------------------------
   // Commands

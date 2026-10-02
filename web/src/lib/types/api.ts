@@ -144,6 +144,14 @@ export interface Position {
   network?: Record<string, unknown>;
 }
 
+/** Compact position from GET /api/positions/points. Speed is in km/h after client normalization. */
+export interface PositionPoint {
+  lat: number;
+  lon: number;
+  speed: number;
+  fixTime: string;
+}
+
 // ---------------------------------------------------------------------------
 // Calendar
 // ---------------------------------------------------------------------------

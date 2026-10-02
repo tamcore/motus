@@ -1,12 +1,11 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { api, fetchDevices } from '$lib/api/client';
-	import { streamPositions } from '$lib/api/stream';
 	import { currentUser } from '$lib/stores/auth';
 	import { refreshHandler } from '$lib/stores/refresh';
 	import { theme } from '$lib/stores/theme';
 	import { useLeaflet } from '$lib/composables/useLeaflet';
-	import type { Device, Position } from '$lib/types/api';
+	import type { Device, PositionPoint } from '$lib/types/api';
 	import Button from '$lib/components/Button.svelte';
 	import AllDevicesToggle from '$lib/components/AllDevicesToggle.svelte';
 	import type { HeatMapOptions } from 'leaflet';
@@ -22,7 +21,7 @@
 
 	// Data
 	let devices: Device[] = [];
-	let positions: Position[] = [];
+	let positions: PositionPoint[] = [];
 	let loading = false;
 	let loadingCount = 0;
 	let error = '';
@@ -155,24 +154,22 @@
 			const fromISO = from.toISOString();
 			const toISO = to.toISOString();
 
+			// The heatmap renders at most HEATMAP_MAX_POINTS, so let the server
+			// sample the range instead of downloading every position.
+			const load = (deviceId: number) =>
+				api
+					.getPositionPoints({ deviceId, from: fromISO, to: toISO, limit: HEATMAP_MAX_POINTS })
+					.then((points) => {
+						loadingCount += points.length;
+						return points;
+					});
+
 			if (selectedDeviceId) {
-				// The heatmap renders at most HEATMAP_MAX_POINTS, so let the server
-				// sample the range instead of downloading every position.
-				positions = await streamPositions(
-					{ deviceId: parseInt(selectedDeviceId), from: fromISO, to: toISO, limit: HEATMAP_MAX_POINTS },
-					(delta) => { loadingCount += delta; },
-				);
+				positions = await load(parseInt(selectedDeviceId));
 			} else {
-				// All devices — fan out per device so we get full history.
-				// The no-deviceId endpoint returns only the latest position per
-				// device, not the range history needed for a heatmap.
+				// All devices — fan out per device so each gets its own sampling budget.
 				const results = await Promise.all(
-					devices.map((d) =>
-						streamPositions(
-							{ deviceId: d.id, from: fromISO, to: toISO, limit: HEATMAP_MAX_POINTS },
-							(delta) => { loadingCount += delta; },
-						).catch(() => [] as Position[]),
-					),
+					devices.map((d) => load(d.id).catch(() => [] as PositionPoint[])),
 				);
 				positions = results.flat();
 			}
@@ -190,7 +187,7 @@
 		}
 	}
 
-	function samplePositions(data: Position[], maxPoints: number = HEATMAP_MAX_POINTS): Position[] {
+	function samplePositions(data: PositionPoint[], maxPoints: number = HEATMAP_MAX_POINTS): PositionPoint[] {
 		if (data.length <= maxPoints) {
 			return data;
 		}
@@ -208,10 +205,10 @@
 		let minLat = Infinity, maxLat = -Infinity;
 		let minLon = Infinity, maxLon = -Infinity;
 		for (const p of positions) {
-			if (p.latitude < minLat) minLat = p.latitude;
-			if (p.latitude > maxLat) maxLat = p.latitude;
-			if (p.longitude < minLon) minLon = p.longitude;
-			if (p.longitude > maxLon) maxLon = p.longitude;
+			if (p.lat < minLat) minLat = p.lat;
+			if (p.lat > maxLat) maxLat = p.lat;
+			if (p.lon < minLon) minLon = p.lon;
+			if (p.lon > maxLon) maxLon = p.lon;
 		}
 		const bounds = L.latLngBounds([minLat, minLon], [maxLat, maxLon]);
 		map.fitBounds(bounds.pad(0.1));
@@ -237,13 +234,12 @@
 			let intensity: number;
 			if (intensityMode === 'speed') {
 				// Use speed as intensity: higher speed = hotter
-				const speed = p.speed ?? 0;
-				intensity = Math.min(speed / 120, 1);
+				intensity = Math.min(p.speed / 120, 1);
 			} else {
 				// Density mode: all points equal weight, density comes from overlap
 				intensity = 0.6;
 			}
-			return [p.latitude, p.longitude, intensity];
+			return [p.lat, p.lon, intensity];
 		});
 
 		const options: HeatMapOptions = {
@@ -349,7 +345,7 @@
 	// Compute speed stats for display
 	$: speedStats = (() => {
 		if (positions.length === 0) return null;
-		const speeds = positions.map((p) => p.speed ?? 0);
+		const speeds = positions.map((p) => p.speed);
 		const avg = speeds.reduce((a, b) => a + b, 0) / speeds.length;
 		const max = Math.max(...speeds);
 		return { avg: avg.toFixed(1), max: max.toFixed(1) };

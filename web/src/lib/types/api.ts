@@ -150,6 +150,10 @@ export interface PositionPoint {
   lon: number;
   speed: number;
   fixTime: string;
+  /** Degrees; absent when unknown. */
+  course?: number;
+  /** Meters; absent when unknown. */
+  altitude?: number;
 }
 
 // ---------------------------------------------------------------------------

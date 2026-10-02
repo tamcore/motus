@@ -7,9 +7,9 @@
 	import { useLeaflet } from '$lib/composables/useLeaflet';
 	import { theme } from '$lib/stores/theme';
 	import { haversineDistance } from '$lib/utils/trips';
-	import { hasMetricData } from '$lib/utils/chart-metrics';
+	import { toRoutePositions, type RoutePosition as Position } from '$lib/utils/route-points';
 	import { formatDate, formatDuration, formatSpeed, formatDistance } from '$lib/utils/formatting';
-	import type { Device, Position } from '$lib/types/api';
+	import type { Device } from '$lib/types/api';
 	import { Chart, registerables } from 'chart.js';
 	import Skeleton from '$lib/components/Skeleton.svelte';
 	import Button from '$lib/components/Button.svelte';
@@ -232,12 +232,12 @@
 		clearMapLayers();
 
 		try {
-			const raw = await api.getPositions({ deviceId, from, to, limit: 10000 });
-			const sorted = ([...raw] as unknown as Position[]).sort(
+			const raw = await api.getPositionPoints({ deviceId, from, to, limit: 10000 });
+			const sorted = toRoutePositions(raw).sort(
 				(a, b) => new Date(getTime(a)).getTime() - new Date(getTime(b)).getTime()
 			);
 			positions = sorted;
-			hasAltitudeData = hasMetricData(positions, 'altitude');
+			hasAltitudeData = positions.some((p) => p.altitude != null && p.altitude !== 0);
 			if (chartMetric === 'altitude' && !hasAltitudeData) {
 				chartMetric = 'speed';
 			}

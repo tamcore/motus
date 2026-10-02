@@ -7,6 +7,7 @@
 	import { formatDate, formatSpeed } from '$lib/utils/formatting';
 	import { downloadGPX } from '$lib/utils/gpx';
 	import type { Position } from '$lib/utils/trips';
+	import { toRoutePositions } from '$lib/utils/route-points';
 	import RoutePlayback from '$lib/components/RoutePlayback.svelte';
 
 	const leafletMap = useLeaflet();
@@ -43,9 +44,9 @@
 
 		if (deviceId && from && to) {
 			try {
-				positions = await api.getPositions({
+				positions = toRoutePositions(await api.getPositionPoints({
 					deviceId: Number(deviceId), from, to, limit: 10000
-				}) as Position[];
+				}));
 			} catch (e) {
 				console.error('Failed to load positions:', e);
 			}

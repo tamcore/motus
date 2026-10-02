@@ -61,10 +61,10 @@ test.describe('Route Playback Page', () => {
   });
 
   test('should show playback controls when positions exist', async ({ authedPage }) => {
-    const mockPositions = [
-      { id: 1, deviceId: 1, latitude: 51.5, longitude: -0.09, speed: 30, fixTime: '2025-01-01T00:00:00Z', valid: true, outdated: false },
-      { id: 2, deviceId: 1, latitude: 51.51, longitude: -0.08, speed: 40, fixTime: '2025-01-01T00:01:00Z', valid: true, outdated: false },
-      { id: 3, deviceId: 1, latitude: 51.52, longitude: -0.07, speed: 35, fixTime: '2025-01-01T00:02:00Z', valid: true, outdated: false },
+    const mockPoints = [
+      { lat: 51.5, lon: -0.09, speed: 30, fixTime: '2025-01-01T00:00:00Z' },
+      { lat: 51.51, lon: -0.08, speed: 40, fixTime: '2025-01-01T00:01:00Z' },
+      { lat: 51.52, lon: -0.07, speed: 35, fixTime: '2025-01-01T00:02:00Z' },
     ];
 
     // Intercept fetch at JS level — page.route() doesn't reliably intercept
@@ -73,7 +73,8 @@ test.describe('Route Playback Page', () => {
       const origFetch = window.fetch;
       window.fetch = async function (...args: Parameters<typeof fetch>) {
         const url = typeof args[0] === 'string' ? args[0] : args[0] instanceof URL ? args[0].href : (args[0] as Request).url;
-        if (url.includes('/api/positions')) {
+        if (url.includes('/api/positions/points?')) {
+          (window as unknown as { __pointsRequested?: boolean }).__pointsRequested = true;
           return new Response(JSON.stringify(positions), {
             status: 200,
             headers: { 'Content-Type': 'application/json' },
@@ -81,7 +82,7 @@ test.describe('Route Playback Page', () => {
         }
         return origFetch.apply(this, args);
       };
-    }, mockPositions);
+    }, mockPoints);
 
     await authedPage.goto('/reports/route?deviceId=1&from=2025-01-01T00:00:00Z&to=2025-01-02T00:00:00Z');
 
@@ -89,16 +90,20 @@ test.describe('Route Playback Page', () => {
     await expect(authedPage.locator('button:has-text("Play")')).toBeVisible();
     await expect(authedPage.locator('button:has-text("Stop")')).toBeVisible();
     await expect(authedPage.locator('button:has-text("GPX")')).toBeVisible();
+    await expect(authedPage.locator('.info-panel')).toContainText('51.500000, -0.090000');
+    expect(
+      await authedPage.evaluate(() => (window as unknown as { __pointsRequested?: boolean }).__pointsRequested),
+    ).toBe(true);
   });
 
   test('should show speed selector buttons', async ({ authedPage }) => {
-    await authedPage.route('**/api/positions*', (route) => {
+    await authedPage.route('**/api/positions/points*', (route) => {
       route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify([
-          { id: 1, deviceId: 1, latitude: 51.5, longitude: -0.09, speed: 30, fixTime: '2025-01-01T00:00:00Z', valid: true, outdated: false },
-          { id: 2, deviceId: 1, latitude: 51.51, longitude: -0.08, speed: 40, fixTime: '2025-01-01T00:01:00Z', valid: true, outdated: false },
+          { lat: 51.5, lon: -0.09, speed: 30, fixTime: '2025-01-01T00:00:00Z' },
+          { lat: 51.51, lon: -0.08, speed: 40, fixTime: '2025-01-01T00:01:00Z' },
         ]),
       });
     });
@@ -114,13 +119,13 @@ test.describe('Route Playback Page', () => {
   });
 
   test('should show info panel with position data', async ({ authedPage }) => {
-    await authedPage.route('**/api/positions*', (route) => {
+    await authedPage.route('**/api/positions/points*', (route) => {
       route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify([
-          { id: 1, deviceId: 1, latitude: 51.5, longitude: -0.09, speed: 30, fixTime: '2025-01-01T00:00:00Z', valid: true, outdated: false },
-          { id: 2, deviceId: 1, latitude: 51.51, longitude: -0.08, speed: 40, fixTime: '2025-01-01T00:01:00Z', valid: true, outdated: false },
+          { lat: 51.5, lon: -0.09, speed: 30, fixTime: '2025-01-01T00:00:00Z' },
+          { lat: 51.51, lon: -0.08, speed: 40, fixTime: '2025-01-01T00:01:00Z' },
         ]),
       });
     });

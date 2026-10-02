@@ -15,12 +15,12 @@ LDFLAGS := -s -w \
 	-X github.com/tamcore/motus/internal/version.Branch=$(BRANCH)
 
 
-.PHONY: help build test dev-deploy-k8s clean fmt vet golangci-lint frontend-check helm-lint lint
+.PHONY: help build test dev-docker-build dev-deploy-k8s clean fmt vet golangci-lint frontend-check helm-lint lint
 
 help: ## Show this help message
 	@echo "Motus - Make targets:"
 	@echo ""
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 build: ## Build the motus binary
 	@echo "Building motus..."
@@ -52,7 +52,7 @@ test: lint ## Run all tests
 	@echo "Running tests..."
 	@go test ./... -v
 
-dev-deploy-k8s: ## Build dev image, push to IMAGE_REGISTRY, and deploy to K8s
+dev-docker-build: ## Build the dev image
 	@echo "Building development Docker image..."
 	@docker build -t $(IMAGE_REGISTRY)/$(IMAGE_NAME):$(IMAGE_TAG) -f Dockerfile.dev \
 		--build-arg VERSION=$(VERSION) \
@@ -60,6 +60,8 @@ dev-deploy-k8s: ## Build dev image, push to IMAGE_REGISTRY, and deploy to K8s
 		--build-arg BUILD_DATE=$(DATE) \
 		--build-arg BRANCH=$(BRANCH) \
 		.
+
+dev-deploy-k8s: dev-docker-build ## Build dev image, push to IMAGE_REGISTRY, and deploy to K8s
 	@echo ""
 	@echo "Pushing to $(IMAGE_REGISTRY)..."
 	@docker push $(IMAGE_REGISTRY)/$(IMAGE_NAME):$(IMAGE_TAG)

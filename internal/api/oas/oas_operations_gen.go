@@ -76,6 +76,8 @@ const (
 	PasskeyRegisterBeginOperation   OperationName = "PasskeyRegisterBegin"
 	PasskeyRegisterFinishOperation  OperationName = "PasskeyRegisterFinish"
 	ReportEventsOperation           OperationName = "ReportEvents"
+	ReportStopsOperation            OperationName = "ReportStops"
+	ReportTripsOperation            OperationName = "ReportTrips"
 	SendCommandOperation            OperationName = "SendCommand"
 	TestNotificationOperation       OperationName = "TestNotification"
 	UpdateCalendarOperation         OperationName = "UpdateCalendar"

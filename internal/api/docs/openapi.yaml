@@ -25,6 +25,24 @@ components:
       name: X-Auth-Token
       description: iOS PWA fallback — pass session_id value here
 
+  parameters:
+    ReportDeviceIds:
+      name: deviceId
+      in: query
+      description: Devices to report on (repeatable). Omitted means all devices of the user.
+      schema:
+        type: array
+        items: { type: integer, format: int64 }
+    ReportFrom:
+      name: from
+      in: query
+      required: true
+      schema: { type: string, format: date-time }
+    ReportTo:
+      name: to
+      in: query
+      required: true
+      schema: { type: string, format: date-time }
   responses:
     BadRequest:
       description: Bad request
@@ -701,6 +719,32 @@ components:
         eventTime: { type: string, format: date-time }
         attributes:
           $ref: '#/components/schemas/EventAttributes'
+
+    ReportTrip:
+      type: object
+      required: [deviceId, deviceName, startTime, endTime, duration, distance, avgSpeed, maxSpeed]
+      properties:
+        deviceId: { type: integer, format: int64 }
+        deviceName: { type: string }
+        startTime: { type: string, format: date-time }
+        endTime: { type: string, format: date-time }
+        duration: { type: number, format: double, description: Seconds }
+        distance: { type: number, format: double, description: Kilometers }
+        avgSpeed: { type: number, format: double, description: Mean speed of moving positions in knots }
+        maxSpeed: { type: number, format: double, description: Knots }
+
+    ReportStop:
+      type: object
+      required: [deviceId, deviceName, latitude, longitude, address, arrivalTime, departureTime, duration]
+      properties:
+        deviceId: { type: integer, format: int64 }
+        deviceName: { type: string }
+        latitude: { type: number, format: double }
+        longitude: { type: number, format: double }
+        address: { type: string, description: 'First geocoded address of the stop, else "lat, lon" with 5 decimals' }
+        arrivalTime: { type: string, format: date-time }
+        departureTime: { type: string, format: date-time }
+        duration: { type: number, format: double, description: Seconds }
 
     NotificationRule:
       type: object
@@ -2050,6 +2094,76 @@ paths:
                   $ref: '#/components/schemas/Event'
         "401":
           $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+
+  /api/reports/trips:
+    get:
+      operationId: reportTrips
+      summary: Detect trips in a time range (Traccar-compatible path)
+      description: |
+        A trip starts when speed exceeds 5 km/h and ends after a stop of at
+        least 5 minutes or a gap of at least 1 hour between positions. Trips
+        shorter than 60 seconds are dropped. Speeds are in knots (Traccar
+        convention), distance in kilometers, duration in seconds.
+      tags: [reports]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      parameters:
+        - $ref: '#/components/parameters/ReportDeviceIds'
+        - $ref: '#/components/parameters/ReportFrom'
+        - $ref: '#/components/parameters/ReportTo'
+      responses:
+        "200":
+          description: Trip report
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReportTrip'
+        "400":
+          $ref: '#/components/responses/BadRequest'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "403":
+          $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+
+  /api/reports/stops:
+    get:
+      operationId: reportStops
+      summary: Detect stops in a time range (Traccar-compatible path)
+      description: |
+        A stop is a period of at least 5 minutes below 1 km/h. Duration is in
+        seconds; latitude and longitude are the mean of the stop positions.
+      tags: [reports]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      parameters:
+        - $ref: '#/components/parameters/ReportDeviceIds'
+        - $ref: '#/components/parameters/ReportFrom'
+        - $ref: '#/components/parameters/ReportTo'
+      responses:
+        "200":
+          description: Stop report
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReportStop'
+        "400":
+          $ref: '#/components/responses/BadRequest'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "403":
+          $ref: '#/components/responses/Forbidden'
         default:
           $ref: '#/components/responses/UnexpectedError'
 

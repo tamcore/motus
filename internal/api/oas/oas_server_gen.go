@@ -435,6 +435,21 @@ type Handler interface {
 	//
 	// GET /api/reports/events
 	ReportEvents(ctx context.Context, params ReportEventsParams) (ReportEventsRes, error)
+	// ReportStops implements reportStops operation.
+	//
+	// A stop is a period of at least 5 minutes below 1 km/h. Duration is in seconds; latitude and
+	// longitude are the mean of the stop positions.
+	//
+	// GET /api/reports/stops
+	ReportStops(ctx context.Context, params ReportStopsParams) (ReportStopsRes, error)
+	// ReportTrips implements reportTrips operation.
+	//
+	// A trip starts when speed exceeds 5 km/h and ends after a stop of at least 5 minutes or a gap of at
+	// least 1 hour between positions. Trips shorter than 60 seconds are dropped. Speeds are in knots
+	// (Traccar convention), distance in kilometers, duration in seconds.
+	//
+	// GET /api/reports/trips
+	ReportTrips(ctx context.Context, params ReportTripsParams) (ReportTripsRes, error)
 	// SendCommand implements sendCommand operation.
 	//
 	// Send a command to a device immediately.

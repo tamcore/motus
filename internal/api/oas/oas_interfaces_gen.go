@@ -269,6 +269,14 @@ type ReportEventsRes interface {
 	reportEventsRes()
 }
 
+type ReportStopsRes interface {
+	reportStopsRes()
+}
+
+type ReportTripsRes interface {
+	reportTripsRes()
+}
+
 type SendCommandRes interface {
 	sendCommandRes()
 }

@@ -6366,6 +6366,228 @@ type ReportEventsOKApplicationJSON []Event
 
 func (*ReportEventsOKApplicationJSON) reportEventsRes() {}
 
+// Ref: #/components/schemas/ReportStop
+type ReportStop struct {
+	DeviceId   int64   `json:"deviceId"`
+	DeviceName string  `json:"deviceName"`
+	Latitude   float64 `json:"latitude"`
+	Longitude  float64 `json:"longitude"`
+	// First geocoded address of the stop, else "lat, lon" with 5 decimals.
+	Address       string    `json:"address"`
+	ArrivalTime   time.Time `json:"arrivalTime"`
+	DepartureTime time.Time `json:"departureTime"`
+	// Seconds.
+	Duration float64 `json:"duration"`
+}
+
+// GetDeviceId returns the value of DeviceId.
+func (s *ReportStop) GetDeviceId() int64 {
+	return s.DeviceId
+}
+
+// GetDeviceName returns the value of DeviceName.
+func (s *ReportStop) GetDeviceName() string {
+	return s.DeviceName
+}
+
+// GetLatitude returns the value of Latitude.
+func (s *ReportStop) GetLatitude() float64 {
+	return s.Latitude
+}
+
+// GetLongitude returns the value of Longitude.
+func (s *ReportStop) GetLongitude() float64 {
+	return s.Longitude
+}
+
+// GetAddress returns the value of Address.
+func (s *ReportStop) GetAddress() string {
+	return s.Address
+}
+
+// GetArrivalTime returns the value of ArrivalTime.
+func (s *ReportStop) GetArrivalTime() time.Time {
+	return s.ArrivalTime
+}
+
+// GetDepartureTime returns the value of DepartureTime.
+func (s *ReportStop) GetDepartureTime() time.Time {
+	return s.DepartureTime
+}
+
+// GetDuration returns the value of Duration.
+func (s *ReportStop) GetDuration() float64 {
+	return s.Duration
+}
+
+// SetDeviceId sets the value of DeviceId.
+func (s *ReportStop) SetDeviceId(val int64) {
+	s.DeviceId = val
+}
+
+// SetDeviceName sets the value of DeviceName.
+func (s *ReportStop) SetDeviceName(val string) {
+	s.DeviceName = val
+}
+
+// SetLatitude sets the value of Latitude.
+func (s *ReportStop) SetLatitude(val float64) {
+	s.Latitude = val
+}
+
+// SetLongitude sets the value of Longitude.
+func (s *ReportStop) SetLongitude(val float64) {
+	s.Longitude = val
+}
+
+// SetAddress sets the value of Address.
+func (s *ReportStop) SetAddress(val string) {
+	s.Address = val
+}
+
+// SetArrivalTime sets the value of ArrivalTime.
+func (s *ReportStop) SetArrivalTime(val time.Time) {
+	s.ArrivalTime = val
+}
+
+// SetDepartureTime sets the value of DepartureTime.
+func (s *ReportStop) SetDepartureTime(val time.Time) {
+	s.DepartureTime = val
+}
+
+// SetDuration sets the value of Duration.
+func (s *ReportStop) SetDuration(val float64) {
+	s.Duration = val
+}
+
+type ReportStopsBadRequest Error
+
+func (*ReportStopsBadRequest) reportStopsRes() {}
+
+type ReportStopsForbidden Error
+
+func (*ReportStopsForbidden) reportStopsRes() {}
+
+type ReportStopsOKApplicationJSON []ReportStop
+
+func (*ReportStopsOKApplicationJSON) reportStopsRes() {}
+
+type ReportStopsUnauthorized Error
+
+func (*ReportStopsUnauthorized) reportStopsRes() {}
+
+// Ref: #/components/schemas/ReportTrip
+type ReportTrip struct {
+	DeviceId   int64     `json:"deviceId"`
+	DeviceName string    `json:"deviceName"`
+	StartTime  time.Time `json:"startTime"`
+	EndTime    time.Time `json:"endTime"`
+	// Seconds.
+	Duration float64 `json:"duration"`
+	// Kilometers.
+	Distance float64 `json:"distance"`
+	// Mean speed of moving positions in knots.
+	AvgSpeed float64 `json:"avgSpeed"`
+	// Knots.
+	MaxSpeed float64 `json:"maxSpeed"`
+}
+
+// GetDeviceId returns the value of DeviceId.
+func (s *ReportTrip) GetDeviceId() int64 {
+	return s.DeviceId
+}
+
+// GetDeviceName returns the value of DeviceName.
+func (s *ReportTrip) GetDeviceName() string {
+	return s.DeviceName
+}
+
+// GetStartTime returns the value of StartTime.
+func (s *ReportTrip) GetStartTime() time.Time {
+	return s.StartTime
+}
+
+// GetEndTime returns the value of EndTime.
+func (s *ReportTrip) GetEndTime() time.Time {
+	return s.EndTime
+}
+
+// GetDuration returns the value of Duration.
+func (s *ReportTrip) GetDuration() float64 {
+	return s.Duration
+}
+
+// GetDistance returns the value of Distance.
+func (s *ReportTrip) GetDistance() float64 {
+	return s.Distance
+}
+
+// GetAvgSpeed returns the value of AvgSpeed.
+func (s *ReportTrip) GetAvgSpeed() float64 {
+	return s.AvgSpeed
+}
+
+// GetMaxSpeed returns the value of MaxSpeed.
+func (s *ReportTrip) GetMaxSpeed() float64 {
+	return s.MaxSpeed
+}
+
+// SetDeviceId sets the value of DeviceId.
+func (s *ReportTrip) SetDeviceId(val int64) {
+	s.DeviceId = val
+}
+
+// SetDeviceName sets the value of DeviceName.
+func (s *ReportTrip) SetDeviceName(val string) {
+	s.DeviceName = val
+}
+
+// SetStartTime sets the value of StartTime.
+func (s *ReportTrip) SetStartTime(val time.Time) {
+	s.StartTime = val
+}
+
+// SetEndTime sets the value of EndTime.
+func (s *ReportTrip) SetEndTime(val time.Time) {
+	s.EndTime = val
+}
+
+// SetDuration sets the value of Duration.
+func (s *ReportTrip) SetDuration(val float64) {
+	s.Duration = val
+}
+
+// SetDistance sets the value of Distance.
+func (s *ReportTrip) SetDistance(val float64) {
+	s.Distance = val
+}
+
+// SetAvgSpeed sets the value of AvgSpeed.
+func (s *ReportTrip) SetAvgSpeed(val float64) {
+	s.AvgSpeed = val
+}
+
+// SetMaxSpeed sets the value of MaxSpeed.
+func (s *ReportTrip) SetMaxSpeed(val float64) {
+	s.MaxSpeed = val
+}
+
+type ReportTripsBadRequest Error
+
+func (*ReportTripsBadRequest) reportTripsRes() {}
+
+type ReportTripsForbidden Error
+
+func (*ReportTripsForbidden) reportTripsRes() {}
+
+type ReportTripsOKApplicationJSON []ReportTrip
+
+func (*ReportTripsOKApplicationJSON) reportTripsRes() {}
+
+type ReportTripsUnauthorized Error
+
+func (*ReportTripsUnauthorized) reportTripsRes() {}
+
 type SendCommandBadRequest Error
 
 func (*SendCommandBadRequest) sendCommandRes() {}

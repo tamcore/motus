@@ -192,8 +192,8 @@
 			const allStops: Stop[] = [];
 			// Fetch positions for each device independently so that a
 			// failure for one device does not prevent the others from
-			// being displayed. No limit is passed — the API returns all
-			// positions in the requested range.
+			// being displayed. The API samples long ranges down to its
+			// 10000-position maximum.
 			await Promise.all(deviceIds.map(async (devId) => {
 				const device = devices.find((d) => d.id === devId);
 				if (!device) return;

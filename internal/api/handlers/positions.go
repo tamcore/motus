@@ -12,11 +12,23 @@ import (
 )
 
 // positionQueryTimeout caps the server-side wall time for a single
-// position range query. Unbounded queries (no limit) can be large; this
-// prevents a slow or stalled client from holding a DB connection open
-// indefinitely. WriteTimeout is intentionally 0 (WebSocket compat), so
+// position range query. This prevents a slow or stalled client from
+// holding a DB connection open indefinitely. WriteTimeout is intentionally 0 (WebSocket compat), so
 // this is the only ceiling on this path.
 const positionQueryTimeout = 120 * time.Second
+
+// maxPositionsPerResponse bounds a range response; the whole response is
+// built in memory, so an unbounded all-time range can OOM the process.
+const maxPositionsPerResponse = 10000
+
+// positionLimit returns the sampling limit for a range query: the requested
+// limit, or maxPositionsPerResponse when it is omitted or larger.
+func positionLimit(requested int) int {
+	if requested <= 0 || requested > maxPositionsPerResponse {
+		return maxPositionsPerResponse
+	}
+	return requested
+}
 
 // kmhToKnotsRatio converts a speed value from km/h to knots.
 // Traccar's REST API contract specifies speed in knots; internal storage uses km/h.
@@ -70,7 +82,7 @@ func (h *Handler) GetPositions(ctx context.Context, params oas.GetPositionsParam
 	deviceID, hasDevice := params.DeviceId.Get()
 	from, hasFrom := params.From.Get()
 	to, hasTo := params.To.Get()
-	limit := params.Limit.Or(0)
+	limit := positionLimit(params.Limit.Or(0))
 
 	// No deviceId, no time range: latest position per user device.
 	if !hasDevice && !hasFrom && !hasTo {

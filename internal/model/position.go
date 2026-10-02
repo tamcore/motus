@@ -24,6 +24,14 @@ type Position struct {
 	Attributes  map[string]any `json:"attributes"`
 }
 
+// PositionPoint is the subset of a position a heatmap needs. Speed is in km/h.
+type PositionPoint struct {
+	Lat     float64
+	Lon     float64
+	Speed   float64
+	FixTime time.Time
+}
+
 // CellNetwork builds a Traccar-style network map from cell towers and Wi-Fi
 // access points and copies the first cell tower to the mcc/mnc/lac/cellId
 // attributes. It returns nil when both lists are empty.

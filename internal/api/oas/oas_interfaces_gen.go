@@ -161,6 +161,10 @@ type GetGeofenceRes interface {
 	getGeofenceRes()
 }
 
+type GetPositionPointsRes interface {
+	getPositionPointsRes()
+}
+
 type GetPositionsRes interface {
 	getPositionsRes()
 }

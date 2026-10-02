@@ -48,6 +48,7 @@ const (
 	GetGeofenceOperation            OperationName = "GetGeofence"
 	GetHealthOperation              OperationName = "GetHealth"
 	GetOIDCConfigOperation          OperationName = "GetOIDCConfig"
+	GetPositionPointsOperation      OperationName = "GetPositionPoints"
 	GetPositionsOperation           OperationName = "GetPositions"
 	GetServerOperation              OperationName = "GetServer"
 	GetSessionOperation             OperationName = "GetSession"

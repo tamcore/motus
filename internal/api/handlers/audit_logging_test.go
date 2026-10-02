@@ -141,6 +141,12 @@ func (m *auditMockPositionRepo) StreamTrackByDeviceAndTimeRange(_ context.Contex
 func (m *auditMockPositionRepo) StreamByUserAndTimeRange(_ context.Context, _ int64, _, _ time.Time, _ int, _ func(*model.Position) error) error {
 	return nil
 }
+func (m *auditMockPositionRepo) PointsByDeviceAndTimeRange(_ context.Context, _ int64, _, _ time.Time, _ int) ([]model.PositionPoint, error) {
+	return nil, nil
+}
+func (m *auditMockPositionRepo) PointsByUserAndTimeRange(_ context.Context, _ int64, _, _ time.Time, _ int) ([]model.PositionPoint, error) {
+	return nil, nil
+}
 func (m *auditMockPositionRepo) StreamAllByTimeRange(_ context.Context, _, _ time.Time, _ int, _ func(*model.Position) error) error {
 	return nil
 }

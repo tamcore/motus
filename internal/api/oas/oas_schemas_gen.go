@@ -4234,6 +4234,18 @@ func (s *GetHealthOK) SetStatus(val string) {
 	s.Status = val
 }
 
+type GetPositionPointsForbidden Error
+
+func (*GetPositionPointsForbidden) getPositionPointsRes() {}
+
+type GetPositionPointsOKApplicationJSON []PositionPoint
+
+func (*GetPositionPointsOKApplicationJSON) getPositionPointsRes() {}
+
+type GetPositionPointsUnauthorized Error
+
+func (*GetPositionPointsUnauthorized) getPositionPointsRes() {}
+
 type GetPositionsOKApplicationJSON []Position
 
 func (*GetPositionsOKApplicationJSON) getPositionsRes() {}
@@ -6360,6 +6372,55 @@ func (s *PositionAttributesAdditional) init() PositionAttributesAdditional {
 		*s = m
 	}
 	return m
+}
+
+// Ref: #/components/schemas/PositionPoint
+type PositionPoint struct {
+	Lat float64 `json:"lat"`
+	Lon float64 `json:"lon"`
+	// Speed in knots (0 when unknown).
+	Speed   float64   `json:"speed"`
+	FixTime time.Time `json:"fixTime"`
+}
+
+// GetLat returns the value of Lat.
+func (s *PositionPoint) GetLat() float64 {
+	return s.Lat
+}
+
+// GetLon returns the value of Lon.
+func (s *PositionPoint) GetLon() float64 {
+	return s.Lon
+}
+
+// GetSpeed returns the value of Speed.
+func (s *PositionPoint) GetSpeed() float64 {
+	return s.Speed
+}
+
+// GetFixTime returns the value of FixTime.
+func (s *PositionPoint) GetFixTime() time.Time {
+	return s.FixTime
+}
+
+// SetLat sets the value of Lat.
+func (s *PositionPoint) SetLat(val float64) {
+	s.Lat = val
+}
+
+// SetLon sets the value of Lon.
+func (s *PositionPoint) SetLon(val float64) {
+	s.Lon = val
+}
+
+// SetSpeed sets the value of Speed.
+func (s *PositionPoint) SetSpeed(val float64) {
+	s.Speed = val
+}
+
+// SetFixTime sets the value of FixTime.
+func (s *PositionPoint) SetFixTime(val time.Time) {
+	s.FixTime = val
 }
 
 type ReportEventsOKApplicationJSON []Event

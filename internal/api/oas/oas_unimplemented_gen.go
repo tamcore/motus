@@ -394,6 +394,17 @@ func (UnimplementedHandler) GetOIDCConfig(ctx context.Context) (r *OIDCConfig, _
 	return r, ht.ErrNotImplemented
 }
 
+// GetPositionPoints implements getPositionPoints operation.
+//
+// Same range semantics as GET /api/positions with from/to, but returns only the fields a heatmap
+// needs. Without deviceId, covers all of the caller's devices. from defaults to 24 h ago, to defaults
+// to now.
+//
+// GET /api/positions/points
+func (UnimplementedHandler) GetPositionPoints(ctx context.Context, params GetPositionPointsParams) (r GetPositionPointsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // GetPositions implements getPositions operation.
 //
 // Get positions for devices.

@@ -495,6 +495,14 @@ components:
         attributes:
           $ref: '#/components/schemas/Attributes'
 
+    PositionPoint:
+      type: object
+      required: [lat, lon, speed, fixTime]
+      properties:
+        lat: { type: number, format: double }
+        lon: { type: number, format: double }
+        speed: { type: number, format: double, description: Speed in knots (0 when unknown) }
+        fixTime: { type: string, format: date-time }
     Position:
       type: object
       required: [id, deviceId, serverTime, deviceTime, fixTime, valid, latitude, longitude, altitude, speed, course, accuracy, attributes, network]
@@ -1640,6 +1648,52 @@ paths:
                 required: [count]
                 properties:
                   count: { type: integer, format: int64 }
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "403":
+          $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+
+  /api/positions/points:
+    get:
+      operationId: getPositionPoints
+      summary: Get compact position points for a time range
+      description: |
+        Same range semantics as GET /api/positions with from/to, but returns only
+        the fields a heatmap needs. Without deviceId, covers all of the caller's
+        devices. from defaults to 24 h ago, to defaults to now.
+      tags: [positions]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      parameters:
+        - name: deviceId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: from
+          in: query
+          schema: { type: string, format: date-time }
+        - name: to
+          in: query
+          schema: { type: string, format: date-time }
+        - name: limit
+          in: query
+          description: |
+            Return at most this many points, evenly spaced over the whole range
+            (every ceil(total/limit)-th position). Omitted or larger values use
+            the server maximum of 10000.
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: Points ordered by fix time
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PositionPoint'
         "401":
           $ref: '#/components/responses/Unauthorized'
         "403":

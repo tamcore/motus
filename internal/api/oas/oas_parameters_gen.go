@@ -2040,7 +2040,7 @@ func decodeGetGeofenceParams(args [1]string, argsEscaped bool, r *http.Request) 
 
 // GetPositionPointsParams is parameters of getPositionPoints operation.
 type GetPositionPointsParams struct {
-	DeviceId OptInt64    `json:",omitempty,omitzero"`
+	DeviceId int64
 	From     OptDateTime `json:",omitempty,omitzero"`
 	To       OptDateTime `json:",omitempty,omitzero"`
 	// Return at most this many points, evenly spaced over the whole range (every ceil(total/limit)-th
@@ -2054,9 +2054,7 @@ func unpackGetPositionPointsParams(packed middleware.Parameters) (params GetPosi
 			Name: "deviceId",
 			In:   "query",
 		}
-		if v, ok := packed[key]; ok {
-			params.DeviceId = v.(OptInt64)
-		}
+		params.DeviceId = packed[key].(int64)
 	}
 	{
 		key := middleware.ParameterKey{
@@ -2100,28 +2098,23 @@ func decodeGetPositionPointsParams(args [0]string, argsEscaped bool, r *http.Req
 
 		if err := q.HasParam(cfg); err == nil {
 			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
-				var paramsDotDeviceIdVal int64
-				if err := func() error {
-					val, err := d.DecodeValue()
-					if err != nil {
-						return err
-					}
-
-					c, err := conv.ToInt64(val)
-					if err != nil {
-						return err
-					}
-
-					paramsDotDeviceIdVal = c
-					return nil
-				}(); err != nil {
+				val, err := d.DecodeValue()
+				if err != nil {
 					return err
 				}
-				params.DeviceId.SetTo(paramsDotDeviceIdVal)
+
+				c, err := conv.ToInt64(val)
+				if err != nil {
+					return err
+				}
+
+				params.DeviceId = c
 				return nil
 			}); err != nil {
 				return err
 			}
+		} else {
+			return err
 		}
 		return nil
 	}(); err != nil {

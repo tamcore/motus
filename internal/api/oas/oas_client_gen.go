@@ -287,8 +287,7 @@ type Invoker interface {
 	// GetPositionPoints invokes getPositionPoints operation.
 	//
 	// Same range semantics as GET /api/positions with from/to, but returns only the fields a heatmap
-	// needs. Without deviceId, covers all of the caller's devices. from defaults to 24 h ago, to defaults
-	// to now.
+	// needs, for one device. from defaults to 24 h ago, to defaults to now.
 	//
 	// GET /api/positions/points
 	GetPositionPoints(ctx context.Context, params GetPositionPointsParams) (GetPositionPointsRes, error)
@@ -6835,8 +6834,7 @@ func (c *Client) sendGetOIDCConfig(ctx context.Context) (res *OIDCConfig, err er
 // GetPositionPoints invokes getPositionPoints operation.
 //
 // Same range semantics as GET /api/positions with from/to, but returns only the fields a heatmap
-// needs. Without deviceId, covers all of the caller's devices. from defaults to 24 h ago, to defaults
-// to now.
+// needs, for one device. from defaults to 24 h ago, to defaults to now.
 //
 // GET /api/positions/points
 func (c *Client) GetPositionPoints(ctx context.Context, params GetPositionPointsParams) (GetPositionPointsRes, error) {
@@ -6896,10 +6894,7 @@ func (c *Client) sendGetPositionPoints(ctx context.Context, params GetPositionPo
 		}
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.DeviceId.Get(); ok {
-				return e.EncodeValue(conv.Int64ToString(val))
-			}
-			return nil
+			return e.EncodeValue(conv.Int64ToString(params.DeviceId))
 		}); err != nil {
 			return res, errors.Wrap(err, "encode query")
 		}

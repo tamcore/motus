@@ -266,8 +266,7 @@ type Handler interface {
 	// GetPositionPoints implements getPositionPoints operation.
 	//
 	// Same range semantics as GET /api/positions with from/to, but returns only the fields a heatmap
-	// needs. Without deviceId, covers all of the caller's devices. from defaults to 24 h ago, to defaults
-	// to now.
+	// needs, for one device. from defaults to 24 h ago, to defaults to now.
 	//
 	// GET /api/positions/points
 	GetPositionPoints(ctx context.Context, params GetPositionPointsParams) (GetPositionPointsRes, error)

@@ -8,18 +8,16 @@ import (
 
 	"github.com/tamcore/motus/internal/api"
 	oas "github.com/tamcore/motus/internal/api/oas"
-	"github.com/tamcore/motus/internal/model"
 )
 
 // GetPositionPoints implements oas.Handler for GET /api/positions/points.
-// Range semantics match GetPositions; without deviceId all user devices are covered.
+// Range semantics match GetPositions for a single device.
 func (h *Handler) GetPositionPoints(ctx context.Context, params oas.GetPositionPointsParams) (oas.GetPositionPointsRes, error) {
 	user := api.UserFromContext(ctx)
 	if user == nil {
 		return &oas.GetPositionPointsUnauthorized{Error: "unauthorized"}, nil
 	}
-	deviceID, hasDevice := params.DeviceId.Get()
-	if hasDevice && !h.cfg.Devices.UserHasAccess(ctx, user, deviceID) {
+	if !h.cfg.Devices.UserHasAccess(ctx, user, params.DeviceId) {
 		return &oas.GetPositionPointsForbidden{Error: "access denied"}, nil
 	}
 
@@ -30,15 +28,7 @@ func (h *Handler) GetPositionPoints(ctx context.Context, params oas.GetPositionP
 
 	queryCtx, cancel := context.WithTimeout(ctx, positionQueryTimeout)
 	defer cancel()
-	var (
-		points []model.PositionPoint
-		err    error
-	)
-	if hasDevice {
-		points, err = h.cfg.Positions.PointsByDeviceAndTimeRange(queryCtx, deviceID, from, to, limit)
-	} else {
-		points, err = h.cfg.Positions.PointsByUserAndTimeRange(queryCtx, user.ID, from, to, limit)
-	}
+	points, err := h.cfg.Positions.PointsByDeviceAndTimeRange(queryCtx, params.DeviceId, from, to, limit)
 	if err != nil {
 		slog.Error("get position points failed", slog.Int64("userID", user.ID), slog.Any("error", err))
 		return nil, errors.New("failed to get position points")

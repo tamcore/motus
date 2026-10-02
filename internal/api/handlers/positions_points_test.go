@@ -18,17 +18,11 @@ type pointsPositionRepo struct {
 	repository.PositionRepo
 	points   []model.PositionPoint
 	deviceID int64
-	userID   int64
 	limit    int
 }
 
 func (m *pointsPositionRepo) PointsByDeviceAndTimeRange(_ context.Context, deviceID int64, _, _ time.Time, limit int) ([]model.PositionPoint, error) {
 	m.deviceID, m.limit = deviceID, limit
-	return m.points, nil
-}
-
-func (m *pointsPositionRepo) PointsByUserAndTimeRange(_ context.Context, userID int64, _, _ time.Time, limit int) ([]model.PositionPoint, error) {
-	m.userID, m.limit = userID, limit
 	return m.points, nil
 }
 
@@ -48,7 +42,7 @@ func pointsUserCtx() context.Context {
 func TestGetPositionPoints_Unauthenticated(t *testing.T) {
 	h := newPointsHandler(&pointsPositionRepo{}, true)
 
-	res, err := h.GetPositionPoints(context.Background(), oas.GetPositionPointsParams{})
+	res, err := h.GetPositionPoints(context.Background(), oas.GetPositionPointsParams{DeviceId: 3})
 	if err != nil {
 		t.Fatalf("GetPositionPoints returned error: %v", err)
 	}
@@ -61,7 +55,7 @@ func TestGetPositionPoints_DeviceForbidden(t *testing.T) {
 	repo := &pointsPositionRepo{}
 	h := newPointsHandler(repo, false)
 
-	res, err := h.GetPositionPoints(pointsUserCtx(), oas.GetPositionPointsParams{DeviceId: oas.NewOptInt64(3)})
+	res, err := h.GetPositionPoints(pointsUserCtx(), oas.GetPositionPointsParams{DeviceId: 3})
 	if err != nil {
 		t.Fatalf("GetPositionPoints returned error: %v", err)
 	}
@@ -87,7 +81,7 @@ func TestGetPositionPoints_LimitClamp(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &pointsPositionRepo{}
 			h := newPointsHandler(repo, true)
-			if _, err := h.GetPositionPoints(pointsUserCtx(), oas.GetPositionPointsParams{DeviceId: oas.NewOptInt64(3), Limit: tt.limit}); err != nil {
+			if _, err := h.GetPositionPoints(pointsUserCtx(), oas.GetPositionPointsParams{DeviceId: 3, Limit: tt.limit}); err != nil {
 				t.Fatalf("GetPositionPoints returned error: %v", err)
 			}
 			if repo.deviceID != 3 || repo.limit != tt.want {
@@ -97,12 +91,12 @@ func TestGetPositionPoints_LimitClamp(t *testing.T) {
 	}
 }
 
-func TestGetPositionPoints_AllDevicesConvertsToKnots(t *testing.T) {
+func TestGetPositionPoints_ConvertsToKnots(t *testing.T) {
 	ts := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
 	repo := &pointsPositionRepo{points: []model.PositionPoint{{Lat: 52, Lon: 13, Speed: 18.52, FixTime: ts}}}
 	h := newPointsHandler(repo, true)
 
-	res, err := h.GetPositionPoints(pointsUserCtx(), oas.GetPositionPointsParams{})
+	res, err := h.GetPositionPoints(pointsUserCtx(), oas.GetPositionPointsParams{DeviceId: 3})
 	if err != nil {
 		t.Fatalf("GetPositionPoints returned error: %v", err)
 	}
@@ -110,8 +104,8 @@ func TestGetPositionPoints_AllDevicesConvertsToKnots(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected *oas.GetPositionPointsOKApplicationJSON, got %T", res)
 	}
-	if repo.userID != 7 {
-		t.Errorf("queried user %d, want 7", repo.userID)
+	if repo.deviceID != 3 {
+		t.Errorf("queried device %d, want 3", repo.deviceID)
 	}
 	if len(*list) != 1 {
 		t.Fatalf("got %d points, want 1", len(*list))
@@ -125,7 +119,7 @@ func TestGetPositionPoints_AllDevicesConvertsToKnots(t *testing.T) {
 func TestGetPositionPoints_EmptyIsArray(t *testing.T) {
 	h := newPointsHandler(&pointsPositionRepo{points: []model.PositionPoint{}}, true)
 
-	res, err := h.GetPositionPoints(pointsUserCtx(), oas.GetPositionPointsParams{})
+	res, err := h.GetPositionPoints(pointsUserCtx(), oas.GetPositionPointsParams{DeviceId: 3})
 	if err != nil {
 		t.Fatalf("GetPositionPoints returned error: %v", err)
 	}
@@ -146,7 +140,7 @@ func TestGetPositionPoints_ByDevice_OAS(t *testing.T) {
 	}
 
 	res, err := env.handler.GetPositionPoints(env.userCtx(), oas.GetPositionPointsParams{
-		DeviceId: oas.NewOptInt64(env.device.ID),
+		DeviceId: env.device.ID,
 		From:     oas.NewOptDateTime(now.Add(-time.Hour)),
 		To:       oas.NewOptDateTime(now.Add(time.Minute)),
 		Limit:    oas.NewOptInt(2),
@@ -163,7 +157,7 @@ func TestGetPositionPoints_ByDevice_OAS(t *testing.T) {
 	}
 
 	other := api.ContextWithUser(ctx, &model.User{ID: env.user.ID + 999, Email: "other@example.com"})
-	res, err = env.handler.GetPositionPoints(other, oas.GetPositionPointsParams{DeviceId: oas.NewOptInt64(env.device.ID)})
+	res, err = env.handler.GetPositionPoints(other, oas.GetPositionPointsParams{DeviceId: env.device.ID})
 	if err != nil {
 		t.Fatalf("GetPositionPoints returned error: %v", err)
 	}

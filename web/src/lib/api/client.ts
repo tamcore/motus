@@ -36,6 +36,8 @@ import type {
   User,
   UserStats,
 } from "$lib/types/api";
+import type { Trip } from "$lib/utils/trips";
+import type { Stop } from "$lib/utils/stops";
 import { currentUser } from "$lib/stores/auth";
 import * as svelteStore from "svelte/store";
 import { getCsrfToken, getAuthHeaders, setCsrfToken } from "./headers";
@@ -86,6 +88,18 @@ async function request<T>(
   }
 
   return response.json();
+}
+
+interface ReportParams {
+  deviceIds: number[];
+  from: string;
+  to: string;
+}
+
+function reportQuery(params: ReportParams): URLSearchParams {
+  const query = new URLSearchParams({ from: params.from, to: params.to });
+  for (const id of params.deviceIds) query.append("deviceId", String(id));
+  return query;
 }
 
 export const api = {
@@ -266,6 +280,23 @@ export const api = {
       ),
     );
   },
+
+  /** Server-side trip report; speeds are converted from knots to km/h. */
+  getTripReport: (params: ReportParams) =>
+    request<Omit<Trip, "id">[]>(`/reports/trips?${reportQuery(params)}`).then((trips) =>
+      trips.map((t, i) => ({
+        ...t,
+        id: `trip-${t.deviceId}-${i}`,
+        avgSpeed: t.avgSpeed * 1.852,
+        maxSpeed: t.maxSpeed * 1.852,
+      })),
+    ),
+
+  /** Server-side stop report. */
+  getStopReport: (params: ReportParams) =>
+    request<Omit<Stop, "id">[]>(`/reports/stops?${reportQuery(params)}`).then((stops) =>
+      stops.map((s, i) => ({ ...s, id: `stop-${s.deviceId}-${i}` })),
+    ),
 
   // ---------------------------------------------------------------------------
   // Commands

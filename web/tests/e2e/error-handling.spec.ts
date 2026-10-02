@@ -128,7 +128,7 @@ test.describe('Error Handling', () => {
     await authedPage.goto('/reports');
     await authedPage.waitForSelector('h1:has-text("Reports")');
 
-    await authedPage.route('**/api/positions*', (route) => {
+    await authedPage.route('**/api/reports/*', (route) => {
       route.fulfill({ status: 500, body: 'Server Error' });
     });
     await authedPage.click('button:has-text("Apply")');

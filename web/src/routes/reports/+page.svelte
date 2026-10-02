@@ -5,10 +5,10 @@
 	import { api, fetchDevices } from '$lib/api/client';
 	import { currentUser } from '$lib/stores/auth';
 	import { refreshHandler } from '$lib/stores/refresh';
-	import { detectTrips, exportTripsToCSV } from '$lib/utils/trips';
-	import { detectStops, exportStopsToCSV } from '$lib/utils/stops';
+	import { exportTripsToCSV } from '$lib/utils/trips';
+	import { exportStopsToCSV } from '$lib/utils/stops';
 	import { formatDate, formatDuration, formatDistance, formatSpeed } from '$lib/utils/formatting';
-	import type { Trip, Position } from '$lib/utils/trips';
+	import type { Trip } from '$lib/utils/trips';
 	import type { Stop } from '$lib/utils/stops';
 	import { Chart, registerables } from 'chart.js';
 	import Skeleton from '$lib/components/Skeleton.svelte';
@@ -190,19 +190,18 @@
 				? [Number(selectedDeviceId)] : devices.map((d) => d.id);
 			const allTrips: Trip[] = [];
 			const allStops: Stop[] = [];
-			// Fetch positions for each device independently so that a
-			// failure for one device does not prevent the others from
-			// being displayed. The API samples long ranges down to its
-			// 10000-position maximum.
+			// Fetch each device independently so that a failure for one
+			// device does not prevent the others from being displayed.
+			// Trips and stops are detected server-side.
 			await Promise.all(deviceIds.map(async (devId) => {
 				const device = devices.find((d) => d.id === devId);
 				if (!device) return;
 				try {
-					const positions = (await api.getPositions({
-						deviceId: devId, from, to,
-					})) as Position[];
-					const deviceTrips = detectTrips(positions, device.name, device.id);
-					const deviceStops = detectStops(positions, device.name);
+					const params = { deviceIds: [devId], from, to };
+					const [deviceTrips, deviceStops] = await Promise.all([
+						api.getTripReport(params),
+						api.getStopReport(params),
+					]);
 					allTrips.push(...deviceTrips);
 					allStops.push(...deviceStops);
 				} catch (err) {

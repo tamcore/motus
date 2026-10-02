@@ -6,6 +6,7 @@
 	import { theme } from '$lib/stores/theme';
 	import { useLeaflet } from '$lib/composables/useLeaflet';
 	import type { Device, PositionPoint } from '$lib/types/api';
+	import { pointStats } from '$lib/utils/point-stats';
 	import Button from '$lib/components/Button.svelte';
 	import AllDevicesToggle from '$lib/components/AllDevicesToggle.svelte';
 	import type { HeatMapOptions } from 'leaflet';
@@ -331,25 +332,18 @@
 	}
 
 	// Compute time range of loaded data for display
+	$: stats = pointStats(positions);
 	$: dataTimeRange = (() => {
-		if (positions.length === 0) return '';
-		const times = positions.map((p) => new Date(p.fixTime).getTime()).filter((t) => !isNaN(t));
-		if (times.length === 0) return '';
-		const earliest = new Date(Math.min(...times));
-		const latest = new Date(Math.max(...times));
+		if (!stats || isNaN(stats.earliest)) return '';
 		const fmt = (d: Date) =>
 			d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-		return `${fmt(earliest)} - ${fmt(latest)}`;
+		return `${fmt(new Date(stats.earliest))} - ${fmt(new Date(stats.latest))}`;
 	})();
 
 	// Compute speed stats for display
-	$: speedStats = (() => {
-		if (positions.length === 0) return null;
-		const speeds = positions.map((p) => p.speed);
-		const avg = speeds.reduce((a, b) => a + b, 0) / speeds.length;
-		const max = Math.max(...speeds);
-		return { avg: avg.toFixed(1), max: max.toFixed(1) };
-	})();
+	$: speedStats = stats
+		? { avg: stats.avgSpeed.toFixed(1), max: stats.maxSpeed.toFixed(1) }
+		: null;
 </script>
 
 <svelte:head>

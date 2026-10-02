@@ -302,13 +302,16 @@ export const api = {
 
   /** Compact range points (lat, lon, speed, fixTime), sampled to `limit` by the server. */
   getPositionPoints: (params: {
-    deviceId?: number;
+    deviceId: number;
     from: string;
     to: string;
     limit?: number;
   }) => {
-    const query = new URLSearchParams({ from: params.from, to: params.to });
-    if (params.deviceId) query.set("deviceId", String(params.deviceId));
+    const query = new URLSearchParams({
+      deviceId: String(params.deviceId),
+      from: params.from,
+      to: params.to,
+    });
     if (params.limit) query.set("limit", String(params.limit));
     return request<PositionPoint[]>(`/positions/points?${query}`).then((points) =>
       points.map((p) => ({ ...p, speed: p.speed * KNOTS_TO_KMH })),

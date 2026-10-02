@@ -36,13 +36,13 @@ describe("api.getPositionPoints", () => {
     expect(url.searchParams.get("limit")).toBe("10000");
   });
 
-  it("omits unset parameters", async () => {
+  it("omits an unset limit", async () => {
     const fetchMock = stubFetch([]);
 
-    expect(await api.getPositionPoints({ from: "a", to: "b" })).toEqual([]);
+    expect(await api.getPositionPoints({ deviceId: 3, from: "a", to: "b" })).toEqual([]);
 
     const url = new URL(fetchMock.mock.calls[0][0], "http://x");
-    expect(url.searchParams.has("deviceId")).toBe(false);
+    expect(url.searchParams.get("deviceId")).toBe("3");
     expect(url.searchParams.has("limit")).toBe(false);
   });
 });

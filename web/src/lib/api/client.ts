@@ -43,6 +43,7 @@ import * as svelteStore from "svelte/store";
 import { getCsrfToken, getAuthHeaders, setCsrfToken } from "./headers";
 
 const API_BASE = "/api";
+const KNOTS_TO_KMH = 1.852;
 
 export class APIError extends Error {
   constructor(
@@ -276,7 +277,7 @@ export const api = {
     // Normalize speed from knots (Traccar API) to km/h (internal UI unit).
     return request<Position[]>(`/positions?${query}`).then((positions) =>
       positions.map((pos) =>
-        pos.speed != null ? { ...pos, speed: pos.speed * 1.852 } : pos,
+        pos.speed != null ? { ...pos, speed: pos.speed * KNOTS_TO_KMH } : pos,
       ),
     );
   },
@@ -287,8 +288,8 @@ export const api = {
       trips.map((t, i) => ({
         ...t,
         id: `trip-${t.deviceId}-${i}`,
-        avgSpeed: t.avgSpeed * 1.852,
-        maxSpeed: t.maxSpeed * 1.852,
+        avgSpeed: t.avgSpeed * KNOTS_TO_KMH,
+        maxSpeed: t.maxSpeed * KNOTS_TO_KMH,
       })),
     ),
 
@@ -441,7 +442,7 @@ export const api = {
     const path = qs ? `/admin/positions?${qs}` : "/admin/positions";
     return request<Position[]>(path).then((positions) =>
       positions.map((pos) =>
-        pos.speed != null ? { ...pos, speed: pos.speed * 1.852 } : pos,
+        pos.speed != null ? { ...pos, speed: pos.speed * KNOTS_TO_KMH } : pos,
       ),
     );
   },

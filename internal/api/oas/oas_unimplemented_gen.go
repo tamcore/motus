@@ -663,8 +663,8 @@ func (UnimplementedHandler) ReportStops(ctx context.Context, params ReportStopsP
 // ReportTrips implements reportTrips operation.
 //
 // A trip starts when speed exceeds 5 km/h and ends after a stop of at least 5 minutes or a gap of at
-// least 1 hour between positions. Trips shorter than 60 seconds are dropped. Speeds are in knots
-// (Traccar convention), distance in kilometers, duration in seconds.
+// least 1 hour between positions. Trips shorter than 60 seconds are dropped. Speeds are in knots (as
+// in /api/positions), distance in kilometers, duration in seconds.
 //
 // GET /api/reports/trips
 func (UnimplementedHandler) ReportTrips(ctx context.Context, params ReportTripsParams) (r ReportTripsRes, _ error) {

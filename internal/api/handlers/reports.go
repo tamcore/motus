@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/tamcore/motus/internal/api"
 	oas "github.com/tamcore/motus/internal/api/oas"
 	"github.com/tamcore/motus/internal/model"
@@ -15,20 +17,27 @@ import (
 
 var errReportAccessDenied = errors.New("access denied")
 
-// reportDevices resolves the requested devices, or all devices of the user
-// when ids is empty. Returns errReportAccessDenied if any id is not accessible.
+// reportDevices resolves the requested devices (deduplicated), or all devices
+// of the user when ids is empty. A missing or inaccessible device yields
+// errReportAccessDenied, so device existence is not disclosed.
 func (h *Handler) reportDevices(ctx context.Context, user *model.User, ids []int64) ([]*model.Device, error) {
 	if len(ids) == 0 {
 		return h.cfg.Devices.GetByUser(ctx, user.ID)
 	}
+	ids = slices.Clone(ids)
+	slices.Sort(ids)
+	ids = slices.Compact(ids)
 	devices := make([]*model.Device, 0, len(ids))
 	for _, id := range ids {
-		if !h.cfg.Devices.UserHasAccess(ctx, user, id) {
+		d, err := h.cfg.Devices.GetByID(ctx, id)
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, errReportAccessDenied
 		}
-		d, err := h.cfg.Devices.GetByID(ctx, id)
 		if err != nil {
 			return nil, err
+		}
+		if !h.cfg.Devices.UserHasAccess(ctx, user, id) {
+			return nil, errReportAccessDenied
 		}
 		devices = append(devices, d)
 	}
@@ -40,19 +49,22 @@ func (h *Handler) reportDevices(ctx context.Context, user *model.User, ids []int
 func (h *Handler) streamReport(ctx context.Context, devices []*model.Device, from, to time.Time,
 	add func(*model.Position), done func(*model.Device),
 ) error {
-	ctx, cancel := context.WithTimeout(ctx, positionQueryTimeout)
-	defer cancel()
 	for _, d := range devices {
-		err := h.cfg.Positions.StreamByDeviceAndTimeRange(ctx, d.ID, from, to, 0, func(p *model.Position) error {
-			add(p)
-			return nil
-		})
-		if err != nil {
+		if err := h.streamDevice(ctx, d.ID, from, to, add); err != nil {
 			return fmt.Errorf("device %d: %w", d.ID, err)
 		}
 		done(d)
 	}
 	return nil
+}
+
+func (h *Handler) streamDevice(ctx context.Context, deviceID int64, from, to time.Time, add func(*model.Position)) error {
+	ctx, cancel := context.WithTimeout(ctx, positionQueryTimeout)
+	defer cancel()
+	return h.cfg.Positions.StreamByDeviceAndTimeRange(ctx, deviceID, from, to, 0, func(p *model.Position) error {
+		add(p)
+		return nil
+	})
 }
 
 // ReportTrips implements oas.Handler for GET /api/reports/trips.

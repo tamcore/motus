@@ -466,8 +466,8 @@ type Invoker interface {
 	// ReportTrips invokes reportTrips operation.
 	//
 	// A trip starts when speed exceeds 5 km/h and ends after a stop of at least 5 minutes or a gap of at
-	// least 1 hour between positions. Trips shorter than 60 seconds are dropped. Speeds are in knots
-	// (Traccar convention), distance in kilometers, duration in seconds.
+	// least 1 hour between positions. Trips shorter than 60 seconds are dropped. Speeds are in knots (as
+	// in /api/positions), distance in kilometers, duration in seconds.
 	//
 	// GET /api/reports/trips
 	ReportTrips(ctx context.Context, params ReportTripsParams) (ReportTripsRes, error)
@@ -10812,8 +10812,8 @@ func (c *Client) sendReportStops(ctx context.Context, params ReportStopsParams) 
 // ReportTrips invokes reportTrips operation.
 //
 // A trip starts when speed exceeds 5 km/h and ends after a stop of at least 5 minutes or a gap of at
-// least 1 hour between positions. Trips shorter than 60 seconds are dropped. Speeds are in knots
-// (Traccar convention), distance in kilometers, duration in seconds.
+// least 1 hour between positions. Trips shorter than 60 seconds are dropped. Speeds are in knots (as
+// in /api/positions), distance in kilometers, duration in seconds.
 //
 // GET /api/reports/trips
 func (c *Client) ReportTrips(ctx context.Context, params ReportTripsParams) (ReportTripsRes, error) {

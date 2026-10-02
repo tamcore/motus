@@ -3286,7 +3286,8 @@ func decodeReportEventsParams(args [0]string, argsEscaped bool, r *http.Request)
 
 // ReportStopsParams is parameters of reportStops operation.
 type ReportStopsParams struct {
-	// Devices to report on (repeatable). Omitted means all devices of the user.
+	// Devices to report on (repeatable, at most 100 values; duplicates are ignored). Omitted means all
+	// devices of the user.
 	DeviceId []int64 `json:",omitempty"`
 	From     time.Time
 	To       time.Time
@@ -3354,6 +3355,22 @@ func decodeReportStopsParams(args [0]string, argsEscaped bool, r *http.Request) 
 					return nil
 				})
 			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if params.DeviceId == nil {
+					return nil // optional
+				}
+				if err := (validate.Array{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    100,
+					MaxLengthSet: true,
+				}).ValidateLength(len(params.DeviceId)); err != nil {
+					return errors.Wrap(err, "array")
+				}
+				return nil
+			}(); err != nil {
 				return err
 			}
 		}
@@ -3442,7 +3459,8 @@ func decodeReportStopsParams(args [0]string, argsEscaped bool, r *http.Request) 
 
 // ReportTripsParams is parameters of reportTrips operation.
 type ReportTripsParams struct {
-	// Devices to report on (repeatable). Omitted means all devices of the user.
+	// Devices to report on (repeatable, at most 100 values; duplicates are ignored). Omitted means all
+	// devices of the user.
 	DeviceId []int64 `json:",omitempty"`
 	From     time.Time
 	To       time.Time
@@ -3510,6 +3528,22 @@ func decodeReportTripsParams(args [0]string, argsEscaped bool, r *http.Request) 
 					return nil
 				})
 			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if params.DeviceId == nil {
+					return nil // optional
+				}
+				if err := (validate.Array{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    100,
+					MaxLengthSet: true,
+				}).ValidateLength(len(params.DeviceId)); err != nil {
+					return errors.Wrap(err, "array")
+				}
+				return nil
+			}(); err != nil {
 				return err
 			}
 		}

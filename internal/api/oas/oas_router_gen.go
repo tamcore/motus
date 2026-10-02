@@ -3659,7 +3659,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						switch method {
 						case "GET":
 							r.name = ReportStopsOperation
-							r.summary = "Detect stops in a time range (Traccar-compatible path)"
+							r.summary = "Detect stops in a time range"
 							r.operationID = "reportStops"
 							r.operationGroup = ""
 							r.pathPattern = "/api/reports/stops"
@@ -3684,7 +3684,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						switch method {
 						case "GET":
 							r.name = ReportTripsOperation
-							r.summary = "Detect trips in a time range (Traccar-compatible path)"
+							r.summary = "Detect trips in a time range"
 							r.operationID = "reportTrips"
 							r.operationGroup = ""
 							r.pathPattern = "/api/reports/trips"

@@ -3,6 +3,10 @@ package handlers_test
 import (
 	"context"
 	"math"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"strconv"
 	"testing"
 	"time"
 
@@ -182,6 +186,65 @@ func TestReportStops_ForeignDeviceForbidden(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+	if _, ok := res.(*oas.ReportStopsForbidden); !ok {
+		t.Fatalf("expected Forbidden, got %T", res)
+	}
+}
+
+type allowAllSecurity struct{}
+
+func (allowAllSecurity) HandleBearerAuth(ctx context.Context, _ oas.OperationName, _ oas.BearerAuth) (context.Context, error) {
+	return ctx, nil
+}
+
+func (allowAllSecurity) HandleCookieAuth(ctx context.Context, _ oas.OperationName, _ oas.CookieAuth) (context.Context, error) {
+	return ctx, nil
+}
+
+func (allowAllSecurity) HandleXAuthToken(ctx context.Context, _ oas.OperationName, _ oas.XAuthToken) (context.Context, error) {
+	return ctx, nil
+}
+
+func TestReportTrips_TooManyDeviceIDs(t *testing.T) {
+	srv, err := oas.NewServer(handlers.NewHandler(handlers.HandlerConfig{}), allowAllSecurity{})
+	if err != nil {
+		t.Fatalf("new server: %v", err)
+	}
+	q := url.Values{"from": {"2026-01-01T00:00:00Z"}, "to": {"2026-01-02T00:00:00Z"}}
+	for i := range 101 {
+		q.Add("deviceId", strconv.Itoa(i+1))
+	}
+	req := httptest.NewRequest(http.MethodGet, "/api/reports/trips?"+q.Encode(), nil)
+	req.Header.Set("Authorization", "Bearer x")
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for 101 device ids, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestReportTrips_DuplicateDeviceIDsDeduped(t *testing.T) {
+	env := setupReports(t)
+	res, err := env.handler.ReportTrips(env.ctx(), oas.ReportTripsParams{
+		DeviceId: []int64{env.device.ID, env.device.ID}, From: env.start.Add(-time.Minute), To: env.start.Add(time.Hour),
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	list, ok := res.(*oas.ReportTripsOKApplicationJSON)
+	if !ok || len(*list) != 1 {
+		t.Fatalf("expected 1 trip for duplicated device id, got %T %v", res, list)
+	}
+}
+
+func TestReportStops_NonexistentDeviceForbidden(t *testing.T) {
+	env := setupReports(t)
+	res, err := env.handler.ReportStops(env.ctx(), oas.ReportStopsParams{
+		DeviceId: []int64{env.other.ID + 1000}, From: env.start, To: env.start.Add(time.Hour),
+	})
+	if err != nil {
+		t.Fatalf("nonexistent device must not be a server error: %v", err)
 	}
 	if _, ok := res.(*oas.ReportStopsForbidden); !ok {
 		t.Fatalf("expected Forbidden, got %T", res)

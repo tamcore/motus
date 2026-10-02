@@ -15762,7 +15762,7 @@ func (s *Server) handleReportStopsRequest(args [0]string, argsEscaped bool, w ht
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ReportStopsOperation,
-			OperationSummary: "Detect stops in a time range (Traccar-compatible path)",
+			OperationSummary: "Detect stops in a time range",
 			OperationID:      "reportStops",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -15833,8 +15833,8 @@ func (s *Server) handleReportStopsRequest(args [0]string, argsEscaped bool, w ht
 // handleReportTripsRequest handles reportTrips operation.
 //
 // A trip starts when speed exceeds 5 km/h and ends after a stop of at least 5 minutes or a gap of at
-// least 1 hour between positions. Trips shorter than 60 seconds are dropped. Speeds are in knots
-// (Traccar convention), distance in kilometers, duration in seconds.
+// least 1 hour between positions. Trips shorter than 60 seconds are dropped. Speeds are in knots (as
+// in /api/positions), distance in kilometers, duration in seconds.
 //
 // GET /api/reports/trips
 func (s *Server) handleReportTripsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -16010,7 +16010,7 @@ func (s *Server) handleReportTripsRequest(args [0]string, argsEscaped bool, w ht
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ReportTripsOperation,
-			OperationSummary: "Detect trips in a time range (Traccar-compatible path)",
+			OperationSummary: "Detect trips in a time range",
 			OperationID:      "reportTrips",
 			Body:             nil,
 			RawBody:          rawBody,

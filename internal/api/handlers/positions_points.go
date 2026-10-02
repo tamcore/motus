@@ -36,7 +36,21 @@ func (h *Handler) GetPositionPoints(ctx context.Context, params oas.GetPositionP
 
 	result := make(oas.GetPositionPointsOKApplicationJSON, len(points))
 	for i, p := range points {
-		result[i] = oas.PositionPoint{Lat: p.Lat, Lon: p.Lon, Speed: p.Speed * kmhToKnotsRatio, FixTime: p.FixTime}
+		result[i] = oas.PositionPoint{
+			Lat:      p.Lat,
+			Lon:      p.Lon,
+			Speed:    p.Speed * kmhToKnotsRatio,
+			FixTime:  p.FixTime,
+			Course:   optFloat64(p.Course),
+			Altitude: optFloat64(p.Altitude),
+		}
 	}
 	return &result, nil
+}
+
+func optFloat64(v *float64) oas.OptFloat64 {
+	if v == nil {
+		return oas.OptFloat64{}
+	}
+	return oas.NewOptFloat64(*v)
 }

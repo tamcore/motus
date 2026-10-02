@@ -116,6 +116,34 @@ func TestGetPositionPoints_ConvertsToKnots(t *testing.T) {
 	}
 }
 
+func TestGetPositionPoints_CourseAltitudeOmittedWhenNull(t *testing.T) {
+	ts := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
+	course, altitude := 90.0, 250.0
+	repo := &pointsPositionRepo{points: []model.PositionPoint{
+		{Lat: 52, Lon: 13, FixTime: ts, Course: &course, Altitude: &altitude},
+		{Lat: 52, Lon: 13, FixTime: ts},
+	}}
+	h := newPointsHandler(repo, true)
+
+	res, err := h.GetPositionPoints(pointsUserCtx(), oas.GetPositionPointsParams{DeviceId: 3})
+	if err != nil {
+		t.Fatalf("GetPositionPoints returned error: %v", err)
+	}
+	list, ok := res.(*oas.GetPositionPointsOKApplicationJSON)
+	if !ok {
+		t.Fatalf("expected *oas.GetPositionPointsOKApplicationJSON, got %T", res)
+	}
+	body, err := list.MarshalJSON()
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	want := `[{"lat":52,"lon":13,"speed":0,"fixTime":"2026-01-02T03:04:05Z","course":90,"altitude":250},` +
+		`{"lat":52,"lon":13,"speed":0,"fixTime":"2026-01-02T03:04:05Z"}]`
+	if string(body) != want {
+		t.Errorf("body = %s\nwant   %s", body, want)
+	}
+}
+
 func TestGetPositionPoints_EmptyIsArray(t *testing.T) {
 	h := newPointsHandler(&pointsPositionRepo{points: []model.PositionPoint{}}, true)
 

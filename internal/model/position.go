@@ -24,12 +24,14 @@ type Position struct {
 	Attributes  map[string]any `json:"attributes"`
 }
 
-// PositionPoint is the subset of a position a heatmap needs. Speed is in km/h.
+// PositionPoint is the subset of a position map views need. Speed is in km/h.
 type PositionPoint struct {
-	Lat     float64
-	Lon     float64
-	Speed   float64
-	FixTime time.Time
+	Lat      float64
+	Lon      float64
+	Speed    float64
+	FixTime  time.Time
+	Course   *float64
+	Altitude *float64
 }
 
 // CellNetwork builds a Traccar-style network map from cell towers and Wi-Fi

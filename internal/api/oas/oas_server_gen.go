@@ -265,8 +265,8 @@ type Handler interface {
 	GetOIDCConfig(ctx context.Context) (*OIDCConfig, error)
 	// GetPositionPoints implements getPositionPoints operation.
 	//
-	// Same range semantics as GET /api/positions with from/to, but returns only the fields a heatmap
-	// needs, for one device. from defaults to 24 h ago, to defaults to now.
+	// Same range semantics as GET /api/positions with from/to, but returns only the fields map views
+	// (heatmap, route, replay) need, for one device. from defaults to 24 h ago, to defaults to now.
 	//
 	// GET /api/positions/points
 	GetPositionPoints(ctx context.Context, params GetPositionPointsParams) (GetPositionPointsRes, error)

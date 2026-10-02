@@ -503,6 +503,8 @@ components:
         lon: { type: number, format: double }
         speed: { type: number, format: double, description: Speed in knots (0 when unknown) }
         fixTime: { type: string, format: date-time }
+        course: { type: number, format: double, description: Course in degrees; omitted when unknown }
+        altitude: { type: number, format: double, description: Altitude in meters; omitted when unknown }
     Position:
       type: object
       required: [id, deviceId, serverTime, deviceTime, fixTime, valid, latitude, longitude, altitude, speed, course, accuracy, attributes, network]
@@ -1661,7 +1663,7 @@ paths:
       summary: Get compact position points for a time range
       description: |
         Same range semantics as GET /api/positions with from/to, but returns only
-        the fields a heatmap needs, for one device. from defaults to 24 h ago,
+        the fields map views (heatmap, route, replay) need, for one device. from defaults to 24 h ago,
         to defaults to now.
       tags: [positions]
       security:

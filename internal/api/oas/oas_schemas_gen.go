@@ -6381,6 +6381,10 @@ type PositionPoint struct {
 	// Speed in knots (0 when unknown).
 	Speed   float64   `json:"speed"`
 	FixTime time.Time `json:"fixTime"`
+	// Course in degrees; omitted when unknown.
+	Course OptFloat64 `json:"course"`
+	// Altitude in meters; omitted when unknown.
+	Altitude OptFloat64 `json:"altitude"`
 }
 
 // GetLat returns the value of Lat.
@@ -6403,6 +6407,16 @@ func (s *PositionPoint) GetFixTime() time.Time {
 	return s.FixTime
 }
 
+// GetCourse returns the value of Course.
+func (s *PositionPoint) GetCourse() OptFloat64 {
+	return s.Course
+}
+
+// GetAltitude returns the value of Altitude.
+func (s *PositionPoint) GetAltitude() OptFloat64 {
+	return s.Altitude
+}
+
 // SetLat sets the value of Lat.
 func (s *PositionPoint) SetLat(val float64) {
 	s.Lat = val
@@ -6421,6 +6435,16 @@ func (s *PositionPoint) SetSpeed(val float64) {
 // SetFixTime sets the value of FixTime.
 func (s *PositionPoint) SetFixTime(val time.Time) {
 	s.FixTime = val
+}
+
+// SetCourse sets the value of Course.
+func (s *PositionPoint) SetCourse(val OptFloat64) {
+	s.Course = val
+}
+
+// SetAltitude sets the value of Altitude.
+func (s *PositionPoint) SetAltitude(val OptFloat64) {
+	s.Altitude = val
 }
 
 type ReportEventsOKApplicationJSON []Event

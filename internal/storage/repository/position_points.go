@@ -37,8 +37,8 @@ func (r *PositionRepository) points(ctx context.Context, limit int, fromWhere st
 	size := min((total+stride-1)/stride, int64(limit))
 
 	// LIMIT keeps the bound when rows arrive between the count and the scan.
-	rows, err := r.pool.Query(ctx, `SELECT timestamp, latitude, longitude, COALESCE(speed, 0) FROM (
-			SELECT p.timestamp, p.latitude, p.longitude, p.speed,
+	rows, err := r.pool.Query(ctx, `SELECT timestamp, latitude, longitude, COALESCE(speed, 0), course, altitude FROM (
+			SELECT p.timestamp, p.latitude, p.longitude, p.speed, p.course, p.altitude,
 				row_number() OVER (ORDER BY p.timestamp) - 1 AS rn
 			`+fromWhere+`
 		 ) w
@@ -53,7 +53,7 @@ func (r *PositionRepository) points(ctx context.Context, limit int, fromWhere st
 	points := make([]model.PositionPoint, 0, size)
 	for rows.Next() {
 		var p model.PositionPoint
-		if err := rows.Scan(&p.FixTime, &p.Lat, &p.Lon, &p.Speed); err != nil {
+		if err := rows.Scan(&p.FixTime, &p.Lat, &p.Lon, &p.Speed, &p.Course, &p.Altitude); err != nil {
 			return nil, fmt.Errorf("scan point: %w", err)
 		}
 		points = append(points, p)

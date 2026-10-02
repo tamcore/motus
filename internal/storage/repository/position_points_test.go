@@ -30,7 +30,7 @@ func TestPositionRepository_PointsByDeviceAndTimeRange(t *testing.T) {
 
 	_, device := createTestDevice(t, pool, deviceRepo, userRepo)
 	now := time.Now().UTC().Truncate(time.Microsecond)
-	speed := 36.0
+	speed, course, altitude := 36.0, 270.5, 120.0
 	for i := range 10 {
 		p := &model.Position{
 			DeviceID:   device.ID,
@@ -40,7 +40,7 @@ func TestPositionRepository_PointsByDeviceAndTimeRange(t *testing.T) {
 			Attributes: map[string]any{"big": "ignored"},
 		}
 		if i == 0 {
-			p.Speed = &speed
+			p.Speed, p.Course, p.Altitude = &speed, &course, &altitude
 		}
 		if err := posRepo.Create(ctx, p); err != nil {
 			t.Fatalf("Create position %d failed: %v", i, err)
@@ -63,8 +63,14 @@ func TestPositionRepository_PointsByDeviceAndTimeRange(t *testing.T) {
 	if all[0].Speed != speed || all[0].Lon != 13.0 || !all[0].FixTime.Equal(now.Add(-10*time.Minute)) {
 		t.Errorf("first point = %+v, want speed %v, lon 13, fixTime %v", all[0], speed, now.Add(-10*time.Minute))
 	}
+	if all[0].Course == nil || *all[0].Course != course || all[0].Altitude == nil || *all[0].Altitude != altitude {
+		t.Errorf("first point course/altitude = %v/%v, want %v/%v", all[0].Course, all[0].Altitude, course, altitude)
+	}
 	if all[1].Speed != 0 {
 		t.Errorf("NULL speed returned %v, want 0", all[1].Speed)
+	}
+	if all[1].Course != nil || all[1].Altitude != nil {
+		t.Errorf("NULL course/altitude returned %v/%v, want nil", all[1].Course, all[1].Altitude)
 	}
 	if got := pointLats(points(3)); !slices.Equal(got, []float64{0, 4, 8}) {
 		t.Errorf("limit=3 returned %v, want every 4th", got)

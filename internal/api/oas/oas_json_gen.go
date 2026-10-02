@@ -17057,13 +17057,27 @@ func (s *PositionPoint) encodeFields(e *jx.Encoder) {
 		e.FieldStart("fixTime")
 		json.EncodeDateTime(e, s.FixTime)
 	}
+	{
+		if s.Course.Set {
+			e.FieldStart("course")
+			s.Course.Encode(e)
+		}
+	}
+	{
+		if s.Altitude.Set {
+			e.FieldStart("altitude")
+			s.Altitude.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfPositionPoint = [4]string{
+var jsonFieldsNameOfPositionPoint = [6]string{
 	0: "lat",
 	1: "lon",
 	2: "speed",
 	3: "fixTime",
+	4: "course",
+	5: "altitude",
 }
 
 // Decode decodes PositionPoint from json.
@@ -17122,6 +17136,26 @@ func (s *PositionPoint) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"fixTime\"")
+			}
+		case "course":
+			if err := func() error {
+				s.Course.Reset()
+				if err := s.Course.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"course\"")
+			}
+		case "altitude":
+			if err := func() error {
+				s.Altitude.Reset()
+				if err := s.Altitude.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"altitude\"")
 			}
 		default:
 			return d.Skip()

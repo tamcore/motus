@@ -158,7 +158,8 @@ func (s *Simulator) simulateDevice(ctx context.Context, imei string, route *Rout
 
 // runWithWatchdog runs the route loop alongside a watchdog goroutine.
 // If the watchdog detects a stale connection (no successful write within
-// the threshold), it cancels the traversal and forces a reconnection.
+// the threshold) or the command reader hits a read error, it cancels the
+// traversal and forces a reconnection.
 func (s *Simulator) runWithWatchdog(
 	ctx context.Context,
 	w *connWriter,
@@ -177,8 +178,13 @@ func (s *Simulator) runWithWatchdog(
 		watchdogErr <- runWatchdog(connCtx, w, defaultStaleThreshold, defaultWatchdogInterval)
 	}()
 
-	// Start the command reader — it owns all reads from w.conn.
-	go runCommandReader(connCtx, w, imei)
+	// Start the command reader — it owns all reads from w.conn. A read error
+	// (e.g. EOF when the server closes) ends the connection, because writes
+	// into a closed connection can keep succeeding until TCP gives up.
+	readerErr := make(chan error, 1)
+	go func() {
+		readerErr <- runCommandReader(connCtx, w, imei)
+	}()
 
 	// Run the route loop.
 	routeErr := make(chan error, 1)
@@ -191,6 +197,12 @@ func (s *Simulator) runWithWatchdog(
 	case err := <-routeErr:
 		connCancel() // Stop the watchdog.
 		return err
+	case err := <-readerErr:
+		connCancel()
+		if err != nil {
+			return err
+		}
+		return <-routeErr
 	case err := <-watchdogErr:
 		connCancel() // Stop the route loop.
 		if err != nil {

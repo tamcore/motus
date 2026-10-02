@@ -376,6 +376,9 @@ func connID() string {
 // handleConnection processes a single GPS device connection.
 func (s *Server) handleConnection(ctx context.Context, conn net.Conn) {
 	defer func() { _ = conn.Close() }()
+	// Close on shutdown so the device sees the close while this pod is still
+	// reachable and reconnects to another one.
+	defer context.AfterFunc(ctx, func() { _ = conn.Close() })()
 
 	id := connID()
 	remoteAddr := conn.RemoteAddr().String()

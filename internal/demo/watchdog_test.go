@@ -236,3 +236,64 @@ func TestEnableTCPKeepAlive_NonTCPConn(t *testing.T) {
 		t.Errorf("expected no error for non-TCP conn, got: %v", err)
 	}
 }
+
+// TestSimulateDevice_ReconnectsWhenServerCloses reproduces a server pod going
+// away during a rollout: the server half-closes (FIN) but keeps accepting
+// data, so the simulator's writes still succeed and only the read side sees
+// EOF. The simulator must reconnect instead of writing into the closed
+// connection until TCP gives up.
+func TestSimulateDevice_ReconnectsWhenServerCloses(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	defer func() { _ = ln.Close() }()
+
+	var conns atomic.Int32
+	go func() {
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			n := conns.Add(1)
+			go func() {
+				defer func() { _ = c.Close() }()
+				buf := make([]byte, 4096)
+				if n == 1 {
+					if _, err := c.Read(buf); err != nil {
+						return
+					}
+					_ = c.(*net.TCPConn).CloseWrite()
+				}
+				for {
+					if _, err := c.Read(buf); err != nil {
+						return
+					}
+				}
+			}()
+		}
+	}()
+
+	route := &Route{Name: "test", Points: makeTestPoints(200)}
+	sim := NewSimulator([]*Route{route}, ln.Addr().String(), []string{"TEST002"}, 200.0)
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	done := make(chan struct{})
+	go func() {
+		sim.Start(ctx)
+		close(done)
+	}()
+	defer func() {
+		cancel()
+		<-done
+	}()
+
+	deadline := time.Now().Add(5 * time.Second)
+	for conns.Load() < 2 {
+		if time.Now().After(deadline) {
+			t.Fatal("simulator did not reconnect after the server closed the connection")
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+}

@@ -24,14 +24,15 @@ const rconfResult = "ST-901/4G,ID:%s,PW:0000,U1:12025550100,U2:,U3:," +
 // back simulated SMS responses for recognised commands.
 //
 // It owns all reads from w.conn for the lifetime of connCtx. The route loop
-// must not read from the connection concurrently.
-func runCommandReader(ctx context.Context, w *connWriter, imei string) {
+// must not read from the connection concurrently. It returns the read error
+// that ended the connection, or nil when ctx is done.
+func runCommandReader(ctx context.Context, w *connWriter, imei string) error {
 	buf := make([]byte, 4096)
 	acc := []byte{}
 	for {
 		select {
 		case <-ctx.Done():
-			return
+			return nil
 		default:
 		}
 
@@ -69,8 +70,11 @@ func runCommandReader(ctx context.Context, w *connWriter, imei string) {
 				}
 				continue
 			}
-			// Any other error (EOF, connection reset, etc.) is fatal.
-			return
+			// Any other error (EOF, connection reset, etc.) ends the connection.
+			if ctx.Err() != nil {
+				return nil
+			}
+			return fmt.Errorf("read from server: %w", err)
 		}
 	}
 }

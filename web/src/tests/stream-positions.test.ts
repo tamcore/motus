@@ -17,23 +17,6 @@ function makePositionJSON(id: number) {
   };
 }
 
-// Mimics Go's json.Encoder output: [obj1\n,obj2\n,...,objN\n]
-function encodeBody(positions: object[]): ReadableStream<Uint8Array> {
-  let body = "[";
-  for (let i = 0; i < positions.length; i++) {
-    if (i > 0) body += ",";
-    body += JSON.stringify(positions[i]) + "\n";
-  }
-  body += "]";
-  const bytes = new TextEncoder().encode(body);
-  return new ReadableStream({
-    start(controller) {
-      controller.enqueue(bytes);
-      controller.close();
-    },
-  });
-}
-
 describe("streamPositions", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -43,7 +26,7 @@ describe("streamPositions", () => {
     const raw = [makePositionJSON(1), makePositionJSON(2)];
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({ ok: true, body: encodeBody(raw) }),
+      vi.fn().mockResolvedValue(new Response(JSON.stringify(raw))),
     );
 
     const deltas: number[] = [];
@@ -56,7 +39,7 @@ describe("streamPositions", () => {
   });
 
   it("sends limit so the server samples the range", async () => {
-    const mockFetch = vi.fn().mockResolvedValue({ ok: true, body: encodeBody([makePositionJSON(1)]) });
+    const mockFetch = vi.fn().mockResolvedValue(new Response(JSON.stringify([makePositionJSON(1)])));
     vi.stubGlobal("fetch", mockFetch);
 
     await streamPositions({ deviceId: 1, limit: 10000 }, () => {});
@@ -65,10 +48,7 @@ describe("streamPositions", () => {
   });
 
   it("sends deviceId, from, to as query params", async () => {
-    const mockFetch = vi.fn().mockResolvedValue({
-      ok: true,
-      body: encodeBody([makePositionJSON(1)]),
-    });
+    const mockFetch = vi.fn().mockResolvedValue(new Response(JSON.stringify([makePositionJSON(1)])));
     vi.stubGlobal("fetch", mockFetch);
 
     await streamPositions(
@@ -80,6 +60,15 @@ describe("streamPositions", () => {
     expect(url).toContain("deviceId=42");
     expect(url).toContain("from=");
     expect(url).toContain("to=");
+  });
+
+  it("parses the compact JSON array the API sends", async () => {
+    const raw = Array.from({ length: 3 }, (_, i) => makePositionJSON(i + 1));
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(raw))));
+
+    const result = await streamPositions({ deviceId: 1 }, () => {});
+
+    expect(result.map((p) => p.id)).toEqual([1, 2, 3]);
   });
 
   it("throws on non-ok response", async () => {
@@ -99,7 +88,7 @@ describe("streamPositions", () => {
     const raw = [{ ...makePositionJSON(1), speed: null }];
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({ ok: true, body: encodeBody(raw) }),
+      vi.fn().mockResolvedValue(new Response(JSON.stringify(raw))),
     );
 
     const result = await streamPositions({}, () => {});

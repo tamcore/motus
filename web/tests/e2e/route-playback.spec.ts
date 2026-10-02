@@ -97,25 +97,27 @@ test.describe('Route Playback Page', () => {
   });
 
   test('should show speed selector buttons', async ({ authedPage }) => {
-    await authedPage.route('**/api/positions/points*', (route) => {
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify([
-          { lat: 51.5, lon: -0.09, speed: 30, fixTime: '2025-01-01T00:00:00Z' },
-          { lat: 51.51, lon: -0.08, speed: 40, fixTime: '2025-01-01T00:01:00Z' },
-        ]),
-      });
+    await authedPage.addInitScript(() => {
+      const origFetch = window.fetch;
+      window.fetch = async function (...args: Parameters<typeof fetch>) {
+        const url = typeof args[0] === 'string' ? args[0] : args[0] instanceof URL ? args[0].href : (args[0] as Request).url;
+        if (url.includes('/api/positions/points?')) {
+          return new Response(
+            JSON.stringify([
+              { lat: 51.5, lon: -0.09, speed: 30, fixTime: '2025-01-01T00:00:00Z' },
+              { lat: 51.51, lon: -0.08, speed: 40, fixTime: '2025-01-01T00:01:00Z' },
+            ]),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          );
+        }
+        return origFetch.apply(this, args);
+      };
     });
 
     await authedPage.goto('/reports/route?deviceId=1&from=2025-01-01T00:00:00Z&to=2025-01-02T00:00:00Z');
-    await authedPage.waitForTimeout(2000);
 
-    const speedBtns = authedPage.locator('.speed-btn');
-    const count = await speedBtns.count();
-    if (count > 0) {
-      expect(count).toBe(4); // 1x, 2x, 4x, 8x
-    }
+    await expect(authedPage.locator('.controls-container')).toBeVisible({ timeout: 20000 });
+    await expect(authedPage.locator('.speed-btn')).toHaveCount(4); // 1x, 2x, 4x, 8x
   });
 
   test('should show info panel with position data', async ({ authedPage }) => {

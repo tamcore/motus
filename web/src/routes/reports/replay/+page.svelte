@@ -30,7 +30,7 @@
 	});
 
 	// ---------------------------------------------------------------------------
-	// Helpers (API Position uses fixTime directly)
+	// Helpers
 	// ---------------------------------------------------------------------------
 	function getTime(pos: Position): string {
 		return pos.fixTime;

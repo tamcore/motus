@@ -70,6 +70,7 @@ func (h *Handler) GetPositions(ctx context.Context, params oas.GetPositionsParam
 	deviceID, hasDevice := params.DeviceId.Get()
 	from, hasFrom := params.From.Get()
 	to, hasTo := params.To.Get()
+	limit := params.Limit.Or(0)
 
 	// No deviceId, no time range: latest position per user device.
 	if !hasDevice && !hasFrom && !hasTo {
@@ -96,7 +97,7 @@ func (h *Handler) GetPositions(ctx context.Context, params oas.GetPositionsParam
 		queryCtx, cancel := context.WithTimeout(ctx, positionQueryTimeout)
 		defer cancel()
 		var result oas.GetPositionsOKApplicationJSON
-		streamErr := h.cfg.Positions.StreamByUserAndTimeRange(queryCtx, user.ID, from, to, 0, func(p *model.Position) error {
+		streamErr := h.cfg.Positions.StreamByUserAndTimeRange(queryCtx, user.ID, from, to, limit, func(p *model.Position) error {
 			result = append(result, positionToOAS(positionInKnots(p)))
 			return nil
 		})
@@ -123,7 +124,7 @@ func (h *Handler) GetPositions(ctx context.Context, params oas.GetPositionsParam
 	queryCtx, cancel := context.WithTimeout(ctx, positionQueryTimeout)
 	defer cancel()
 	var result oas.GetPositionsOKApplicationJSON
-	streamErr := h.cfg.Positions.StreamByDeviceAndTimeRange(queryCtx, deviceID, from, to, 0, func(p *model.Position) error {
+	streamErr := h.cfg.Positions.StreamByDeviceAndTimeRange(queryCtx, deviceID, from, to, limit, func(p *model.Position) error {
 		result = append(result, positionToOAS(positionInKnots(p)))
 		return nil
 	})

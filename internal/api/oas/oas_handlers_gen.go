@@ -9952,6 +9952,10 @@ func (s *Server) handleGetPositionsRequest(args [0]string, argsEscaped bool, w h
 					Name: "to",
 					In:   "query",
 				}: params.To,
+				{
+					Name: "limit",
+					In:   "query",
+				}: params.Limit,
 			},
 			Raw: r,
 		}

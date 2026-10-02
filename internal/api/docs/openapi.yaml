@@ -1538,6 +1538,12 @@ paths:
         - name: to
           in: query
           schema: { type: string, format: date-time }
+        - name: limit
+          in: query
+          description: |
+            With from/to: return at most this many positions, evenly spaced over the
+            whole range (every ceil(total/limit)-th position). Omit for all positions.
+          schema: { type: integer, minimum: 1 }
       responses:
         "200":
           description: Position list

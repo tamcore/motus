@@ -194,23 +194,21 @@ func (r *PositionRepository) GetLastMovingPosition(ctx context.Context, deviceID
 
 // StreamByDeviceAndTimeRange calls fn for each position in the time range,
 // ordered by timestamp ascending. limit<=0 streams all matching rows; a
-// positive limit stops after that many rows. Errors from fn abort the stream.
+// positive limit streams at most that many, evenly spaced over the range.
+// Errors from fn abort the stream.
 func (r *PositionRepository) StreamByDeviceAndTimeRange(
 	ctx context.Context, deviceID int64, from, to time.Time, limit int,
 	fn func(*model.Position) error,
 ) error {
-	err := r.stream(ctx, fn, `SELECT `+positionColumns+`
+	err := r.streamSampled(ctx, fn, limit, `SELECT `+positionColumns+`
 		 FROM positions
-		 WHERE device_id = $1 AND timestamp >= $2 AND timestamp <= $3
-		 ORDER BY timestamp ASC
-		 LIMIT $4`, deviceID, from, to, limitOrAll(limit))
+		 WHERE device_id = $1 AND timestamp >= $2 AND timestamp <= $3`, deviceID, from, to)
 	if err != nil {
 		return fmt.Errorf("stream positions by device and time range: %w", err)
 	}
 	return nil
 }
 
-// StreamByUserAndTimeRange calls fn for each position belonging to any device
 // CountByUserAndTimeRange counts positions of the user's devices with a
 // timestamp in [from, to].
 func (r *PositionRepository) CountByUserAndTimeRange(ctx context.Context, userID int64, from, to time.Time) (int64, error) {
@@ -238,23 +236,38 @@ func (r *PositionRepository) CountAllByTimeRange(ctx context.Context, from, to t
 	return n, nil
 }
 
-// owned by userID within the time range, ordered by timestamp ascending.
+// StreamByUserAndTimeRange calls fn for each position belonging to any device
+// owned by userID within the time range, ordered by timestamp ascending. limit
+// works as for StreamByDeviceAndTimeRange.
 func (r *PositionRepository) StreamByUserAndTimeRange(
 	ctx context.Context, userID int64, from, to time.Time, limit int,
 	fn func(*model.Position) error,
 ) error {
-	err := r.stream(ctx, fn, `SELECT p.id, p.device_id, p.protocol, p.server_time, p.device_time,
+	err := r.streamSampled(ctx, fn, limit, `SELECT p.id, p.device_id, p.protocol, p.server_time, p.device_time,
 		 p.timestamp, p.valid, p.latitude, p.longitude, p.altitude, p.speed, p.course,
 		 p.address, p.accuracy, p.network, p.geofence_ids, p.outdated, p.attributes
 		 FROM positions p
 		 JOIN user_devices ud ON ud.device_id = p.device_id
-		 WHERE ud.user_id = $1 AND p.timestamp >= $2 AND p.timestamp <= $3
-		 ORDER BY p.timestamp ASC
-		 LIMIT $4`, userID, from, to, limitOrAll(limit))
+		 WHERE ud.user_id = $1 AND p.timestamp >= $2 AND p.timestamp <= $3`, userID, from, to)
 	if err != nil {
 		return fmt.Errorf("stream positions by user and time range: %w", err)
 	}
 	return nil
+}
+
+// streamSampled streams the rows of query ordered by timestamp. With limit > 0
+// it keeps every ceil(total/limit)-th row, so at most limit rows spread over the
+// whole result instead of only its start. query's own parameters must be $1..$3.
+func (r *PositionRepository) streamSampled(ctx context.Context, fn func(*model.Position) error, limit int, query string, args ...any) error {
+	if limit <= 0 {
+		return r.stream(ctx, fn, query+` ORDER BY timestamp ASC`, args...)
+	}
+	return r.stream(ctx, fn, `SELECT `+positionColumns+` FROM (
+			SELECT s.*, row_number() OVER (ORDER BY s.timestamp) - 1 AS rn, count(*) OVER () AS total
+			FROM (`+query+`) s
+		 ) w
+		 WHERE rn % GREATEST(1, ceil(total::numeric / $4))::bigint = 0
+		 ORDER BY timestamp ASC`, append(args, limit)...)
 }
 
 func (r *PositionRepository) stream(ctx context.Context, fn func(*model.Position) error, query string, args ...any) error {
@@ -273,14 +286,6 @@ func (r *PositionRepository) stream(ctx context.Context, fn func(*model.Position
 		}
 	}
 	return rows.Err()
-}
-
-// limitOrAll maps a non-positive limit to NULL, which Postgres treats as LIMIT ALL.
-func limitOrAll(limit int) *int {
-	if limit <= 0 {
-		return nil
-	}
-	return &limit
 }
 
 // scanPosition scans a single row into a Position.

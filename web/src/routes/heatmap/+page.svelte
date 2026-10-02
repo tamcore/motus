@@ -11,6 +11,9 @@
 	import AllDevicesToggle from '$lib/components/AllDevicesToggle.svelte';
 	import type { HeatMapOptions } from 'leaflet';
 
+	// Points the heat layer renders; the server samples each device's range to this.
+	const HEATMAP_MAX_POINTS = 10000;
+
 	const leafletMap = useLeaflet();
 
 	let mapContainer: HTMLDivElement;
@@ -174,14 +177,11 @@
 			const toISO = to.toISOString();
 
 			if (selectedDeviceId) {
-				// Single device — direct history query.
-				// maxPositions=50000: heatmap renders at most 10k (samplePositions),
-				// so reservoir-sampling to 50k gives identical output with far less
-				// memory pressure for large "All time" datasets.
+				// The heatmap renders at most HEATMAP_MAX_POINTS, so let the server
+				// sample the range instead of downloading every position.
 				positions = await streamPositions(
-					{ deviceId: parseInt(selectedDeviceId), from: fromISO, to: toISO },
+					{ deviceId: parseInt(selectedDeviceId), from: fromISO, to: toISO, limit: HEATMAP_MAX_POINTS },
 					(delta) => { loadingCount += delta; },
-					50000,
 				);
 			} else {
 				// All devices — fan out per device so we get full history.
@@ -190,9 +190,8 @@
 				const results = await Promise.all(
 					devices.map((d) =>
 						streamPositions(
-							{ deviceId: d.id, from: fromISO, to: toISO },
+							{ deviceId: d.id, from: fromISO, to: toISO, limit: HEATMAP_MAX_POINTS },
 							(delta) => { loadingCount += delta; },
-							50000,
 						).catch(() => [] as Position[]),
 					),
 				);
@@ -212,7 +211,7 @@
 		}
 	}
 
-	function samplePositions(data: Position[], maxPoints: number = 10000): Position[] {
+	function samplePositions(data: Position[], maxPoints: number = HEATMAP_MAX_POINTS): Position[] {
 		if (data.length <= maxPoints) {
 			return data;
 		}
@@ -569,8 +568,8 @@
 				<div class="stat-row">
 					<span class="stat-label">Displayed</span>
 					<span class="stat-value">
-						{Math.min(positions.length, 10000).toLocaleString()}
-						{#if positions.length > 10000}
+						{Math.min(positions.length, HEATMAP_MAX_POINTS).toLocaleString()}
+						{#if positions.length > HEATMAP_MAX_POINTS}
 							/ {positions.length.toLocaleString()}
 						{/if}
 					</span>

@@ -55,28 +55,13 @@ describe("streamPositions", () => {
     expect(deltas.reduce((a, b) => a + b, 0)).toBe(2);
   });
 
-  it("reservoir-samples down to maxPositions", async () => {
-    const raw = Array.from({ length: 100 }, (_, i) => makePositionJSON(i + 1));
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({ ok: true, body: encodeBody(raw) }),
-    );
+  it("sends limit so the server samples the range", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, body: encodeBody([makePositionJSON(1)]) });
+    vi.stubGlobal("fetch", mockFetch);
 
-    const result = await streamPositions({}, () => {}, 10);
+    await streamPositions({ deviceId: 1, limit: 10000 }, () => {});
 
-    expect(result).toHaveLength(10);
-  });
-
-  it("returns all positions when count is under maxPositions", async () => {
-    const raw = [makePositionJSON(1), makePositionJSON(2), makePositionJSON(3)];
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({ ok: true, body: encodeBody(raw) }),
-    );
-
-    const result = await streamPositions({}, () => {}, 50000);
-
-    expect(result).toHaveLength(3);
+    expect(new URL(mockFetch.mock.calls[0][0], "http://x").searchParams.get("limit")).toBe("10000");
   });
 
   it("sends deviceId, from, to as query params", async () => {

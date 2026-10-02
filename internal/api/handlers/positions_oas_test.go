@@ -282,3 +282,31 @@ func TestAdminListPositions_NonAdmin_OAS(t *testing.T) {
 		t.Errorf("expected *oas.AdminListPositionsForbidden for non-admin, got %T", res)
 	}
 }
+
+func TestGetPositions_LimitSamplesRange_OAS(t *testing.T) {
+	env := setupPositionsOASIntegration(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+	for i := range 5 {
+		if err := env.posRepo.Create(ctx, &model.Position{DeviceID: env.device.ID, Latitude: 52, Longitude: 13, Timestamp: now.Add(time.Duration(-5+i) * time.Minute)}); err != nil {
+			t.Fatalf("Create position %d: %v", i, err)
+		}
+	}
+
+	res, err := env.handler.GetPositions(env.userCtx(), oas.GetPositionsParams{
+		DeviceId: oas.NewOptInt64(env.device.ID),
+		From:     oas.NewOptDateTime(now.Add(-time.Hour)),
+		To:       oas.NewOptDateTime(now),
+		Limit:    oas.NewOptInt(2),
+	})
+	if err != nil {
+		t.Fatalf("GetPositions: %v", err)
+	}
+	positions := decodePositionsRes(t, res)
+	if len(positions) != 2 {
+		t.Fatalf("limit=2 returned %d positions, want 2", len(positions))
+	}
+	if first, last := positions[0].FixTime, positions[1].FixTime; !last.After(first.Add(2 * time.Minute)) {
+		t.Errorf("sampled positions %v and %v are not spread over the range", first, last)
+	}
+}

@@ -2,6 +2,8 @@ package repository_test
 
 import (
 	"context"
+	"math"
+	"slices"
 	"testing"
 	"time"
 
@@ -425,16 +427,56 @@ func TestPositionRepository_StreamByDeviceAndTimeRange_WithLimit(t *testing.T) {
 		}
 	}
 
-	var count int
-	err := posRepo.StreamByDeviceAndTimeRange(ctx, device.ID, now.Add(-time.Hour), now.Add(time.Minute), 3, func(p *model.Position) error {
-		count++
+	sampled := func(limit int) []float64 {
+		t.Helper()
+		var lats []float64
+		err := posRepo.StreamByDeviceAndTimeRange(ctx, device.ID, now.Add(-time.Hour), now.Add(time.Minute), limit, func(p *model.Position) error {
+			lats = append(lats, math.Round((p.Latitude-52)*100))
+			return nil
+		})
+		if err != nil {
+			t.Fatalf("StreamByDeviceAndTimeRange(limit=%d) failed: %v", limit, err)
+		}
+		return lats
+	}
+
+	if got, want := sampled(3), []float64{0, 4, 8}; !slices.Equal(got, want) {
+		t.Errorf("limit=3 returned positions %v, want every 4th %v spread over the range", got, want)
+	}
+	if got := sampled(5); !slices.Equal(got, []float64{0, 2, 4, 6, 8}) {
+		t.Errorf("limit=5 returned positions %v, want every 2nd", got)
+	}
+	if got := sampled(50); len(got) != 10 {
+		t.Errorf("limit above total returned %d positions, want all 10", len(got))
+	}
+}
+
+func TestPositionRepository_StreamByUserAndTimeRange_WithLimit(t *testing.T) {
+	pool := testutil.SetupTestDB(t)
+	testutil.CleanTables(t, pool)
+	posRepo := repository.NewPositionRepository(pool)
+	deviceRepo := repository.NewDeviceRepository(pool)
+	userRepo := repository.NewUserRepository(pool)
+	ctx := context.Background()
+
+	user, device := createTestDevice(t, pool, deviceRepo, userRepo)
+	now := time.Now().UTC()
+	for i := range 9 {
+		if err := posRepo.Create(ctx, &model.Position{DeviceID: device.ID, Latitude: 52, Longitude: 13, Timestamp: now.Add(time.Duration(-9+i) * time.Minute)}); err != nil {
+			t.Fatalf("Create position %d failed: %v", i, err)
+		}
+	}
+
+	var stamps []time.Time
+	err := posRepo.StreamByUserAndTimeRange(ctx, user.ID, now.Add(-time.Hour), now.Add(time.Minute), 3, func(p *model.Position) error {
+		stamps = append(stamps, p.Timestamp)
 		return nil
 	})
 	if err != nil {
-		t.Fatalf("StreamByDeviceAndTimeRange failed: %v", err)
+		t.Fatalf("StreamByUserAndTimeRange failed: %v", err)
 	}
-	if count != 3 {
-		t.Errorf("expected 3 positions with limit=3, got %d", count)
+	if len(stamps) != 3 || !slices.IsSortedFunc(stamps, time.Time.Compare) {
+		t.Errorf("limit=3 returned %d positions (sorted %v), want 3 in time order", len(stamps), slices.IsSortedFunc(stamps, time.Time.Compare))
 	}
 }
 

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/tamcore/motus/internal/model"
 )
@@ -205,6 +206,51 @@ func (r *PositionRepository) StreamByDeviceAndTimeRange(
 		 WHERE device_id = $1 AND timestamp >= $2 AND timestamp <= $3`, deviceID, from, to)
 	if err != nil {
 		return fmt.Errorf("stream positions by device and time range: %w", err)
+	}
+	return nil
+}
+
+// StreamTrackByDeviceAndTimeRange calls fn for every position in the time
+// range, ordered by timestamp ascending, unsampled. Only Timestamp, Latitude,
+// Longitude, Speed and Address are set. fn receives the same reused value on
+// every call and must not retain p or its pointers.
+func (r *PositionRepository) StreamTrackByDeviceAndTimeRange(
+	ctx context.Context, deviceID int64, from, to time.Time,
+	fn func(*model.Position) error,
+) error {
+	rows, err := r.pool.Query(ctx,
+		`SELECT timestamp, latitude, longitude, speed, address
+		 FROM positions
+		 WHERE device_id = $1 AND timestamp >= $2 AND timestamp <= $3
+		 ORDER BY timestamp ASC`, deviceID, from, to)
+	if err != nil {
+		return fmt.Errorf("stream track by device and time range: %w", err)
+	}
+	defer rows.Close()
+
+	var (
+		p     model.Position
+		speed pgtype.Float8
+		addr  pgtype.Text
+	)
+	dest := []any{&p.Timestamp, &p.Latitude, &p.Longitude, &speed, &addr}
+	for rows.Next() {
+		if err := rows.Scan(dest...); err != nil {
+			return fmt.Errorf("scan track position: %w", err)
+		}
+		p.Speed, p.Address = nil, nil
+		if speed.Valid {
+			p.Speed = &speed.Float64
+		}
+		if addr.Valid {
+			p.Address = &addr.String
+		}
+		if err := fn(&p); err != nil {
+			return err
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("stream track by device and time range: %w", err)
 	}
 	return nil
 }

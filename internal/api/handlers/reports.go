@@ -61,7 +61,7 @@ func (h *Handler) streamReport(ctx context.Context, devices []*model.Device, fro
 func (h *Handler) streamDevice(ctx context.Context, deviceID int64, from, to time.Time, add func(*model.Position)) error {
 	ctx, cancel := context.WithTimeout(ctx, positionQueryTimeout)
 	defer cancel()
-	return h.cfg.Positions.StreamByDeviceAndTimeRange(ctx, deviceID, from, to, 0, func(p *model.Position) error {
+	return h.cfg.Positions.StreamTrackByDeviceAndTimeRange(ctx, deviceID, from, to, func(p *model.Position) error {
 		add(p)
 		return nil
 	})

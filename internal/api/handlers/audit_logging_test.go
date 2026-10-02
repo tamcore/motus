@@ -135,6 +135,9 @@ func (m *auditMockPositionRepo) GetLastMovingPosition(_ context.Context, _ int64
 func (m *auditMockPositionRepo) StreamByDeviceAndTimeRange(_ context.Context, _ int64, _, _ time.Time, _ int, _ func(*model.Position) error) error {
 	return nil
 }
+func (m *auditMockPositionRepo) StreamTrackByDeviceAndTimeRange(_ context.Context, _ int64, _, _ time.Time, _ func(*model.Position) error) error {
+	return nil
+}
 func (m *auditMockPositionRepo) StreamByUserAndTimeRange(_ context.Context, _ int64, _, _ time.Time, _ int, _ func(*model.Position) error) error {
 	return nil
 }

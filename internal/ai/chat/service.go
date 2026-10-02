@@ -68,6 +68,7 @@ func NewService(cfg Config) *Service {
 	client := openai.NewClient(
 		option.WithBaseURL(cfg.BaseURL),
 		option.WithAPIKey(cfg.APIKey),
+		option.WithUnsafeAllowHTTP(),
 	)
 	guardrailModel := cfg.GuardrailModel
 	if guardrailModel == "" {

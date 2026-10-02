@@ -74,7 +74,7 @@ activate it.
 | Env var | Default | Purpose |
 |---|---|---|
 | `MOTUS_AI_ENABLED` | `false` | Master gate. When false, `/api/chat*` routes are not registered, no MCP server is built, and the frontend hides the Chat nav link. |
-| `MOTUS_AI_BASE_URL` | `https://api.openai.com/v1` | Base URL of any OpenAI-compatible chat completions API. |
+| `MOTUS_AI_BASE_URL` | `https://api.openai.com/v1` | Base URL of any OpenAI-compatible chat completions API. Must be `https://`; plain `http://` works only for loopback hosts (`localhost`, `127.0.0.1`). |
 | `MOTUS_AI_API_KEY` | — | **Required when enabled.** Bearer token sent to the LLM provider. |
 | `MOTUS_AI_MODEL` | `gpt-4o-mini` | Model identifier forwarded to the provider. |
 | `MOTUS_AI_MAX_TOKENS` | `4096` | Per-completion token cap. |

@@ -108,17 +108,12 @@ func (h *Handler) GetPositions(ctx context.Context, params oas.GetPositionsParam
 		}
 		queryCtx, cancel := context.WithTimeout(ctx, positionQueryTimeout)
 		defer cancel()
-		var result oas.GetPositionsOKApplicationJSON
-		streamErr := h.cfg.Positions.StreamByUserAndTimeRange(queryCtx, user.ID, from, to, limit, func(p *model.Position) error {
-			result = append(result, positionToOAS(positionInKnots(p)))
-			return nil
+		result, streamErr := collectPositions(func(fn func(*model.Position) error) error {
+			return h.cfg.Positions.StreamByUserAndTimeRange(queryCtx, user.ID, from, to, limit, fn)
 		})
 		if streamErr != nil {
 			slog.Error("StreamByUserAndTimeRange failed", slog.Any("error", streamErr))
 			return &oas.Error{Error: "failed to get positions"}, nil
-		}
-		if result == nil {
-			result = oas.GetPositionsOKApplicationJSON{}
 		}
 		return &result, nil
 	}
@@ -135,17 +130,30 @@ func (h *Handler) GetPositions(ctx context.Context, params oas.GetPositionsParam
 	}
 	queryCtx, cancel := context.WithTimeout(ctx, positionQueryTimeout)
 	defer cancel()
-	var result oas.GetPositionsOKApplicationJSON
-	streamErr := h.cfg.Positions.StreamByDeviceAndTimeRange(queryCtx, deviceID, from, to, limit, func(p *model.Position) error {
-		result = append(result, positionToOAS(positionInKnots(p)))
-		return nil
+	result, streamErr := collectPositions(func(fn func(*model.Position) error) error {
+		return h.cfg.Positions.StreamByDeviceAndTimeRange(queryCtx, deviceID, from, to, limit, fn)
 	})
 	if streamErr != nil {
 		slog.Error("StreamByDeviceAndTimeRange failed", slog.Any("error", streamErr))
 		return &oas.Error{Error: "failed to get positions"}, nil
 	}
-	if result == nil {
-		result = oas.GetPositionsOKApplicationJSON{}
-	}
 	return &result, nil
+}
+
+// collectPositions gathers streamed positions as pointers and converts them
+// into an exactly sized response; appending the large oas.Position values
+// directly roughly doubled the allocations through slice regrowth.
+func collectPositions(stream func(func(*model.Position) error) error) (oas.GetPositionsOKApplicationJSON, error) {
+	var positions []*model.Position
+	if err := stream(func(p *model.Position) error {
+		positions = append(positions, p)
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	result := make(oas.GetPositionsOKApplicationJSON, len(positions))
+	for i, p := range positions {
+		result[i] = positionToOAS(positionInKnots(p))
+	}
+	return result, nil
 }

@@ -262,12 +262,22 @@ func (r *PositionRepository) streamSampled(ctx context.Context, fn func(*model.P
 	if limit <= 0 {
 		return r.stream(ctx, fn, query+` ORDER BY timestamp ASC`, args...)
 	}
+	// Counting separately keeps the window streaming: count(*) OVER () would
+	// buffer every row of the range before emitting the first one.
+	var total int64
+	if err := r.pool.QueryRow(ctx, `SELECT count(*) FROM (`+query+`) s`, args...).Scan(&total); err != nil {
+		return err
+	}
+	if total <= int64(limit) {
+		return r.stream(ctx, fn, query+` ORDER BY timestamp ASC`, args...)
+	}
+	stride := (total + int64(limit) - 1) / int64(limit)
 	return r.stream(ctx, fn, `SELECT `+positionColumns+` FROM (
-			SELECT s.*, row_number() OVER (ORDER BY s.timestamp) - 1 AS rn, count(*) OVER () AS total
+			SELECT s.*, row_number() OVER (ORDER BY s.timestamp) - 1 AS rn
 			FROM (`+query+`) s
 		 ) w
-		 WHERE rn % GREATEST(1, ceil(total::numeric / $4))::bigint = 0
-		 ORDER BY timestamp ASC`, append(args, limit)...)
+		 WHERE rn % $4 = 0
+		 ORDER BY timestamp ASC`, append(args, stride)...)
 }
 
 func (r *PositionRepository) stream(ctx context.Context, fn func(*model.Position) error, query string, args ...any) error {

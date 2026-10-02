@@ -13,8 +13,8 @@ import (
 
 // positionQueryTimeout caps the server-side wall time for a single
 // position range query. This prevents a slow or stalled client from
-// holding a DB connection open indefinitely. WriteTimeout is intentionally 0 (WebSocket compat), so
-// this is the only ceiling on this path.
+// holding a DB connection open indefinitely. WriteTimeout is intentionally
+// 0 (WebSocket compat), so this is the only ceiling on this path.
 const positionQueryTimeout = 120 * time.Second
 
 // maxPositionsPerResponse bounds a range response; the whole response is

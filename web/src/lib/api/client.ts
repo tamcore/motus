@@ -239,6 +239,13 @@ export const api = {
   // Positions
   // ---------------------------------------------------------------------------
 
+  /** Count positions in [from, to]; `all` counts every device (admin only). */
+  countPositions: (params: { from: string; to: string; all?: boolean }) => {
+    const query = new URLSearchParams({ from: params.from, to: params.to });
+    if (params.all) query.set("all", "true");
+    return request<{ count: number }>(`/positions/count?${query}`).then((r) => r.count);
+  },
+
   /** Query positions with optional filters. */
   getPositions: (params?: {
     deviceId?: number;

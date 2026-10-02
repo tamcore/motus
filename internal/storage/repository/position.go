@@ -210,6 +210,33 @@ func (r *PositionRepository) StreamByDeviceAndTimeRange(
 }
 
 // StreamByUserAndTimeRange calls fn for each position belonging to any device
+// CountByUserAndTimeRange counts positions of the user's devices with a
+// timestamp in [from, to].
+func (r *PositionRepository) CountByUserAndTimeRange(ctx context.Context, userID int64, from, to time.Time) (int64, error) {
+	var n int64
+	err := r.pool.QueryRow(ctx,
+		`SELECT count(*) FROM positions p
+		 JOIN user_devices ud ON ud.device_id = p.device_id
+		 WHERE ud.user_id = $1 AND p.timestamp >= $2 AND p.timestamp <= $3`, userID, from, to,
+	).Scan(&n)
+	if err != nil {
+		return 0, fmt.Errorf("count positions by user and time range: %w", err)
+	}
+	return n, nil
+}
+
+// CountAllByTimeRange counts positions of all devices with a timestamp in [from, to].
+func (r *PositionRepository) CountAllByTimeRange(ctx context.Context, from, to time.Time) (int64, error) {
+	var n int64
+	err := r.pool.QueryRow(ctx,
+		`SELECT count(*) FROM positions WHERE timestamp >= $1 AND timestamp <= $2`, from, to,
+	).Scan(&n)
+	if err != nil {
+		return 0, fmt.Errorf("count positions by time range: %w", err)
+	}
+	return n, nil
+}
+
 // owned by userID within the time range, ordered by timestamp ascending.
 func (r *PositionRepository) StreamByUserAndTimeRange(
 	ctx context.Context, userID int64, from, to time.Time, limit int,

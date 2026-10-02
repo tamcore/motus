@@ -376,3 +376,11 @@ func TestAuditConstants_Comprehensive(t *testing.T) {
 		}
 	}
 }
+
+func (m *auditMockPositionRepo) CountByUserAndTimeRange(context.Context, int64, time.Time, time.Time) (int64, error) {
+	return 0, nil
+}
+
+func (m *auditMockPositionRepo) CountAllByTimeRange(context.Context, time.Time, time.Time) (int64, error) {
+	return 0, nil
+}

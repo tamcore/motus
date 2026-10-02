@@ -75,6 +75,8 @@ type PositionRepo interface {
 	Create(ctx context.Context, p *model.Position) error
 	GetLatestByDevice(ctx context.Context, deviceID int64) (*model.Position, error)
 	GetLatestByUser(ctx context.Context, userID int64) ([]*model.Position, error)
+	CountByUserAndTimeRange(ctx context.Context, userID int64, from, to time.Time) (int64, error)
+	CountAllByTimeRange(ctx context.Context, from, to time.Time) (int64, error)
 	GetLatestAll(ctx context.Context) ([]*model.Position, error)
 	StreamByDeviceAndTimeRange(ctx context.Context, deviceID int64, from, to time.Time, limit int, fn func(*model.Position) error) error
 	StreamByUserAndTimeRange(ctx context.Context, userID int64, from, to time.Time, limit int, fn func(*model.Position) error) error

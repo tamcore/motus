@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"time"
 
@@ -29,6 +30,31 @@ func positionInKnots(p *model.Position) *model.Position {
 	knots := *p.Speed * kmhToKnotsRatio
 	cp.Speed = &knots
 	return &cp
+}
+
+// CountPositions implements oas.Handler for GET /api/positions/count.
+func (h *Handler) CountPositions(ctx context.Context, params oas.CountPositionsParams) (oas.CountPositionsRes, error) {
+	user := api.UserFromContext(ctx)
+	if user == nil {
+		return &oas.CountPositionsUnauthorized{Error: "unauthorized"}, nil
+	}
+	var (
+		n   int64
+		err error
+	)
+	if params.All.Or(false) {
+		if !user.IsAdmin() {
+			return &oas.CountPositionsForbidden{Error: "admin access required"}, nil
+		}
+		n, err = h.cfg.Positions.CountAllByTimeRange(ctx, params.From, params.To)
+	} else {
+		n, err = h.cfg.Positions.CountByUserAndTimeRange(ctx, user.ID, params.From, params.To)
+	}
+	if err != nil {
+		slog.Error("count positions failed", slog.Int64("userID", user.ID), slog.Any("error", err))
+		return nil, errors.New("failed to count positions")
+	}
+	return &oas.CountPositionsOK{Count: n}, nil
 }
 
 // GetPositions implements oas.Handler for GET /api/positions.

@@ -1102,6 +1102,163 @@ func decodeCheckCalendarParams(args [1]string, argsEscaped bool, r *http.Request
 	return params, nil
 }
 
+// CountPositionsParams is parameters of countPositions operation.
+type CountPositionsParams struct {
+	From time.Time
+	To   time.Time
+	All  OptBool `json:",omitempty,omitzero"`
+}
+
+func unpackCountPositionsParams(packed middleware.Parameters) (params CountPositionsParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "from",
+			In:   "query",
+		}
+		params.From = packed[key].(time.Time)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "to",
+			In:   "query",
+		}
+		params.To = packed[key].(time.Time)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "all",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.All = v.(OptBool)
+		}
+	}
+	return params
+}
+
+func decodeCountPositionsParams(args [0]string, argsEscaped bool, r *http.Request) (params CountPositionsParams, _ error) {
+	q := uri.NewQueryDecoder(r.URL.Query())
+	// Decode query: from.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "from",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToDateTime(val)
+				if err != nil {
+					return err
+				}
+
+				params.From = c
+				return nil
+			}); err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "from",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: to.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "to",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToDateTime(val)
+				if err != nil {
+					return err
+				}
+
+				params.To = c
+				return nil
+			}); err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "to",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Set default value for query: all.
+	{
+		val := bool(false)
+		params.All.SetTo(val)
+	}
+	// Decode query: all.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "all",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotAllVal bool
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToBool(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotAllVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.All.SetTo(paramsDotAllVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "all",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // CreateShareParams is parameters of createShare operation.
 type CreateShareParams struct {
 	ID int64

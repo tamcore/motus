@@ -122,6 +122,13 @@ type Handler interface {
 	//
 	// GET /api/calendars/{id}/check
 	CheckCalendar(ctx context.Context, params CheckCalendarParams) (CheckCalendarRes, error)
+	// CountPositions implements countPositions operation.
+	//
+	// Counts positions of the caller's devices with a timestamp in [from, to]. With `all=true`, counts
+	// positions of every device (administrators only).
+	//
+	// GET /api/positions/count
+	CountPositions(ctx context.Context, params CountPositionsParams) (CountPositionsRes, error)
 	// CreateApiKey implements createApiKey operation.
 	//
 	// Create an API key.

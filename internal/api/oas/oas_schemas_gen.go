@@ -2763,6 +2763,30 @@ func (s *CookieAuth) SetRoles(val []string) {
 	s.Roles = val
 }
 
+type CountPositionsForbidden Error
+
+func (*CountPositionsForbidden) countPositionsRes() {}
+
+type CountPositionsOK struct {
+	Count int64 `json:"count"`
+}
+
+// GetCount returns the value of Count.
+func (s *CountPositionsOK) GetCount() int64 {
+	return s.Count
+}
+
+// SetCount sets the value of Count.
+func (s *CountPositionsOK) SetCount(val int64) {
+	s.Count = val
+}
+
+func (*CountPositionsOK) countPositionsRes() {}
+
+type CountPositionsUnauthorized Error
+
+func (*CountPositionsUnauthorized) countPositionsRes() {}
+
 type CreateApiKeyBadRequest Error
 
 func (*CreateApiKeyBadRequest) createApiKeyRes() {}

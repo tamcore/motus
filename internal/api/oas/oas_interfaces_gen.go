@@ -77,6 +77,10 @@ type CheckCalendarRes interface {
 	checkCalendarRes()
 }
 
+type CountPositionsRes interface {
+	countPositionsRes()
+}
+
 type CreateApiKeyRes interface {
 	createApiKeyRes()
 }

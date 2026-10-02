@@ -25,6 +25,7 @@ const (
 	AdminUnassignDeviceOperation    OperationName = "AdminUnassignDevice"
 	AdminUpdateUserOperation        OperationName = "AdminUpdateUser"
 	CheckCalendarOperation          OperationName = "CheckCalendar"
+	CountPositionsOperation         OperationName = "CountPositions"
 	CreateApiKeyOperation           OperationName = "CreateApiKey"
 	CreateCalendarOperation         OperationName = "CreateCalendar"
 	CreateCommandOperation          OperationName = "CreateCommand"

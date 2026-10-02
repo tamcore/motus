@@ -184,6 +184,16 @@ func (UnimplementedHandler) CheckCalendar(ctx context.Context, params CheckCalen
 	return r, ht.ErrNotImplemented
 }
 
+// CountPositions implements countPositions operation.
+//
+// Counts positions of the caller's devices with a timestamp in [from, to]. With `all=true`, counts
+// positions of every device (administrators only).
+//
+// GET /api/positions/count
+func (UnimplementedHandler) CountPositions(ctx context.Context, params CountPositionsParams) (r CountPositionsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // CreateApiKey implements createApiKey operation.
 //
 // Create an API key.

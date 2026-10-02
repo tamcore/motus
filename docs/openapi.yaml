@@ -1552,6 +1552,47 @@ paths:
         default:
           $ref: '#/components/responses/UnexpectedError'
 
+  /api/positions/count:
+    get:
+      operationId: countPositions
+      summary: Count positions in a time range
+      description: |
+        Counts positions of the caller's devices with a timestamp in [from, to].
+        With `all=true`, counts positions of every device (administrators only).
+      tags: [positions]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema: { type: string, format: date-time }
+        - name: to
+          in: query
+          required: true
+          schema: { type: string, format: date-time }
+        - name: all
+          in: query
+          schema: { type: boolean, default: false }
+      responses:
+        "200":
+          description: Position count
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [count]
+                properties:
+                  count: { type: integer, format: int64 }
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "403":
+          $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+
   /api/commands:
     get:
       operationId: listCommands

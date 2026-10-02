@@ -48,24 +48,16 @@
 	async function loadDashboard() {
 		const isAdmin = ($currentUser as Record<string, unknown> | null)?.administrator === true;
 		const showAll = isAdmin && getSettings().showAllDevices;
-		const [deviceList, latestPositions, todayPositions] = await Promise.all([
+		const todayStart = new Date();
+		todayStart.setHours(0, 0, 0, 0);
+		const [deviceList, latestPositions, todayCount] = await Promise.all([
 			fetchDevices(isAdmin) as Promise<Device[]>,
 			(showAll ? api.getAllPositions() : api.getPositions()).catch(
 				() => [] as Position[]
 			) as Promise<Position[]>,
-			(async () => {
-				const todayStart = new Date();
-				todayStart.setHours(0, 0, 0, 0);
-				const params = {
-					from: todayStart.toISOString(),
-					to: new Date().toISOString(),
-					limit: 10000
-				};
-				return (showAll
-					? api.getAllPositions(params)
-					: api.getPositions(params)
-				).catch(() => [] as Position[]) as Promise<Position[]>;
-			})()
+			api
+				.countPositions({ from: todayStart.toISOString(), to: new Date().toISOString(), all: showAll })
+				.catch(() => 0)
 		]);
 
 		devices = deviceList;
@@ -75,7 +67,7 @@
 			newMap.set(pos.deviceId, pos);
 		}
 		positionMap = newMap;
-		positionsToday = todayPositions.length;
+		positionsToday = todayCount;
 	}
 
 	async function loadDashboardWithErrorState() {

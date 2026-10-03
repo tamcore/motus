@@ -256,7 +256,7 @@
 		const L = leafletMap.getLeaflet();
 		if (!L) return null;
 
-		const color = { online: 'var(--map-marker-online)', offline: '#ff4444', unknown: 'var(--text-tertiary)' }[status];
+		const color = { online: 'var(--map-marker-online)', offline: 'var(--map-marker-offline)', unknown: 'var(--text-tertiary)' }[status];
 
 		return L.divIcon({
 			className: 'custom-marker',

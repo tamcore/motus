@@ -63,8 +63,9 @@
 			const allLogs = await Promise.all(logPromises);
 			const merged = allLogs.flat();
 
-			// Newest first; queued logs (no sentAt yet) last, then by id.
-			merged.sort((a, b) => (b.sentAt ?? '').localeCompare(a.sentAt ?? '') || b.id - a.id);
+			// Newest first: queued logs (no sentAt yet) on top, then by sent time, then id.
+			const sentMs = (sentAt?: string | null) => (sentAt ? Date.parse(sentAt) : Infinity);
+			merged.sort((a, b) => sentMs(b.sentAt) - sentMs(a.sentAt) || b.id - a.id);
 
 			logs = merged;
 		} catch (err: any) {

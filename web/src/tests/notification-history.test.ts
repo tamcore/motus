@@ -35,11 +35,11 @@ describe("notification history page", () => {
     expect(select.selectedOptions[0].textContent).toBe("Other user's rule");
   });
 
-  it("shows sentAt and a dash for queued logs, newest first", async () => {
+  it("shows sentAt and a dash for queued logs, queued (newest) first", async () => {
     render(HistoryPage);
 
     await waitFor(() => expect(screen.getByText("Showing 2 entries")).toBeInTheDocument());
     const times = [...document.querySelectorAll("td.cell-time")].map((td) => td.textContent?.trim());
-    expect(times).toEqual([formatDate("2026-10-01T10:00:00Z"), "-"]);
+    expect(times).toEqual(["-", formatDate("2026-10-01T10:00:00Z")]);
   });
 });

@@ -69,8 +69,6 @@ No manual migration steps are required.
 |---|---|---|
 | `replicaCount` | Number of Motus pods | `2` |
 | `config.server.port` | HTTP API port | `8080` |
-| `config.gps.h02Port` | H02 GPS protocol port | `5013` |
-| `config.gps.watchPort` | WATCH GPS protocol port | `5093` |
 
 ### Services
 
@@ -137,9 +135,7 @@ Redis is required for multi-replica WebSocket broadcasting. Without it, each pod
 | `redis.external.enabled` | Use an external Redis instance | `false` |
 | `redis.external.url` | External Redis URL | `""` |
 | `redis.builtin.enabled` | Deploy a built-in Redis StatefulSet | `false` |
-| `redis.builtin.image` | Redis image | `redis:7-alpine` |
-| `redis.builtin.storage` | PVC storage size | `1Gi` |
-| `redis.builtin.storageClass` | Storage class name | `""` |
+| `redis.builtin.image` | Redis image | `redis:8-alpine` |
 
 ### WebSocket
 
@@ -227,11 +223,6 @@ Set the storage class in values:
 postgres:
   storageClass: gp3    # AWS example
   storage: 20Gi
-
-redis:
-  builtin:
-    storageClass: gp3
-    storage: 1Gi
 ```
 
 ## Upgrade Instructions

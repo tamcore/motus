@@ -301,9 +301,6 @@
 		}
 	}
 
-	function fitToData() {
-		fitMapToPositions();
-	}
 
 	// Compute time range of loaded data for display
 	$: stats = pointStats(positions);
@@ -461,7 +458,7 @@
 			<Button variant="secondary" on:click={toggleHeatmap}>
 				{showHeatmap ? 'Hide' : 'Show'} Layer
 			</Button>
-			<Button variant="secondary" on:click={fitToData} disabled={positions.length === 0}>
+			<Button variant="secondary" on:click={fitMapToPositions} disabled={positions.length === 0}>
 				Fit to Data
 			</Button>
 			<Button variant="secondary" on:click={exportImage} disabled={positions.length === 0}>
@@ -560,7 +557,7 @@
 
 		{#if loading}
 			<div class="map-loading">
-				<div class="spinner"></div>
+				<div class="spinner spinner-lg"></div>
 				{#if loadingCount > 0}
 					<span class="map-loading-count">{loadingCount.toLocaleString()} pts</span>
 				{/if}
@@ -878,14 +875,6 @@
 		text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
 	}
 
-	.spinner {
-		width: 48px;
-		height: 48px;
-		border: 4px solid var(--border-color);
-		border-top-color: var(--accent-primary);
-		border-radius: 50%;
-		animation: spin 0.8s linear infinite;
-	}
 
 	/* Leaflet popup override */
 	.map-container :global(.leaflet-popup-content-wrapper) {

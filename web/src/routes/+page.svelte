@@ -80,12 +80,6 @@
 
 	onDestroy(() => { $refreshHandler = null; });
 
-	function getStatusType(status: string): 'online' | 'offline' | 'idle' | 'moving' {
-		if (status === 'online') return 'online';
-		if (status === 'idle') return 'idle';
-		if (status === 'moving') return 'moving';
-		return 'offline';
-	}
 
 	function setFilter(filter: 'all' | 'online' | 'offline') {
 		// Toggle off if clicking the same filter
@@ -107,7 +101,7 @@
 
 <div class="dashboard">
 	<div class="container">
-		<h1 class="page-title">Dashboard</h1>
+		<h1 class="page-title mb-6">Dashboard</h1>
 
 		{#if loadError}
 			<div class="error-banner" role="alert">
@@ -246,7 +240,7 @@
 							{#if device.ownerName}
 								<span class="owner-badge" title="Owned by {device.ownerName}">{device.ownerName}</span>
 							{/if}
-							<StatusIndicator status={getStatusType(device.status)} />
+							<StatusIndicator status={device.status} />
 						</div>
 						<div class="device-meta">
 							<span class="device-id">{device.uniqueId}</span>
@@ -291,12 +285,6 @@
 		padding: var(--space-6) 0;
 	}
 
-	.page-title {
-		font-size: var(--text-3xl);
-		font-weight: var(--font-bold);
-		color: var(--text-primary);
-		margin-bottom: var(--space-6);
-	}
 
 	.error-actions {
 		display: flex;

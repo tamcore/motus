@@ -5,7 +5,6 @@
  * `L` is passed in because Leaflet is imported dynamically on the page (it
  * touches `window` at import time and cannot be loaded during SSR).
  */
-import type { CreateGeofencePayload } from "$lib/types/api";
 
 export const GEOFENCE_STYLE = {
   color: "#00d4ff",
@@ -83,24 +82,4 @@ export function layerToGeoJSON(L: any, layer: any): PolygonGeometry | null {
     return { type: "Polygon", coordinates: [coords] };
   }
   return null;
-}
-
-/**
- * Build the POST /api/geofences body for a freshly drawn layer, or null when
- * the layer cannot be converted.
- */
-export function buildCreateGeofencePayload(
-  L: any,
-  layer: any,
-  name: string,
-  calendarId: number | null,
-): CreateGeofencePayload | null {
-  const geometry = layerToGeoJSON(L, layer);
-  if (!geometry) return null;
-  return {
-    name: name.trim(),
-    description: "",
-    geometry: JSON.stringify(geometry),
-    calendarId,
-  };
 }

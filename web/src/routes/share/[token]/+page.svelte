@@ -466,7 +466,7 @@
 <div class="share-page">
 	{#if loading}
 		<div class="loading-screen">
-			<div class="spinner"></div>
+			<div class="spinner spinner-lg"></div>
 			<p>Loading shared device...</p>
 		</div>
 	{:else if error}
@@ -646,14 +646,6 @@
 		text-align: center;
 	}
 
-	.spinner {
-		width: 48px;
-		height: 48px;
-		border: 4px solid var(--border-color, #333);
-		border-top-color: var(--accent-primary, #00d4ff);
-		border-radius: 50%;
-		animation: spin 0.8s linear infinite;
-	}
 
 	.loading-screen p,
 	.error-screen p {

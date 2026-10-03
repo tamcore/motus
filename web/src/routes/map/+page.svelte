@@ -676,12 +676,6 @@
 		}
 	}
 
-	function getStatusType(status: string): 'online' | 'offline' | 'idle' | 'moving' {
-		if (status === 'online') return 'online';
-		if (status === 'idle') return 'idle';
-		if (status === 'moving') return 'moving';
-		return 'offline';
-	}
 </script>
 
 <svelte:head>
@@ -729,7 +723,7 @@
 									{/if}
 									<span class="device-indicators">
 										<BatteryIndicator level={device.batteryLevel} />
-										<StatusIndicator status={getStatusType(device.status)} />
+										<StatusIndicator status={device.status} />
 									</span>
 								</div>
 								{#if device.status === 'online' || device.status === 'moving'}
@@ -843,7 +837,7 @@
 	<div class="map-container" bind:this={mapContainer}>
 		{#if loading}
 			<div class="map-loading">
-				<div class="spinner"></div>
+				<div class="spinner spinner-lg"></div>
 			</div>
 		{/if}
 
@@ -1100,14 +1094,6 @@
 		z-index: 500;
 	}
 
-	.spinner {
-		width: 48px;
-		height: 48px;
-		border: 4px solid var(--border-color);
-		border-top-color: var(--accent-primary);
-		border-radius: 50%;
-		animation: spin 0.8s linear infinite;
-	}
 
 	/* WebSocket connection indicator */
 	.ws-indicator {

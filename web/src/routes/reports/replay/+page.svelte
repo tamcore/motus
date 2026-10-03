@@ -753,7 +753,7 @@
 	{#if positions.length === 0 && !fetching}
 		<div class="filters-section">
 			<div class="container">
-				<h1 class="page-title">Drive Replay</h1>
+				<h1 class="page-title mb-2">Drive Replay</h1>
 				<p class="page-subtitle">Replay a GPS drive with synchronized map and chart visualization.</p>
 
 				<div class="filters-bar">
@@ -1051,12 +1051,6 @@
 		padding: 0 var(--space-4);
 	}
 
-	.page-title {
-		font-size: var(--text-3xl);
-		font-weight: var(--font-bold);
-		color: var(--text-primary);
-		margin: 0 0 var(--space-2);
-	}
 
 	.page-subtitle {
 		color: var(--text-secondary);

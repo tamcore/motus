@@ -160,7 +160,7 @@
 
 {#if loading}
 	<div class="loading-screen">
-		<div class="spinner"></div>
+		<div class="spinner spinner-lg"></div>
 	</div>
 {:else if $page.url.pathname.startsWith('/share/')}
 	<slot />
@@ -272,14 +272,6 @@
 		background-color: var(--bg-primary);
 	}
 
-	.spinner {
-		width: 48px;
-		height: 48px;
-		border: 4px solid var(--border-color);
-		border-top-color: var(--accent-primary);
-		border-radius: 50%;
-		animation: spin 0.8s linear infinite;
-	}
 
 	.app-layout {
 		min-height: 100vh;

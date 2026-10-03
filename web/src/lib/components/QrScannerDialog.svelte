@@ -2,6 +2,7 @@
 	import { onDestroy, tick } from 'svelte';
 	import jsQR from 'jsqr';
 	import Button from './Button.svelte';
+	import Modal from './Modal.svelte';
 
 	export let open: boolean = false;
 	export let onClose: () => void;
@@ -104,140 +105,55 @@
 	onDestroy(() => {
 		stopCamera();
 	});
-
-	function handleBackdropClick(event: MouseEvent) {
-		if (event.target === event.currentTarget) {
-			handleClose();
-		}
-	}
 </script>
 
-{#if open}
-	<!-- svelte-ignore a11y_click_events_have_key_events -->
-	<!-- svelte-ignore a11y_no_static_element_interactions -->
-	<div class="dialog-backdrop" on:click={handleBackdropClick}>
-		<div class="dialog" role="dialog" aria-modal="true" aria-labelledby="scanner-title">
-			<div class="dialog-header">
-				<h2 id="scanner-title">Scan QR Code</h2>
-				<button class="close-button" on:click={handleClose} aria-label="Close dialog">
-					<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
-						<path d="M18 6L6 18M6 6l12 12"/>
-					</svg>
-				</button>
-			</div>
-
-			<div class="dialog-content">
-				{#if state === 'requesting'}
-					<div class="status-message">
-						<div class="spinner" aria-hidden="true"></div>
-						<p>Requesting camera access…</p>
-					</div>
-
-				{:else if state === 'scanning'}
-					<p class="instruction">
-						Point the camera at the QR code shown in Motus settings.
-					</p>
-					<div class="camera-container">
-						<!-- svelte-ignore a11y_media_has_caption -->
-						<video bind:this={video} class="camera-feed" playsinline autoplay muted></video>
-					</div>
-					<!-- Off-screen canvas for frame capture; not visible to user -->
-					<canvas bind:this={canvas} class="offscreen-canvas" aria-hidden="true"></canvas>
-
-				{:else if state === 'denied'}
-					<div class="status-message error">
-						<svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5">
-							<circle cx="12" cy="12" r="10"/>
-							<path d="M12 8v4m0 4h.01"/>
-						</svg>
-						<p>Camera access was denied.</p>
-						<p class="status-hint">Please allow camera access in your device settings and try again.</p>
-					</div>
-
-				{:else if state === 'error'}
-					<div class="status-message error">
-						<svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5">
-							<circle cx="12" cy="12" r="10"/>
-							<path d="M12 8v4m0 4h.01"/>
-						</svg>
-						<p>Could not start the camera.</p>
-						<p class="status-hint">Make sure your device has a camera and try again.</p>
-					</div>
-				{/if}
-			</div>
-
-			<div class="dialog-footer">
-				<Button variant="secondary" on:click={handleClose}>Cancel</Button>
-			</div>
+<Modal {open} title="Scan QR Code" on:close={handleClose}>
+	{#if state === 'requesting'}
+		<div class="status-message">
+			<div class="spinner" aria-hidden="true"></div>
+			<p>Requesting camera access…</p>
 		</div>
-	</div>
-{/if}
+
+	{:else if state === 'scanning'}
+		<p class="instruction">
+			Point the camera at the QR code shown in Motus settings.
+		</p>
+		<div class="camera-container">
+			<!-- svelte-ignore a11y_media_has_caption -->
+			<video bind:this={video} class="camera-feed" playsinline autoplay muted></video>
+		</div>
+		<!-- Off-screen canvas for frame capture; not visible to user -->
+		<canvas bind:this={canvas} class="offscreen-canvas" aria-hidden="true"></canvas>
+
+	{:else if state === 'denied'}
+		<div class="status-message error">
+			<svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5">
+				<circle cx="12" cy="12" r="10"/>
+				<path d="M12 8v4m0 4h.01"/>
+			</svg>
+			<p>Camera access was denied.</p>
+			<p class="status-hint">Please allow camera access in your device settings and try again.</p>
+		</div>
+
+	{:else if state === 'error'}
+		<div class="status-message error">
+			<svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5">
+				<circle cx="12" cy="12" r="10"/>
+				<path d="M12 8v4m0 4h.01"/>
+			</svg>
+			<p>Could not start the camera.</p>
+			<p class="status-hint">Make sure your device has a camera and try again.</p>
+		</div>
+	{/if}
+
+	<svelte:fragment slot="footer">
+		<div class="dialog-footer">
+			<Button variant="secondary" on:click={handleClose}>Cancel</Button>
+		</div>
+	</svelte:fragment>
+</Modal>
 
 <style>
-	.dialog-backdrop {
-		position: fixed;
-		top: 0;
-		left: 0;
-		right: 0;
-		bottom: 0;
-		background-color: rgba(0, 0, 0, 0.5);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		z-index: 1000;
-		padding: var(--space-4);
-	}
-
-	.dialog {
-		background-color: var(--bg-secondary);
-		border-radius: var(--radius-xl);
-		box-shadow: var(--shadow-xl);
-		max-width: 500px;
-		width: 100%;
-		max-height: 90vh;
-		overflow: hidden;
-		display: flex;
-		flex-direction: column;
-	}
-
-	.dialog-header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: var(--space-6);
-		border-bottom: 1px solid var(--border-primary);
-	}
-
-	.dialog-header h2 {
-		margin: 0;
-		font-size: var(--text-xl);
-		color: var(--text-primary);
-	}
-
-	.close-button {
-		background: none;
-		border: none;
-		padding: var(--space-2);
-		cursor: pointer;
-		color: var(--text-secondary);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		border-radius: var(--radius-md);
-		transition: all 0.2s;
-	}
-
-	.close-button:hover {
-		background-color: var(--bg-hover);
-		color: var(--text-primary);
-	}
-
-	.dialog-content {
-		padding: var(--space-6);
-		overflow-y: auto;
-		flex: 1;
-	}
-
 	.instruction {
 		color: var(--text-secondary);
 		margin-bottom: var(--space-4);
@@ -307,8 +223,6 @@
 	}
 
 	.dialog-footer {
-		padding: var(--space-6);
-		border-top: 1px solid var(--border-primary);
 		display: flex;
 		justify-content: flex-end;
 	}

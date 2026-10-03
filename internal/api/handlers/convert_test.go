@@ -884,3 +884,46 @@ func TestBuildAuditMetadata_AuditEntryToOAS(t *testing.T) {
 		t.Errorf("Email = %s", v.Email)
 	}
 }
+
+func TestBuildAuditMetadata_TypeMatchesAction(t *testing.T) {
+	for _, typ := range []oas.AuditMetadataType{
+		oas.AuditMetadataCalendarDeleteAuditMetadata,
+		oas.AuditMetadataDeviceDeleteAuditMetadata,
+		oas.AuditMetadataDeviceOfflineAuditMetadata,
+		oas.AuditMetadataDeviceOnlineAuditMetadata,
+		oas.AuditMetadataGeofenceDeleteAuditMetadata,
+		oas.AuditMetadataNotificationDeleteAuditMetadata,
+		oas.AuditMetadataSessionLogoutAuditMetadata,
+		oas.AuditMetadataUserDeleteAuditMetadata,
+		oas.AuditMetaSessionLoginAuditMetadata,
+		oas.AuditMetaSessionLoginFailedAuditMetadata,
+		oas.AuditMetadataSessionSudoAuditMetadata,
+		oas.AuditMetadataSessionSudoEndAuditMetadata,
+		oas.AuditMetaSessionRevokeAuditMetadata,
+		oas.AuditMetaUserCreateAuditMetadata,
+		oas.AuditMetaUserUpdateAuditMetadata,
+		oas.AuditMetaDeviceCreateAuditMetadata,
+		oas.AuditMetaDeviceUpdateAuditMetadata,
+		oas.AuditMetadataDeviceAssignAuditMetadata,
+		oas.AuditMetadataDeviceUnassignAuditMetadata,
+		oas.AuditMetaDeviceGpxImportAuditMetadata,
+		oas.AuditMetadataCalendarCreateAuditMetadata,
+		oas.AuditMetadataCalendarUpdateAuditMetadata,
+		oas.AuditMetadataGeofenceCreateAuditMetadata,
+		oas.AuditMetadataGeofenceUpdateAuditMetadata,
+		oas.AuditMetadataNotificationCreateAuditMetadata,
+		oas.AuditMetadataNotificationUpdateAuditMetadata,
+		oas.AuditMetadataNotificationFailedAuditMetadata,
+		oas.AuditMetadataNotificationSentAuditMetadata,
+		oas.AuditMetaApiKeyCreateAuditMetadata,
+		oas.AuditMetaApiKeyDeleteAuditMetadata,
+		oas.AuditMetadataShareCreateAuditMetadata,
+		oas.AuditMetadataShareDeleteAuditMetadata,
+		oas.AuditMetaCommandSendAuditMetadata,
+	} {
+		got := buildAuditMetadata(string(typ), map[string]any{})
+		if !got.Set || got.Value.Type != typ {
+			t.Errorf("action %q: set=%v type=%q", typ, got.Set, got.Value.Type)
+		}
+	}
+}

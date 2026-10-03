@@ -14,7 +14,6 @@
 
 set -euo pipefail
 
-COMPOSE_FILE="docker-compose.dev.yaml"
 TARGET_URL="http://localhost:8080"
 ADMIN_EMAIL="admin@motus.local"
 ADMIN_PASS="admin"
@@ -36,7 +35,7 @@ echo "Reports → ${REPORT_DIR}"
 # ─────────────────────────────────────────────
 if [[ "${SKIP_STACK}" == "false" ]]; then
   echo "▸ Starting stack (docker compose dev)..."
-  docker-compose -f "${COMPOSE_FILE}" up -d --build --wait
+  docker compose -f docker-compose.yaml -f docker-compose.dev.yaml up -d --build --wait
 fi
 
 echo "▸ Waiting for health endpoint..."
@@ -244,7 +243,7 @@ cat > "${REPORT_DIR}/summary.md" <<EOF
 ## Scope
 
 - Target: ${TARGET_URL}
-- Stack: docker-compose.dev.yaml (rate limits relaxed: 1000/10000)
+- Stack: docker-compose.yaml + docker-compose.dev.yaml (rate limits relaxed: 1000/10000)
 - Auth: readonly Bearer API key (rotate after scan)
 - Excluded from SAST: internal/api/oas/ (generated code)
 - Deferred: trivy (container CVEs), GPS TCP port fuzzing (5013/5093)

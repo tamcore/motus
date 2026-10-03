@@ -20,7 +20,7 @@ A production-ready GPS tracking system with real-time updates, geofencing, notif
 ### Docker Compose
 
 ```bash
-docker compose -f docker-compose.dev.yml up -d --build --wait
+docker compose -f docker-compose.yaml -f docker-compose.dev.yaml up -d --build --wait
 ```
 
 Starts the full stack: PostGIS → migrations → admin user seed → Motus server.

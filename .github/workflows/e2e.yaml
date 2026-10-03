@@ -25,18 +25,18 @@ jobs:
 
       - name: Start app stack
         if: matrix.mode == 'regular'
-        run: docker compose -f docker-compose.dev.yaml up -d --build --wait
+        run: docker compose -f docker-compose.yaml -f docker-compose.dev.yaml up -d --build --wait
 
       - name: Start app stack with OIDC
         if: matrix.mode == 'oidc'
-        run: docker compose -f docker-compose.dev.yaml -f docker-compose.oidc.yaml up -d --build --wait
+        run: docker compose -f docker-compose.yaml -f docker-compose.dev.yaml -f docker-compose.oidc.yaml up -d --build --wait
 
       - name: Show container logs
         if: failure()
         run: |
-          docker compose -f docker-compose.dev.yaml logs
+          docker compose -f docker-compose.yaml -f docker-compose.dev.yaml logs
           if [ "${{ matrix.mode }}" = "oidc" ]; then
-            docker compose -f docker-compose.dev.yaml -f docker-compose.oidc.yaml logs keycloak
+            docker compose -f docker-compose.yaml -f docker-compose.dev.yaml -f docker-compose.oidc.yaml logs keycloak
           fi
 
       - name: Setup Node

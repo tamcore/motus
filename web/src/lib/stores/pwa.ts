@@ -15,10 +15,6 @@ export interface PwaState {
   installed: boolean;
   /** Whether a new service worker version is waiting to activate */
   updateAvailable: boolean;
-  /** The service worker registration, if successful */
-  registration: ServiceWorkerRegistration | null;
-  /** Whether the service worker is active and controlling the page */
-  controllerActive: boolean;
   /** Whether the user dismissed the install prompt (remembered for this session) */
   installDismissed: boolean;
 }
@@ -29,13 +25,11 @@ const initialState: PwaState = {
   installable: false,
   installed: false,
   updateAvailable: false,
-  registration: null,
-  controllerActive: false,
   installDismissed: false,
 };
 
 function createPwaStore() {
-  const { subscribe, update, set } = writable<PwaState>(initialState);
+  const { subscribe, update } = writable<PwaState>(initialState);
 
   let deferredPrompt: BeforeInstallPromptEvent | null = null;
   let updateWorker: ServiceWorker | null = null;
@@ -95,12 +89,6 @@ function createPwaStore() {
         scope: "/",
       });
 
-      update((s) => ({
-        ...s,
-        registration,
-        controllerActive: !!navigator.serviceWorker.controller,
-      }));
-
       // Check for updates on registration
       registration.addEventListener("updatefound", () => {
         const newWorker = registration.installing;
@@ -120,11 +108,7 @@ function createPwaStore() {
 
       // Listen for controller change (new SW activated)
       navigator.serviceWorker.addEventListener("controllerchange", () => {
-        update((s) => ({
-          ...s,
-          controllerActive: true,
-          updateAvailable: false,
-        }));
+        update((s) => ({ ...s, updateAvailable: false }));
       });
 
       // Periodically check for updates (every 60 minutes)
@@ -192,10 +176,4 @@ export const pwa = createPwaStore();
 export const showInstallBanner = derived(
   pwa,
   ($pwa) => $pwa.installable && !$pwa.installDismissed && !$pwa.installed,
-);
-
-/** Whether to show the update notification */
-export const showUpdateNotification = derived(
-  pwa,
-  ($pwa) => $pwa.updateAvailable,
 );

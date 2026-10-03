@@ -65,11 +65,9 @@ func (s *GeofenceService) UpdateForUser(ctx context.Context, user *model.User, g
 	if err := s.repo.Update(ctx, &updated); err != nil {
 		return nil, fmt.Errorf("update geofence: %w", err)
 	}
-	if s.auditLogger != nil {
-		s.auditLogger.Log(ctx, &user.ID,
-			audit.ActionGeofenceUpdate, audit.ResourceGeofence, &updated.ID,
-			map[string]any{"name": updated.Name}, "", "")
-	}
+	s.auditLogger.Log(ctx, &user.ID,
+		audit.ActionGeofenceUpdate, audit.ResourceGeofence, &updated.ID,
+		map[string]any{"name": updated.Name}, "", "")
 	return &updated, nil
 }
 
@@ -81,12 +79,9 @@ func (s *GeofenceService) DeleteForUser(ctx context.Context, user *model.User, g
 	if err := s.repo.Delete(ctx, geofenceID); err != nil {
 		return fmt.Errorf("delete geofence: %w", err)
 	}
-	if s.auditLogger != nil {
-		id := geofenceID
-		s.auditLogger.Log(ctx, &user.ID,
-			audit.ActionGeofenceDelete, audit.ResourceGeofence, &id,
-			nil, "", "")
-	}
+	s.auditLogger.Log(ctx, &user.ID,
+		audit.ActionGeofenceDelete, audit.ResourceGeofence, &geofenceID,
+		nil, "", "")
 	return nil
 }
 
@@ -144,10 +139,8 @@ func (s *GeofenceService) CreateForUser(ctx context.Context, user *model.User, i
 		return nil, fmt.Errorf("associate user: %w", err)
 	}
 
-	if s.auditLogger != nil {
-		s.auditLogger.Log(ctx, &user.ID,
-			audit.ActionGeofenceCreate, audit.ResourceGeofence, &g.ID,
-			map[string]any{"name": g.Name}, "", "")
-	}
+	s.auditLogger.Log(ctx, &user.ID,
+		audit.ActionGeofenceCreate, audit.ResourceGeofence, &g.ID,
+		map[string]any{"name": g.Name}, "", "")
 	return g, nil
 }

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { currentUser } from '$lib/stores/auth';
+	import { isAdmin } from '$lib/stores/auth';
 	import { refreshHandler } from '$lib/stores/refresh';
 	import { api } from '$lib/api/client';
 	import { formatDate } from '$lib/utils/formatting';
@@ -43,10 +43,9 @@
 	let userStats: UserStats | null = null;
 	let loadingUserStats = false;
 
-	$: isAdmin = ($currentUser as Record<string, unknown> | null)?.administrator === true;
 
 	onMount(() => {
-		if (!isAdmin) {
+		if (!$isAdmin) {
 			goto('/');
 			return;
 		}
@@ -93,8 +92,6 @@
 		switch (status) {
 			case 'online': return 'var(--status-online)';
 			case 'offline': return 'var(--status-offline)';
-			case 'idle': return 'var(--status-idle)';
-			case 'moving': return 'var(--status-moving)';
 			default: return 'var(--text-secondary)';
 		}
 	}

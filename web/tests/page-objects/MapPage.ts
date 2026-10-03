@@ -73,20 +73,12 @@ export class MapPage {
     return this.page.locator('.leaflet-tile');
   }
 
-  get trailButton() {
-    return this.page.locator('button:has-text("Show Trail")');
-  }
-
   get hideTrailButton() {
     return this.page.locator('button:has-text("Hide Trail")');
   }
 
   get trailRangeSelect() {
     return this.page.locator('select.trail-range-select');
-  }
-
-  get trailCustomRange() {
-    return this.page.locator('.trail-custom-range');
   }
 
   get trailFromDate() {
@@ -107,10 +99,6 @@ export class MapPage {
 
   get trailApply() {
     return this.page.locator('button.trail-apply');
-  }
-
-  get trailRangeError() {
-    return this.page.locator('.trail-range-error');
   }
 
   get trailStatus() {
@@ -171,10 +159,6 @@ export class MapPage {
 
   get bookmarkSubmit() {
     return this.bookmarkDialog.locator('button[type="submit"]');
-  }
-
-  get bookmarkError() {
-    return this.page.locator('.bookmark-error');
   }
 
   async searchDevices(query: string) {

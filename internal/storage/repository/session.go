@@ -29,84 +29,44 @@ func (r *SessionRepository) Create(ctx context.Context, userID int64) (*model.Se
 
 // CreateWithExpiry generates a new session with a specific expiration time.
 func (r *SessionRepository) CreateWithExpiry(ctx context.Context, userID int64, expiresAt time.Time, rememberMe bool) (*model.Session, error) {
-	b := make([]byte, 32)
-	if _, err := rand.Read(b); err != nil {
-		return nil, fmt.Errorf("generate session id: %w", err)
-	}
-
-	s := &model.Session{
-		ID:         hex.EncodeToString(b),
-		UserID:     userID,
-		RememberMe: rememberMe,
-		CreatedAt:  time.Now(),
-		ExpiresAt:  expiresAt,
-	}
-
-	_, err := r.pool.Exec(ctx,
-		`INSERT INTO sessions (id, user_id, remember_me, created_at, expires_at)
-		 VALUES ($1, $2, $3, $4, $5)`,
-		s.ID, s.UserID, s.RememberMe, s.CreatedAt, s.ExpiresAt,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("create session: %w", err)
-	}
-	return s, nil
+	return r.insert(ctx, &model.Session{UserID: userID, RememberMe: rememberMe, ExpiresAt: expiresAt})
 }
 
 // CreateWithApiKey generates a new session linked to the API key that was used
 // to create it. This allows the auth middleware to restore the API key's
 // permission level on subsequent cookie-authenticated requests.
 func (r *SessionRepository) CreateWithApiKey(ctx context.Context, userID int64, apiKeyID int64, expiresAt time.Time, rememberMe bool) (*model.Session, error) {
-	b := make([]byte, 32)
-	if _, err := rand.Read(b); err != nil {
-		return nil, fmt.Errorf("generate session id: %w", err)
-	}
-
-	s := &model.Session{
-		ID:         hex.EncodeToString(b),
-		UserID:     userID,
-		ApiKeyID:   &apiKeyID,
-		RememberMe: rememberMe,
-		CreatedAt:  time.Now(),
-		ExpiresAt:  expiresAt,
-	}
-
-	_, err := r.pool.Exec(ctx,
-		`INSERT INTO sessions (id, user_id, api_key_id, remember_me, created_at, expires_at)
-		 VALUES ($1, $2, $3, $4, $5, $6)`,
-		s.ID, s.UserID, s.ApiKeyID, s.RememberMe, s.CreatedAt, s.ExpiresAt,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("create session with api key: %w", err)
-	}
-	return s, nil
+	return r.insert(ctx, &model.Session{UserID: userID, ApiKeyID: &apiKeyID, RememberMe: rememberMe, ExpiresAt: expiresAt})
 }
 
 // CreateSudo generates a sudo session that allows an admin to impersonate
 // another user. The originalUserID is stored so the admin can restore
-// their own session later.
+// their own session later. Sudo sessions expire after 1 hour.
 func (r *SessionRepository) CreateSudo(ctx context.Context, targetUserID, originalUserID int64) (*model.Session, error) {
+	return r.insert(ctx, &model.Session{
+		UserID:         targetUserID,
+		OriginalUserID: &originalUserID,
+		IsSudo:         true,
+		ExpiresAt:      time.Now().Add(time.Hour),
+	})
+}
+
+// insert assigns s a random ID and creation time and stores it.
+func (r *SessionRepository) insert(ctx context.Context, s *model.Session) (*model.Session, error) {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
 		return nil, fmt.Errorf("generate session id: %w", err)
 	}
-
-	s := &model.Session{
-		ID:             hex.EncodeToString(b),
-		UserID:         targetUserID,
-		OriginalUserID: &originalUserID,
-		IsSudo:         true,
-		CreatedAt:      time.Now(),
-		ExpiresAt:      time.Now().Add(1 * time.Hour), // Sudo sessions expire after 1 hour.
-	}
+	s.ID = hex.EncodeToString(b)
+	s.CreatedAt = time.Now()
 
 	_, err := r.pool.Exec(ctx,
-		`INSERT INTO sessions (id, user_id, original_user_id, is_sudo, remember_me, created_at, expires_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-		s.ID, s.UserID, s.OriginalUserID, s.IsSudo, s.RememberMe, s.CreatedAt, s.ExpiresAt,
+		`INSERT INTO sessions (id, user_id, api_key_id, original_user_id, is_sudo, remember_me, created_at, expires_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+		s.ID, s.UserID, s.ApiKeyID, s.OriginalUserID, s.IsSudo, s.RememberMe, s.CreatedAt, s.ExpiresAt,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("create sudo session: %w", err)
+		return nil, fmt.Errorf("create session: %w", err)
 	}
 	return s, nil
 }

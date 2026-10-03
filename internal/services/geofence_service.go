@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/tamcore/motus/internal/audit"
@@ -27,22 +28,22 @@ type UpdateGeofenceInput struct {
 // emits an audit entry on success.
 func (s *GeofenceService) UpdateForUser(ctx context.Context, user *model.User, geofenceID int64, in UpdateGeofenceInput) (*model.Geofence, error) {
 	if !s.repo.UserHasAccess(ctx, user, geofenceID) {
-		return nil, fmt.Errorf("access denied")
+		return nil, invalid(ErrAccessDenied)
 	}
 	existing, err := s.repo.GetByID(ctx, geofenceID)
 	if err != nil || existing == nil {
-		return nil, fmt.Errorf("geofence not found")
+		return nil, invalid(fmt.Errorf("geofence %w", ErrNotFound))
 	}
 
 	updated := *existing
 	if in.Name != nil && *in.Name != "" {
-		if err := validation.ValidateDisplayName(*in.Name); err != nil {
+		if err := invalid(validation.ValidateDisplayName(*in.Name)); err != nil {
 			return nil, err
 		}
 		updated.Name = *in.Name
 	}
 	if in.Description != nil {
-		if err := validation.ValidateDescription(*in.Description); err != nil {
+		if err := invalid(validation.ValidateDescription(*in.Description)); err != nil {
 			return nil, err
 		}
 		updated.Description = *in.Description
@@ -63,30 +64,34 @@ func (s *GeofenceService) UpdateForUser(ctx context.Context, user *model.User, g
 	}
 
 	if err := s.repo.Update(ctx, &updated); err != nil {
-		return nil, fmt.Errorf("update geofence: %w", err)
+		return nil, storageError("update geofence", err)
 	}
-	if s.auditLogger != nil {
-		s.auditLogger.Log(ctx, &user.ID,
-			audit.ActionGeofenceUpdate, audit.ResourceGeofence, &updated.ID,
-			map[string]any{"name": updated.Name}, "", "")
-	}
+	s.auditLogger.Log(ctx, &user.ID,
+		audit.ActionGeofenceUpdate, audit.ResourceGeofence, &updated.ID,
+		map[string]any{"name": updated.Name}, "", "")
 	return &updated, nil
+}
+
+// storageError marks geometry rejected by PostGIS as client-safe and adds op
+// context to any other storage error.
+func storageError(op string, err error) error {
+	if errors.Is(err, repository.ErrInvalidGeometry) {
+		return invalid(err)
+	}
+	return fmt.Errorf("%s: %w", op, err)
 }
 
 // DeleteForUser deletes a geofence owned by user and emits an audit entry.
 func (s *GeofenceService) DeleteForUser(ctx context.Context, user *model.User, geofenceID int64) error {
 	if !s.repo.UserHasAccess(ctx, user, geofenceID) {
-		return fmt.Errorf("access denied")
+		return invalid(ErrAccessDenied)
 	}
 	if err := s.repo.Delete(ctx, geofenceID); err != nil {
 		return fmt.Errorf("delete geofence: %w", err)
 	}
-	if s.auditLogger != nil {
-		id := geofenceID
-		s.auditLogger.Log(ctx, &user.ID,
-			audit.ActionGeofenceDelete, audit.ResourceGeofence, &id,
-			nil, "", "")
-	}
+	s.auditLogger.Log(ctx, &user.ID,
+		audit.ActionGeofenceDelete, audit.ResourceGeofence, &geofenceID,
+		nil, "", "")
 	return nil
 }
 
@@ -113,19 +118,26 @@ type CreateGeofenceInput struct {
 	Attributes  map[string]any
 }
 
-// CreateForUser validates, persists, and audits a new geofence for user.
-func (s *GeofenceService) CreateForUser(ctx context.Context, user *model.User, in CreateGeofenceInput) (*model.Geofence, error) {
+func validateGeofenceInput(in CreateGeofenceInput) error {
 	if in.Name == "" {
-		return nil, fmt.Errorf("name is required")
+		return errors.New("name is required")
 	}
 	if err := validation.ValidateDisplayName(in.Name); err != nil {
-		return nil, err
+		return err
 	}
 	if err := validation.ValidateDescription(in.Description); err != nil {
-		return nil, err
+		return err
 	}
 	if in.Geometry == "" && in.Area == "" {
-		return nil, fmt.Errorf("geometry or area is required")
+		return errors.New("geometry or area is required")
+	}
+	return nil
+}
+
+// CreateForUser validates, persists, and audits a new geofence for user.
+func (s *GeofenceService) CreateForUser(ctx context.Context, user *model.User, in CreateGeofenceInput) (*model.Geofence, error) {
+	if err := invalid(validateGeofenceInput(in)); err != nil {
+		return nil, err
 	}
 
 	g := &model.Geofence{
@@ -138,16 +150,14 @@ func (s *GeofenceService) CreateForUser(ctx context.Context, user *model.User, i
 	}
 
 	if err := s.repo.Create(ctx, g); err != nil {
-		return nil, fmt.Errorf("create geofence: %w", err)
+		return nil, storageError("create geofence", err)
 	}
 	if err := s.repo.AssociateUser(ctx, user.ID, g.ID); err != nil {
 		return nil, fmt.Errorf("associate user: %w", err)
 	}
 
-	if s.auditLogger != nil {
-		s.auditLogger.Log(ctx, &user.ID,
-			audit.ActionGeofenceCreate, audit.ResourceGeofence, &g.ID,
-			map[string]any{"name": g.Name}, "", "")
-	}
+	s.auditLogger.Log(ctx, &user.ID,
+		audit.ActionGeofenceCreate, audit.ResourceGeofence, &g.ID,
+		map[string]any{"name": g.Name}, "", "")
 	return g, nil
 }

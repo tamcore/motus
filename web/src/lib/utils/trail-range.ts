@@ -3,9 +3,7 @@
  * "now", or an absolute custom range with ISO from/to timestamps (custom
  * input, URL params, saved bookmarks).
  */
-import { ALL_TIME_START } from "./date-range";
-
-export { ALL_TIME_START };
+import { ALL_TIME_START, dateValue, parseLocalBoundary, timeValue } from "./date-range";
 
 export type TrailRelativePreset = "24h" | "48h" | "7d" | "30d" | "all";
 export type TrailPreset = TrailRelativePreset | "custom";
@@ -80,10 +78,33 @@ export function isLiveRange(range: TrailRange, now: Date = new Date()): boolean 
   return range.preset !== "custom" || new Date(range.to).getTime() >= now.getTime();
 }
 
+/** Native date/time input values: date `yyyy-mm-dd`, time `HH:mm` or empty (whole day). */
+export interface RangeInputs {
+  fromDate: string;
+  fromTime: string;
+  toDate: string;
+  toTime: string;
+}
+
 /**
- * Builds a custom range from native date (yyyy-mm-dd) and optional time
- * (HH:mm) input values in local time. An empty time means the start / end of
- * the day. Returns null when a date is missing or the start is after the end.
+ * Input values for a range (relative presets end at `now`). A start at
+ * 00:00 / an end at 23:59 leaves the time empty (whole day).
+ */
+export function rangeToInputs(range: TrailRange, now: Date = new Date()): RangeInputs {
+  const { from, to } = resolveTrailRange(range, now);
+  const fromIsDayStart = from.getHours() === 0 && from.getMinutes() === 0;
+  const toIsDayEnd = to.getHours() === 23 && to.getMinutes() === 59;
+  return {
+    fromDate: dateValue(from),
+    fromTime: fromIsDayStart ? "" : timeValue(from),
+    toDate: dateValue(to),
+    toTime: toIsDayEnd ? "" : timeValue(to),
+  };
+}
+
+/**
+ * Builds a custom range from native input values in local time. Returns null
+ * when a value is missing/invalid or the start is after the end.
  */
 export function customTrailRange(
   fromDate: string,
@@ -91,10 +112,9 @@ export function customTrailRange(
   toDate: string,
   toTime: string,
 ): TrailRange | null {
-  if (!fromDate || !toDate) return null;
-  const from = new Date(`${fromDate}T${fromTime ? `${fromTime}:00` : "00:00:00"}`);
-  const to = new Date(`${toDate}T${toTime ? `${toTime}:59` : "23:59:59"}`);
-  if (isNaN(from.getTime()) || isNaN(to.getTime()) || from > to) return null;
+  const from = parseLocalBoundary(fromDate, fromTime, "start");
+  const to = parseLocalBoundary(toDate, toTime, "end");
+  if (!from || !to || from > to) return null;
   return { preset: "custom", from: from.toISOString(), to: to.toISOString() };
 }
 

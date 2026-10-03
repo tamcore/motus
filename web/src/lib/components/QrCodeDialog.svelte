@@ -1,6 +1,7 @@
 <script lang="ts">
 	import QRCode from 'qrcode';
 	import Button from './Button.svelte';
+	import Modal from './Modal.svelte';
 
 	export let open = false;
 	export let onClose: () => void;
@@ -38,135 +39,50 @@
 			console.error('QR Code generation error:', err);
 		}
 	}
-
-	function handleBackdropClick(event: MouseEvent) {
-		if (event.target === event.currentTarget) {
-			onClose();
-		}
-	}
 </script>
 
-{#if open}
-	<!-- svelte-ignore a11y_click_events_have_key_events -->
-	<!-- svelte-ignore a11y_no_static_element_interactions -->
-	<div class="dialog-backdrop" on:click={handleBackdropClick}>
-		<div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title">
-			<div class="dialog-header">
-				<h2 id="dialog-title">Scan QR Code</h2>
-				<button class="close-button" on:click={onClose} aria-label="Close dialog">
-					<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
-						<path d="M18 6L6 18M6 6l12 12"/>
-					</svg>
-				</button>
-			</div>
+<Modal {open} title="Scan QR Code" on:close={onClose}>
+	<p class="instruction">
+		{#if apiToken}
+			Scan this QR code with Traccar Manager to auto-configure the server connection and authenticate with the embedded API key.
+		{:else}
+			Use Traccar Manager app to scan this QR code and automatically configure your server connection.
+		{/if}
+	</p>
 
-			<div class="dialog-content">
-				<p class="instruction">
-					{#if apiToken}
-						Scan this QR code with Traccar Manager to auto-configure the server connection and authenticate with the embedded API key.
-					{:else}
-						Use Traccar Manager app to scan this QR code and automatically configure your server connection.
-					{/if}
-				</p>
-
-				<div class="qr-container">
-					{#if error}
-						<div class="error-message">{error}</div>
-					{:else}
-						<canvas bind:this={canvas}></canvas>
-					{/if}
-				</div>
-
-				<div class="server-url">
-					<label for="server-url">{apiToken ? 'Connection URL:' : 'Server URL:'}</label>
-					<input
-						type="text"
-						id="server-url"
-						value={qrData}
-						readonly
-						on:click={(e) => e.currentTarget.select()}
-					/>
-				</div>
-
-				{#if apiToken}
-					<p class="token-notice">
-						This QR code contains an embedded API key. Anyone who scans it will have access to your account. Share it only with trusted parties.
-					</p>
-				{/if}
-			</div>
-
-			<div class="dialog-footer">
-				<Button variant="secondary" on:click={onClose}>Close</Button>
-			</div>
-		</div>
+	<div class="qr-container">
+		{#if error}
+			<div class="error-message">{error}</div>
+		{:else}
+			<canvas bind:this={canvas}></canvas>
+		{/if}
 	</div>
-{/if}
+
+	<div class="server-url">
+		<label for="server-url">{apiToken ? 'Connection URL:' : 'Server URL:'}</label>
+		<input
+			type="text"
+			id="server-url"
+			value={qrData}
+			readonly
+			on:click={(e) => e.currentTarget.select()}
+		/>
+	</div>
+
+	{#if apiToken}
+		<p class="token-notice">
+			This QR code contains an embedded API key. Anyone who scans it will have access to your account. Share it only with trusted parties.
+		</p>
+	{/if}
+
+	<svelte:fragment slot="footer">
+		<div class="dialog-footer">
+			<Button variant="secondary" on:click={onClose}>Close</Button>
+		</div>
+	</svelte:fragment>
+</Modal>
 
 <style>
-	.dialog-backdrop {
-		position: fixed;
-		top: 0;
-		left: 0;
-		right: 0;
-		bottom: 0;
-		background-color: rgba(0, 0, 0, 0.5);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		z-index: 1000;
-		padding: var(--space-4);
-	}
-
-	.dialog {
-		background-color: var(--bg-secondary);
-		border-radius: var(--radius-xl);
-		box-shadow: var(--shadow-xl);
-		max-width: 500px;
-		width: 100%;
-		max-height: 90vh;
-		overflow: hidden;
-		display: flex;
-		flex-direction: column;
-	}
-
-	.dialog-header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: var(--space-6);
-		border-bottom: 1px solid var(--border-primary);
-	}
-
-	.dialog-header h2 {
-		margin: 0;
-		font-size: var(--text-xl);
-		color: var(--text-primary);
-	}
-
-	.close-button {
-		background: none;
-		border: none;
-		padding: var(--space-2);
-		cursor: pointer;
-		color: var(--text-secondary);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		border-radius: var(--radius-md);
-		transition: all 0.2s;
-	}
-
-	.close-button:hover {
-		background-color: var(--bg-hover);
-		color: var(--text-primary);
-	}
-
-	.dialog-content {
-		padding: var(--space-6);
-		overflow-y: auto;
-		flex: 1;
-	}
-
 	.instruction {
 		color: var(--text-secondary);
 		margin-bottom: var(--space-6);
@@ -237,8 +153,6 @@
 	}
 
 	.dialog-footer {
-		padding: var(--space-6);
-		border-top: 1px solid var(--border-primary);
 		display: flex;
 		justify-content: flex-end;
 		gap: var(--space-3);

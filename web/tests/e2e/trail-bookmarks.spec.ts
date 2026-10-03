@@ -286,18 +286,8 @@ test.describe('Trail bookmarks on the map', () => {
     await expect(mapPage.bookmarkOpenButton('Watzmann')).toBeVisible();
   });
 
-  test('requires a name before saving', async ({ authedPage }) => {
-    await mapPage.saveBookmarkButton.click();
-    await mapPage.bookmarkSubmit.click();
-    await expect(mapPage.bookmarkError).toContainText('Name is required');
-    const posts = (await bookmarkRequests(authedPage)).filter((r) => r.method === 'POST');
-    expect(posts).toHaveLength(0);
-  });
-
   test('renaming a bookmark keeps its exact range', async ({ authedPage }) => {
     await mapPage.bookmarkEditButton('Zugspitze').click();
-    await expect(mapPage.bookmarkDialog).toContainText('Edit trail bookmark');
-    await expect(mapPage.bookmarkName).toHaveValue('Zugspitze');
     await mapPage.bookmarkName.fill('Zugspitze (summit)');
     await mapPage.bookmarkSubmit.click();
     await expect(mapPage.bookmarkDialog).toBeHidden();

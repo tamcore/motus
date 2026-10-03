@@ -93,9 +93,8 @@ func TestNominatimGeocoder_ReverseGeocode_APIError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for API error response")
 	}
-	// Should return coordinate fallback.
-	if addr != "52.52000, 13.40500" {
-		t.Errorf("expected coordinate fallback, got %q", addr)
+	if addr != "" {
+		t.Errorf("expected empty address on error, got %q", addr)
 	}
 }
 
@@ -114,9 +113,8 @@ func TestNominatimGeocoder_ReverseGeocode_HTTP500(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for HTTP 500")
 	}
-	// Should return coordinate fallback.
-	if addr != "48.85660, 2.35220" {
-		t.Errorf("expected coordinate fallback, got %q", addr)
+	if addr != "" {
+		t.Errorf("expected empty address on error, got %q", addr)
 	}
 }
 
@@ -136,8 +134,8 @@ func TestNominatimGeocoder_ReverseGeocode_InvalidJSON(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for invalid JSON")
 	}
-	if addr != "51.50740, -0.12780" {
-		t.Errorf("expected coordinate fallback, got %q", addr)
+	if addr != "" {
+		t.Errorf("expected empty address on error, got %q", addr)
 	}
 }
 
@@ -159,8 +157,8 @@ func TestNominatimGeocoder_ReverseGeocode_Timeout(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for timeout")
 	}
-	if addr != "40.71280, -74.00600" {
-		t.Errorf("expected coordinate fallback, got %q", addr)
+	if addr != "" {
+		t.Errorf("expected empty address on error, got %q", addr)
 	}
 }
 
@@ -184,8 +182,8 @@ func TestNominatimGeocoder_ReverseGeocode_ContextCancelled(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for cancelled context")
 	}
-	if addr != "35.67620, 139.65030" {
-		t.Errorf("expected coordinate fallback, got %q", addr)
+	if addr != "" {
+		t.Errorf("expected empty address on error, got %q", addr)
 	}
 }
 
@@ -244,8 +242,8 @@ func TestNominatimGeocoder_ServerDown(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for connection refused")
 	}
-	if addr != "51.50740, -0.12780" {
-		t.Errorf("expected coordinate fallback, got %q", addr)
+	if addr != "" {
+		t.Errorf("expected empty address on error, got %q", addr)
 	}
 }
 
@@ -262,9 +260,9 @@ func TestCoordinateFallback(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		result := coordinateFallback(tt.lat, tt.lon)
+		result := CoordinateFallback(tt.lat, tt.lon)
 		if result != tt.expected {
-			t.Errorf("coordinateFallback(%f, %f) = %q, want %q", tt.lat, tt.lon, result, tt.expected)
+			t.Errorf("CoordinateFallback(%f, %f) = %q, want %q", tt.lat, tt.lon, result, tt.expected)
 		}
 	}
 }
@@ -292,8 +290,8 @@ func TestNominatimGeocoder_ReverseGeocode_InvalidURL(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for invalid URL")
 	}
-	if addr != "51.00000, 0.00000" {
-		t.Errorf("expected coordinate fallback, got %q", addr)
+	if addr != "" {
+		t.Errorf("expected empty address on error, got %q", addr)
 	}
 }
 
@@ -308,8 +306,8 @@ func TestNominatimGeocoder_ReverseGeocode_ReadBodyError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error when reading response body fails")
 	}
-	if addr != "51.00000, 0.00000" {
-		t.Errorf("expected coordinate fallback, got %q", addr)
+	if addr != "" {
+		t.Errorf("expected empty address on error, got %q", addr)
 	}
 }
 

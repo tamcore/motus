@@ -44,6 +44,7 @@ type HandlerConfig struct {
 
 	NotificationService *services.NotificationService
 	GeofenceService     *services.GeofenceService
+	CalendarService     *services.CalendarService
 	DeviceRegistry      *protocol.DeviceRegistry
 	EncoderRegistry     *protocol.EncoderRegistry
 	Hub                 *websocket.Hub
@@ -64,11 +65,6 @@ type Handler struct {
 // NewHandler creates a Handler with the given configuration.
 func NewHandler(cfg HandlerConfig) *Handler {
 	return &Handler{cfg: cfg, loginLimiter: newLoginLimiter()}
-}
-
-// SetAIEnabled updates whether the AI feature is advertised in ServerInfo.
-func (h *Handler) SetAIEnabled(enabled bool) {
-	h.cfg.AIEnabled = enabled
 }
 
 // requireAdminCtx checks that the context contains an authenticated admin user.

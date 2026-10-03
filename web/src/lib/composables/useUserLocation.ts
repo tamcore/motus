@@ -178,3 +178,106 @@ function geolocationErrorMessage(err: GeolocationPositionError): string {
       return 'An unknown location error occurred.';
   }
 }
+
+// ---------------------------------------------------------------------------
+// Map layers for the user's position (accuracy circle, dot, compass cone)
+// ---------------------------------------------------------------------------
+
+type Leaflet = typeof import("leaflet");
+type LeafletMap = import("leaflet").Map;
+
+export interface UserLocationLayers {
+  updatePosition: (pos: UserPosition | null) => void;
+  updateHeading: (pos: UserPosition | null, heading: number | null, active: boolean) => void;
+  remove: () => void;
+}
+
+export function userLocationLayers(
+  getLeaflet: () => Leaflet | null,
+  getMap: () => LeafletMap | null,
+  panOnFirstFix = true,
+): UserLocationLayers {
+  let accuracyCircle: import("leaflet").Circle | null = null;
+  let dotMarker: import("leaflet").Marker | null = null;
+  let headingMarker: import("leaflet").Marker | null = null;
+  let firstFix = false;
+
+  function updatePosition(pos: UserPosition | null): void {
+    const L = getLeaflet();
+    const map = getMap();
+    if (!L || !map || !pos) return;
+    const latlng: [number, number] = [pos.lat, pos.lng];
+
+    if (accuracyCircle) {
+      accuracyCircle.setLatLng(latlng);
+      accuracyCircle.setRadius(pos.accuracy);
+    } else {
+      accuracyCircle = L.circle(latlng, {
+        radius: pos.accuracy,
+        color: "#4285F4",
+        fillColor: "#4285F4",
+        fillOpacity: 0.1,
+        weight: 1,
+        interactive: false,
+      }).addTo(map);
+    }
+
+    if (dotMarker) {
+      dotMarker.setLatLng(latlng);
+    } else {
+      dotMarker = L.marker(latlng, {
+        icon: L.divIcon({
+          className: "user-location-marker",
+          html: '<div class="user-location-dot"><div class="user-location-dot-inner"></div></div>',
+          iconSize: [16, 16],
+          iconAnchor: [8, 8],
+        }),
+        interactive: false,
+        zIndexOffset: 1000,
+      }).addTo(map);
+    }
+
+    if (!firstFix) {
+      firstFix = true;
+      if (panOnFirstFix) map.setView(latlng, Math.max(map.getZoom(), 15));
+    }
+  }
+
+  function updateHeading(pos: UserPosition | null, heading: number | null, active: boolean): void {
+    const L = getLeaflet();
+    const map = getMap();
+    if (!L || !map || !pos) return;
+
+    if (headingMarker) {
+      map.removeLayer(headingMarker);
+      headingMarker = null;
+    }
+    if (heading === null || !active) return;
+
+    headingMarker = L.marker([pos.lat, pos.lng], {
+      icon: L.divIcon({
+        className: "user-heading-marker",
+        html: `<svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"
+          style="transform: rotate(${heading}deg); transform-origin: 20px 20px;">
+          <path d="M20 0 L26 20 L20 16 L14 20 Z" fill="#4285F4" fill-opacity="0.5"/>
+        </svg>`,
+        iconSize: [40, 40],
+        iconAnchor: [20, 20],
+      }),
+      interactive: false,
+      zIndexOffset: 999,
+    }).addTo(map);
+  }
+
+  function remove(): void {
+    firstFix = false;
+    const map = getMap();
+    if (!map) return;
+    for (const layer of [accuracyCircle, dotMarker, headingMarker]) {
+      if (layer) map.removeLayer(layer);
+    }
+    accuracyCircle = dotMarker = headingMarker = null;
+  }
+
+  return { updatePosition, updateHeading, remove };
+}

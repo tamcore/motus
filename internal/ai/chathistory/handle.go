@@ -3,6 +3,7 @@ package chathistory
 import (
 	"context"
 	"log/slog"
+	"slices"
 
 	"github.com/tamcore/motus/internal/ai/chat"
 )
@@ -33,34 +34,22 @@ func (h *RedisHandle) Messages() []chat.Message {
 	return h.cached
 }
 
-// Append persists msgs to Redis and updates the local cache. On Redis error
-// it logs and continues so the current turn still succeeds in-memory.
+// Append persists msgs to Redis (when a store is set) and updates the local
+// cache. On Redis error it logs and continues so the current turn still
+// succeeds in-memory. It always returns nil.
 func (h *RedisHandle) Append(ctx context.Context, msgs ...chat.Message) error {
-	if err := h.store.Append(ctx, h.userID, msgs...); err != nil {
-		slog.Warn("chathistory: failed to persist messages",
-			slog.Int64("userID", h.userID), slog.Any("error", err))
-		// Fall through — update cache even if Redis write failed.
+	if h.store != nil {
+		if err := h.store.Append(ctx, h.userID, msgs...); err != nil {
+			slog.Warn("chathistory: failed to persist messages",
+				slog.Int64("userID", h.userID), slog.Any("error", err))
+		}
 	}
 	h.cached = append(h.cached, msgs...)
 	return nil
 }
 
-// MemHandle is a non-persistent in-memory fallback used when Redis is
-// unavailable. It provides the same interface but never writes to external storage.
-type MemHandle struct {
-	cached []chat.Message
-}
-
-// NewMemHandle creates a MemHandle pre-populated with the given messages.
-func NewMemHandle(msgs ...chat.Message) *MemHandle {
-	c := make([]chat.Message, len(msgs))
-	copy(c, msgs)
-	return &MemHandle{cached: c}
-}
-
-func (h *MemHandle) Messages() []chat.Message { return h.cached }
-
-func (h *MemHandle) Append(_ context.Context, msgs ...chat.Message) error {
-	h.cached = append(h.cached, msgs...)
-	return nil
+// NewMemHandle returns a non-persistent handle pre-populated with msgs, used
+// when Redis is unavailable.
+func NewMemHandle(msgs ...chat.Message) *RedisHandle {
+	return &RedisHandle{cached: slices.Clone(msgs)}
 }

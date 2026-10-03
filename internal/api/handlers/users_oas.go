@@ -79,10 +79,8 @@ func (h *Handler) AdminCreateUser(ctx context.Context, req *oas.UserInput) (oas.
 		return &oas.AdminCreateUserForbidden{Error: "failed to create user"}, nil
 	}
 
-	if h.cfg.AuditLogger != nil {
-		h.cfg.AuditLogger.Log(ctx, &admin.ID, audit.ActionUserCreate, audit.ResourceUser, &user.ID,
-			map[string]any{"email": user.Email, "role": user.Role}, "", "")
-	}
+	h.cfg.AuditLogger.Log(ctx, &admin.ID, audit.ActionUserCreate, audit.ResourceUser, &user.ID,
+		map[string]any{"email": user.Email, "role": user.Role}, "", "")
 
 	user.PopulateTraccarFields()
 	result := userToOAS(user)
@@ -171,9 +169,7 @@ func (h *Handler) AdminUpdateUser(ctx context.Context, req *oas.UserInput, param
 		changes["sessionsRevoked"] = true
 	}
 
-	if h.cfg.AuditLogger != nil {
-		h.cfg.AuditLogger.Log(ctx, &admin.ID, audit.ActionUserUpdate, audit.ResourceUser, &existing.ID, changes, "", "")
-	}
+	h.cfg.AuditLogger.Log(ctx, &admin.ID, audit.ActionUserUpdate, audit.ResourceUser, &existing.ID, changes, "", "")
 
 	existing.PopulateTraccarFields()
 	result := userToOAS(existing)
@@ -203,10 +199,8 @@ func (h *Handler) AdminDeleteUser(ctx context.Context, params oas.AdminDeleteUse
 		return &oas.AdminDeleteUserForbidden{Error: "failed to delete user"}, nil
 	}
 
-	if h.cfg.AuditLogger != nil {
-		h.cfg.AuditLogger.Log(ctx, &admin.ID, audit.ActionUserDelete, audit.ResourceUser, &params.ID,
-			map[string]any{}, "", "")
-	}
+	h.cfg.AuditLogger.Log(ctx, &admin.ID, audit.ActionUserDelete, audit.ResourceUser, &params.ID,
+		map[string]any{}, "", "")
 
 	return &oas.AdminDeleteUserNoContent{}, nil
 }

@@ -1,10 +1,11 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { api } from '$lib/api/client';
+	import { page } from '$app/stores';
+	import { api, fetchNotifications } from '$lib/api/client';
 	import { refreshHandler } from '$lib/stores/refresh';
 	import { formatDate } from '$lib/utils/formatting';
 	import { EVENT_TYPES } from '$lib/stores/notifications';
-	import type { NotificationRule, NotificationLog } from '$lib/stores/notifications';
+	import type { NotificationRule, NotificationLog } from '$lib/types/api';
 	import Button from '$lib/components/Button.svelte';
 	import StatusIndicator from '$lib/components/StatusIndicator.svelte';
 
@@ -15,18 +16,17 @@
 	}
 
 	let logs: EnrichedLog[] = [];
-	let filteredLogs: EnrichedLog[] = [];
 	let loading = true;
 	let error = '';
 	let statusFilter = 'all';
+	let rules: NotificationRule[] = [];
+	let ruleFilter = $page.url.searchParams.get('rule') ?? 'all';
 
-	$: {
-		if (statusFilter === 'all') {
-			filteredLogs = logs;
-		} else {
-			filteredLogs = logs.filter((l) => l.status === statusFilter);
-		}
-	}
+	$: filteredLogs = logs.filter(
+		(l) =>
+			(statusFilter === 'all' || l.status === statusFilter) &&
+			(ruleFilter === 'all' || String(l.ruleId) === ruleFilter)
+	);
 
 	function getEventLabel(eventType: string): string {
 		return EVENT_TYPES.find((e) => e.value === eventType)?.label || eventType;
@@ -36,8 +36,8 @@
 		loading = true;
 		error = '';
 		try {
-			// Fetch all notification rules first
-			const rules: NotificationRule[] = await api.getNotifications();
+			// Same scope as the rules page, so ?rule= links to other users' rules resolve.
+			rules = await fetchNotifications();
 
 			if (rules.length === 0) {
 				logs = [];
@@ -63,12 +63,9 @@
 			const allLogs = await Promise.all(logPromises);
 			const merged = allLogs.flat();
 
-			// Sort by createdAt descending (most recent first)
-			merged.sort((a, b) => {
-				const timeA = new Date(a.createdAt).getTime();
-				const timeB = new Date(b.createdAt).getTime();
-				return timeB - timeA;
-			});
+			// Newest first: queued logs (no sentAt yet) on top, then by sent time, then id.
+			const sentMs = (sentAt?: string | null) => (sentAt ? Date.parse(sentAt) : Infinity);
+			merged.sort((a, b) => sentMs(b.sentAt) - sentMs(a.sentAt) || b.id - a.id);
 
 			logs = merged;
 		} catch (err: any) {
@@ -105,6 +102,15 @@
 			</div>
 
 			<div class="header-actions">
+				<div class="filter-group">
+					<label for="rule-filter" class="filter-label">Rule:</label>
+					<select id="rule-filter" bind:value={ruleFilter} class="select">
+						<option value="all">All</option>
+						{#each rules as rule (rule.id)}
+							<option value={String(rule.id)}>{rule.name}</option>
+						{/each}
+					</select>
+				</div>
 				<div class="filter-group">
 					<label for="status-filter" class="filter-label">Status:</label>
 					<select id="status-filter" bind:value={statusFilter} class="select">
@@ -164,7 +170,7 @@
 					<tbody>
 						{#each filteredLogs as log (log.id)}
 							<tr class:row-success={log.status === 'sent'} class:row-failure={log.status === 'failed'}>
-								<td class="cell-time">{formatDate(log.createdAt)}</td>
+								<td class="cell-time">{log.sentAt ? formatDate(log.sentAt) : '-'}</td>
 								<td class="cell-rule">{log.ruleName}</td>
 								<td>
 									{#each log.eventTypes as et}
@@ -176,7 +182,7 @@
 								</td>
 								<td>
 									<div class="status-cell">
-										<StatusIndicator status={log.status === 'sent' ? 'online' : log.status === 'queued' ? 'idle' : 'offline'} />
+										<StatusIndicator status={log.status} />
 										<span class="status-text status-{log.status}">{log.status}</span>
 									</div>
 								</td>

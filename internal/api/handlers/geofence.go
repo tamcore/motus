@@ -2,11 +2,11 @@ package handlers
 
 import (
 	"context"
+	"errors"
 
 	"github.com/go-faster/jx"
 	"github.com/tamcore/motus/internal/api"
 	oas "github.com/tamcore/motus/internal/api/oas"
-	"github.com/tamcore/motus/internal/audit"
 	"github.com/tamcore/motus/internal/model"
 	"github.com/tamcore/motus/internal/services"
 )
@@ -79,7 +79,7 @@ func (h *Handler) CreateGeofence(ctx context.Context, req *oas.GeofenceInput) (o
 		Attributes:  attrs,
 	})
 	if err != nil {
-		return &oas.CreateGeofenceBadRequest{Error: err.Error()}, nil
+		return &oas.CreateGeofenceBadRequest{Error: services.PublicMessage(err, "failed to create geofence")}, nil
 	}
 	out := geofenceToOAS(geofence)
 	return &out, nil
@@ -120,13 +120,13 @@ func (h *Handler) UpdateGeofence(ctx context.Context, req *oas.GeofenceUpdateInp
 
 	updated, err := h.cfg.GeofenceService.UpdateForUser(ctx, user, params.ID, in)
 	if err != nil {
-		switch err.Error() {
-		case "access denied":
-			return &oas.UpdateGeofenceForbidden{Error: "access denied"}, nil
-		case "geofence not found":
-			return &oas.UpdateGeofenceNotFound{Error: "geofence not found"}, nil
+		switch {
+		case errors.Is(err, services.ErrAccessDenied):
+			return &oas.UpdateGeofenceForbidden{Error: err.Error()}, nil
+		case errors.Is(err, services.ErrNotFound):
+			return &oas.UpdateGeofenceNotFound{Error: err.Error()}, nil
 		default:
-			return &oas.UpdateGeofenceBadRequest{Error: err.Error()}, nil
+			return &oas.UpdateGeofenceBadRequest{Error: services.PublicMessage(err, "failed to update geofence")}, nil
 		}
 	}
 
@@ -140,17 +140,8 @@ func (h *Handler) DeleteGeofence(ctx context.Context, params oas.DeleteGeofenceP
 	if user == nil {
 		return &oas.DeleteGeofenceUnauthorized{Error: "unauthorized"}, nil
 	}
-	if !h.cfg.Geofences.UserHasAccess(ctx, user, params.ID) {
-		return &oas.DeleteGeofenceForbidden{Error: "access denied"}, nil
-	}
-	if err := h.cfg.Geofences.Delete(ctx, params.ID); err != nil {
-		return &oas.DeleteGeofenceForbidden{Error: "failed to delete geofence"}, nil
-	}
-	if h.cfg.AuditLogger != nil {
-		id := params.ID
-		h.cfg.AuditLogger.Log(ctx, &user.ID,
-			audit.ActionGeofenceDelete, audit.ResourceGeofence, &id,
-			nil, "", "")
+	if err := h.cfg.GeofenceService.DeleteForUser(ctx, user, params.ID); err != nil {
+		return &oas.DeleteGeofenceForbidden{Error: services.PublicMessage(err, "failed to delete geofence")}, nil
 	}
 	return &oas.DeleteGeofenceNoContent{}, nil
 }

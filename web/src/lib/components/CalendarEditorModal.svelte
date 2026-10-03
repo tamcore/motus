@@ -4,6 +4,7 @@
 	import Button from './Button.svelte';
 	import Input from './Input.svelte';
 	import type { Calendar } from '$lib/types/api';
+	import { dateValue } from '$lib/utils/date-range';
 	import {
 		CALENDAR_TEMPLATES,
 		getScheduleSummary,
@@ -65,7 +66,7 @@
 	$: modalTitle = isEditing ? 'Edit Calendar' : 'Create Calendar';
 
 	// Compute today's date for min validation
-	$: todayStr = new Date().toISOString().split('T')[0];
+	$: todayStr = dateValue(new Date());
 
 	// Compute preview data based on active mode
 	$: previewData = computePreviewData(activeMode, selectedTemplate, icalData, startDate, endDate, startHour, startMinute, endHour, endMinute, recurrence, weeklyDays);
@@ -164,8 +165,8 @@
 			const thirtyDaysOut = new Date(today);
 			thirtyDaysOut.setDate(thirtyDaysOut.getDate() + 30);
 
-			startDate = today.toISOString().split('T')[0];
-			endDate = thirtyDaysOut.toISOString().split('T')[0];
+			startDate = dateValue(today);
+			endDate = dateValue(thirtyDaysOut);
 			startHour = 8;
 			startMinute = 0;
 			endHour = 17;

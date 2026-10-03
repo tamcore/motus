@@ -1,15 +1,15 @@
 <script lang="ts">
-	import { ALL_TIME_START } from '$lib/utils/date-range';
+	import { RELATIVE_DATE_PRESETS, dateValue, resolveDatePreset, type DatePreset } from '$lib/utils/date-range';
 	import { onMount, onDestroy, tick } from 'svelte';
 	import { page } from '$app/stores';
 	import { api, fetchDevices } from '$lib/api/client';
-	import { currentUser } from '$lib/stores/auth';
 	import { refreshHandler } from '$lib/stores/refresh';
 	import { useLeaflet } from '$lib/composables/useLeaflet';
 	import { theme } from '$lib/stores/theme';
 	import { haversineDistance } from '$lib/utils/trips';
 	import { toRoutePositions, type RoutePosition as Position } from '$lib/utils/route-points';
 	import { normalizeTimeParam } from '$lib/utils/report-links';
+	import { downloadGPX } from '$lib/utils/gpx';
 	import { formatDate, formatDuration, formatSpeed, formatDistance } from '$lib/utils/formatting';
 	import type { Device } from '$lib/types/api';
 	import { Chart, registerables } from 'chart.js';
@@ -74,7 +74,7 @@
 	// State: filters (from query params or user input)
 	// ---------------------------------------------------------------------------
 	let selectedDeviceId = '';
-	let datePreset: 'day' | 'week' | 'month' | 'all' | 'custom' = 'week';
+	let datePreset: DatePreset = 'week';
 	let customFrom = '';
 	let customTo = '';
 
@@ -157,20 +157,14 @@
 			zoomControl: true,
 		});
 
-		try {
-			const isAdmin = ($currentUser as Record<string, unknown> | null)?.administrator === true;
-			devices = (await fetchDevices(isAdmin)) as unknown as Device[];
-		} catch (e) {
-			console.error('Failed to load devices:', e);
-		}
+		await reloadDevices();
 
 		// If query params provided, auto-load
 		if (qDeviceId && qFrom && qTo) {
 			selectedDeviceId = qDeviceId;
 			datePreset = 'custom';
-			// Extract date-only for the custom inputs
-			customFrom = qFrom.slice(0, 10);
-			customTo = qTo.slice(0, 10);
+			customFrom = dateValue(new Date(qFrom));
+			customTo = dateValue(new Date(qTo));
 			await loadPositions(Number(qDeviceId), qFrom, qTo);
 		}
 
@@ -187,41 +181,23 @@
 	});
 
 	async function reloadDevices() {
-		const isAdmin = ($currentUser as Record<string, unknown> | null)?.administrator === true;
 		try {
-			devices = (await fetchDevices(isAdmin)) as unknown as Device[];
-		} catch {
-			console.error('Failed to reload devices');
+			devices = await fetchDevices();
+		} catch (e) {
+			console.error('Failed to load devices:', e);
 		}
 	}
 
 	// ---------------------------------------------------------------------------
 	// Data loading
 	// ---------------------------------------------------------------------------
-	function getDateRange(): { from: string; to: string } {
-		const now = new Date();
-		const to = now.toISOString();
-		if (datePreset === 'custom') {
-			return {
-				from: customFrom ? new Date(customFrom + 'T00:00:00').toISOString() : to,
-				to: customTo ? new Date(customTo + 'T23:59:59').toISOString() : to,
-			};
-		}
-		if (datePreset === 'all') return { from: ALL_TIME_START.toISOString(), to };
-		const from = new Date(now);
-		if (datePreset === 'day') from.setDate(from.getDate() - 1);
-		else if (datePreset === 'week') from.setDate(from.getDate() - 7);
-		else if (datePreset === 'month') from.setDate(from.getDate() - 30);
-		return { from: from.toISOString(), to };
-	}
-
 	async function handleLoad() {
 		if (!selectedDeviceId) {
 			errorMessage = 'Please select a device.';
 			return;
 		}
 		errorMessage = '';
-		const { from, to } = getDateRange();
+		const { from, to } = resolveDatePreset(datePreset, customFrom, customTo);
 		await loadPositions(Number(selectedDeviceId), from, to);
 	}
 
@@ -776,7 +752,7 @@
 	{#if positions.length === 0 && !fetching}
 		<div class="filters-section">
 			<div class="container">
-				<h1 class="page-title">Drive Replay</h1>
+				<h1 class="page-title mb-2">Drive Replay</h1>
 				<p class="page-subtitle">Replay a GPS drive with synchronized map and chart visualization.</p>
 
 				<div class="filters-bar">
@@ -797,16 +773,10 @@
 					<div class="filter-group">
 						<span class="filter-label">Date Range</span>
 						<div class="preset-buttons">
-							<button class="preset-btn" class:active={datePreset === 'day'}
-								on:click={() => datePreset = 'day'}>Last 24h</button>
-							<button class="preset-btn" class:active={datePreset === 'week'}
-								on:click={() => datePreset = 'week'}>Last 7d</button>
-							<button class="preset-btn" class:active={datePreset === 'month'}
-								on:click={() => datePreset = 'month'}>Last 30d</button>
-							<button class="preset-btn" class:active={datePreset === 'all'}
-								on:click={() => datePreset = 'all'}>All time</button>
-							<button class="preset-btn" class:active={datePreset === 'custom'}
-								on:click={() => datePreset = 'custom'}>Custom</button>
+							{#each RELATIVE_DATE_PRESETS as p (p.value)}
+								<button class="preset-btn" class:active={datePreset === p.value}
+									on:click={() => (datePreset = p.value)}>{p.label}</button>
+							{/each}
 						</div>
 					</div>
 
@@ -917,6 +887,18 @@
 							<line x1="18" y1="20" x2="18" y2="10"/>
 							<line x1="12" y1="20" x2="12" y2="4"/>
 							<line x1="6" y1="20" x2="6" y2="14"/>
+						</svg>
+					</button>
+					<button
+						class="map-control-btn"
+						on:click={() => downloadGPX(positions, `route-${selectedDeviceId || 'unknown'}`)}
+						title="Download GPX"
+						aria-label="Download GPX"
+					>
+						<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+							<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+							<polyline points="7 10 12 15 17 10"/>
+							<line x1="12" y1="15" x2="12" y2="3"/>
 						</svg>
 					</button>
 					<button
@@ -1068,12 +1050,6 @@
 		padding: 0 var(--space-4);
 	}
 
-	.page-title {
-		font-size: var(--text-3xl);
-		font-weight: var(--font-bold);
-		color: var(--text-primary);
-		margin: 0 0 var(--space-2);
-	}
 
 	.page-subtitle {
 		color: var(--text-secondary);

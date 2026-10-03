@@ -15,7 +15,7 @@ LDFLAGS := -s -w \
 	-X github.com/tamcore/motus/internal/version.Branch=$(BRANCH)
 
 
-.PHONY: help build test dev-docker-build dev-deploy-k8s clean fmt vet golangci-lint frontend-check helm-lint lint
+.PHONY: help build test dev-docker-build dev-deploy-k8s clean fmt golangci-lint frontend-check helm-lint lint
 
 help: ## Show this help message
 	@echo "Motus - Make targets:"
@@ -30,16 +30,13 @@ build: ## Build the motus binary
 fmt:
 	go fmt ./...
 
-vet:
-	go vet ./...
-
 golangci-lint:
 	docker run --rm -v "$(PWD)":"$(PWD)" -w "$(PWD)" golangci/golangci-lint:latest golangci-lint run --timeout=5m
 
 frontend-check:
 	cd web && npm run check
 
-lint: fmt vet golangci-lint frontend-check goreleaser-check helm-lint ## Run all linters and checks
+lint: fmt golangci-lint frontend-check goreleaser-check helm-lint ## Run all linters and checks
 	@echo "Linting complete!"
 
 goreleaser-check:
@@ -133,9 +130,6 @@ clean: ## Clean build artifacts
 
 .PHONY: generate
 generate: ## Regenerate ogen code from docs/openapi.yaml
-	cp docs/openapi.yaml internal/api/docs/openapi.yaml
-	cp docs/scalar.html internal/api/docs/scalar.html
-	cp docs/scalar.js internal/api/docs/scalar.js
 	go generate ./internal/api/...
 
 .PHONY: update-scalar

@@ -100,27 +100,30 @@ func (s *NotificationService) ProcessEvent(ctx context.Context, event *model.Eve
 			if !rule.MatchesEvent(event) {
 				continue
 			}
+			isCommand := rule.Channel == model.NotificationChannelCommand
+			send := s.sendNotification
+			if isCommand {
+				send = s.sendCommand
+			}
 			// WithoutCancel inherits trace spans from the event context but is
 			// not cancelled when ProcessEvent returns. The timeout context is
 			// created when the job runs so its lifetime is scoped to the job.
-			run := func(send func(context.Context, *model.NotificationRule, *model.Event, *model.Device)) func() {
-				return func() {
-					ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
-					defer cancel()
-					send(ctx, rule, event, device)
-				}
+			job := func() {
+				ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+				defer cancel()
+				send(ctx, rule, event, device)
 			}
-			if rule.Channel == model.NotificationChannelCommand {
+			if isCommand {
 				// Device commands run one at a time per device, in event
 				// order: an earlier command (e.g. "left home -> 20 s") must
 				// never be submitted after a later one ("back home -> 300 s"),
 				// or the device would keep the away interval at home.
-				s.commandQueue.enqueue(device.ID, run(s.sendCommand))
+				s.commandQueue.enqueue(device.ID, job)
 				continue
 			}
 			// Webhooks are independent and run in their own goroutine to
 			// avoid blocking the event processing pipeline.
-			go run(s.sendNotification)()
+			go job()
 		}
 	}
 

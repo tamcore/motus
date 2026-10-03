@@ -20,7 +20,7 @@ type mockGeocoder struct {
 func (m *mockGeocoder) ReverseGeocode(_ context.Context, lat, lon float64) (string, error) {
 	m.calls.Add(1)
 	if m.err != nil {
-		return coordinateFallback(lat, lon), m.err
+		return CoordinateFallback(lat, lon), m.err
 	}
 	return m.response, nil
 }
@@ -129,7 +129,7 @@ func TestCachedGeocoder_StartCleanup(t *testing.T) {
 
 	// Populate cache.
 	cg.Lookup(context.Background(), 52.5200, 13.4050)
-	if cg.Cache().Size() != 1 {
+	if cg.cache.Size() != 1 {
 		t.Fatal("expected 1 cache entry")
 	}
 
@@ -141,8 +141,8 @@ func TestCachedGeocoder_StartCleanup(t *testing.T) {
 	// Wait for the TTL to expire and cleanup to run.
 	time.Sleep(200 * time.Millisecond)
 
-	if cg.Cache().Size() != 0 {
-		t.Errorf("expected 0 entries after cleanup, got %d", cg.Cache().Size())
+	if cg.cache.Size() != 0 {
+		t.Errorf("expected 0 entries after cleanup, got %d", cg.cache.Size())
 	}
 
 	cancel()

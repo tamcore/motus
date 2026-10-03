@@ -179,7 +179,7 @@
 
 <div class="settings-page">
 	<div class="container">
-		<h1 class="page-title">Settings</h1>
+		<h1 class="page-title mb-6">Settings</h1>
 
 		{#if loading}
 			<p class="loading-text">Loading settings...</p>
@@ -410,12 +410,6 @@
 		padding: 0 var(--space-4);
 	}
 
-	.page-title {
-		font-size: var(--text-3xl);
-		font-weight: var(--font-bold);
-		color: var(--text-primary);
-		margin-bottom: var(--space-6);
-	}
 
 	.loading-text {
 		color: var(--text-secondary);

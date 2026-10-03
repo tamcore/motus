@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/tamcore/motus/internal/audit"
@@ -23,22 +24,73 @@ func NewCalendarService(repo repository.CalendarRepo, auditLogger *audit.Logger)
 	return &CalendarService{repo: repo, auditLogger: auditLogger}
 }
 
-// CreateCalendarInput holds the validated inputs for creating a calendar.
-type CreateCalendarInput struct {
+// CalendarInput holds calendar fields. On update, empty fields keep their
+// stored value.
+type CalendarInput struct {
 	Name string
 	Data string // valid iCalendar (RFC 5545) text
 }
 
-// CreateForUser validates, persists, and audits a new calendar for user.
-func (s *CalendarService) CreateForUser(ctx context.Context, user *model.User, in CreateCalendarInput) (*model.Calendar, error) {
-	if in.Name == "" {
-		return nil, fmt.Errorf("name is required")
+// validateCalendarFields checks the non-empty fields of in.
+func validateCalendarFields(in CalendarInput) error {
+	if in.Name != "" {
+		if err := validation.ValidateDisplayName(in.Name); err != nil {
+			return err
+		}
 	}
-	if err := validation.ValidateDisplayName(in.Name); err != nil {
+	if in.Data != "" {
+		if err := calendar.Validate(in.Data); err != nil {
+			return fmt.Errorf("invalid iCalendar data: %w", err)
+		}
+	}
+	return nil
+}
+
+func validateCalendarInput(in CalendarInput) error {
+	if in.Name == "" {
+		return errors.New("name is required")
+	}
+	if in.Data == "" {
+		return errors.New("data is required")
+	}
+	return validateCalendarFields(in)
+}
+
+// UpdateForUser applies the non-empty fields of in to a calendar user can
+// access and emits an audit entry.
+func (s *CalendarService) UpdateForUser(ctx context.Context, user *model.User, calendarID int64, in CalendarInput) (*model.Calendar, error) {
+	if !s.repo.UserHasAccess(ctx, user, calendarID) {
+		return nil, invalid(fmt.Errorf("calendar %w", ErrNotFound))
+	}
+	existing, err := s.repo.GetByID(ctx, calendarID)
+	if err != nil || existing == nil {
+		return nil, invalid(fmt.Errorf("calendar %w", ErrNotFound))
+	}
+	if err := invalid(validateCalendarFields(in)); err != nil {
 		return nil, err
 	}
-	if err := calendar.Validate(in.Data); err != nil {
-		return nil, fmt.Errorf("invalid calendar data: %w", err)
+
+	updated := *existing
+	if in.Name != "" {
+		updated.Name = in.Name
+	}
+	if in.Data != "" {
+		updated.Data = in.Data
+	}
+	if err := s.repo.Update(ctx, &updated); err != nil {
+		return nil, fmt.Errorf("update calendar: %w", err)
+	}
+
+	s.auditLogger.Log(ctx, &user.ID,
+		audit.ActionCalendarUpdate, audit.ResourceCalendar, &updated.ID,
+		map[string]any{"name": updated.Name}, "", "")
+	return &updated, nil
+}
+
+// CreateForUser validates, persists, and audits a new calendar for user.
+func (s *CalendarService) CreateForUser(ctx context.Context, user *model.User, in CalendarInput) (*model.Calendar, error) {
+	if err := invalid(validateCalendarInput(in)); err != nil {
+		return nil, err
 	}
 
 	c := &model.Calendar{
@@ -47,16 +99,11 @@ func (s *CalendarService) CreateForUser(ctx context.Context, user *model.User, i
 		Data:   in.Data,
 	}
 	if err := s.repo.Create(ctx, c); err != nil {
-		return nil, fmt.Errorf("create calendar: %w", err)
-	}
-	if err := s.repo.AssociateUser(ctx, user.ID, c.ID); err != nil {
-		return nil, fmt.Errorf("associate user: %w", err)
+		return nil, err
 	}
 
-	if s.auditLogger != nil {
-		s.auditLogger.Log(ctx, &user.ID,
-			audit.ActionCalendarCreate, audit.ResourceCalendar, &c.ID,
-			map[string]any{"name": c.Name}, "", "")
-	}
+	s.auditLogger.Log(ctx, &user.ID,
+		audit.ActionCalendarCreate, audit.ResourceCalendar, &c.ID,
+		map[string]any{"name": c.Name}, "", "")
 	return c, nil
 }

@@ -1,14 +1,12 @@
 <script lang="ts">
-	import { ALL_TIME_START } from '$lib/utils/date-range';
+	import { dateValue, resolveDatePreset, type DatePreset } from '$lib/utils/date-range';
 	import { onMount, onDestroy } from 'svelte';
 	import { api, fetchDevices } from '$lib/api/client';
-	import { currentUser } from '$lib/stores/auth';
 	import { refreshHandler } from '$lib/stores/refresh';
 	import { theme } from '$lib/stores/theme';
 	import { useLeaflet } from '$lib/composables/useLeaflet';
 	import type { Device, PositionPoint } from '$lib/types/api';
 	import { pointStats } from '$lib/utils/point-stats';
-	import { loadHeatLayer, type HeatLayerFactory } from '$lib/utils/leaflet-heat';
 	import Button from '$lib/components/Button.svelte';
 	import AllDevicesToggle from '$lib/components/AllDevicesToggle.svelte';
 	import type { HeatLayer, HeatMapOptions } from 'leaflet';
@@ -19,7 +17,7 @@
 	const leafletMap = useLeaflet();
 
 	let mapContainer: HTMLDivElement;
-	let heatLayer: HeatLayerFactory | null = null;
+	let heatLayer: typeof import('leaflet').heatLayer | null = null;
 	let heatLayerInstance: HeatLayer | null = null;
 
 	// Data
@@ -32,7 +30,7 @@
 
 	// Filters
 	let selectedDeviceId = '';
-	let dateRange = 'last7d';
+	let dateRange: DatePreset = 'week';
 	let customFrom = '';
 	let customTo = '';
 
@@ -85,8 +83,13 @@
 		});
 
 		try {
+			// leaflet.heat extends the global L once; keep that object across revisits.
+			const w = window as unknown as { L?: typeof import('leaflet') };
 			const L = leafletMap.getLeaflet();
-			if (L) heatLayer = await loadHeatLayer(L);
+			w.L ??= (L as any)?.default ?? L;
+			await import('leaflet.heat');
+			heatLayer = w.L?.heatLayer ?? null;
+			if (!heatLayer) throw new Error('leaflet.heat did not register L.heatLayer');
 		} catch (err) {
 			console.error('Failed to load heatmap layer:', err);
 			layerError = 'Failed to load the heatmap layer. Please reload the page.';
@@ -107,43 +110,10 @@
 
 	async function loadDevices() {
 		try {
-			const isAdmin = ($currentUser as Record<string, unknown> | null)?.administrator === true;
-			devices = await fetchDevices(isAdmin);
+			devices = await fetchDevices();
 		} catch (err) {
 			console.error('Failed to load devices:', err);
 		}
-	}
-
-	function getDateRange(): { from: Date; to: Date } {
-		const to = new Date();
-		let from: Date;
-
-		switch (dateRange) {
-			case 'last24h':
-				from = new Date(Date.now() - 24 * 60 * 60 * 1000);
-				break;
-			case 'last7d':
-				from = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-				break;
-			case 'last30d':
-				from = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-				break;
-			case 'all':
-				from = new Date(ALL_TIME_START);
-				break;
-			case 'custom':
-				from = customFrom
-					? new Date(customFrom + 'T00:00:00')
-					: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-				return {
-					from,
-					to: customTo ? new Date(customTo + 'T23:59:59') : to
-				};
-			default:
-				from = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-		}
-
-		return { from, to };
 	}
 
 	async function loadHeatmap() {
@@ -152,9 +122,9 @@
 		error = '';
 
 		try {
-			const { from, to } = getDateRange();
-			const fromISO = from.toISOString();
-			const toISO = to.toISOString();
+			const now = new Date();
+			const weekAgo = new Date(resolveDatePreset('week', '', '', now).from);
+			const { from: fromISO, to: toISO } = resolveDatePreset(dateRange, customFrom, customTo, now, weekAgo);
 
 			// The heatmap renders at most HEATMAP_MAX_POINTS, so let the server
 			// sample the range instead of downloading every position.
@@ -280,7 +250,7 @@
 			});
 
 			const link = document.createElement('a');
-			link.download = `motus-heatmap-${new Date().toISOString().slice(0, 10)}.png`;
+			link.download = `motus-heatmap-${dateValue(new Date())}.png`;
 			link.href = canvas.toDataURL('image/png');
 			link.click();
 		} catch (err) {
@@ -333,9 +303,6 @@
 		}
 	}
 
-	function fitToData() {
-		fitMapToPositions();
-	}
 
 	// Compute time range of loaded data for display
 	$: stats = pointStats(positions);
@@ -378,9 +345,9 @@
 				on:change={handleDateRangeChange}
 				class="select"
 			>
-				<option value="last24h">Last 24 Hours</option>
-				<option value="last7d">Last 7 Days</option>
-				<option value="last30d">Last 30 Days</option>
+				<option value="day">Last 24 Hours</option>
+				<option value="week">Last 7 Days</option>
+				<option value="month">Last 30 Days</option>
 				<option value="all">All Time</option>
 				<option value="custom">Custom Range</option>
 			</select>
@@ -493,7 +460,7 @@
 			<Button variant="secondary" on:click={toggleHeatmap}>
 				{showHeatmap ? 'Hide' : 'Show'} Layer
 			</Button>
-			<Button variant="secondary" on:click={fitToData} disabled={positions.length === 0}>
+			<Button variant="secondary" on:click={fitMapToPositions} disabled={positions.length === 0}>
 				Fit to Data
 			</Button>
 			<Button variant="secondary" on:click={exportImage} disabled={positions.length === 0}>
@@ -592,7 +559,7 @@
 
 		{#if loading}
 			<div class="map-loading">
-				<div class="spinner"></div>
+				<div class="spinner spinner-lg"></div>
 				{#if loadingCount > 0}
 					<span class="map-loading-count">{loadingCount.toLocaleString()} pts</span>
 				{/if}
@@ -910,14 +877,6 @@
 		text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
 	}
 
-	.spinner {
-		width: 48px;
-		height: 48px;
-		border: 4px solid var(--border-color);
-		border-top-color: var(--accent-primary);
-		border-radius: 50%;
-		animation: spin 0.8s linear infinite;
-	}
 
 	/* Leaflet popup override */
 	.map-container :global(.leaflet-popup-content-wrapper) {

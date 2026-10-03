@@ -6,6 +6,14 @@ GPS tracking platform: Go backend (chi router) + SvelteKit frontend. Receives GP
 positions via H02/Watch/OsmAnd protocols, stores in PostgreSQL (PostGIS), serves a web UI with
 maps, geofences, notifications, reports, and device management.
 
+## Coding Style: ponytail
+
+Work in `/ponytail full` mode (the `ponytail` plugin is enabled in `.claude/settings.json`):
+the smallest change that solves the problem, stdlib/platform before new code, no speculative
+abstractions. Before writing a helper, search for an existing one. In reviews, duplicated
+helpers, validators or parsers are a merge blocker, not an optional follow-up. For Go code,
+also follow the `modern-go-guidelines` plugin.
+
 ## Architecture
 
 ```
@@ -64,7 +72,7 @@ respond without a 401. The ogen `SecurityHandler` enforces per-operation auth re
 `Secure` flag, meaning it's **only sent over HTTPS**. When running over HTTP (e.g.,
 docker-compose E2E tests on `http://localhost:8080`), the CSRF cookie is silently dropped
 by the browser, causing **all** state-changing API requests (POST/PUT/DELETE) to fail
-with 403. Set `MOTUS_ENV=development` in docker-compose.dev.yml.
+with 403. Set `MOTUS_ENV=development` in docker-compose.yaml.
 
 Additionally, gorilla/csrf's `Secure` option only controls the cookie flag — it does NOT
 tell the Origin header check to use `http://` scheme. The middleware must also call
@@ -96,11 +104,11 @@ fails on already-patched Go standard library CVEs, and release binaries ship the
 vulnerable stdlib.
 
 ### Pre-commit hooks run Go tests (short mode)
-`.pre-commit-config.yaml` runs `go test -short`, `go vet`, `go fmt`, `golangci-lint`, and
+`.pre-commit-config.yaml` runs `go test -short`, `go fmt`, `go fix`, `golangci-lint` (includes govet), and
 a `generate-check` hook. The `-short` flag skips integration tests that need Docker
-(PostGIS via testcontainers, Redis via testcontainers). The skip is implemented in
-`testutil.SetupTestDB(t)` and `setupRedis(t)` via `testing.Short()`. Full integration
-tests run in CI where Docker is available.
+(PostGIS via testcontainers). The skip is implemented in `testutil.SetupTestDB(t)` via
+`testing.Short()`. Redis tests use in-process miniredis and run in `-short` mode too.
+Full integration tests run in CI where Docker is available.
 
 The `generate-check` hook triggers only when `docs/openapi.yaml` is staged. It runs
 `make generate` then `git diff --exit-code internal/api/oas/` — the commit is blocked if
@@ -238,12 +246,12 @@ automatically by `templates/ai-secret.yaml`.
 ### Docker Compose (E2E / local dev)
 
 ```bash
-docker compose -f docker-compose.dev.yml up -d --build --wait
+docker compose -f docker-compose.yaml -f docker-compose.dev.yaml up -d --build --wait
 ```
 
 Starts: `db` (PostGIS) → `migrate` (oneshot) → `seed` (oneshot, creates admin user) → `motus`
 
-All services share a YAML anchor (`x-motus-env`) for environment variables.
+`docker-compose.dev.yaml` overrides the base file to build `Dockerfile.dev` instead of pulling the image.
 Rate limits are set high (1000/10000) for testing.
 
 Default credentials: `admin@motus.local` / `admin`
@@ -341,7 +349,7 @@ make lint                     # All linters
 |--------|-------------|
 | `build` | Build motus binary |
 | `generate` | Regenerate `internal/api/oas/` from `docs/openapi.yaml` (ogen) |
-| `lint` | Run all linters (go vet, golangci-lint, frontend check) |
+| `lint` | Run all linters (golangci-lint, frontend check) |
 | `test` | Run all tests (includes lint) |
 | `dev-deploy-k8s` | Build dev image, push, deploy to K8s |
 | `dev-reset-database` | Reset database (delete all data) |

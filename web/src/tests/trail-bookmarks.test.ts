@@ -3,8 +3,6 @@ import {
   BOOKMARK_DESCRIPTION_MAX,
   BOOKMARK_NAME_MAX,
   bookmarkDuration,
-  bookmarkErrorMessage,
-  bookmarkFormFromRange,
   bookmarkMapHref,
   bookmarkMatchesRange,
   bookmarkOriginalFromRange,
@@ -13,9 +11,10 @@ import {
   buildBookmarkPayload,
   charCount,
   filterBookmarks,
-  parseBookmarkBoundary,
   type BookmarkFormInput,
 } from "$lib/utils/trail-bookmarks";
+import { parseLocalBoundary } from "$lib/utils/date-range";
+import { rangeToInputs } from "$lib/utils/trail-range";
 import { formatDate, formatDuration } from "$lib/utils/formatting";
 import type { TrailBookmark } from "$lib/types/api";
 
@@ -122,9 +121,9 @@ describe("charCount", () => {
   });
 });
 
-describe("bookmarkFormFromRange", () => {
+describe("rangeToInputs", () => {
   it("prefills native date and time values", () => {
-    const values = bookmarkFormFromRange({
+    const values = rangeToInputs({
       preset: "custom",
       from: new Date(2026, 5, 6, 8, 5).toISOString(),
       to: new Date(2026, 5, 7, 18, 0).toISOString(),
@@ -138,7 +137,7 @@ describe("bookmarkFormFromRange", () => {
   });
 
   it("leaves times empty for whole days", () => {
-    const values = bookmarkFormFromRange({
+    const values = rangeToInputs({
       preset: "custom",
       from: new Date(2026, 5, 6, 0, 0).toISOString(),
       to: new Date(2026, 5, 8, 23, 59, 59, 999).toISOString(),
@@ -153,7 +152,7 @@ describe("bookmarkFormFromRange", () => {
 
   it("freezes a relative preset to concrete times ending now", () => {
     const now = new Date(2026, 5, 6, 12, 0);
-    expect(bookmarkFormFromRange({ preset: "24h" }, now)).toEqual({
+    expect(rangeToInputs({ preset: "24h" }, now)).toEqual({
       fromDate: "2026-06-05",
       fromTime: "12:00",
       toDate: "2026-06-06",
@@ -178,19 +177,19 @@ describe("bookmarkOriginalFromRange", () => {
   });
 });
 
-describe("parseBookmarkBoundary", () => {
+describe("parseLocalBoundary", () => {
   it("parses start and end of a minute", () => {
-    expect(parseBookmarkBoundary("2026-06-06", "08:00", "start")).toEqual(
+    expect(parseLocalBoundary("2026-06-06", "08:00", "start")).toEqual(
       new Date(2026, 5, 6, 8, 0, 0, 0),
     );
-    expect(parseBookmarkBoundary("2026-06-06", "16:30", "end")).toEqual(
+    expect(parseLocalBoundary("2026-06-06", "16:30", "end")).toEqual(
       new Date(2026, 5, 6, 16, 30, 59, 999),
     );
   });
 
   it("uses the whole day without a time", () => {
-    expect(parseBookmarkBoundary("2026-06-06", "", "start")).toEqual(new Date(2026, 5, 6, 0, 0));
-    expect(parseBookmarkBoundary("2026-06-06", "", "end")).toEqual(
+    expect(parseLocalBoundary("2026-06-06", "", "start")).toEqual(new Date(2026, 5, 6, 0, 0));
+    expect(parseLocalBoundary("2026-06-06", "", "end")).toEqual(
       new Date(2026, 5, 6, 23, 59, 59, 999),
     );
   });
@@ -202,7 +201,7 @@ describe("parseBookmarkBoundary", () => {
     ["2026-06-06", "25:00"],
     ["2026-06-06", "8:00"],
   ])("rejects %s %s", (date, time) => {
-    expect(parseBookmarkBoundary(date, time, "start")).toBeNull();
+    expect(parseLocalBoundary(date, time, "start")).toBeNull();
   });
 });
 
@@ -236,7 +235,7 @@ describe("buildBookmarkPayload", () => {
       from: "2026-06-06T06:00:12.345Z",
       to: "2026-06-06T14:30:00.000Z",
     };
-    const fields = bookmarkFormFromRange({ preset: "custom", ...original });
+    const fields = rangeToInputs({ preset: "custom", ...original });
 
     it("keeps both timestamps when only the name changes", () => {
       const result = buildBookmarkPayload(form({ ...fields, name: "Renamed" }), original);
@@ -255,7 +254,7 @@ describe("buildBookmarkPayload", () => {
     it("reparses only an edited start", () => {
       const result = buildBookmarkPayload(form({ ...fields, fromTime: "07:15" }), original);
       expect(result.ok && result.payload.from).toBe(
-        parseBookmarkBoundary(fields.fromDate, "07:15", "start")!.toISOString(),
+        parseLocalBoundary(fields.fromDate, "07:15", "start")!.toISOString(),
       );
       expect(result.ok && result.payload.to).toBe(original.to);
     });
@@ -264,7 +263,7 @@ describe("buildBookmarkPayload", () => {
       const result = buildBookmarkPayload(form({ ...fields, toDate: "2026-06-07" }), original);
       expect(result.ok && result.payload.from).toBe(original.from);
       expect(result.ok && result.payload.to).toBe(
-        parseBookmarkBoundary("2026-06-07", fields.toTime, "end")!.toISOString(),
+        parseLocalBoundary("2026-06-07", fields.toTime, "end")!.toISOString(),
       );
     });
 
@@ -304,20 +303,6 @@ describe("buildBookmarkPayload", () => {
   it("allows an empty description", () => {
     const result = buildBookmarkPayload(form({ description: "" }));
     expect(result.ok && result.payload.description).toBe("");
-  });
-});
-
-describe("bookmarkErrorMessage", () => {
-  it("unwraps JSON error bodies", () => {
-    expect(bookmarkErrorMessage(new Error('{"error":"name is required"}'), "x")).toBe(
-      "name is required",
-    );
-  });
-
-  it("keeps plain messages and falls back for unknown errors", () => {
-    expect(bookmarkErrorMessage(new Error("boom"), "x")).toBe("boom");
-    expect(bookmarkErrorMessage("nope", "fallback")).toBe("fallback");
-    expect(bookmarkErrorMessage(new Error(""), "fallback")).toBe("fallback");
   });
 });
 

@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { api, fetchGeofences, fetchCalendars } from '$lib/api/client';
-	import { currentUser } from '$lib/stores/auth';
 	import { refreshHandler } from '$lib/stores/refresh';
-	import { useUserLocation } from '$lib/composables/useUserLocation';
+	import { getSettings } from '$lib/stores/settings';
+	import { useUserLocation, userLocationLayers } from '$lib/composables/useUserLocation';
+	import { useLeaflet } from '$lib/composables/useLeaflet';
 	import { buildPopupElement, type PopupRow } from '$lib/utils/popup';
 	import {
 		GEOFENCE_STYLE,
-		buildCreateGeofencePayload,
 		geofenceDrawOptions,
 		layerToGeoJSON
 	} from '$lib/utils/geofence-draw';
@@ -33,9 +33,6 @@
 	let selectedGeofence: Geofence | null = null;
 	let showCreateModal = false;
 	let showEditModal = false;
-	let showDeleteConfirm = false;
-	let deleteTarget: Geofence | null = null;
-	let deleting = false;
 	let newGeofenceName = '';
 	let newGeofenceCalendarId: number | null = null;
 	let editGeofenceName = '';
@@ -51,11 +48,9 @@
 	let shapeEditLayer: any = null;
 
 	// User location
+	const leafletMap = useLeaflet();
 	const userLocation = useUserLocation();
-	let userAccuracyCircle: any = null;
-	let userDotMarker: any = null;
-	let userHeadingMarker: any = null;
-	let firstUserFix = false;
+	const userLayers = userLocationLayers(() => L, () => map);
 
 	// Default center (Germany) - used as last resort
 	const DEFAULT_CENTER: [number, number] = [51.1657, 10.4515];
@@ -117,8 +112,7 @@
 	 */
 	async function loadCalendars() {
 		try {
-			const isAdmin = ($currentUser as Record<string, unknown> | null)?.administrator === true;
-			calendars = await fetchCalendars(isAdmin);
+			calendars = await fetchCalendars();
 		} catch {
 			calendars = [];
 		}
@@ -130,8 +124,7 @@
 	 */
 	async function loadGeofences() {
 		try {
-			const isAdmin = ($currentUser as Record<string, unknown> | null)?.administrator === true;
-			const data: any[] = await fetchGeofences(isAdmin);
+			const data: any[] = await fetchGeofences();
 			geofences = data.map((gf) => {
 				const layer = addGeofenceToMap(gf);
 				return { ...gf, layer };
@@ -152,19 +145,9 @@
 
 	async function getInitialCenter(): Promise<{ center: [number, number]; zoom: number }> {
 		// Priority 1: User's explicitly configured default location from settings
-		try {
-			const savedSettings = localStorage.getItem('motus_settings');
-			if (savedSettings) {
-				const s = JSON.parse(savedSettings);
-				if (s.mapLocationSet && s.defaultMapLat != null && s.defaultMapLng != null) {
-					return {
-						center: [s.defaultMapLat, s.defaultMapLng],
-						zoom: s.defaultMapZoom || DEFAULT_ZOOM
-					};
-				}
-			}
-		} catch {
-			// Corrupted settings, continue to next method
+		const s = getSettings();
+		if (s.mapLocationSet) {
+			return { center: [s.defaultMapLat, s.defaultMapLng], zoom: s.defaultMapZoom || DEFAULT_ZOOM };
 		}
 
 		// Priority 2: Center on device positions if available
@@ -200,133 +183,32 @@
 
 	// React to user position changes
 	$: if (userLocation.position) {
-		updateUserLocationLayers();
+		userLayers.updatePosition(userLocation.position);
 	}
 
 	// React to heading changes
 	$: if (userLocation.heading !== null || userLocation.position) {
-		updateUserHeadingLayer();
-	}
-
-	function updateUserLocationLayers() {
-		if (!L || !map || !userLocation.position) return;
-		const pos = userLocation.position;
-		const latlng: [number, number] = [pos.lat, pos.lng];
-
-		if (userAccuracyCircle) {
-			userAccuracyCircle.setLatLng(latlng);
-			userAccuracyCircle.setRadius(pos.accuracy);
-		} else {
-			userAccuracyCircle = L.circle(latlng, {
-				radius: pos.accuracy,
-				color: '#4285F4',
-				fillColor: '#4285F4',
-				fillOpacity: 0.1,
-				weight: 1,
-				interactive: false,
-			}).addTo(map);
-		}
-
-		const dotHtml = `
-			<div class="user-location-dot">
-				<div class="user-location-dot-inner"></div>
-			</div>`;
-
-		if (userDotMarker) {
-			userDotMarker.setLatLng(latlng);
-		} else {
-			userDotMarker = L.marker(latlng, {
-				icon: L.divIcon({
-					className: 'user-location-marker',
-					html: dotHtml,
-					iconSize: [16, 16],
-					iconAnchor: [8, 8],
-				}),
-				interactive: false,
-				zIndexOffset: 1000,
-			}).addTo(map);
-		}
-
-		if (!firstUserFix) {
-			firstUserFix = true;
-			map.setView(latlng, Math.max(map.getZoom(), 15));
-		}
-	}
-
-	function updateUserHeadingLayer() {
-		if (!L || !map || !userLocation.position) return;
-		const pos = userLocation.position;
-		const heading = userLocation.heading;
-		const latlng: [number, number] = [pos.lat, pos.lng];
-
-		if (userHeadingMarker) {
-			map.removeLayer(userHeadingMarker);
-			userHeadingMarker = null;
-		}
-
-		if (heading === null || !userLocation.active) return;
-
-		const coneHtml = `
-			<svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"
-				style="transform: rotate(${heading}deg); transform-origin: 20px 20px;">
-				<path d="M20 0 L26 20 L20 16 L14 20 Z" fill="#4285F4" fill-opacity="0.5"/>
-			</svg>`;
-
-		userHeadingMarker = L.marker(latlng, {
-			icon: L.divIcon({
-				className: 'user-heading-marker',
-				html: coneHtml,
-				iconSize: [40, 40],
-				iconAnchor: [20, 20],
-			}),
-			interactive: false,
-			zIndexOffset: 999,
-		}).addTo(map);
-	}
-
-	function removeUserLocationLayers() {
-		if (!map) return;
-		if (userAccuracyCircle) { map.removeLayer(userAccuracyCircle); userAccuracyCircle = null; }
-		if (userDotMarker) { map.removeLayer(userDotMarker); userDotMarker = null; }
-		if (userHeadingMarker) { map.removeLayer(userHeadingMarker); userHeadingMarker = null; }
+		userLayers.updateHeading(userLocation.position, userLocation.heading, userLocation.active);
 	}
 
 	async function toggleLocateMe() {
 		if (userLocation.active) {
 			userLocation.stop();
-			firstUserFix = false;
-			removeUserLocationLayers();
+			userLayers.remove();
 		} else {
 			await userLocation.start();
 		}
 	}
 
 	onMount(async () => {
-		// Import Leaflet and leaflet-draw
-		const leafletModule = await import('leaflet');
-		L = leafletModule.default || leafletModule;
-		await import('leaflet/dist/leaflet.css');
+		await leafletMap.initialize(mapContainer, await getInitialCenter());
+		map = leafletMap.getMap();
 
-		// Import leaflet-draw - this extends the L object
+		// leaflet-draw extends the global L object, not the import wrapper.
 		await import('leaflet-draw');
 		await import('leaflet-draw/dist/leaflet.draw.css');
-
-		const initialView = await getInitialCenter();
-		const center = initialView.center;
-		const zoom = initialView.zoom;
-
-		map = L.map(mapContainer, {
-			center,
-			zoom,
-			zoomControl: false
-		});
-
-		L.control.zoom({ position: 'topright' }).addTo(map);
-
-		L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-			attribution: '&copy; OpenStreetMap contributors',
-			maxZoom: 19
-		}).addTo(map);
+		const leafletModule: any = leafletMap.getLeaflet();
+		L = leafletModule.default || leafletModule;
 
 		drawnItems = new L.FeatureGroup().addTo(map);
 
@@ -362,7 +244,7 @@
 	onDestroy(() => {
 		$refreshHandler = null;
 		userLocation.stop();
-		if (map) map.remove();
+		leafletMap.cleanup();
 	});
 
 	/**
@@ -371,11 +253,17 @@
 	async function saveGeofence() {
 		if (!pendingLayer || !newGeofenceName.trim()) return;
 
-		const payload = buildCreateGeofencePayload(L, pendingLayer, newGeofenceName, newGeofenceCalendarId);
-		if (!payload) {
+		const geometry = layerToGeoJSON(L, pendingLayer);
+		if (!geometry) {
 			cancelCreate();
 			return;
 		}
+		const payload = {
+			name: newGeofenceName.trim(),
+			description: '',
+			geometry: JSON.stringify(geometry),
+			calendarId: newGeofenceCalendarId
+		};
 
 		saving = true;
 		try {
@@ -564,27 +452,11 @@
 		}
 	}
 
-	function openDeleteConfirm(geofence: Geofence) {
-		deleteTarget = geofence;
-		showDeleteConfirm = true;
-	}
-
-	async function confirmDelete() {
-		if (!deleteTarget) return;
-		deleting = true;
-		try {
-			await removeGeofence(deleteTarget);
-		} finally {
-			deleting = false;
-			showDeleteConfirm = false;
-			deleteTarget = null;
-		}
-	}
-
 	/**
 	 * Delete a geofence from the backend and remove it from the map.
 	 */
 	async function removeGeofence(geofence: Geofence) {
+		if (!confirm(`Delete "${geofence.name}"? This action cannot be undone.`)) return;
 		try {
 			await api.deleteGeofence(geofence.id);
 
@@ -705,7 +577,7 @@
 						</button>
 						<button
 							class="fence-delete"
-							on:click={() => openDeleteConfirm(fence)}
+							on:click={() => removeGeofence(fence)}
 							aria-label="Delete {fence.name}"
 						>
 							&#x2715;
@@ -724,7 +596,7 @@
 	<div class="map-container" bind:this={mapContainer}>
 		{#if loading}
 			<div class="map-loading">
-				<div class="spinner"></div>
+				<div class="spinner spinner-lg"></div>
 			</div>
 		{/if}
 
@@ -861,21 +733,6 @@
 			<Button variant="primary" on:click={saveEdit} disabled={!editGeofenceName.trim() || saving} loading={saving}>
 				Save Changes
 			</Button>
-		</div>
-	</svelte:fragment>
-</Modal>
-
-<!-- Delete Confirmation Modal -->
-<Modal bind:open={showDeleteConfirm} title="Delete Geofence">
-	<p class="delete-message">
-		Are you sure you want to delete <strong>{deleteTarget?.name}</strong>?
-		This action cannot be undone.
-	</p>
-
-	<svelte:fragment slot="footer">
-		<div class="modal-actions">
-			<Button variant="secondary" on:click={() => (showDeleteConfirm = false)}>Cancel</Button>
-			<Button variant="danger" loading={deleting} on:click={confirmDelete}>Delete</Button>
 		</div>
 	</svelte:fragment>
 </Modal>
@@ -1123,14 +980,6 @@
 		z-index: 500;
 	}
 
-	.spinner {
-		width: 48px;
-		height: 48px;
-		border: 4px solid var(--border-color);
-		border-top-color: var(--accent-primary);
-		border-radius: 50%;
-		animation: spin 0.8s linear infinite;
-	}
 
 	.spinner.small {
 		width: 20px;
@@ -1295,14 +1144,7 @@
 		box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
 	}
 
-	.delete-message {
-		color: var(--text-secondary);
-		line-height: 1.6;
-	}
 
-	.delete-message strong {
-		color: var(--text-primary);
-	}
 
 	.modal-actions {
 		display: flex;

@@ -3,11 +3,14 @@ package repository
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/tamcore/motus/internal/model"
 )
@@ -20,6 +23,29 @@ type GeofenceRepository struct {
 // NewGeofenceRepository creates a new geofence repository.
 func NewGeofenceRepository(pool *pgxpool.Pool) *GeofenceRepository {
 	return &GeofenceRepository{pool: pool}
+}
+
+// ErrInvalidGeometry wraps PostGIS rejections of client-supplied WKT/GeoJSON.
+var ErrInvalidGeometry = errors.New("invalid geometry")
+
+// pgInternalError is the SQLSTATE PostGIS raises for unparsable geometry input.
+const pgInternalError = "XX000"
+
+// geometryParsePrefixes are lower-cased PostGIS messages for invalid client
+// geometry. XX000 is Postgres' catch-all internal error, so the code alone is
+// not enough.
+var geometryParsePrefixes = []string{
+	"parse error", "unknown geojson type", "invalid geojson", "geometry requires more points",
+}
+
+// geometryError maps a PostGIS parse failure to ErrInvalidGeometry and wraps
+// any other error with op.
+func geometryError(op string, err error) error {
+	if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok && pgErr.Code == pgInternalError &&
+		slices.ContainsFunc(geometryParsePrefixes, func(p string) bool { return strings.HasPrefix(strings.ToLower(pgErr.Message), p) }) {
+		return fmt.Errorf("%w: %s", ErrInvalidGeometry, pgErr.Message)
+	}
+	return fmt.Errorf("%s: %w", op, err)
 }
 
 // isWKT returns true if the input looks like WKT (starts with a geometry type keyword).
@@ -62,32 +88,26 @@ func (r *GeofenceRepository) Create(ctx context.Context, g *model.Geofence) erro
 		g.Name, g.Description, geomInput, attrs, g.CalendarID,
 	).Scan(&g.ID, &g.Area, &g.Geometry, &g.CalendarID, &g.CreatedAt, &g.UpdatedAt)
 	if err != nil {
-		return fmt.Errorf("create geofence: %w", err)
+		return geometryError("create geofence", err)
 	}
 	return nil
 }
 
 // GetByID retrieves a geofence by its ID, returning area as WKT and geometry as GeoJSON.
 func (r *GeofenceRepository) GetByID(ctx context.Context, id int64) (*model.Geofence, error) {
-	var g model.Geofence
-	var attrs []byte
-	err := r.pool.QueryRow(ctx, `
+	rows, err := r.pool.Query(ctx, `
 		SELECT id, name, description, ST_AsText(geometry), ST_AsGeoJSON(geometry), attributes, calendar_id, created_at, updated_at
 		FROM geofences
 		WHERE id = $1
-	`, id).Scan(&g.ID, &g.Name, &g.Description, &g.Area, &g.Geometry, &attrs, &g.CalendarID, &g.CreatedAt, &g.UpdatedAt)
+	`, id)
 	if err != nil {
 		return nil, fmt.Errorf("get geofence by id: %w", err)
 	}
-	if len(attrs) > 0 {
-		if err := json.Unmarshal(attrs, &g.Attributes); err != nil {
-			slog.Warn("failed to unmarshal geofence attributes",
-				slog.Int64("geofenceID", g.ID),
-				slog.Any("error", err))
-			g.Attributes = make(map[string]any)
-		}
+	g, err := pgx.CollectOneRow(rows, rowToGeofence)
+	if err != nil {
+		return nil, fmt.Errorf("get geofence by id: %w", err)
 	}
-	return &g, nil
+	return g, nil
 }
 
 // GetByUser retrieves all geofences associated with a user.
@@ -101,19 +121,6 @@ func (r *GeofenceRepository) GetByUser(ctx context.Context, userID int64) ([]*mo
 	`, userID)
 	if err != nil {
 		return nil, fmt.Errorf("get geofences by user: %w", err)
-	}
-	return pgx.CollectRows(rows, rowToGeofence)
-}
-
-// GetAll retrieves all geofences, ordered by name.
-func (r *GeofenceRepository) GetAll(ctx context.Context) ([]*model.Geofence, error) {
-	rows, err := r.pool.Query(ctx, `
-		SELECT id, name, description, ST_AsText(geometry), ST_AsGeoJSON(geometry), attributes, calendar_id, created_at, updated_at
-		FROM geofences
-		ORDER BY name
-	`)
-	if err != nil {
-		return nil, fmt.Errorf("get all geofences: %w", err)
 	}
 	return pgx.CollectRows(rows, rowToGeofence)
 }
@@ -135,17 +142,8 @@ func (r *GeofenceRepository) GetAllWithOwners(ctx context.Context) ([]*model.Geo
 	}
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (*model.Geofence, error) {
 		var g model.Geofence
-		var attrs []byte
-		if err := row.Scan(&g.ID, &g.Name, &g.Description, &g.Area, &g.Geometry, &attrs, &g.CalendarID, &g.CreatedAt, &g.UpdatedAt, &g.OwnerName); err != nil {
+		if err := scanGeofence(row, &g, &g.OwnerName); err != nil {
 			return nil, fmt.Errorf("scan geofence with owner: %w", err)
-		}
-		if len(attrs) > 0 {
-			if err := json.Unmarshal(attrs, &g.Attributes); err != nil {
-				slog.Warn("failed to unmarshal geofence attributes",
-					slog.Int64("geofenceID", g.ID),
-					slog.Any("error", err))
-				g.Attributes = make(map[string]any)
-			}
 		}
 		return &g, nil
 	})
@@ -181,7 +179,7 @@ func (r *GeofenceRepository) Update(ctx context.Context, g *model.Geofence) erro
 		g.Name, g.Description, geomInput, attrs, g.CalendarID, g.ID,
 	)
 	if err != nil {
-		return fmt.Errorf("update geofence: %w", err)
+		return geometryError("update geofence", err)
 	}
 	return nil
 }
@@ -240,11 +238,12 @@ func (r *GeofenceRepository) CheckContainmentForDevice(ctx context.Context, devi
 	return pgx.AppendRows([]int64(nil), rows, pgx.RowTo[int64])
 }
 
-func rowToGeofence(row pgx.CollectableRow) (*model.Geofence, error) {
-	var g model.Geofence
+// scanGeofence scans a geofence row, followed by extra, into g.
+func scanGeofence(row pgx.Row, g *model.Geofence, extra ...any) error {
 	var attrs []byte
-	if err := row.Scan(&g.ID, &g.Name, &g.Description, &g.Area, &g.Geometry, &attrs, &g.CalendarID, &g.CreatedAt, &g.UpdatedAt); err != nil {
-		return nil, fmt.Errorf("scan geofence: %w", err)
+	dest := append([]any{&g.ID, &g.Name, &g.Description, &g.Area, &g.Geometry, &attrs, &g.CalendarID, &g.CreatedAt, &g.UpdatedAt}, extra...)
+	if err := row.Scan(dest...); err != nil {
+		return err
 	}
 	if len(attrs) > 0 {
 		if err := json.Unmarshal(attrs, &g.Attributes); err != nil {
@@ -253,6 +252,14 @@ func rowToGeofence(row pgx.CollectableRow) (*model.Geofence, error) {
 				slog.Any("error", err))
 			g.Attributes = make(map[string]any)
 		}
+	}
+	return nil
+}
+
+func rowToGeofence(row pgx.CollectableRow) (*model.Geofence, error) {
+	var g model.Geofence
+	if err := scanGeofence(row, &g); err != nil {
+		return nil, fmt.Errorf("scan geofence: %w", err)
 	}
 	return &g, nil
 }

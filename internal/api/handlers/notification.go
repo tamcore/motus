@@ -14,20 +14,6 @@ import (
 	"github.com/tamcore/motus/internal/services"
 )
 
-// validEventTypes lists the event types the notification system supports.
-var validEventTypes = map[string]bool{
-	"geofenceEnter": true,
-	"geofenceExit":  true,
-	"deviceOnline":  true,
-	"deviceOffline": true,
-	"motion":        true,
-	"deviceIdle":    true,
-	"ignitionOn":    true,
-	"ignitionOff":   true,
-	"alarm":         true,
-	"tripCompleted": true,
-}
-
 // validChannels lists the notification delivery channels.
 var validChannels = map[string]bool{
 	model.NotificationChannelWebhook: true,
@@ -40,7 +26,7 @@ var validChannels = map[string]bool{
 // returns a client-facing error message. requireTemplate enforces a non-empty
 // template for webhook rules (create only, matching the historical update
 // behaviour).
-func notificationRuleFromInput(ctx context.Context, req *oas.NotificationRuleInput, requireTemplate bool) (*model.NotificationRule, string) {
+func notificationRuleFromInput(req *oas.NotificationRuleInput, requireTemplate bool) (*model.NotificationRule, string) {
 	if req.Name == "" {
 		return nil, "name is required"
 	}
@@ -48,7 +34,7 @@ func notificationRuleFromInput(ctx context.Context, req *oas.NotificationRuleInp
 		return nil, "at least one event type is required"
 	}
 	for _, et := range req.EventTypes {
-		if !validEventTypes[et] {
+		if !model.IsNotificationEventType(et) {
 			return nil, fmt.Sprintf("invalid event type: %s", et)
 		}
 	}
@@ -60,12 +46,6 @@ func notificationRuleFromInput(ctx context.Context, req *oas.NotificationRuleInp
 	var cfg map[string]any
 	switch req.Channel {
 	case model.NotificationChannelCommand:
-		// Command rules send device commands; apply the same readonly-key
-		// restriction as POST /api/commands/send (also enforced by the
-		// WriteAccess middleware).
-		if key := api.ApiKeyFromContext(ctx); key != nil && key.IsReadonly() {
-			return nil, "this API key has read-only permissions"
-		}
 		cmdCfg, ok := req.Config.GetNotificationConfigCommand()
 		if !ok {
 			return nil, "config does not match channel command"
@@ -151,24 +131,8 @@ func notificationCommandConfigToModel(c oas.NotificationConfigCommand) (map[stri
 			c.Attributes.Value.Type, c.CommandType)
 	}
 	attrs := oasCommandAttrsToModel(c.Attributes)
-	switch c.CommandType {
-	case model.CommandPositionPeriodic:
-		if f, _ := attrs["frequency"].(int); f <= 0 || f > model.MaxReportingIntervalSeconds {
-			return nil, fmt.Errorf("positionPeriodic requires a frequency between 1 and %d seconds",
-				model.MaxReportingIntervalSeconds)
-		}
-	case model.CommandSosNumber:
-		if p, _ := attrs["phoneNumber"].(string); p == "" {
-			return nil, fmt.Errorf("sosNumber requires a phoneNumber attribute")
-		}
-	case model.CommandSetSpeedAlarm:
-		if s, ok := attrs["speed"].(float64); !ok || s < 0 {
-			return nil, fmt.Errorf("setSpeedAlarm requires a speed attribute >= 0")
-		}
-	case model.CommandCustom:
-		if t, _ := attrs["text"].(string); t == "" {
-			return nil, fmt.Errorf("custom commands require a non-empty 'text' attribute")
-		}
+	if err := validateCommandAttrs(c.CommandType, attrs); err != nil {
+		return nil, err
 	}
 	cfg := map[string]any{"commandType": c.CommandType}
 	if len(attrs) > 0 {
@@ -205,7 +169,7 @@ func (h *Handler) CreateNotification(ctx context.Context, req *oas.NotificationR
 	if user == nil {
 		return &oas.CreateNotificationUnauthorized{Error: "unauthorized"}, nil
 	}
-	rule, msg := notificationRuleFromInput(ctx, req, true)
+	rule, msg := notificationRuleFromInput(req, true)
 	if msg != "" {
 		return &oas.CreateNotificationBadRequest{Error: msg}, nil
 	}
@@ -217,12 +181,10 @@ func (h *Handler) CreateNotification(ctx context.Context, req *oas.NotificationR
 		return &oas.CreateNotificationBadRequest{Error: "failed to create notification rule"}, nil
 	}
 
-	if h.cfg.AuditLogger != nil {
-		h.cfg.AuditLogger.Log(ctx, &user.ID,
-			audit.ActionNotifCreate, audit.ResourceNotification, &rule.ID,
-			map[string]any{"name": rule.Name, "eventTypes": rule.EventTypes, "channel": rule.Channel},
-			"", "")
-	}
+	h.cfg.AuditLogger.Log(ctx, &user.ID,
+		audit.ActionNotifCreate, audit.ResourceNotification, &rule.ID,
+		map[string]any{"name": rule.Name, "eventTypes": rule.EventTypes, "channel": rule.Channel},
+		"", "")
 	out := notificationRuleToOAS(rule)
 	return &out, nil
 }
@@ -233,7 +195,7 @@ func (h *Handler) UpdateNotification(ctx context.Context, req *oas.NotificationR
 	if user == nil {
 		return &oas.UpdateNotificationUnauthorized{Error: "unauthorized"}, nil
 	}
-	rule, msg := notificationRuleFromInput(ctx, req, false)
+	rule, msg := notificationRuleFromInput(req, false)
 	if msg != "" {
 		return &oas.UpdateNotificationBadRequest{Error: msg}, nil
 	}
@@ -242,7 +204,7 @@ func (h *Handler) UpdateNotification(ctx context.Context, req *oas.NotificationR
 	if err != nil {
 		return &oas.UpdateNotificationNotFound{Error: "notification rule not found"}, nil
 	}
-	if existing.UserID != user.ID && !user.IsAdmin() {
+	if !user.CanManage(existing.UserID) {
 		return &oas.UpdateNotificationForbidden{Error: "access denied"}, nil
 	}
 	if rule.GeofenceIDs, msg = h.resolveRuleGeofenceIDs(ctx, user, req.EventTypes, req.GeofenceIds, existing); msg != "" {
@@ -255,12 +217,10 @@ func (h *Handler) UpdateNotification(ctx context.Context, req *oas.NotificationR
 		return &oas.UpdateNotificationBadRequest{Error: "failed to update notification rule"}, nil
 	}
 
-	if h.cfg.AuditLogger != nil {
-		h.cfg.AuditLogger.Log(ctx, &user.ID,
-			audit.ActionNotifUpdate, audit.ResourceNotification, &params.ID,
-			map[string]any{"name": rule.Name, "eventTypes": rule.EventTypes, "channel": rule.Channel},
-			"", "")
-	}
+	h.cfg.AuditLogger.Log(ctx, &user.ID,
+		audit.ActionNotifUpdate, audit.ResourceNotification, &params.ID,
+		map[string]any{"name": rule.Name, "eventTypes": rule.EventTypes, "channel": rule.Channel},
+		"", "")
 	out := notificationRuleToOAS(rule)
 	return &out, nil
 }
@@ -275,18 +235,15 @@ func (h *Handler) DeleteNotification(ctx context.Context, params oas.DeleteNotif
 	if err != nil {
 		return &oas.DeleteNotificationNotFound{Error: "notification rule not found"}, nil
 	}
-	if existing.UserID != user.ID && !user.IsAdmin() {
+	if !user.CanManage(existing.UserID) {
 		return &oas.DeleteNotificationForbidden{Error: "access denied"}, nil
 	}
 	if err := h.cfg.Notifications.Delete(ctx, params.ID); err != nil {
 		return &oas.DeleteNotificationForbidden{Error: "failed to delete notification rule"}, nil
 	}
-	if h.cfg.AuditLogger != nil {
-		id := params.ID
-		h.cfg.AuditLogger.Log(ctx, &user.ID,
-			audit.ActionNotifDelete, audit.ResourceNotification, &id,
-			nil, "", "")
-	}
+	h.cfg.AuditLogger.Log(ctx, &user.ID,
+		audit.ActionNotifDelete, audit.ResourceNotification, &params.ID,
+		nil, "", "")
 	return &oas.DeleteNotificationNoContent{}, nil
 }
 
@@ -300,7 +257,7 @@ func (h *Handler) NotificationLogs(ctx context.Context, params oas.NotificationL
 	if err != nil {
 		return &oas.NotificationLogsNotFound{Error: "notification rule not found"}, nil
 	}
-	if rule.UserID != user.ID && !user.IsAdmin() {
+	if !user.CanManage(rule.UserID) {
 		return &oas.NotificationLogsForbidden{Error: "access denied"}, nil
 	}
 	logs, err := h.cfg.Notifications.GetLogsByRule(ctx, params.ID, 50)
@@ -327,7 +284,7 @@ func (h *Handler) TestNotification(ctx context.Context, params oas.TestNotificat
 	if err != nil {
 		return &oas.TestNotificationNotFound{Error: "notification rule not found"}, nil
 	}
-	if rule.UserID != user.ID && !user.IsAdmin() {
+	if !user.CanManage(rule.UserID) {
 		return &oas.TestNotificationForbidden{Error: "access denied"}, nil
 	}
 	if _, err := h.cfg.NotificationService.SendTestNotification(ctx, rule); err != nil {
@@ -356,7 +313,7 @@ func oasNotificationConfigToModel(config oas.NotificationRuleConfig) (map[string
 		}
 		return cfg, nil
 	}
-	return nil, fmt.Errorf("unsupported notification channel config")
+	return nil, errors.New("unsupported notification channel config")
 }
 
 // AdminListNotifications returns all notification rules in the system (admin only).

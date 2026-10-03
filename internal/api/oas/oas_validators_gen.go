@@ -337,8 +337,8 @@ func (s *CommandAttrPositionPeriodic) Validate() error {
 	}
 	if err := func() error {
 		if err := (validate.Int{
-			MinSet:        false,
-			Min:           0,
+			MinSet:        true,
+			Min:           1,
 			MaxSet:        true,
 			Max:           86400,
 			MinExclusive:  false,

@@ -15,11 +15,6 @@ import (
 	"github.com/tamcore/motus/internal/websocket"
 )
 
-// motionSpeedThreshold is the minimum speed in km/h to classify a device as
-// moving. This mirrors services.MotionThreshold but is defined locally to
-// avoid a circular import between protocol and services packages.
-const motionSpeedThreshold = 5.0
-
 // GeofenceChecker is the interface for checking geofence containment on new positions.
 type GeofenceChecker interface {
 	CheckGeofences(ctx context.Context, position *model.Position) error
@@ -191,7 +186,7 @@ func (h *PositionHandler) address(pos *model.Position) *string {
 // HandlePosition stores a position and broadcasts it via WebSocket.
 func (h *PositionHandler) HandlePosition(ctx context.Context, pos *model.Position) error {
 	// Determine motion state from position speed.
-	isMoving := pos.Speed != nil && *pos.Speed >= motionSpeedThreshold
+	isMoving := pos.Speed != nil && *pos.Speed >= model.MotionThreshold
 
 	// Set the Traccar-compatible "motion" attribute on the position BEFORE
 	// storing it so the attribute is persisted in the database. Home Assistant

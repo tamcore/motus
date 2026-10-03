@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/tamcore/motus/internal/api"
@@ -9,7 +10,7 @@ import (
 	"github.com/tamcore/motus/internal/audit"
 	"github.com/tamcore/motus/internal/calendar"
 	"github.com/tamcore/motus/internal/model"
-	"github.com/tamcore/motus/internal/validation"
+	"github.com/tamcore/motus/internal/services"
 )
 
 // --- ogen Handler methods ---
@@ -40,32 +41,12 @@ func (h *Handler) CreateCalendar(ctx context.Context, req *oas.CalendarInput) (o
 	if user == nil {
 		return &oas.CreateCalendarUnauthorized{Error: "unauthorized"}, nil
 	}
-	if req.Name == "" {
-		return &oas.CreateCalendarBadRequest{Error: "name is required"}, nil
-	}
-	if err := validation.ValidateDisplayName(req.Name); err != nil {
-		return &oas.CreateCalendarBadRequest{Error: err.Error()}, nil
-	}
-	if req.Data == "" {
-		return &oas.CreateCalendarBadRequest{Error: "data is required"}, nil
-	}
-	if err := calendar.Validate(req.Data); err != nil {
-		return &oas.CreateCalendarBadRequest{Error: "invalid iCalendar data: " + err.Error()}, nil
-	}
-
-	cal := &model.Calendar{
-		UserID: user.ID,
-		Name:   req.Name,
-		Data:   req.Data,
-	}
-	if err := h.cfg.Calendars.Create(ctx, cal); err != nil {
-		return &oas.CreateCalendarBadRequest{Error: "failed to create calendar"}, nil
-	}
-
-	if h.cfg.AuditLogger != nil {
-		h.cfg.AuditLogger.Log(ctx, &user.ID,
-			audit.ActionCalendarCreate, audit.ResourceCalendar, &cal.ID,
-			map[string]any{"name": cal.Name}, "", "")
+	cal, err := h.cfg.CalendarService.CreateForUser(ctx, user, services.CalendarInput{
+		Name: req.Name,
+		Data: req.Data,
+	})
+	if err != nil {
+		return &oas.CreateCalendarBadRequest{Error: services.PublicMessage(err, "failed to create calendar")}, nil
 	}
 	out := calendarToOAS(cal)
 	return &out, nil
@@ -77,38 +58,17 @@ func (h *Handler) UpdateCalendar(ctx context.Context, req *oas.CalendarInput, pa
 	if user == nil {
 		return &oas.UpdateCalendarUnauthorized{Error: "unauthorized"}, nil
 	}
-	if !h.cfg.Calendars.UserHasAccess(ctx, user, params.ID) {
-		return &oas.UpdateCalendarNotFound{Error: "calendar not found"}, nil
+	updated, err := h.cfg.CalendarService.UpdateForUser(ctx, user, params.ID, services.CalendarInput{
+		Name: req.Name,
+		Data: req.Data,
+	})
+	if errors.Is(err, services.ErrNotFound) {
+		return &oas.UpdateCalendarNotFound{Error: err.Error()}, nil
 	}
-	existing, err := h.cfg.Calendars.GetByID(ctx, params.ID)
 	if err != nil {
-		return &oas.UpdateCalendarNotFound{Error: "calendar not found"}, nil
+		return &oas.UpdateCalendarBadRequest{Error: services.PublicMessage(err, "failed to update calendar")}, nil
 	}
-
-	updated := *existing
-	if req.Name != "" {
-		if err := validation.ValidateDisplayName(req.Name); err != nil {
-			return &oas.UpdateCalendarBadRequest{Error: err.Error()}, nil
-		}
-		updated.Name = req.Name
-	}
-	if req.Data != "" {
-		if err := calendar.Validate(req.Data); err != nil {
-			return &oas.UpdateCalendarBadRequest{Error: "invalid iCalendar data: " + err.Error()}, nil
-		}
-		updated.Data = req.Data
-	}
-
-	if err := h.cfg.Calendars.Update(ctx, &updated); err != nil {
-		return &oas.UpdateCalendarBadRequest{Error: "failed to update calendar"}, nil
-	}
-
-	if h.cfg.AuditLogger != nil {
-		h.cfg.AuditLogger.Log(ctx, &user.ID,
-			audit.ActionCalendarUpdate, audit.ResourceCalendar, &updated.ID,
-			map[string]any{"name": updated.Name}, "", "")
-	}
-	out := calendarToOAS(&updated)
+	out := calendarToOAS(updated)
 	return &out, nil
 }
 
@@ -124,12 +84,9 @@ func (h *Handler) DeleteCalendar(ctx context.Context, params oas.DeleteCalendarP
 	if err := h.cfg.Calendars.Delete(ctx, params.ID); err != nil {
 		return &oas.DeleteCalendarNotFound{Error: "failed to delete calendar"}, nil
 	}
-	if h.cfg.AuditLogger != nil {
-		id := params.ID
-		h.cfg.AuditLogger.Log(ctx, &user.ID,
-			audit.ActionCalendarDelete, audit.ResourceCalendar, &id,
-			nil, "", "")
-	}
+	h.cfg.AuditLogger.Log(ctx, &user.ID,
+		audit.ActionCalendarDelete, audit.ResourceCalendar, &params.ID,
+		nil, "", "")
 	return &oas.DeleteCalendarNoContent{}, nil
 }
 

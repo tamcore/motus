@@ -23,10 +23,16 @@ vi.mock("$lib/stores/settings", async () => {
   };
 });
 
+const isAdminStore = await vi.hoisted(async () => {
+  const { writable } = await import("svelte/store");
+  return writable(true);
+});
+
 vi.mock("$lib/stores/auth", async () => {
   const { writable } = await import("svelte/store");
   return {
     currentUser: writable({ id: 1, name: "Admin", administrator: true }),
+    isAdmin: isAdminStore,
   };
 });
 
@@ -55,7 +61,8 @@ describe("fetchPositions", () => {
       { deviceId: 1, latitude: 52.0, longitude: 13.0 } as any,
     ]);
 
-    const result = await fetchPositions(false);
+    isAdminStore.set(false);
+    const result = await fetchPositions();
     expect(spy).toHaveBeenCalled();
     expect(result).toHaveLength(1);
     spy.mockRestore();
@@ -65,7 +72,8 @@ describe("fetchPositions", () => {
     settings.update((s) => ({ ...s, showAllDevices: false }));
     const spy = vi.spyOn(api, "getPositions").mockResolvedValueOnce([]);
 
-    await fetchPositions(true);
+    isAdminStore.set(true);
+    await fetchPositions();
     expect(spy).toHaveBeenCalled();
     spy.mockRestore();
   });
@@ -77,7 +85,8 @@ describe("fetchPositions", () => {
       { deviceId: 2, latitude: 51.0, longitude: 12.0 } as any,
     ]);
 
-    const result = await fetchPositions(true);
+    isAdminStore.set(true);
+    const result = await fetchPositions();
     expect(spy).toHaveBeenCalled();
     expect(result).toHaveLength(2);
     spy.mockRestore();

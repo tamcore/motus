@@ -102,7 +102,7 @@ func (r *PositionRepository) GetLatestByUser(ctx context.Context, userID int64) 
 	}
 	defer rows.Close()
 
-	return scanPositions(rows)
+	return pgx.CollectRows(rows, rowToPosition)
 }
 
 // GetLatestAll returns the latest position for every device in the system (admin use).
@@ -120,7 +120,7 @@ func (r *PositionRepository) GetLatestAll(ctx context.Context) ([]*model.Positio
 	}
 	defer rows.Close()
 
-	return scanPositions(rows)
+	return pgx.CollectRows(rows, rowToPosition)
 }
 
 // GetPreviousByDevice returns the position immediately before the given timestamp
@@ -342,16 +342,12 @@ func (r *PositionRepository) countByDevice(ctx context.Context, userID int64, fr
 	if err != nil {
 		return nil, fmt.Errorf("count by device: %w", err)
 	}
-	defer rows.Close()
 	counts := make(map[int64]int64)
-	for rows.Next() {
-		var id, n int64
-		if err := rows.Scan(&id, &n); err != nil {
-			return nil, fmt.Errorf("count by device: %w", err)
-		}
+	var id, n int64
+	if _, err := pgx.ForEachRow(rows, []any{&id, &n}, func() error {
 		counts[id] = n
-	}
-	if err := rows.Err(); err != nil {
+		return nil
+	}); err != nil {
 		return nil, fmt.Errorf("count by device: %w", err)
 	}
 	return counts, nil
@@ -433,9 +429,7 @@ func (r *PositionRepository) stream(ctx context.Context, fn func(*model.Position
 }
 
 // scanPosition scans a single row into a Position.
-func scanPosition(scanner interface {
-	Scan(dest ...any) error
-}, p *model.Position) error {
+func scanPosition(scanner pgx.Row, p *model.Position) error {
 	var attrs, network []byte
 	// protocol column is nullable (added in migration 00014 without NOT NULL),
 	// so we scan into *string to handle NULL values from pre-existing rows.
@@ -495,8 +489,4 @@ func rowToPosition(row pgx.CollectableRow) (*model.Position, error) {
 		return nil, fmt.Errorf("scan position: %w", err)
 	}
 	return p, nil
-}
-
-func scanPositions(rows pgx.Rows) ([]*model.Position, error) {
-	return pgx.CollectRows(rows, rowToPosition)
 }

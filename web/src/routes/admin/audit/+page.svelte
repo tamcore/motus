@@ -1,30 +1,13 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { currentUser } from '$lib/stores/auth';
+	import { isAdmin } from '$lib/stores/auth';
 	import { refreshHandler } from '$lib/stores/refresh';
 	import { api } from '$lib/api/client';
 	import { formatDate } from '$lib/utils/formatting';
 	import Button from '$lib/components/Button.svelte';
+	import type { AuditEntry } from '$lib/types/api';
 
-	interface AuditEntry {
-		id: number;
-		timestamp: string;
-		userId: number | null;
-		action: string;
-		resourceType: string | null;
-		resourceId: number | null;
-		details: Record<string, unknown> | null;
-		ipAddress: string | null;
-		userAgent: string | null;
-	}
-
-	interface AuditResponse {
-		entries: AuditEntry[];
-		total: number;
-		limit: number;
-		offset: number;
-	}
 
 	const ACTIONS = [
 		{ value: '', label: 'All Actions' },
@@ -100,12 +83,11 @@
 	// Detail expansion
 	let expandedId: number | null = null;
 
-	$: isAdmin = ($currentUser as Record<string, unknown> | null)?.administrator === true;
 	$: totalPages = Math.ceil(total / PAGE_SIZE);
 	$: offset = currentPage * PAGE_SIZE;
 
 	onMount(() => {
-		if (!isAdmin) {
+		if (!$isAdmin) {
 			goto('/');
 			return;
 		}
@@ -124,7 +106,7 @@
 				resourceType: filterResourceType,
 				limit: PAGE_SIZE,
 				offset
-			}) as AuditResponse;
+			});
 			entries = response.entries || [];
 			total = response.total || 0;
 		} catch (err: any) {
@@ -254,7 +236,7 @@
 						{#each entries as entry (entry.id)}
 							<tr>
 								<td class="time-cell">
-									{formatDate(entry.timestamp)}
+									{formatDate(entry.createdAt)}
 								</td>
 								<td>
 									<span class="action-badge {getActionClass(entry.action)}">
@@ -279,7 +261,7 @@
 									{/if}
 								</td>
 								<td class="details-cell">
-									{#if entry.details && Object.keys(entry.details).length > 0}
+									{#if entry.metadata && Object.keys(entry.metadata).length > 0}
 										<button
 											class="details-toggle"
 											on:click={() => toggleDetails(entry.id)}
@@ -292,10 +274,10 @@
 									{/if}
 								</td>
 							</tr>
-							{#if expandedId === entry.id && entry.details}
+							{#if expandedId === entry.id && entry.metadata}
 								<tr class="details-row">
 									<td colspan="5">
-										<pre class="details-content">{formatDetails(entry.details)}</pre>
+										<pre class="details-content">{formatDetails(entry.metadata)}</pre>
 									</td>
 								</tr>
 							{/if}

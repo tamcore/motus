@@ -16,7 +16,7 @@ import (
 	"github.com/tamcore/motus/internal/websocket"
 )
 
-// memDeviceRepo is an in-memory DeviceRepo for WATCH server tests. Methods
+// memDeviceRepo is an in-memory DeviceRepo for protocol server tests. Methods
 // not used by the protocol server panic via the nil embedded interface.
 type memDeviceRepo struct {
 	repository.DeviceRepo
@@ -74,6 +74,15 @@ func (r *memDeviceRepo) MarkOnline(_ context.Context, id, positionID int64, at t
 	return nil, fmt.Errorf("device %d not found", id)
 }
 
+func (r *memDeviceRepo) Create(_ context.Context, d *model.Device, _ int64) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.nextID++
+	d.ID = r.nextID
+	r.devices[d.UniqueID] = d
+	return nil
+}
+
 func (r *memDeviceRepo) Update(_ context.Context, d *model.Device) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -104,7 +113,7 @@ func (r *memDeviceRepo) get(uniqueID string) *model.Device {
 	return &c
 }
 
-// memPositionRepo is an in-memory PositionRepo for WATCH server tests.
+// memPositionRepo is an in-memory PositionRepo for protocol server tests.
 type memPositionRepo struct {
 	repository.PositionRepo
 	mu        sync.Mutex

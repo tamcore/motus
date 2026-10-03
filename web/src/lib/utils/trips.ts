@@ -1,22 +1,5 @@
 import { downloadCSV } from "./download";
-
-export interface Position {
-  timestamp?: string;
-  fixTime?: string;
-  latitude: number;
-  longitude: number;
-  speed: number;
-  address?: string | null;
-  deviceId?: number;
-}
-
-/**
- * Get the time string from a position, handling both
- * `fixTime` (from API) and `timestamp` (legacy) fields.
- */
-export function getPositionTime(pos: Position): string {
-  return pos.fixTime || pos.timestamp || "";
-}
+import { dateValue } from "./date-range";
 
 export interface Trip {
   id: string;
@@ -67,5 +50,5 @@ export function exportTripsToCSV(trips: Trip[]): void {
     trip.maxSpeed.toFixed(1),
   ]);
 
-  downloadCSV(headers, rows, `motus-trips-${new Date().toISOString().slice(0, 10)}.csv`);
+  downloadCSV(headers, rows, `motus-trips-${dateValue(new Date())}.csv`);
 }

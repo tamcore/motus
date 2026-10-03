@@ -1,18 +1,9 @@
 import { test, expect } from '../fixtures/auth-fixture';
+import { mockFetch } from '../helpers/mock-fetch';
 
 test.describe('Error Handling', () => {
   test('should show error on dashboard when API returns 500', async ({ authedPage }) => {
-    // addInitScript intercepts fetch at JS level (page.route is unreliable with SvelteKit)
-    await authedPage.addInitScript(() => {
-      const origFetch = window.fetch;
-      window.fetch = async function (input: RequestInfo | URL, init?: RequestInit) {
-        const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-        if (url.includes('/api/devices') && !url.includes('/api/devices/')) {
-          return new Response('Internal Server Error', { status: 500 });
-        }
-        return origFetch.apply(globalThis, [input, init] as Parameters<typeof fetch>);
-      } as typeof fetch;
-    });
+    await mockFetch(authedPage, [{ path: '/api/devices', status: 500, text: 'Internal Server Error' }]);
     await authedPage.goto('/');
     // App should not crash - dashboard should still render
     await expect(authedPage.locator('h1:has-text("Dashboard")')).toBeVisible();
@@ -34,20 +25,7 @@ test.describe('Error Handling', () => {
   });
 
   test('should handle devices API returning empty array', async ({ authedPage }) => {
-    // Use addInitScript to intercept fetch at JS level (more reliable than page.route with SvelteKit)
-    await authedPage.addInitScript(() => {
-      const origFetch = window.fetch;
-      window.fetch = async function (input: RequestInfo | URL, init?: RequestInit) {
-        const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-        if (url.includes('/api/devices') && !url.includes('/api/devices/')) {
-          return new Response('[]', {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' },
-          });
-        }
-        return origFetch.apply(globalThis, [input, init] as Parameters<typeof fetch>);
-      } as typeof fetch;
-    });
+    await mockFetch(authedPage, [{ path: '/api/devices', body: [] }]);
     await authedPage.goto('/devices');
     await expect(authedPage.locator('.empty-state')).toBeVisible({ timeout: 15000 });
     await expect(authedPage.locator('.empty-state')).toContainText('No devices');
@@ -125,16 +103,7 @@ test.describe('Error Handling', () => {
   });
 
   test('should handle reports API failure', async ({ authedPage }) => {
-    await authedPage.addInitScript(() => {
-      const origFetch = window.fetch;
-      window.fetch = async function (input, init) {
-        const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-        if (url.includes('/api/reports/activity')) {
-          return new Response('Server Error', { status: 500 });
-        }
-        return origFetch.apply(globalThis, [input, init] as Parameters<typeof fetch>);
-      } as typeof fetch;
-    });
+    await mockFetch(authedPage, [{ match: '/api/reports/activity', status: 500, text: 'Server Error' }]);
     await authedPage.goto('/reports');
     await authedPage.waitForSelector('h1:has-text("Reports")');
 

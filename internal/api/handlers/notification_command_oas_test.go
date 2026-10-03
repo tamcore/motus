@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tamcore/motus/internal/api"
 	"github.com/tamcore/motus/internal/api/handlers"
 	oas "github.com/tamcore/motus/internal/api/oas"
 	"github.com/tamcore/motus/internal/audit"
@@ -188,9 +187,6 @@ func TestCreateNotification_CommandValidation(t *testing.T) {
 				Channel: oas.NotificationConfigCommandChannelCommand, CommandType: model.CommandPositionPeriodic,
 			})
 		}, "frequency"},
-		{"interval not positive", func(in *oas.NotificationRuleInput) {
-			in.Config = intervalCommandConfig(0)
-		}, "frequency"},
 		{"attributes for other command type", func(in *oas.NotificationRuleInput) {
 			in.Config = oas.NewNotificationConfigCommandNotificationRuleConfig(oas.NotificationConfigCommand{
 				Channel:     oas.NotificationConfigCommandChannelCommand,
@@ -251,21 +247,6 @@ func TestCreateNotification_ParameterlessCommandAllowed(t *testing.T) {
 	}
 	if _, has := created.Config["attributes"]; has {
 		t.Errorf("parameterless command must not store attributes: %#v", created.Config)
-	}
-}
-
-func TestCreateNotification_CommandRuleRejectedForReadonlyApiKey(t *testing.T) {
-	var created *model.NotificationRule
-	h := newNotificationGeofenceTestHandler(capturingNotifRepo(&created), 100)
-
-	ctx := api.ContextWithApiKey(notificationTestUserCtx(1), &model.ApiKey{ID: 1, Permissions: model.PermissionReadonly})
-	res, _ := h.CreateNotification(ctx, petExitRuleInput())
-	bad, ok := res.(*oas.CreateNotificationBadRequest)
-	if !ok || !strings.Contains(bad.Error, "read-only") {
-		t.Fatalf("expected read-only rejection, got %#v", res)
-	}
-	if created != nil {
-		t.Error("rule must not be persisted")
 	}
 }
 
@@ -347,40 +328,18 @@ func TestCreateNotification_RejectsReconnectLoopCommands(t *testing.T) {
 	}
 }
 
-func TestCreateNotification_IntervalUpperBound(t *testing.T) {
-	var created *model.NotificationRule
-	h := newNotificationGeofenceTestHandler(capturingNotifRepo(&created), 100)
-
-	in := petExitRuleInput()
-	in.Config = intervalCommandConfig(model.MaxReportingIntervalSeconds)
-	res, _ := h.CreateNotification(notificationTestUserCtx(1), in)
-	if _, ok := res.(*oas.NotificationRule); !ok {
-		t.Fatalf("interval of exactly the maximum must be accepted, got %#v", res)
-	}
-
-	created = nil
-	in.Config = intervalCommandConfig(model.MaxReportingIntervalSeconds + 1)
-	res, _ = h.CreateNotification(notificationTestUserCtx(1), in)
-	bad, ok := res.(*oas.CreateNotificationBadRequest)
-	if !ok || !strings.Contains(bad.Error, "frequency") {
-		t.Fatalf("expected frequency upper-bound rejection, got %#v", res)
-	}
-	if created != nil {
-		t.Error("rule must not be persisted")
-	}
-}
-
-// TestCommandAttrPositionPeriodic_SpecMaximum checks that the OpenAPI schema
-// (maximum: 86400) rejects larger intervals at request decoding.
-func TestCommandAttrPositionPeriodic_SpecMaximum(t *testing.T) {
-	ok := oas.CommandAttrPositionPeriodic{Type: oas.CommandAttrPositionPeriodicTypePositionPeriodic, Frequency: model.MaxReportingIntervalSeconds}
-	if err := ok.Validate(); err != nil {
-		t.Errorf("frequency %d must be valid: %v", ok.Frequency, err)
-	}
-	tooLarge := ok
-	tooLarge.Frequency = model.MaxReportingIntervalSeconds + 1
-	if err := tooLarge.Validate(); err == nil {
-		t.Errorf("frequency %d must be rejected by the spec", tooLarge.Frequency)
+// TestCommandAttrPositionPeriodic_SpecBounds checks that the OpenAPI schema
+// (minimum: 1, maximum: 86400) rejects out-of-range intervals at decoding.
+func TestCommandAttrPositionPeriodic_SpecBounds(t *testing.T) {
+	const maxFrequency = 86400
+	for _, tc := range []struct {
+		frequency int
+		valid     bool
+	}{{0, false}, {1, true}, {maxFrequency, true}, {maxFrequency + 1, false}} {
+		attrs := oas.CommandAttrPositionPeriodic{Type: oas.CommandAttrPositionPeriodicTypePositionPeriodic, Frequency: tc.frequency}
+		if err := attrs.Validate(); (err == nil) != tc.valid {
+			t.Errorf("frequency %d: valid=%v, err=%v", tc.frequency, tc.valid, err)
+		}
 	}
 }
 

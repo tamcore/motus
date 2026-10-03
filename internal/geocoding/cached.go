@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/tamcore/motus/internal/metrics"
+	"github.com/tamcore/motus/internal/ticker"
 )
 
 // CachedGeocoder wraps a Geocoder with a TTL-based address cache.
@@ -133,38 +134,23 @@ func (cg *CachedGeocoder) lookup(ctx context.Context, lat, lon float64) (string,
 			slog.Float64("lon", lon),
 			slog.Any("error", err),
 		)
-		// Return the fallback (which ReverseGeocode already provides) but
-		// do NOT cache it so subsequent requests will retry.
-		return coordinateFallback(lat, lon), false
+		// Do NOT cache the fallback so subsequent requests will retry.
+		return CoordinateFallback(lat, lon), false
 	}
 
 	cg.cache.Set(lat, lon, addr)
 	return addr, true
 }
 
-// Cache returns the underlying cache for inspection or cleanup.
-func (cg *CachedGeocoder) Cache() *Cache {
-	return cg.cache
-}
-
 // StartCleanup starts a background goroutine that periodically removes expired
 // cache entries. It stops when the context is cancelled.
 func (cg *CachedGeocoder) StartCleanup(ctx context.Context, interval time.Duration) {
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			removed := cg.cache.Cleanup()
-			if removed > 0 {
-				cg.logger.Debug("geocoding cache cleanup",
-					slog.Int("removed", removed),
-					slog.Int("remaining", cg.cache.Size()),
-				)
-			}
+	ticker.Every(ctx, interval, func() {
+		if removed := cg.cache.Cleanup(); removed > 0 {
+			cg.logger.Debug("geocoding cache cleanup",
+				slog.Int("removed", removed),
+				slog.Int("remaining", cg.cache.Size()),
+			)
 		}
-	}
+	})
 }

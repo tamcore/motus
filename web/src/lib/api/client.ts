@@ -41,12 +41,17 @@ import type {
 } from "$lib/types/api";
 import type { Trip } from "$lib/utils/trips";
 import type { Stop } from "$lib/utils/stops";
-import { currentUser } from "$lib/stores/auth";
+import { currentUser, isAdmin } from "$lib/stores/auth";
 import * as svelteStore from "svelte/store";
-import { getCsrfToken, getAuthHeaders, setCsrfToken } from "./headers";
+import { getAuthHeaders, setCsrfToken } from "./headers";
 
 const API_BASE = "/api";
 const KNOTS_TO_KMH = 1.852;
+
+/** Converts a position's speed from knots (Traccar API) to km/h (internal UI unit). */
+export function speedToKmh<T extends { speed?: number | null }>(pos: T): T {
+  return pos.speed != null ? { ...pos, speed: pos.speed * KNOTS_TO_KMH } : pos;
+}
 
 export class APIError extends Error {
   constructor(
@@ -57,14 +62,26 @@ export class APIError extends Error {
   }
 }
 
-async function request<T>(
+/** The `error` field of a JSON error body, else the raw body. */
+function errorMessage(body: string, status: number): string {
+  try {
+    const parsed = JSON.parse(body) as { error?: unknown } | null;
+    if (typeof parsed?.error === "string" && parsed.error !== "") return parsed.error;
+  } catch {
+    // Plain-text body.
+  }
+  return body || `Request failed (${status})`;
+}
+
+export async function request<T>(
   endpoint: string,
   options: RequestInit = {},
 ): Promise<T> {
   const method = (options.method || "GET").toUpperCase();
   const authHeaders = await getAuthHeaders(method);
   const headers: HeadersInit = {
-    "Content-Type": "application/json",
+    // The browser sets the multipart boundary for FormData bodies.
+    ...(options.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
     ...authHeaders,
     ...options.headers,
   };
@@ -81,7 +98,7 @@ async function request<T>(
   }
 
   if (!response.ok) {
-    throw new APIError(response.status, await response.text());
+    throw new APIError(response.status, errorMessage(await response.text(), response.status));
   }
 
   if (
@@ -224,33 +241,13 @@ export const api = {
     request<void>(`/devices/${id}`, { method: "DELETE" }),
 
   /** Import a GPX track file into a device's position history. */
-  importGPX: async (
-    deviceId: number,
-    file: File,
-  ): Promise<{ imported: number; skipped: number }> => {
-    const formData = new FormData();
-    formData.append("file", file);
-
-    const headers: Record<string, string> = {};
-    const csrfTokenValue = getCsrfToken();
-    if (csrfTokenValue) {
-      headers["X-CSRF-Token"] = csrfTokenValue;
-    }
-
-    const response = await fetch(`${API_BASE}/devices/${deviceId}/gpx`, {
+  importGPX: (deviceId: number, file: File) => {
+    const body = new FormData();
+    body.append("file", file);
+    return request<{ imported: number; skipped: number }>(`/devices/${deviceId}/gpx`, {
       method: "POST",
-      body: formData,
-      credentials: "include",
-      headers,
+      body,
     });
-
-    const token = response.headers.get("X-CSRF-Token");
-    if (token) setCsrfToken(token);
-
-    if (!response.ok) {
-      throw new APIError(response.status, await response.text());
-    }
-    return response.json();
   },
 
   // ---------------------------------------------------------------------------
@@ -277,12 +274,7 @@ export const api = {
     if (params?.to) query.set("to", params.to);
     if (params?.limit) query.set("limit", String(params.limit));
 
-    // Normalize speed from knots (Traccar API) to km/h (internal UI unit).
-    return request<Position[]>(`/positions?${query}`).then((positions) =>
-      positions.map((pos) =>
-        pos.speed != null ? { ...pos, speed: pos.speed * KNOTS_TO_KMH } : pos,
-      ),
-    );
+    return request<Position[]>(`/positions?${query}`).then((positions) => positions.map(speedToKmh));
   },
 
   /** Server-side trips and stops in one pass; trip speeds are converted from knots to km/h. */
@@ -313,7 +305,7 @@ export const api = {
     });
     if (params.limit) query.set("limit", String(params.limit));
     return request<PositionPoint[]>(`/positions/points?${query}`).then((points) =>
-      points.map((p) => ({ ...p, speed: p.speed * KNOTS_TO_KMH })),
+      points.map(speedToKmh),
     );
   },
 
@@ -458,11 +450,7 @@ export const api = {
     if (params?.limit) query.set("limit", String(params.limit));
     const qs = query.toString();
     const path = qs ? `/admin/positions?${qs}` : "/admin/positions";
-    return request<Position[]>(path).then((positions) =>
-      positions.map((pos) =>
-        pos.speed != null ? { ...pos, speed: pos.speed * KNOTS_TO_KMH } : pos,
-      ),
-    );
+    return request<Position[]>(path).then((positions) => positions.map(speedToKmh));
   },
 
   /** Get devices assigned to a user (admin only). */
@@ -643,33 +631,30 @@ export const api = {
  * everyone else gets only their own.
  */
 async function fetchScoped<T extends object>(
-  isAdmin: boolean,
   all: () => Promise<T[]>,
   own: () => Promise<T[]>,
 ): Promise<T[]> {
   const { getSettings } = await import("$lib/stores/settings");
-  if (isAdmin && getSettings().showAllDevices) {
+  if (svelteStore.get(isAdmin) && getSettings().showAllDevices) {
     return stripOwnOwnerName(await all());
   }
   return own();
 }
 
-export const fetchDevices = (isAdmin: boolean) =>
-  fetchScoped<Device>(isAdmin, api.getAllDevices, api.getDevices);
-export const fetchPositions = (isAdmin: boolean) =>
-  fetchScoped<Position>(isAdmin, () => api.getAllPositions(), () => api.getPositions());
-export const fetchGeofences = (isAdmin: boolean) =>
-  fetchScoped<Geofence>(isAdmin, api.getAllGeofences, api.getGeofences);
-export const fetchCalendars = (isAdmin: boolean) =>
-  fetchScoped<Calendar>(isAdmin, api.getAllCalendars, api.getCalendars);
-export const fetchNotifications = (isAdmin: boolean) =>
-  fetchScoped<NotificationRule>(isAdmin, api.getAllNotifications, api.getNotifications);
+export const fetchDevices = () =>
+  fetchScoped<Device>(api.getAllDevices, api.getDevices);
+export const fetchPositions = () =>
+  fetchScoped<Position>(() => api.getAllPositions(), () => api.getPositions());
+export const fetchGeofences = () =>
+  fetchScoped<Geofence>(api.getAllGeofences, api.getGeofences);
+export const fetchCalendars = () =>
+  fetchScoped<Calendar>(api.getAllCalendars, api.getCalendars);
+export const fetchNotifications = () =>
+  fetchScoped<NotificationRule>(api.getAllNotifications, api.getNotifications);
 
 /** Clear ownerName on items that belong to the current user so they don't get highlighted. */
 function stripOwnOwnerName<T extends object>(items: T[]): T[] {
-  const { get } = svelteStore;
-  const user = get(currentUser) as Record<string, unknown> | null;
-  const myName = (user?.name as string) || "";
+  const myName = svelteStore.get(currentUser)?.name || "";
   if (!myName) return items;
   return items.map((item) =>
     "ownerName" in item && item.ownerName === myName ? { ...item, ownerName: undefined } : item

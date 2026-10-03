@@ -70,4 +70,21 @@ describe("trail bookmark API client", () => {
     expect(url).toBe("/api/trail-bookmarks/9");
     expect(init.method).toBe("DELETE");
   });
+
+  it("rejects with the error field of a JSON error body", async () => {
+    stubFetch({ error: "name is required" }, 400);
+    await expect(api.createTrailBookmark(payload)).rejects.toMatchObject({
+      status: 400,
+      message: "name is required",
+    });
+  });
+
+  it("sends FormData without a JSON content type", async () => {
+    const fetchMock = stubFetch({ imported: 1, skipped: 0 });
+    await api.importGPX(4, new File(["<gpx/>"], "t.gpx"));
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("/api/devices/4/gpx");
+    expect(init.body).toBeInstanceOf(FormData);
+    expect(init.headers["Content-Type"]).toBeUndefined();
+  });
 });

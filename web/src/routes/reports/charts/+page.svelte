@@ -1,10 +1,9 @@
 <script lang="ts">
-	import { ALL_TIME_START } from '$lib/utils/date-range';
+	import { dateValue, resolveDatePreset, type DatePreset } from '$lib/utils/date-range';
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
 	import { page } from '$app/stores';
 	import { api, fetchDevices } from '$lib/api/client';
-	import { currentUser } from '$lib/stores/auth';
 	import { refreshHandler } from '$lib/stores/refresh';
 	import { theme } from '$lib/stores/theme';
 	import { formatDate } from '$lib/utils/formatting';
@@ -37,8 +36,7 @@
 
 	// Configuration
 	let selectedDeviceId = '';
-	type PeriodPreset = 'today' | 'yesterday' | 'thisWeek' | 'prevWeek' | 'thisMonth' | 'prevMonth' | 'all' | 'custom';
-	let periodPreset: PeriodPreset = 'today';
+	let periodPreset: DatePreset = 'today';
 	let customFrom = '';
 	let customTo = '';
 	let selectedMetrics: string[] = ['speed'];
@@ -62,55 +60,6 @@
 	// Rebuild chart when theme changes
 	$: if (chartCanvas && positions.length > 0 && selectedMetrics.length > 0) {
 		rebuildChart(isDark);
-	}
-
-	// ---------------------------------------------------------------------------
-	// Period Helpers
-	// ---------------------------------------------------------------------------
-
-	function getDateRange(): { from: string; to: string } {
-		const now = new Date();
-		const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-		switch (periodPreset) {
-			case 'today':
-				return { from: today.toISOString(), to: now.toISOString() };
-			case 'yesterday': {
-				const yesterday = new Date(today);
-				yesterday.setDate(yesterday.getDate() - 1);
-				return { from: yesterday.toISOString(), to: today.toISOString() };
-			}
-			case 'thisWeek': {
-				const weekStart = new Date(today);
-				weekStart.setDate(today.getDate() - today.getDay());
-				return { from: weekStart.toISOString(), to: now.toISOString() };
-			}
-			case 'prevWeek': {
-				const thisWeekStart = new Date(today);
-				thisWeekStart.setDate(today.getDate() - today.getDay());
-				const prevWeekStart = new Date(thisWeekStart);
-				prevWeekStart.setDate(prevWeekStart.getDate() - 7);
-				return { from: prevWeekStart.toISOString(), to: thisWeekStart.toISOString() };
-			}
-			case 'thisMonth': {
-				const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-				return { from: monthStart.toISOString(), to: now.toISOString() };
-			}
-			case 'prevMonth': {
-				const prevMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-				const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-				return { from: prevMonthStart.toISOString(), to: currentMonthStart.toISOString() };
-			}
-			case 'all':
-				return { from: ALL_TIME_START.toISOString(), to: now.toISOString() };
-			case 'custom':
-				return {
-					from: customFrom ? new Date(customFrom + 'T00:00:00').toISOString() : now.toISOString(),
-					to: customTo ? new Date(customTo + 'T23:59:59').toISOString() : now.toISOString(),
-				};
-			default:
-				return { from: today.toISOString(), to: now.toISOString() };
-		}
 	}
 
 	// ---------------------------------------------------------------------------
@@ -143,7 +92,7 @@
 		positions = [];
 
 		try {
-			const { from, to } = getDateRange();
+			const { from, to } = resolveDatePreset(periodPreset, customFrom, customTo);
 			const result = await api.getPositions({
 				deviceId: Number(selectedDeviceId),
 				from,
@@ -266,7 +215,7 @@
 	function handleExportPNG() {
 		if (!chartCanvas) return;
 		const link = document.createElement('a');
-		link.download = `motus-chart-${new Date().toISOString().slice(0, 10)}.png`;
+		link.download = `motus-chart-${dateValue(new Date())}.png`;
 		link.href = chartCanvas.toDataURL('image/png');
 		link.click();
 	}
@@ -276,21 +225,13 @@
 	// ---------------------------------------------------------------------------
 
 	onMount(async () => {
-		try {
-			const isAdmin = ($currentUser as Record<string, unknown> | null)?.administrator === true;
-			devices = await fetchDevices(isAdmin);
-
-			// Pre-select device from query param (?device=ID)
-			const deviceParam = $page.url.searchParams.get('device');
-			if (deviceParam && devices.some((d) => String(d.id) === deviceParam)) {
-				selectedDeviceId = deviceParam;
-			}
-		} catch (err) {
-			console.error('Failed to load devices:', err);
-			errorMsg = 'Failed to load devices.';
-		} finally {
-			loading = false;
+		await reloadDevices();
+		// Pre-select device from query param (?device=ID)
+		const deviceParam = $page.url.searchParams.get('device');
+		if (deviceParam && devices.some((d) => String(d.id) === deviceParam)) {
+			selectedDeviceId = deviceParam;
 		}
+		loading = false;
 		$refreshHandler = reloadDevices;
 	});
 
@@ -304,16 +245,16 @@
 	});
 
 	async function reloadDevices() {
-		const isAdmin = ($currentUser as Record<string, unknown> | null)?.administrator === true;
 		try {
-			devices = await fetchDevices(isAdmin);
-		} catch {
-			console.error('Failed to reload devices');
+			devices = await fetchDevices();
+		} catch (err) {
+			console.error('Failed to load devices:', err);
+			errorMsg = 'Failed to load devices.';
 		}
 	}
 
 	// Readable period labels
-	const periodOptions: { value: PeriodPreset; label: string }[] = [
+	const periodOptions: { value: DatePreset; label: string }[] = [
 		{ value: 'today', label: 'Today' },
 		{ value: 'yesterday', label: 'Yesterday' },
 		{ value: 'thisWeek', label: 'This Week' },

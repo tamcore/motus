@@ -1,12 +1,24 @@
 <script lang="ts">
-	export let status: 'online' | 'offline' | 'idle' | 'moving' = 'offline';
+	import type { DeviceStatus, NotificationLog } from '$lib/types/api';
+
+	export let status: DeviceStatus | NotificationLog['status'] = 'offline';
 	export let showLabel = false;
+
+	const KINDS: Record<typeof status, DeviceStatus | 'idle'> = {
+		online: 'online',
+		offline: 'offline',
+		unknown: 'unknown',
+		sent: 'online',
+		queued: 'idle',
+		failed: 'offline'
+	};
+	$: kind = KINDS[status] ?? 'unknown';
 </script>
 
-<div class="status-indicator" role="status" aria-label="{status}">
-	<span class="dot status-{status}"></span>
+<div class="status-indicator" role="status" aria-label="{kind}">
+	<span class="dot status-{kind}"></span>
 	{#if showLabel}
-		<span class="label">{status}</span>
+		<span class="label">{kind}</span>
 	{/if}
 </div>
 
@@ -32,8 +44,8 @@
 	.status-idle {
 		background-color: var(--status-idle);
 	}
-	.status-moving {
-		background-color: var(--status-moving);
+	.status-unknown {
+		background-color: var(--text-tertiary);
 	}
 
 	.label {

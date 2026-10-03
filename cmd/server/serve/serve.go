@@ -144,8 +144,9 @@ func Run() {
 	// Audit logger.
 	auditLogger := audit.NewLogger(pool)
 
-	// Geofence service (shared by OAS handler and AI MCP tools).
+	// Geofence and calendar services (shared by OAS handler and AI MCP tools).
 	geofenceService := services.NewGeofenceService(geofenceRepo, auditLogger)
+	calendarService := services.NewCalendarService(calendarRepo, auditLogger)
 
 	// Device registry (used by protocol servers below).
 	deviceRegistry := protocol.NewDeviceRegistry()
@@ -249,6 +250,7 @@ func Run() {
 
 	// Unified API handler.
 	handler := handlers.NewHandler(handlers.HandlerConfig{
+		AIEnabled:           cfg.AI.Enabled,
 		Users:               userRepo,
 		Sessions:            sessionRepo,
 		Devices:             deviceRepo,
@@ -268,6 +270,7 @@ func Run() {
 		WebAuthnCookieKey:   webAuthnCookieKey,
 		NotificationService: notificationService,
 		GeofenceService:     geofenceService,
+		CalendarService:     calendarService,
 		DeviceRegistry:      deviceRegistry,
 		EncoderRegistry:     encoderRegistry,
 		Hub:                 hub,
@@ -282,7 +285,7 @@ func Run() {
 
 	// Login rate limiter: Redis-backed (cluster-wide) when Redis is available,
 	// in-process (per-pod only) otherwise.
-	loginRateLimit := middleware.LoginRateLimit()
+	loginRateLimit := middleware.RateLimit(middleware.DefaultLoginRateLimit())
 	if redisClient != nil {
 		loginRateLimit = middleware.NewRedisLoginRateLimit(redisClient, middleware.DefaultLoginRateLimit())
 	} else if cfg.Redis.Enabled {
@@ -307,7 +310,6 @@ func Run() {
 		if cfg.Geocoding.Enabled {
 			cachedGeocoder = geocoding.NewCachedGeocoder(nominatim, cfg.Geocoding.CacheTTL, geocodeLogger)
 			slog.Info("geocoding enabled",
-				slog.String("provider", cfg.Geocoding.Provider),
 				slog.String("cacheTTL", cfg.Geocoding.CacheTTL.String()),
 				slog.Float64("rateLimit", cfg.Geocoding.RateLimit),
 				slog.Bool("sharedRateLimit", geocodeLimiter != nil),
@@ -318,7 +320,6 @@ func Run() {
 	var chatHandler http.Handler
 	var chatHistoryHandler http.Handler
 	if cfg.AI.Enabled {
-		calendarService := services.NewCalendarService(calendarRepo, auditLogger)
 		mcpSrv := aiMCP.NewServer(aiMCP.Deps{
 			Devices:         deviceRepo,
 			Positions:       positionRepo,
@@ -357,7 +358,6 @@ func Run() {
 			slog.String("baseURL", cfg.AI.BaseURL),
 			slog.Bool("guardrail", cfg.AI.GuardrailEnabled))
 	}
-	handler.SetAIEnabled(cfg.AI.Enabled)
 
 	trustedProxies, err := cfg.Security.TrustedProxyPrefixes()
 	if err != nil {
@@ -367,7 +367,7 @@ func Run() {
 	routerCfg := api.RouterConfig{
 		RealIP:          middleware.RealIP(trustedProxies),
 		LoginRateLimit:  loginRateLimit,
-		APIRateLimit:    middleware.APIRateLimit(),
+		APIRateLimit:    middleware.RateLimit(middleware.DefaultAPIRateLimit()),
 		SecurityHeaders: middleware.SecurityHeaders,
 		Auth:            middleware.LoadAuthContext(userRepo, sessionRepo, apiKeyRepo),
 		WriteAccess:     middleware.RequireWriteAccess,
@@ -401,7 +401,7 @@ func Run() {
 	// Idle detection service.
 	idleService := services.NewIdleService(deviceRepo, positionRepo, eventRepo, hub, notificationService, svcLogger)
 	if cachedGeocoder != nil {
-		idleService.SetGeocoder(cachedGeocoder, positionRepo)
+		idleService.SetGeocoder(cachedGeocoder)
 	}
 
 	// Mileage tracking service.

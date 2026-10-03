@@ -2,6 +2,9 @@ package model
 
 import "time"
 
+// MotionThreshold is the minimum speed in km/h to consider a device in motion.
+const MotionThreshold = 5.0
+
 // Position represents a GPS position report from a device.
 type Position struct {
 	ID          int64          `json:"id"`

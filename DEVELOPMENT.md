@@ -11,7 +11,7 @@
 The fastest way to get a running stack is Docker Compose:
 
 ```bash
-docker compose -f docker-compose.dev.yml up -d --build --wait
+docker compose -f docker-compose.yaml -f docker-compose.dev.yaml up -d --build --wait
 ```
 
 This starts: PostGIS → migrations → admin seed → Motus server on http://localhost:8080.
@@ -20,7 +20,7 @@ For active development with hot-reload, run the backend and frontend separately:
 
 ```bash
 # Terminal 1: Start only the database
-docker compose -f docker-compose.dev.yml up db -d --wait
+docker compose -f docker-compose.yaml -f docker-compose.dev.yaml up db -d --wait
 
 # Terminal 2: Run migrations and start backend
 make build
@@ -107,7 +107,7 @@ npx playwright test --ui
 | Target | Description |
 |--------|-------------|
 | `build` | Build motus binary |
-| `lint` | Run all linters (go vet, golangci-lint, frontend check) |
+| `lint` | Run all linters (golangci-lint, frontend check) |
 | `test` | Run all tests (includes lint) |
 | `dev-deploy-k8s` | Build dev image, push, deploy to K8s |
 | `dev-reset-database` | Reset database (delete all data) |

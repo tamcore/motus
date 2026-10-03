@@ -5,8 +5,11 @@
  */
 import type { TrailBookmark, TrailBookmarkPayload } from "$lib/types/api";
 import { formatDate, formatDuration } from "$lib/utils/formatting";
+import { parseLocalBoundary } from "$lib/utils/date-range";
 import {
+  rangeToInputs,
   resolveTrailRange,
+  type RangeInputs,
   trailRangeToSearchParams,
   type TrailRange,
 } from "$lib/utils/trail-range";
@@ -64,26 +67,11 @@ export function bookmarkMatchesRange(b: Pick<TrailBookmark, "from" | "to">, rang
   );
 }
 
-/**
- * Native input values of a bookmark form: date `yyyy-mm-dd`, time `HH:mm` or
- * empty (start / end of the day), in local time.
- */
-export interface BookmarkRangeFields {
-  fromDate: string;
-  fromTime: string;
-  toDate: string;
-  toTime: string;
-}
-
 /** The exact boundaries a bookmark form was prefilled with. */
 export interface BookmarkRangeOriginal {
   from: string;
   to: string;
 }
-
-const pad2 = (n: number) => String(n).padStart(2, "0");
-const dateValue = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-const timeValue = (d: Date) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 
 /**
  * Freezes a range to absolute ISO boundaries (relative presets end at `now`),
@@ -97,40 +85,7 @@ export function bookmarkOriginalFromRange(
   return { from: from.toISOString(), to: to.toISOString() };
 }
 
-/**
- * Form values for absolute boundaries. As in the trail range selector, a
- * start at 00:00 / an end at 23:59 leaves the time empty (whole day).
- */
-export function bookmarkFormFromRange(range: TrailRange, now: Date = new Date()): BookmarkRangeFields {
-  const { from, to } = resolveTrailRange(range, now);
-  const fromIsDayStart = from.getHours() === 0 && from.getMinutes() === 0;
-  const toIsDayEnd = to.getHours() === 23 && to.getMinutes() === 59;
-  return {
-    fromDate: dateValue(from),
-    fromTime: fromIsDayStart ? "" : timeValue(from),
-    toDate: dateValue(to),
-    toTime: toIsDayEnd ? "" : timeValue(to),
-  };
-}
-
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const TIME_RE = /^\d{2}:\d{2}$/;
-
-/**
- * Parses native date + optional time input values as local time. A start
- * covers its whole minute from :00.000, an end up to :59.999; an empty time
- * means 00:00 / 23:59. Returns null for invalid input.
- */
-export function parseBookmarkBoundary(date: string, time: string, edge: "start" | "end"): Date | null {
-  if (!DATE_RE.test(date) || (time !== "" && !TIME_RE.test(time))) return null;
-  const hm = time || (edge === "start" ? "00:00" : "23:59");
-  const d = new Date(`${date}T${hm}:${edge === "start" ? "00.000" : "59.999"}`);
-  // Reject overflowing values such as 2026-02-31 or 24:30.
-  if (isNaN(d.getTime()) || dateValue(d) !== date || timeValue(d) !== hm) return null;
-  return d;
-}
-
-export interface BookmarkFormInput extends BookmarkRangeFields {
+export interface BookmarkFormInput extends RangeInputs {
   deviceId: number;
   name: string;
   description: string;
@@ -170,37 +125,25 @@ export function buildBookmarkPayload(
   }
 
   const initial = original
-    ? bookmarkFormFromRange({ preset: "custom", from: original.from, to: original.to })
+    ? rangeToInputs({ preset: "custom", from: original.from, to: original.to })
     : null;
   // Untouched boundaries are sent verbatim (keeps seconds / sub-ms precision
   // of bookmarks created through the API).
   const from =
     original && initial && input.fromDate === initial.fromDate && input.fromTime === initial.fromTime
       ? original.from
-      : parseBookmarkBoundary(input.fromDate, input.fromTime, "start")?.toISOString();
+      : parseLocalBoundary(input.fromDate, input.fromTime, "start")?.toISOString();
   if (!from) return { ok: false, error: "Invalid start date or time" };
   const to =
     original && initial && input.toDate === initial.toDate && input.toTime === initial.toTime
       ? original.to
-      : parseBookmarkBoundary(input.toDate, input.toTime, "end")?.toISOString();
+      : parseLocalBoundary(input.toDate, input.toTime, "end")?.toISOString();
   if (!to) return { ok: false, error: "Invalid end date or time" };
   if (new Date(from).getTime() >= new Date(to).getTime()) {
     return { ok: false, error: "Start must be before end" };
   }
 
   return { ok: true, payload: { deviceId: input.deviceId, name, description, from, to } };
-}
-
-/** User-facing message for a failed request (unwraps `{"error": "..."}` bodies). */
-export function bookmarkErrorMessage(err: unknown, fallback: string): string {
-  if (!(err instanceof Error) || err.message === "") return fallback;
-  try {
-    const body = JSON.parse(err.message) as { error?: unknown } | null;
-    if (body && typeof body.error === "string" && body.error !== "") return body.error;
-  } catch {
-    // Plain-text message.
-  }
-  return err.message;
 }
 
 /** Case-insensitive search over name, description and device name. */

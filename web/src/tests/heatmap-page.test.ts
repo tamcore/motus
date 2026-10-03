@@ -14,6 +14,7 @@ vi.mock("$lib/api/client", () => ({
 }));
 vi.mock("$lib/stores/auth", () => ({
   currentUser: writable({ id: 1, email: "admin@motus.local", administrator: true }),
+  isAdmin: writable(true),
 }));
 vi.mock("$lib/stores/refresh", () => ({ refreshHandler: writable(null) }));
 vi.mock("$lib/stores/theme", () => ({ theme: writable("light") }));
@@ -26,13 +27,13 @@ vi.mock("$lib/composables/useLeaflet", () => {
       cleanup: vi.fn(),
       getMap: () => map,
       getLeaflet: () => L,
-      getTileLayer: () => null,
     }),
   };
 });
-vi.mock("$lib/utils/leaflet-heat", () => ({
-  loadHeatLayer: vi.fn().mockResolvedValue(() => ({ addTo: () => ({}) })),
-}));
+vi.mock("leaflet.heat", () => {
+  (window as unknown as { L: Record<string, unknown> }).L.heatLayer = () => ({ addTo: () => ({}) });
+  return {};
+});
 
 import { settings } from "$lib/stores/settings";
 import HeatmapPage from "../routes/heatmap/+page.svelte";
@@ -67,13 +68,12 @@ describe("heatmap page", () => {
   });
 
   describe("custom range", () => {
-    const origTZ = process.env.TZ;
     beforeEach(() => {
       // A zone east of UTC, so UTC midnight and local midnight differ.
-      process.env.TZ = "Europe/Berlin";
+      vi.stubEnv("TZ", "Europe/Berlin");
     });
     afterEach(() => {
-      process.env.TZ = origTZ;
+      vi.unstubAllEnvs();
     });
 
     it("queries from local midnight of the start day to the end of the end day", async () => {
@@ -91,9 +91,28 @@ describe("heatmap page", () => {
       expect(mocks.getPositionPoints).toHaveBeenLastCalledWith(
         expect.objectContaining({
           from: "2026-01-12T23:00:00.000Z",
-          to: "2026-01-15T22:59:59.000Z",
+          to: "2026-01-15T22:59:59.999Z",
         }),
       );
+    });
+
+    it("falls back to the last 7 days when the custom start is empty", async () => {
+      mocks.fetchDevices.mockResolvedValue([
+        { id: 7, name: "Car", uniqueId: "7", status: "online" },
+        { id: 8, name: "Bike", uniqueId: "8", status: "online" },
+      ]);
+      const { container } = render(HeatmapPage);
+      await waitFor(() => expect(mocks.getPositionPoints).toHaveBeenCalled());
+      mocks.getPositionPoints.mockClear();
+
+      await fireEvent.change(screen.getByLabelText("Date Range"), { target: { value: "custom" } });
+      await fireEvent.change(container.querySelector("#device-filter")!, { target: { value: "8" } });
+
+      await waitFor(() => expect(mocks.getPositionPoints).toHaveBeenCalled());
+      const { from, to } = mocks.getPositionPoints.mock.calls.at(-1)![0];
+      const spanDays = (Date.parse(to) - Date.parse(from)) / 86_400_000;
+      expect(spanDays).toBeGreaterThan(6.9);
+      expect(spanDays).toBeLessThan(7.1);
     });
   });
 });

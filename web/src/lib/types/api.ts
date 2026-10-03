@@ -64,13 +64,16 @@ export interface UpdateProfilePayload {
 // Device
 // ---------------------------------------------------------------------------
 
+/** Device connection state; "unknown" means it never connected. */
+export type DeviceStatus = "online" | "offline" | "unknown";
+
 /** A GPS tracking device. */
 export interface Device {
   id: number;
   uniqueId: string;
   name: string;
   protocol?: string;
-  status: string;
+  status: DeviceStatus;
   speedLimit?: number | null;
   lastUpdate?: string | null;
   positionId?: number | null;
@@ -357,11 +360,10 @@ export interface NotificationLog {
   id: number;
   ruleId: number;
   eventId?: number;
-  status: string;
-  sentAt?: string;
+  status: "sent" | "queued" | "failed";
+  sentAt?: string | null;
   error?: string;
   responseCode?: number;
-  createdAt: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -446,14 +448,14 @@ export interface UserStats {
 /** A single audit log entry. */
 export interface AuditEntry {
   id: number;
-  timestamp: string;
-  userId?: number | null;
   action: string;
-  resourceType?: string | null;
-  resourceId?: number | null;
-  details?: Record<string, unknown>;
-  ipAddress?: string | null;
-  userAgent?: string | null;
+  userId: number;
+  userEmail?: string;
+  resourceType?: string;
+  resourceId?: string;
+  metadata?: Record<string, unknown>;
+  ipAddress?: string;
+  createdAt: string;
 }
 
 /** Paginated response from the audit log endpoint. */
@@ -503,43 +505,6 @@ export interface PasskeyCredentialInfo {
   name: string;
   createdAt: string;
   lastUsedAt?: string | null;
-}
-
-// ---------------------------------------------------------------------------
-// Calendar
-// ---------------------------------------------------------------------------
-
-/** A time-based schedule stored in iCalendar (RFC 5545) format. */
-export interface Calendar {
-  id: number;
-  userId?: number;
-  name: string;
-  /** iCalendar (RFC 5545) data containing VEVENT components. */
-  data: string;
-  createdAt: string;
-  updatedAt: string;
-  /** Present only in admin list-all responses. */
-  ownerName?: string;
-}
-
-/** Payload for creating a new calendar. */
-export interface CreateCalendarPayload {
-  name: string;
-  data: string;
-}
-
-/** Payload for updating an existing calendar. */
-export interface UpdateCalendarPayload {
-  name?: string;
-  data?: string;
-}
-
-/** Response from the calendar check endpoint. */
-export interface CalendarCheckResponse {
-  calendarId: number;
-  name: string;
-  active: boolean;
-  checkedAt: string;
 }
 
 // ---------------------------------------------------------------------------

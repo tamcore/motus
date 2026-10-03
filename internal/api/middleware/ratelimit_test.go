@@ -136,7 +136,7 @@ func TestRateLimit_ResponseFormat(t *testing.T) {
 }
 
 func TestLoginRateLimit_BlocksAfterFiveRequests(t *testing.T) {
-	mw := middleware.LoginRateLimit()
+	mw := middleware.RateLimit(middleware.DefaultLoginRateLimit())
 	handler := mw(http.HandlerFunc(okHandler))
 
 	// LoginRateLimit allows 5 requests per minute (burst of 5).
@@ -161,7 +161,7 @@ func TestLoginRateLimit_BlocksAfterFiveRequests(t *testing.T) {
 }
 
 func TestAPIRateLimit_AllowsManyRequests(t *testing.T) {
-	mw := middleware.APIRateLimit()
+	mw := middleware.RateLimit(middleware.DefaultAPIRateLimit())
 	handler := mw(http.HandlerFunc(okHandler))
 
 	// APIRateLimit allows 100 requests per minute (burst of 100).

@@ -1,5 +1,56 @@
+/** Raw form inputs of the command parameters. */
+export interface CommandFormValues {
+  frequency?: string;
+  phoneNumber?: string;
+  speed?: string;
+  text?: string;
+}
+
+function parsePositiveInt(raw: string | undefined): number | null {
+  const s = (raw ?? "").trim();
+  if (!/^\d+$/.test(s)) return null;
+  const n = Number(s);
+  return n > 0 ? n : null;
+}
+
+/** Parameters of one command type, or a user-facing error. */
+function commandParams(
+  commandType: string,
+  values: CommandFormValues,
+): { params: Record<string, unknown> } | { error: string } {
+  switch (commandType) {
+    case "positionPeriodic": {
+      const frequency = parsePositiveInt(values.frequency);
+      if (frequency === null) return { error: "Interval must be a positive whole number of seconds" };
+      if (frequency > MAX_REPORTING_INTERVAL_SECONDS) {
+        return { error: `Interval must be at most ${MAX_REPORTING_INTERVAL_SECONDS} seconds (1 day)` };
+      }
+      return { params: { frequency } };
+    }
+    case "sosNumber": {
+      const phoneNumber = (values.phoneNumber ?? "").trim();
+      return phoneNumber ? { params: { phoneNumber } } : { error: "SOS number is required" };
+    }
+    case "setSpeedAlarm": {
+      const s = (values.speed ?? "").trim();
+      const speed = Number(s);
+      if (s === "" || !Number.isFinite(speed) || speed < 0) {
+        return { error: "Speed must be 0 or a positive number" };
+      }
+      return { params: { speed } };
+    }
+    case "custom": {
+      const text = (values.text ?? "").trim();
+      return text ? { params: { text } } : { error: "Command text is required" };
+    }
+    default:
+      return { params: {} };
+  }
+}
+
 /**
- * Builds the `attributes` payload for POST /api/commands/send.
+ * Validates the command form and builds the `attributes` payload for
+ * POST /api/commands/send and command notification rules.
  *
  * The API decodes command attributes as a oneOf discriminated by `type`
  * (docs/openapi.yaml `CommandAttributes`), so the command type must be
@@ -7,24 +58,24 @@
  * the attributes entirely: an empty object matches no variant and the
  * request is rejected ("unable to detect sum type variant").
  */
-export function commandAttributesPayload(
+export function buildCommandAttributes(
   commandType: string,
-  values: Record<string, unknown>,
-): Record<string, unknown> | undefined {
-  if (Object.keys(values).length === 0) {
-    return undefined;
-  }
-  return { ...values, type: commandType };
+  values: CommandFormValues,
+): { attributes?: Record<string, unknown>; error?: string } {
+  const result = commandParams(commandType, values);
+  if ("error" in result) return { error: result.error };
+  if (Object.keys(result.params).length === 0) return {};
+  return { attributes: { ...result.params, type: commandType } };
 }
 
-/** Display names of the command types, keyed by API command type. */
+/** Display names of the command types, keyed by API command type, in display order. */
 export const COMMAND_TYPE_LABELS: Readonly<Record<string, string>> = {
-  rebootDevice: "Reboot Device",
   positionPeriodic: "Set Reporting Interval",
   positionSingle: "Request Position",
+  rebootDevice: "Reboot Device",
   sosNumber: "Set SOS Number",
-  custom: "Custom (raw text)",
   setSpeedAlarm: "Set Speed Alarm",
+  custom: "Custom (raw text)",
   factoryReset: "Factory Reset",
 };
 
@@ -80,9 +131,7 @@ export function commandIntervalLabel(cmd: {
   attributes?: Record<string, unknown>;
 }): string | null {
   if (cmd.type !== "positionPeriodic") return null;
-  const raw = cmd.attributes?.frequency;
-  const seconds =
-    typeof raw === "number" ? raw : typeof raw === "string" && raw.trim() !== "" ? Number(raw) : NaN;
-  if (!Number.isFinite(seconds) || seconds <= 0) return null;
+  const seconds = cmd.attributes?.frequency;
+  if (typeof seconds !== "number" || !Number.isFinite(seconds) || seconds <= 0) return null;
   return `Interval: ${formatInterval(seconds)}`;
 }

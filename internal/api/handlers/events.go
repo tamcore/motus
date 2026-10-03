@@ -27,16 +27,9 @@ func (h *Handler) listEvents(ctx context.Context, deviceID oas.OptInt64, eventTy
 		eventTypes = []string{t}
 	}
 
-	fromTime := time.Now().Add(-24 * time.Hour)
-	toTime := time.Now()
-	if t, ok := from.Get(); ok {
-		fromTime = t
-	}
-	if t, ok := to.Get(); ok {
-		toTime = t
-	}
-
-	events, err := h.cfg.Events.GetByFilters(ctx, user.ID, deviceIDs, eventTypes, fromTime, toTime)
+	now := time.Now()
+	events, err := h.cfg.Events.GetByFilters(ctx, user.ID, deviceIDs, eventTypes,
+		from.Or(now.Add(-24*time.Hour)), to.Or(now))
 	if err != nil {
 		return nil, &oas.Error{Error: "failed to get events"}
 	}

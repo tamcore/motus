@@ -1,11 +1,11 @@
 <script lang="ts">
-	import { ALL_TIME_START } from '$lib/utils/date-range';
+	import { RELATIVE_DATE_PRESETS, resolveDatePreset, type DatePreset } from '$lib/utils/date-range';
+	import type { Device } from '$lib/types/api';
 	import { onMount, onDestroy } from 'svelte';
-	import { browser } from '$app/environment';
 	import { page } from '$app/stores';
 	import { api, fetchDevices } from '$lib/api/client';
-	import { currentUser } from '$lib/stores/auth';
 	import { refreshHandler } from '$lib/stores/refresh';
+	import { persisted } from '$lib/stores/persisted';
 	import { exportTripsToCSV } from '$lib/utils/trips';
 	import { exportStopsToCSV } from '$lib/utils/stops';
 	import { tripLink } from '$lib/utils/report-links';
@@ -22,7 +22,6 @@
 	let chartCanvas: HTMLCanvasElement;
 	let chartInstance: Chart | null = null;
 
-	interface Device { id: number; name: string; uniqueId: string; status: string; }
 
 	const PAGE_SIZE_OPTIONS = [5, 10, 25, 50, 100];
 	const DEFAULT_PAGE_SIZE = 10;
@@ -42,12 +41,12 @@
 	let stopObserver: IntersectionObserver | undefined;
 	let selectedDeviceId = '';
 	let activeTab: 'trips' | 'stops' | 'summary' = 'trips';
-	let datePreset: 'day' | 'week' | 'month' | 'all' | 'custom' = 'week';
+	let datePreset: DatePreset = 'week';
 	let customFrom = '';
 	let customTo = '';
 
 	// Column visibility configuration
-	let columnConfig: Record<string, boolean> = {
+	const DEFAULT_COLUMNS: Record<string, boolean> = {
 		device: true,
 		startTime: true,
 		endTime: true,
@@ -56,8 +55,10 @@
 		avgSpeed: true,
 		maxSpeed: true,
 	};
+	const columnConfig = persisted('motus_report_columns', DEFAULT_COLUMNS, (saved) =>
+		saved && typeof saved === 'object' ? { ...DEFAULT_COLUMNS, ...saved } : null
+	);
 	let showColumnConfig = false;
-	let columnConfigLoaded = false;
 
 	const columnLabels: Record<string, string> = {
 		device: 'Device',
@@ -77,11 +78,6 @@
 	const ONGOING_THRESHOLD_MS = 5 * 60 * 1000;
 	function isTripOngoing(trip: Trip): boolean {
 		return Date.now() - new Date(trip.endTime).getTime() < ONGOING_THRESHOLD_MS;
-	}
-
-	// Save column config on change (only after initial load)
-	$: if (browser && columnConfigLoaded) {
-		localStorage.setItem('motus_report_columns', JSON.stringify(columnConfig));
 	}
 
 	$: totalDistance = trips.reduce((sum, t) => sum + t.distance, 0);
@@ -121,23 +117,6 @@
 				}
 			}
 		});
-	}
-
-	function getDateRange(): { from: string; to: string } {
-		const now = new Date();
-		const to = now.toISOString();
-		if (datePreset === 'custom') {
-			return {
-				from: customFrom ? new Date(customFrom + 'T00:00:00').toISOString() : to,
-				to: customTo ? new Date(customTo + 'T23:59:59').toISOString() : to
-			};
-		}
-		if (datePreset === 'all') return { from: ALL_TIME_START.toISOString(), to };
-		const from = new Date(now);
-		if (datePreset === 'day') from.setDate(from.getDate() - 1);
-		else if (datePreset === 'week') from.setDate(from.getDate() - 7);
-		else if (datePreset === 'month') from.setDate(from.getDate() - 30);
-		return { from: from.toISOString(), to };
 	}
 
 	function makeScrollObserver(onIntersect: () => void): IntersectionObserver {
@@ -187,7 +166,7 @@
 		fetchingTrips = true;
 		fetchingStops = true;
 		try {
-			const { from, to } = getDateRange();
+			const { from, to } = resolveDatePreset(datePreset, customFrom, customTo);
 			const deviceIds = selectedDeviceId
 				? [Number(selectedDeviceId)] : devices.map((d) => d.id);
 			const allTrips: Trip[] = [];
@@ -221,23 +200,8 @@
 	}
 
 	onMount(async () => {
-		// Load column config from localStorage
-		if (browser) {
-			const saved = localStorage.getItem('motus_report_columns');
-			if (saved) {
-				try {
-					columnConfig = { ...columnConfig, ...JSON.parse(saved) };
-				} catch {
-					// ignore malformed data
-				}
-			}
-			columnConfigLoaded = true;
-		}
-
+		await reloadDevices();
 		try {
-			const isAdmin = ($currentUser as Record<string, unknown> | null)?.administrator === true;
-			devices = (await fetchDevices(isAdmin)) as Device[];
-
 			// Pre-select device from query param (?device=ID)
 			const deviceParam = $page.url.searchParams.get('device');
 			if (deviceParam && devices.some((d) => String(d.id) === deviceParam)) {
@@ -249,7 +213,7 @@
 				await fetchReports();
 			}
 		} catch (error) {
-			console.error('Failed to load devices:', error);
+			console.error('Failed to load reports:', error);
 		} finally {
 			loading = false;
 		}
@@ -263,11 +227,10 @@
 	});
 
 	async function reloadDevices() {
-		const isAdmin = ($currentUser as Record<string, unknown> | null)?.administrator === true;
 		try {
-			devices = (await fetchDevices(isAdmin)) as Device[];
-		} catch {
-			console.error('Failed to reload devices');
+			devices = await fetchDevices();
+		} catch (error) {
+			console.error('Failed to load devices:', error);
 		}
 	}
 </script>
@@ -312,16 +275,10 @@
 			<div class="filter-group">
 				<span class="filter-label">Date Range</span>
 				<div class="preset-buttons">
-					<button class="preset-btn" class:active={datePreset === 'day'}
-						on:click={() => datePreset = 'day'}>Last 24h</button>
-					<button class="preset-btn" class:active={datePreset === 'week'}
-						on:click={() => datePreset = 'week'}>Last 7d</button>
-					<button class="preset-btn" class:active={datePreset === 'month'}
-						on:click={() => datePreset = 'month'}>Last 30d</button>
-					<button class="preset-btn" class:active={datePreset === 'all'}
-						on:click={() => datePreset = 'all'}>All time</button>
-					<button class="preset-btn" class:active={datePreset === 'custom'}
-						on:click={() => datePreset = 'custom'}>Custom</button>
+					{#each RELATIVE_DATE_PRESETS as p (p.value)}
+						<button class="preset-btn" class:active={datePreset === p.value}
+							on:click={() => (datePreset = p.value)}>{p.label}</button>
+					{/each}
 				</div>
 			</div>
 			{#if datePreset === 'custom'}
@@ -394,7 +351,7 @@
 						>
 							{#each Object.keys(columnLabels) as key}
 								<label class="column-option">
-									<input type="checkbox" bind:checked={columnConfig[key]} />
+									<input type="checkbox" bind:checked={$columnConfig[key]} />
 									{columnLabels[key]}
 								</label>
 							{/each}
@@ -408,21 +365,21 @@
 			<div class="table-wrapper">
 				<table class="trips-table">
 					<thead><tr>
-						{#if columnConfig.device}<th>Device</th>{/if}
-						{#if columnConfig.startTime}<th>Start Time</th>{/if}
-						{#if columnConfig.endTime}<th>End Time</th>{/if}
-						{#if columnConfig.duration}<th>Duration</th>{/if}
-						{#if columnConfig.distance}<th>Distance</th>{/if}
-						{#if columnConfig.avgSpeed}<th>Avg Speed</th>{/if}
-						{#if columnConfig.maxSpeed}<th>Max Speed</th>{/if}
+						{#if $columnConfig.device}<th>Device</th>{/if}
+						{#if $columnConfig.startTime}<th>Start Time</th>{/if}
+						{#if $columnConfig.endTime}<th>End Time</th>{/if}
+						{#if $columnConfig.duration}<th>Duration</th>{/if}
+						{#if $columnConfig.distance}<th>Distance</th>{/if}
+						{#if $columnConfig.avgSpeed}<th>Avg Speed</th>{/if}
+						{#if $columnConfig.maxSpeed}<th>Max Speed</th>{/if}
 						<th>Actions</th>
 					</tr></thead>
 					<tbody>
 						{#each trips.slice(0, visibleTripCount) as trip (trip.id)}
 							<tr class:ongoing={isTripOngoing(trip)}>
-								{#if columnConfig.device}<td>{trip.deviceName}</td>{/if}
-								{#if columnConfig.startTime}<td>{formatDate(trip.startTime)}</td>{/if}
-								{#if columnConfig.endTime}
+								{#if $columnConfig.device}<td>{trip.deviceName}</td>{/if}
+								{#if $columnConfig.startTime}<td>{formatDate(trip.startTime)}</td>{/if}
+								{#if $columnConfig.endTime}
 									<td>
 										{#if isTripOngoing(trip)}
 											<span class="live-badge">
@@ -434,13 +391,12 @@
 										{/if}
 									</td>
 								{/if}
-								{#if columnConfig.duration}<td>{formatDuration(trip.duration)}</td>{/if}
-								{#if columnConfig.distance}<td>{formatDistance(trip.distance)}</td>{/if}
-								{#if columnConfig.avgSpeed}<td>{formatSpeed(getTripAvgSpeed(trip))}</td>{/if}
-								{#if columnConfig.maxSpeed}<td>{formatSpeed(trip.maxSpeed)}</td>{/if}
+								{#if $columnConfig.duration}<td>{formatDuration(trip.duration)}</td>{/if}
+								{#if $columnConfig.distance}<td>{formatDistance(trip.distance)}</td>{/if}
+								{#if $columnConfig.avgSpeed}<td>{formatSpeed(getTripAvgSpeed(trip))}</td>{/if}
+								{#if $columnConfig.maxSpeed}<td>{formatSpeed(trip.maxSpeed)}</td>{/if}
 								<td>
-									<a href={tripLink('/reports/route', trip)} class="view-link">Route</a>
-									<a href={tripLink('/reports/replay', trip)} class="view-link replay-link">Replay</a>
+									<a href={tripLink(trip)} class="view-link replay-link">Replay</a>
 									{#if isTripOngoing(trip)}
 										<a href="/map?device={trip.deviceId}" class="view-link live-link">Live</a>
 									{/if}
@@ -623,7 +579,6 @@
 	.trips-table tr:hover td { background-color: var(--bg-secondary); }
 	.view-link { color: var(--accent-primary); text-decoration: none; font-weight: var(--font-medium); }
 	.view-link:hover { text-decoration: underline; }
-	.replay-link { margin-left: var(--space-2); }
 	.stats-grid {
 		display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 		gap: var(--space-4);

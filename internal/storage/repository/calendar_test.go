@@ -248,40 +248,6 @@ func TestCalendarRepository_UserHasAccess(t *testing.T) {
 	if calRepo.UserHasAccess(ctx, &model.User{ID: user2.ID}, cal.ID) {
 		t.Error("expected user2 to NOT have access")
 	}
-
-	// Associate user2 and verify.
-	if err := calRepo.AssociateUser(ctx, user2.ID, cal.ID); err != nil {
-		t.Fatalf("AssociateUser failed: %v", err)
-	}
-	if !calRepo.UserHasAccess(ctx, &model.User{ID: user2.ID}, cal.ID) {
-		t.Error("expected user2 to have access after association")
-	}
-}
-
-func TestCalendarRepository_AssociateUser_Idempotent(t *testing.T) {
-	pool := testutil.SetupTestDB(t)
-	testutil.CleanTables(t, pool)
-	calRepo := repository.NewCalendarRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
-	ctx := context.Background()
-
-	user := &model.User{Email: "cal-idempotent@example.com", PasswordHash: "hash", Name: "Idempotent"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
-
-	cal := &model.Calendar{UserID: user.ID, Name: "Idempotent Cal", Data: sampleICalData}
-	if err := calRepo.Create(ctx, cal); err != nil {
-		t.Fatalf("Create failed: %v", err)
-	}
-
-	// Associate twice -- should not error (ON CONFLICT DO NOTHING).
-	if err := calRepo.AssociateUser(ctx, user.ID, cal.ID); err != nil {
-		t.Fatalf("First AssociateUser failed: %v", err)
-	}
-	if err := calRepo.AssociateUser(ctx, user.ID, cal.ID); err != nil {
-		t.Fatalf("Second AssociateUser failed: %v", err)
-	}
 }
 
 func TestCalendarRepository_Delete_NullsGeofenceCalendarID(t *testing.T) {

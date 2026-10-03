@@ -24,9 +24,7 @@ func (h *Handler) reportDevices(ctx context.Context, user *model.User, ids []int
 	if len(ids) == 0 {
 		return h.cfg.Devices.GetByUser(ctx, user.ID)
 	}
-	ids = slices.Clone(ids)
-	slices.Sort(ids)
-	ids = slices.Compact(ids)
+	ids = slices.Compact(slices.Sorted(slices.Values(ids)))
 	devices := make([]*model.Device, 0, len(ids))
 	for _, id := range ids {
 		d, err := h.cfg.Devices.GetByID(ctx, id)

@@ -114,14 +114,3 @@ func TestListTrailBookmarks_KeepsFractionalSeconds(t *testing.T) {
 		t.Errorf("expected to=2026-06-06T16:30:59.999Z, got %v", out)
 	}
 }
-
-func TestListTrailBookmarks_Unavailable(t *testing.T) {
-	ctx := api.ContextWithUser(context.Background(), &model.User{ID: 7, Role: model.RoleUser})
-	res, err := handleListTrailBookmarks(ctx, callToolRequest(nil), Deps{})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if !res.IsError {
-		t.Fatal("expected tool error when repo is not configured")
-	}
-}

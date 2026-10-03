@@ -342,6 +342,30 @@ func TestSendCommand_CustomCommand_MissingText(t *testing.T) {
 	}
 }
 
+func TestSendCommand_MissingRequiredAttributes(t *testing.T) {
+	h := newCommandTestHandler(&mockCommandRepo{}, accessGrantingDeviceRepo("offline-dev", "h02"), nil, nil)
+
+	for cmdType, want := range map[string]string{
+		model.CommandPositionPeriodic: "positionPeriodic requires a frequency attribute",
+		model.CommandSosNumber:        "sosNumber requires a phoneNumber attribute",
+		model.CommandSetSpeedAlarm:    "setSpeedAlarm requires a speed attribute >= 0",
+	} {
+		t.Run(cmdType, func(t *testing.T) {
+			res, err := h.SendCommand(commandTestUserCtx(1), &oas.SendCommandRequest{DeviceId: 5, Type: cmdType})
+			if err != nil {
+				t.Fatalf("SendCommand returned error: %v", err)
+			}
+			badReq, ok := res.(*oas.SendCommandBadRequest)
+			if !ok {
+				t.Fatalf("expected *oas.SendCommandBadRequest, got %T", res)
+			}
+			if badReq.Error != want {
+				t.Errorf("error = %q, want %q", badReq.Error, want)
+			}
+		})
+	}
+}
+
 func TestSendCommand_Forbidden(t *testing.T) {
 	createCalled := false
 	cmdRepo := &mockCommandRepo{
@@ -604,6 +628,10 @@ func TestSendCommand_RejectsUnsupportedType(t *testing.T) {
 		case "positionPeriodic":
 			req.Attributes = oas.NewOptCommandAttributes(oas.NewCommandAttrPositionPeriodicCommandAttributes(oas.CommandAttrPositionPeriodic{
 				Type: oas.CommandAttrPositionPeriodicTypePositionPeriodic, Frequency: 60,
+			}))
+		case "setSpeedAlarm":
+			req.Attributes = oas.NewOptCommandAttributes(oas.NewCommandAttrSetSpeedAlarmCommandAttributes(oas.CommandAttrSetSpeedAlarm{
+				Type: oas.CommandAttrSetSpeedAlarmTypeSetSpeedAlarm, Speed: 80,
 			}))
 		}
 		res, err := h.SendCommand(commandTestUserCtx(1), req)

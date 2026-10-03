@@ -76,14 +76,6 @@ postgresUriSecret:
   key: ""   # e.g., uri or pguri
 
 config:
-  database:
-    # Host is dynamically set: motus-postgres if internal, or externalDatabase.host if external
-    host: ""  # Set to your external database host
-    port: "5432"
-    database: motus
-    username: motus
-    password: ""  # Use a Secret in production
-    sslmode: require
   server:
     port: "8080"
   csrf:
@@ -91,7 +83,6 @@ config:
     # Generate with: openssl rand -hex 32
     # All pods must share the same secret so CSRF tokens are valid across replicas.
     secret: ""
-  gps: {}  # GPS protocol ports and relay targets are configured under serviceGPS.ports
 
 resources:
   limits:
@@ -118,8 +109,6 @@ redis:
   builtin:
     enabled: false
     image: redis:8-alpine
-    storage: 1Gi
-    storageClass: ""
 
 # Demo Mode Configuration (disabled in production)
 demo:

@@ -49,11 +49,13 @@ func TestValidateName(t *testing.T) {
 		{"valid underscore", "my_device", false},
 		{"valid dot", "Dr. Smith", false},
 		{"empty", "", true},
-		{"too long", string(make([]byte, 256)), true},
+		{"too long", strings.Repeat("a", 256), true},
+		{"multibyte at max", strings.Repeat("ö", 255), false},
+		{"multibyte over max", strings.Repeat("ö", 256), true},
 		{"only spaces", "   ", true},
 		{"contains angle brackets", "name<script>", true},
-		{"contains backtick", "name`test", true},
 		{"contains null byte", "name\x00test", true},
+		{"contains control char", "name\x01test", true},
 	}
 
 	for _, tt := range tests {
@@ -196,14 +198,34 @@ func TestValidateText_CountsCharacters(t *testing.T) {
 		{"empty", "", 5, false},
 		{"angle bracket", "a<b", 5, true},
 		{"control char", "a\x01b", 5, true},
+		{"DEL", "a\x7fb", 5, true},
+		{"C1 control", "a\u0085b", 5, true},
 		{"newline and tab allowed", "a\n\tb", 5, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateText(tt.input, tt.max)
+			err := validateText("field", tt.input, tt.max)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("ValidateText(%q, %d) error = %v, wantErr %v", tt.input, tt.max, err, tt.wantErr)
+				t.Errorf("validateText(%q, %d) error = %v, wantErr %v", tt.input, tt.max, err, tt.wantErr)
 			}
 		})
+	}
+}
+
+func TestValidators_ErrorNamesField(t *testing.T) {
+	tests := []struct {
+		err  error
+		want string
+	}{
+		{ValidateDisplayName(strings.Repeat("a", 201)), "name exceeds maximum length of 200 characters"},
+		{ValidateDisplayName("a<b"), "name contains invalid characters"},
+		{ValidateDescription(strings.Repeat("a", 2001)), "description exceeds maximum length of 2000 characters"},
+		{ValidateDescription("a\x01b"), "description contains invalid characters"},
+		{ValidateName(strings.Repeat("a", 256)), "name exceeds maximum length of 255 characters"},
+	}
+	for _, tt := range tests {
+		if tt.err == nil || tt.err.Error() != tt.want {
+			t.Errorf("error = %v, want %q", tt.err, tt.want)
+		}
 	}
 }

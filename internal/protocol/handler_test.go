@@ -224,7 +224,7 @@ func TestPositionHandler_HandlePosition_ExactThreshold(t *testing.T) {
 	handler := NewPositionHandler(posRepo, deviceRepo, hub, nil)
 
 	// Speed exactly at threshold (5.0): should be classified as moving.
-	speed := motionSpeedThreshold
+	speed := model.MotionThreshold
 	pos := &model.Position{
 		DeviceID:  device.ID,
 		Latitude:  52.52,

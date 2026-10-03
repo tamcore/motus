@@ -368,6 +368,14 @@ func runImport(config *Config) error {
 	return nil
 }
 
+// dumpSections maps the dump tables that parseDump reads to section names.
+var dumpSections = map[string]string{
+	"tc_devices":   "devices",
+	"tc_positions": "positions",
+	"tc_geofences": "geofences",
+	"tc_calendars": "calendars",
+}
+
 // parseDump reads the dump file and extracts devices, positions, and geofences
 // from the PostgreSQL COPY sections.
 func parseDump(config *Config) ([]TraccarDevice, []TraccarPosition, []TraccarGeofence, []TraccarCalendar, error) {
@@ -416,33 +424,15 @@ func parseDump(config *Config) ([]TraccarDevice, []TraccarPosition, []TraccarGeo
 		line := scanner.Text()
 
 		// Detect COPY section starts
-		if strings.HasPrefix(line, "COPY public.tc_devices ") {
-			section = "devices"
-			if config.Verbose {
-				slog.Debug("found COPY section", slog.String("table", "tc_devices"), slog.Int("line", lineNum))
+		if rest, ok := strings.CutPrefix(line, "COPY public."); ok {
+			table, _, found := strings.Cut(rest, " ")
+			if name, known := dumpSections[table]; found && known {
+				section = name
+				if config.Verbose {
+					slog.Debug("found COPY section", slog.String("table", table), slog.Int("line", lineNum))
+				}
+				continue
 			}
-			continue
-		}
-		if strings.HasPrefix(line, "COPY public.tc_positions ") {
-			section = "positions"
-			if config.Verbose {
-				slog.Debug("found COPY section", slog.String("table", "tc_positions"), slog.Int("line", lineNum))
-			}
-			continue
-		}
-		if strings.HasPrefix(line, "COPY public.tc_geofences ") {
-			section = "geofences"
-			if config.Verbose {
-				slog.Debug("found COPY section", slog.String("table", "tc_geofences"), slog.Int("line", lineNum))
-			}
-			continue
-		}
-		if strings.HasPrefix(line, "COPY public.tc_calendars ") {
-			section = "calendars"
-			if config.Verbose {
-				slog.Debug("found COPY section", slog.String("table", "tc_calendars"), slog.Int("line", lineNum))
-			}
-			continue
 		}
 
 		// End of COPY section
@@ -1625,7 +1615,7 @@ func geocodeRecentPositions(ctx context.Context, pool *pgxpool.Pool, config *Con
 			}
 			failed++
 			// Use coordinate fallback
-			address = fmt.Sprintf("%.5f, %.5f", p.lat, p.lon)
+			address = geocoding.CoordinateFallback(p.lat, p.lon)
 		}
 
 		// Update position with address

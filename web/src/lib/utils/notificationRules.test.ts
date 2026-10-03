@@ -9,11 +9,17 @@ import {
   geofenceFilterOptions,
   hasGeofenceEvent,
 } from "./notificationRules";
-import { MAX_REPORTING_INTERVAL_SECONDS } from "./commands";
 
 describe("NOTIFICATION_COMMAND_TYPES", () => {
   it("offers the reporting interval first and never factory reset", () => {
-    expect(NOTIFICATION_COMMAND_TYPES[0]).toBe("positionPeriodic");
+    expect(NOTIFICATION_COMMAND_TYPES).toEqual([
+      "positionPeriodic",
+      "positionSingle",
+      "rebootDevice",
+      "sosNumber",
+      "setSpeedAlarm",
+      "custom",
+    ]);
     expect(NOTIFICATION_COMMAND_TYPES).not.toContain("factoryReset");
   });
 });
@@ -27,8 +33,9 @@ describe("hasGeofenceEvent", () => {
   });
 });
 
+// Parameter validation is covered by buildCommandAttributes in commands.test.ts.
 describe("buildCommandConfig", () => {
-  it("builds a reporting interval command with discriminated attributes", () => {
+  it("wraps the validated attributes in a command config", () => {
     expect(buildCommandConfig("positionPeriodic", { frequency: "20" })).toEqual({
       config: {
         channel: "command",
@@ -36,48 +43,13 @@ describe("buildCommandConfig", () => {
         attributes: { type: "positionPeriodic", frequency: 20 },
       },
     });
-  });
-
-  it("rejects a missing or non-positive interval", () => {
-    expect(buildCommandConfig("positionPeriodic", { frequency: "" }).error).toMatch(/interval/i);
-    expect(buildCommandConfig("positionPeriodic", { frequency: "0" }).error).toMatch(/interval/i);
-    expect(buildCommandConfig("positionPeriodic", { frequency: "1.5" }).error).toMatch(/interval/i);
-  });
-
-  it("enforces the maximum interval of one day", () => {
-    expect(MAX_REPORTING_INTERVAL_SECONDS).toBe(86400);
-    expect(buildCommandConfig("positionPeriodic", { frequency: "86400" }).config?.attributes).toEqual({
-      type: "positionPeriodic",
-      frequency: 86400,
-    });
-    expect(buildCommandConfig("positionPeriodic", { frequency: "86401" }).error).toMatch(/86400/);
-  });
-
-  it("omits attributes for parameterless commands", () => {
     expect(buildCommandConfig("positionSingle", {})).toEqual({
       config: { channel: "command", commandType: "positionSingle" },
     });
   });
 
-  it("validates the other parameterised commands", () => {
-    expect(buildCommandConfig("sosNumber", { phoneNumber: " " }).error).toBeTruthy();
-    expect(buildCommandConfig("sosNumber", { phoneNumber: "+49123" }).config?.attributes).toEqual({
-      type: "sosNumber",
-      phoneNumber: "+49123",
-    });
-    expect(buildCommandConfig("setSpeedAlarm", { speed: "-1" }).error).toBeTruthy();
-    expect(buildCommandConfig("setSpeedAlarm", { speed: "0" }).config?.attributes).toEqual({
-      type: "setSpeedAlarm",
-      speed: 0,
-    });
-    expect(buildCommandConfig("custom", { text: "" }).error).toBeTruthy();
-    expect(buildCommandConfig("custom", { text: "UPLOAD,60" }).config?.attributes).toEqual({
-      type: "custom",
-      text: "UPLOAD,60",
-    });
-  });
-
-  it("rejects missing command type", () => {
+  it("returns validation errors", () => {
+    expect(buildCommandConfig("positionPeriodic", { frequency: "0" }).error).toMatch(/interval/i);
     expect(buildCommandConfig("", {}).error).toBeTruthy();
   });
 });

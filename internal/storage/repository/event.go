@@ -62,26 +62,6 @@ func (r *EventRepository) GetRecentByDeviceAndType(ctx context.Context, deviceID
 	return pgx.CollectRows(rows, rowToEvent)
 }
 
-// GetByUser retrieves the most recent events for all devices a user has access to.
-func (r *EventRepository) GetByUser(ctx context.Context, userID int64, limit int) ([]*model.Event, error) {
-	if limit <= 0 || limit > 100 {
-		limit = 100
-	}
-
-	rows, err := r.pool.Query(ctx, `
-		SELECT e.id, e.device_id, e.geofence_id, e.type, e.position_id, e.timestamp, e.attributes
-		FROM events e
-		JOIN user_devices ud ON ud.device_id = e.device_id
-		WHERE ud.user_id = $1
-		ORDER BY e.timestamp DESC
-		LIMIT $2
-	`, userID, limit)
-	if err != nil {
-		return nil, fmt.Errorf("get events by user: %w", err)
-	}
-	return pgx.CollectRows(rows, rowToEvent)
-}
-
 // DeviceTripTotal holds the aggregate trip distance for a single device.
 type DeviceTripTotal struct {
 	DeviceID   int64
@@ -111,20 +91,15 @@ func (r *EventRepository) SumTripDistance(ctx context.Context, deviceIDs []int64
 	if err != nil {
 		return nil, 0, fmt.Errorf("sum trip distance: %w", err)
 	}
-	defer rows.Close()
-
 	var totals []DeviceTripTotal
 	var grandTotal float64
-	for rows.Next() {
-		var t DeviceTripTotal
-		if err := rows.Scan(&t.DeviceID, &t.DistanceKm, &t.TripCount); err != nil {
-			return nil, 0, fmt.Errorf("scan trip total: %w", err)
-		}
+	var t DeviceTripTotal
+	if _, err := pgx.ForEachRow(rows, []any{&t.DeviceID, &t.DistanceKm, &t.TripCount}, func() error {
 		totals = append(totals, t)
 		grandTotal += t.DistanceKm
-	}
-	if err := rows.Err(); err != nil {
-		return nil, 0, err
+		return nil
+	}); err != nil {
+		return nil, 0, fmt.Errorf("scan trip total: %w", err)
 	}
 	return totals, grandTotal, nil
 }

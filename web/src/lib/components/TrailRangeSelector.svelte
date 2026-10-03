@@ -3,7 +3,7 @@
 		TRAIL_PRESETS,
 		customTrailRange,
 		isRelativePreset,
-		resolveTrailRange,
+		rangeToInputs,
 		type TrailPreset,
 		type TrailRange
 	} from '$lib/utils/trail-range';
@@ -19,21 +19,14 @@
 	let toTime = '';
 	let error = '';
 
-	const pad2 = (n: number) => String(n).padStart(2, '0');
-	const dateValue = (d: Date) =>
-		`${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-	const timeValue = (d: Date) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
-
 	function fillInputs(r: TrailRange) {
-		const { from, to } = resolveTrailRange(r);
-		fromDate = dateValue(from);
-		toDate = dateValue(to);
+		const inputs = rangeToInputs(r);
+		fromDate = inputs.fromDate;
+		toDate = inputs.toDate;
 		// Times stay empty (whole days) unless a custom range has explicit ones.
 		const custom = r.preset === 'custom';
-		const fromIsDayStart = from.getHours() === 0 && from.getMinutes() === 0;
-		const toIsDayEnd = to.getHours() === 23 && to.getMinutes() === 59;
-		fromTime = custom && !fromIsDayStart ? timeValue(from) : '';
-		toTime = custom && !toIsDayEnd ? timeValue(to) : '';
+		fromTime = custom ? inputs.fromTime : '';
+		toTime = custom ? inputs.toTime : '';
 	}
 
 	// Follow external changes (URL params, bookmarks) to the applied range.

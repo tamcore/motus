@@ -1,134 +1,78 @@
 <script lang="ts">
-	import { createEventDispatcher, tick } from 'svelte';
+	import { createEventDispatcher } from 'svelte';
 
 	export let open = false;
 	export let title = '';
 
 	const dispatch = createEventDispatcher();
 
-	const FOCUSABLE_SELECTOR =
-		'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+	let dialogEl: HTMLDialogElement | null = null;
 
-	let dialogEl: HTMLDivElement | null = null;
-	let previouslyFocused: HTMLElement | null = null;
+	// The native modal dialog traps focus, closes on Escape and restores focus
+	// on close(); close it while it is still in the DOM.
+	$: if (!open && dialogEl?.open) dialogEl.close();
 
-	$: handleOpenChange(open);
-
-	async function handleOpenChange(isOpen: boolean) {
-		if (typeof document === 'undefined') return;
-		if (isOpen) {
-			previouslyFocused = document.activeElement as HTMLElement | null;
-			await tick();
-			focusFirstElement();
-		} else if (previouslyFocused) {
-			previouslyFocused.focus();
-			previouslyFocused = null;
-		}
-	}
-
-	function getFocusable(): HTMLElement[] {
-		if (!dialogEl) return [];
-		return Array.from(dialogEl.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
-	}
-
-	function focusFirstElement() {
-		const focusable = getFocusable();
-		(focusable[0] ?? dialogEl)?.focus();
+	function showModal(node: HTMLDialogElement) {
+		node.showModal();
 	}
 
 	function closeModal() {
+		if (!open) return;
 		open = false;
 		dispatch('close');
 	}
 
-	function handleBackdropClick(e: MouseEvent) {
-		if (e.target === e.currentTarget) {
-			closeModal();
-		}
-	}
-
-	function handleKeydown(e: KeyboardEvent) {
-		if (e.key === 'Escape') {
-			closeModal();
-		}
-	}
-
-	// Trap Tab inside the dialog: wrap forwards from the last focusable
-	// element and backwards from the first.
-	function handleDialogKeydown(e: KeyboardEvent) {
-		if (e.key !== 'Tab') return;
-		const focusable = getFocusable();
-		if (focusable.length === 0) {
-			e.preventDefault();
-			dialogEl?.focus();
-			return;
-		}
-		const first = focusable[0];
-		const last = focusable[focusable.length - 1];
-		const active = document.activeElement;
-		if (e.shiftKey && (active === first || active === dialogEl)) {
-			e.preventDefault();
-			last.focus();
-		} else if (!e.shiftKey && active === last) {
-			e.preventDefault();
-			first.focus();
-		}
+	function handleClick(e: MouseEvent) {
+		if (e.target === dialogEl) closeModal();
 	}
 </script>
 
-<svelte:window on:keydown={handleKeydown} />
-
 {#if open}
-	<!-- svelte-ignore a11y-click-events-have-key-events -->
-	<div class="modal-backdrop" on:click={handleBackdropClick} role="presentation">
-		<!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
-		<div
-			class="modal"
-			role="dialog"
-			aria-modal="true"
-			aria-labelledby="modal-title"
-			tabindex="-1"
-			bind:this={dialogEl}
-			on:keydown={handleDialogKeydown}
-		>
-			<div class="modal-header">
-				<h2 id="modal-title" class="modal-title">{title}</h2>
-				<button class="close-button" on:click={closeModal} aria-label="Close dialog">
-					&#x2715;
-				</button>
-			</div>
-			<div class="modal-body">
-				<slot />
-			</div>
-			{#if $$slots.footer}
-				<div class="modal-footer">
-					<slot name="footer" />
-				</div>
-			{/if}
+	<!-- svelte-ignore a11y_no_redundant_roles -->
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
+	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+	<dialog
+		class="modal"
+		role="dialog"
+		aria-labelledby="modal-title"
+		bind:this={dialogEl}
+		use:showModal
+		on:close={(e) => e.currentTarget === dialogEl && closeModal()}
+		on:click={handleClick}
+	>
+		<div class="modal-header">
+			<h2 id="modal-title" class="modal-title">{title}</h2>
+			<button class="close-button" on:click={closeModal} aria-label="Close dialog">
+				&#x2715;
+			</button>
 		</div>
-	</div>
+		<div class="modal-body">
+			<slot />
+		</div>
+		{#if $$slots.footer}
+			<div class="modal-footer">
+				<slot name="footer" />
+			</div>
+		{/if}
+	</dialog>
 {/if}
 
 <style>
-	.modal-backdrop {
-		position: fixed;
-		inset: 0;
-		background-color: rgba(0, 0, 0, 0.7);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		z-index: 1000;
-		padding: var(--space-4);
-	}
-
 	.modal {
+		padding: 0;
+		border: none;
+		color: var(--text-primary);
 		background-color: var(--bg-primary);
 		border-radius: var(--radius-lg);
 		box-shadow: var(--shadow-xl);
 		max-width: 600px;
-		width: 100%;
+		width: calc(100% - 2 * var(--space-4));
 		max-height: 90vh;
 		overflow: auto;
+	}
+
+	.modal::backdrop {
+		background-color: rgba(0, 0, 0, 0.7);
 	}
 
 	.modal-header {

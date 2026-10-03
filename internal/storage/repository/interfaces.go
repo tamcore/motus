@@ -95,7 +95,6 @@ type GeofenceRepo interface {
 	Create(ctx context.Context, g *model.Geofence) error
 	GetByID(ctx context.Context, id int64) (*model.Geofence, error)
 	GetByUser(ctx context.Context, userID int64) ([]*model.Geofence, error)
-	GetAll(ctx context.Context) ([]*model.Geofence, error)
 	GetAllWithOwners(ctx context.Context) ([]*model.Geofence, error)
 	Update(ctx context.Context, g *model.Geofence) error
 	Delete(ctx context.Context, id int64) error
@@ -109,7 +108,6 @@ type GeofenceRepo interface {
 type EventRepo interface {
 	Create(ctx context.Context, e *model.Event) error
 	GetRecentByDeviceAndType(ctx context.Context, deviceID int64, eventType string, limit int) ([]*model.Event, error)
-	GetByUser(ctx context.Context, userID int64, limit int) ([]*model.Event, error)
 	GetByFilters(ctx context.Context, userID int64, deviceIDs []int64, eventTypes []string, from, to time.Time) ([]*model.Event, error)
 	SumTripDistance(ctx context.Context, deviceIDs []int64, from, to time.Time) ([]DeviceTripTotal, float64, error)
 }
@@ -166,7 +164,6 @@ type PasskeyRepo interface {
 	GetByCredentialID(ctx context.Context, credID []byte) (*model.PasskeyCredential, error)
 	UpdateSignCount(ctx context.Context, id int64, count uint32) error
 	Delete(ctx context.Context, id, userID int64) error
-	DeleteAllByUser(ctx context.Context, userID int64) error
 }
 
 // CalendarRepo defines the operations on the calendars table used by
@@ -179,7 +176,6 @@ type CalendarRepo interface {
 	Update(ctx context.Context, c *model.Calendar) error
 	Delete(ctx context.Context, id int64) error
 	UserHasAccess(ctx context.Context, user *model.User, calendarID int64) bool
-	AssociateUser(ctx context.Context, userID, calendarID int64) error
 }
 
 // TrailBookmarkRepo defines the operations on the trail_bookmarks table.

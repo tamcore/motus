@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import { test, expect } from '../fixtures/auth-fixture';
+import { mockFetch, recordedUrls } from '../helpers/mock-fetch';
 
 const HEAT_DEVICE = { id: 4242, name: 'Heat Device', uniqueId: 'heat-1', status: 'online' };
 const HEAT_POINTS = [
@@ -21,39 +22,16 @@ interface HeatmapMocks {
  * does not reliably intercept SvelteKit client fetches) and records the
  * requested position URLs in window.__positionRequests.
  */
-async function mockHeatmapApi(page: Page, mocks: HeatmapMocks = {}) {
-  await page.addInitScript(
-    ({ devices, adminDevices, points }) => {
-      const w = window as unknown as { __positionRequests: string[] };
-      w.__positionRequests = [];
-      const origFetch = window.fetch;
-      const json = (body: unknown) =>
-        new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
-      window.fetch = async function (input: RequestInfo | URL, init?: RequestInit) {
-        const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-        if (adminDevices && url.includes('/api/admin/devices')) {
-          return json(adminDevices);
-        }
-        if (url.includes('/api/devices')) {
-          return json(devices);
-        }
-        if (url.includes('/api/positions')) {
-          w.__positionRequests.push(url);
-          return json(points);
-        }
-        return origFetch.apply(globalThis, [input, init] as Parameters<typeof fetch>);
-      } as typeof fetch;
-    },
-    {
-      devices: mocks.devices ?? [HEAT_DEVICE],
-      adminDevices: mocks.adminDevices,
-      points: mocks.points ?? HEAT_POINTS,
-    },
-  );
+function mockHeatmapApi(page: Page, mocks: HeatmapMocks = {}) {
+  return mockFetch(page, [
+    ...(mocks.adminDevices ? [{ match: '/api/admin/devices', body: mocks.adminDevices }] : []),
+    { match: '/api/devices', body: mocks.devices ?? [HEAT_DEVICE] },
+    { match: '/api/positions', body: mocks.points ?? HEAT_POINTS, record: '__positionRequests' },
+  ]);
 }
 
 function positionRequests(page: Page): Promise<string[]> {
-  return page.evaluate(() => (window as unknown as { __positionRequests: string[] }).__positionRequests);
+  return recordedUrls(page, '__positionRequests');
 }
 
 test.describe('Heatmap', () => {
@@ -144,6 +122,6 @@ test.describe('Heatmap custom range', () => {
     const parsed = new URL(requests[requests.length - 1], 'http://x');
     // Local (Europe/Berlin, UTC+1 in January) start of 13 Jan / end of 15 Jan.
     expect(parsed.searchParams.get('from')).toBe('2026-01-12T23:00:00.000Z');
-    expect(parsed.searchParams.get('to')).toBe('2026-01-15T22:59:59.000Z');
+    expect(parsed.searchParams.get('to')).toBe('2026-01-15T22:59:59.999Z');
   });
 });

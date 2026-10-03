@@ -22,7 +22,6 @@
   --status-online: #00ff88;
   --status-offline: #ff4444;
   --status-idle: #ffaa00;
-  --status-moving: #00d4ff;
 
   /* Semantic */
   --success: #00ff88;
@@ -70,7 +69,6 @@
   --status-online: #00cc66;
   --status-offline: #cc3333;
   --status-idle: #ff9900;
-  --status-moving: #0099cc;
 
   /* Semantic */
   --success: #00cc66;

@@ -75,10 +75,7 @@ func (h *Handler) CreateDevice(ctx context.Context, req *oas.DeviceInput) (oas.C
 	if err := validation.ValidateName(req.Name); err != nil {
 		return &oas.CreateDeviceBadRequest{Error: err.Error()}, nil
 	}
-	device := oasInputToDevice(req)
-	if device.Mileage != nil && *device.Mileage < 0 {
-		return &oas.CreateDeviceBadRequest{Error: "mileage must be non-negative"}, nil
-	}
+	device := applyDeviceInputFields(&model.Device{UniqueID: req.UniqueId, Name: req.Name, Status: "unknown"}, req)
 	if err := h.cfg.Devices.Create(ctx, device, user.ID); err != nil {
 		return &oas.CreateDeviceBadRequest{Error: "failed to create device"}, nil
 	}
@@ -105,43 +102,20 @@ func (h *Handler) UpdateDevice(ctx context.Context, req *oas.DeviceInput, params
 	if err != nil {
 		return &oas.UpdateDeviceNotFound{Error: "device not found"}, nil
 	}
-	// Apply fields from the input onto the existing device (immutable merge).
+	updated := applyDeviceInputFields(device, req)
 	if req.UniqueId != "" && req.UniqueId != device.UniqueID {
 		if err := validation.ValidateDeviceUniqueID(req.UniqueId); err != nil {
 			return &oas.UpdateDeviceBadRequest{Error: err.Error()}, nil
 		}
-		device = &model.Device{
-			ID:             device.ID,
-			UniqueID:       req.UniqueId,
-			Name:           device.Name,
-			Protocol:       device.Protocol,
-			Status:         device.Status,
-			SpeedLimit:     device.SpeedLimit,
-			LastUpdate:     device.LastUpdate,
-			PositionID:     device.PositionID,
-			GroupID:        device.GroupID,
-			Phone:          device.Phone,
-			Model:          device.Model,
-			Contact:        device.Contact,
-			Category:       device.Category,
-			CalendarID:     device.CalendarID,
-			ExpirationTime: device.ExpirationTime,
-			Disabled:       device.Disabled,
-			Mileage:        device.Mileage,
-			PendingMileage: device.PendingMileage,
-			BatteryLevel:   device.BatteryLevel,
-			Attributes:     device.Attributes,
-			CreatedAt:      device.CreatedAt,
-			UpdatedAt:      device.UpdatedAt,
-		}
+		updated.UniqueID = req.UniqueId
 	}
 	if req.Name != "" && req.Name != device.Name {
 		if err := validation.ValidateName(req.Name); err != nil {
 			return &oas.UpdateDeviceBadRequest{Error: err.Error()}, nil
 		}
-		device = cloneDeviceWithName(device, req.Name)
+		updated.Name = req.Name
 	}
-	device = applyDeviceInputFields(device, req)
+	device = updated
 	if err := h.cfg.Devices.Update(ctx, device); err != nil {
 		return &oas.UpdateDeviceBadRequest{Error: "failed to update device"}, nil
 	}
@@ -167,9 +141,8 @@ func (h *Handler) DeleteDevice(ctx context.Context, params oas.DeleteDeviceParam
 	if err := h.cfg.Devices.Delete(ctx, params.ID); err != nil {
 		return &oas.DeleteDeviceForbidden{Error: "failed to delete device"}, nil
 	}
-	deviceID := params.ID
 	h.cfg.AuditLogger.Log(ctx, &user.ID,
-		audit.ActionDeviceDelete, audit.ResourceDevice, &deviceID,
+		audit.ActionDeviceDelete, audit.ResourceDevice, &params.ID,
 		nil, "", "")
 	return &oas.DeleteDeviceNoContent{}, nil
 }
@@ -252,13 +225,6 @@ func (h *Handler) AdminUnassignDevice(ctx context.Context, params oas.AdminUnass
 }
 
 // ─── helpers ────────────────────────────────────────────────────────────────
-
-// cloneDeviceWithName returns a shallow copy of d with the name replaced.
-func cloneDeviceWithName(d *model.Device, name string) *model.Device {
-	clone := *d
-	clone.Name = name
-	return &clone
-}
 
 // applyDeviceInputFields applies the set fields of req onto a copy of d.
 func applyDeviceInputFields(d *model.Device, req *oas.DeviceInput) *model.Device {

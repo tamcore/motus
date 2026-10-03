@@ -75,21 +75,21 @@ func TestPtrToOptInt64(t *testing.T) {
 	}
 }
 
-func TestDerefTime(t *testing.T) {
-	if derefTime(nil) != (time.Time{}) {
+func TestDeref_Time(t *testing.T) {
+	if deref[time.Time](nil) != (time.Time{}) {
 		t.Error("nil should return zero time")
 	}
 	now := time.Now()
-	if derefTime(&now) != now {
+	if deref(&now) != now {
 		t.Error("should return pointed-to time")
 	}
 }
 
-func TestDerefFloat64(t *testing.T) {
-	if derefFloat64(nil) != 0 {
+func TestDeref_Float64(t *testing.T) {
+	if deref[float64](nil) != 0 {
 		t.Error("nil should return 0")
 	}
-	if derefFloat64(new(3.14)) != 3.14 {
+	if deref(new(3.14)) != 3.14 {
 		t.Error("should return pointed-to value")
 	}
 }
@@ -882,5 +882,48 @@ func TestBuildAuditMetadata_AuditEntryToOAS(t *testing.T) {
 	v, _ := got.Metadata.Value.GetAuditMetaSessionLogin()
 	if v.Email != "user@example.com" {
 		t.Errorf("Email = %s", v.Email)
+	}
+}
+
+func TestBuildAuditMetadata_TypeMatchesAction(t *testing.T) {
+	for _, typ := range []oas.AuditMetadataType{
+		oas.AuditMetadataCalendarDeleteAuditMetadata,
+		oas.AuditMetadataDeviceDeleteAuditMetadata,
+		oas.AuditMetadataDeviceOfflineAuditMetadata,
+		oas.AuditMetadataDeviceOnlineAuditMetadata,
+		oas.AuditMetadataGeofenceDeleteAuditMetadata,
+		oas.AuditMetadataNotificationDeleteAuditMetadata,
+		oas.AuditMetadataSessionLogoutAuditMetadata,
+		oas.AuditMetadataUserDeleteAuditMetadata,
+		oas.AuditMetaSessionLoginAuditMetadata,
+		oas.AuditMetaSessionLoginFailedAuditMetadata,
+		oas.AuditMetadataSessionSudoAuditMetadata,
+		oas.AuditMetadataSessionSudoEndAuditMetadata,
+		oas.AuditMetaSessionRevokeAuditMetadata,
+		oas.AuditMetaUserCreateAuditMetadata,
+		oas.AuditMetaUserUpdateAuditMetadata,
+		oas.AuditMetaDeviceCreateAuditMetadata,
+		oas.AuditMetaDeviceUpdateAuditMetadata,
+		oas.AuditMetadataDeviceAssignAuditMetadata,
+		oas.AuditMetadataDeviceUnassignAuditMetadata,
+		oas.AuditMetaDeviceGpxImportAuditMetadata,
+		oas.AuditMetadataCalendarCreateAuditMetadata,
+		oas.AuditMetadataCalendarUpdateAuditMetadata,
+		oas.AuditMetadataGeofenceCreateAuditMetadata,
+		oas.AuditMetadataGeofenceUpdateAuditMetadata,
+		oas.AuditMetadataNotificationCreateAuditMetadata,
+		oas.AuditMetadataNotificationUpdateAuditMetadata,
+		oas.AuditMetadataNotificationFailedAuditMetadata,
+		oas.AuditMetadataNotificationSentAuditMetadata,
+		oas.AuditMetaApiKeyCreateAuditMetadata,
+		oas.AuditMetaApiKeyDeleteAuditMetadata,
+		oas.AuditMetadataShareCreateAuditMetadata,
+		oas.AuditMetadataShareDeleteAuditMetadata,
+		oas.AuditMetaCommandSendAuditMetadata,
+	} {
+		got := buildAuditMetadata(string(typ), map[string]any{})
+		if !got.Set || got.Value.Type != typ {
+			t.Errorf("action %q: set=%v type=%q", typ, got.Set, got.Value.Type)
+		}
 	}
 }

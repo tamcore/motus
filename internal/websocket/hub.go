@@ -70,11 +70,12 @@ type TraccarMessage struct {
 // redisEnvelope wraps a TraccarMessage with the originating device ID so that
 // receiving pods can perform per-user access filtering. The OriginPodID
 // identifies which pod published the message so that the same pod's
-// subscriber can skip self-echoed messages.
+// subscriber can skip self-echoed messages. Cache-invalidation events carry
+// no Message.
 type redisEnvelope struct {
 	OriginPodID string         `json:"originPodId,omitempty"`
 	DeviceID    int64          `json:"deviceId"`
-	Message     TraccarMessage `json:"message"`
+	Message     TraccarMessage `json:"message,omitzero"`
 }
 
 // Hub manages WebSocket client connections and broadcasts.
@@ -106,7 +107,7 @@ func NewHub(allowedOrigins []string, accessChecker DeviceAccessChecker, extractU
 		accessChecker:  accessChecker,
 		extractUserID:  extractUserID,
 		podID:          generatePodID(),
-		accessCache:    newDeviceAccessCache(0), // uses defaultCacheTTL (30s)
+		accessCache:    newDeviceAccessCache(),
 		logger:         slog.Default(),
 	}
 	h.upgrader = websocket.Upgrader{
@@ -168,33 +169,13 @@ func (h *Hub) SetInvalidationPubSub(ps pubsub.PubSub) {
 // SetInvalidationPubSub. If no invalidation PubSub is configured, this is a
 // no-op that blocks until the context is done.
 func (h *Hub) StartInvalidationSubscriber(ctx context.Context) {
-	if h.invalidationPubSub == nil {
-		<-ctx.Done()
-		return
-	}
-
-	h.log().Info("starting cache-invalidation subscriber", slog.String("podID", h.podID))
-
-	err := h.invalidationPubSub.Subscribe(ctx, func(data []byte) {
-		var env invalidationEnvelope
-		if err := json.Unmarshal(data, &env); err != nil {
-			h.log().Error("invalidation unmarshal error", slog.Any("error", err))
-			return
-		}
-		if env.OriginPodID == h.podID {
-			return
-		}
+	h.subscribe(ctx, h.invalidationPubSub, "cache-invalidation", func(env redisEnvelope) {
 		h.log().Debug("cache invalidation from remote pod",
 			slog.Int64("deviceID", env.DeviceID),
 			slog.String("fromPod", env.OriginPodID),
 		)
 		h.accessCache.invalidate(env.DeviceID)
 	})
-	if err != nil {
-		h.log().Error("cache-invalidation subscribe error", slog.Any("error", err))
-	}
-
-	<-ctx.Done()
 }
 
 // SetShareTokenValidator configures share token validation for the hub.
@@ -216,23 +197,7 @@ func (h *Hub) SetAdminChecker(fn AdminChecker) {
 // in a goroutine after SetPubSub. If no PubSub is configured, this is a no-op
 // that blocks until the context is done.
 func (h *Hub) StartSubscriber(ctx context.Context) {
-	if h.pubsub == nil {
-		<-ctx.Done()
-		return
-	}
-
-	h.log().Info("starting Redis subscriber", slog.String("podID", h.podID))
-
-	err := h.pubsub.Subscribe(ctx, func(data []byte) {
-		var env redisEnvelope
-		if err := json.Unmarshal(data, &env); err != nil {
-			h.log().Error("redis unmarshal error", slog.Any("error", err))
-			return
-		}
-		// Skip messages that this pod itself published (self-echo prevention).
-		if env.OriginPodID == h.podID {
-			return
-		}
+	h.subscribe(ctx, h.pubsub, "redis", func(env redisEnvelope) {
 		h.log().Debug("redis: relaying remote message",
 			slog.Int64("deviceID", env.DeviceID),
 			slog.String("fromPod", env.OriginPodID),
@@ -240,8 +205,31 @@ func (h *Hub) StartSubscriber(ctx context.Context) {
 		// Relay to local clients only (do not re-publish to Redis).
 		h.broadcastForDevice(env.DeviceID, env.Message)
 	})
+}
+
+// subscribe passes envelopes published by other pods on ps to fn until ctx
+// is cancelled. A nil ps only blocks.
+func (h *Hub) subscribe(ctx context.Context, ps pubsub.PubSub, name string, fn func(redisEnvelope)) {
+	if ps == nil {
+		<-ctx.Done()
+		return
+	}
+
+	h.log().Info("starting "+name+" subscriber", slog.String("podID", h.podID))
+
+	err := ps.Subscribe(ctx, func(data []byte) {
+		var env redisEnvelope
+		if err := json.Unmarshal(data, &env); err != nil {
+			h.log().Error(name+" unmarshal error", slog.Any("error", err))
+			return
+		}
+		if env.OriginPodID == h.podID {
+			return
+		}
+		fn(env)
+	})
 	if err != nil {
-		h.log().Error("redis subscribe error", slog.Any("error", err))
+		h.log().Error(name+" subscribe error", slog.Any("error", err))
 	}
 
 	<-ctx.Done()
@@ -617,7 +605,7 @@ func (h *Hub) getAllowedUserIDs(deviceID int64) []int64 {
 func (h *Hub) InvalidateDevice(deviceID int64) {
 	h.accessCache.invalidate(deviceID)
 	if h.invalidationPubSub != nil {
-		env := invalidationEnvelope{OriginPodID: h.podID, DeviceID: deviceID}
+		env := redisEnvelope{OriginPodID: h.podID, DeviceID: deviceID}
 		if err := h.invalidationPubSub.Publish(context.Background(), env); err != nil {
 			h.log().Error("cache invalidation publish error",
 				slog.Int64("deviceID", deviceID),

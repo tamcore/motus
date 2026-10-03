@@ -39,7 +39,7 @@ function createDeviceList() {
   return [
     createTestDevice({ id: 1, name: "Vehicle A", uniqueId: "AAA111", status: "online" }),
     createTestDevice({ id: 2, name: "Vehicle B", uniqueId: "BBB222", status: "offline" }),
-    createTestDevice({ id: 3, name: "Vehicle C", uniqueId: "CCC333", status: "idle" }),
+    createTestDevice({ id: 3, name: "Vehicle C", uniqueId: "CCC333", status: "offline" }),
   ];
 }
 

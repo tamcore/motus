@@ -225,8 +225,7 @@ describe("Device position info logic", () => {
       fixTime: "2026-02-17T10:00:00Z",
     };
 
-    const isOnline =
-      device.status === "online" || device.status === "moving";
+    const isOnline = device.status === "online";
     expect(isOnline).toBe(true);
 
     const speed = formatSpeed(pos.speed);

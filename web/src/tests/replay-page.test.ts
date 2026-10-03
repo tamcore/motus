@@ -55,7 +55,6 @@ vi.mock("$lib/composables/useLeaflet", () => ({
     cleanup: vi.fn(),
     getMap: () => fakeMap,
     getLeaflet: () => fakeL,
-    getTileLayer: () => null,
   }),
 }));
 

@@ -16,9 +16,11 @@ import (
 	"fmt"
 	"log/slog"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/tamcore/motus/internal/ticker"
 )
 
 // validPartitionNameRE matches the canonical partition name format: positions_yYYYYmMM.
@@ -78,19 +80,8 @@ func (m *Manager) Start(ctx context.Context) {
 		}
 	}
 	run()
-
-	ticker := time.NewTicker(m.checkInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			m.logger.Info("partition manager stopped")
-			return
-		case <-ticker.C:
-			run()
-		}
-	}
+	ticker.Every(ctx, m.checkInterval, run)
+	m.logger.Info("partition manager stopped")
 }
 
 // RunOnce performs a single maintenance cycle.
@@ -223,7 +214,7 @@ func (m *Manager) dropExpiredPartitions(ctx context.Context) error {
 	// We only drop partitions whose END date is before or equal to the cutoff month start.
 	cutoffMonth := time.Date(cutoff.Year(), cutoff.Month(), 1, 0, 0, 0, 0, time.UTC)
 
-	partitions, err := m.listPartitions(ctx)
+	partitions, err := m.ListPartitions(ctx)
 	if err != nil {
 		return fmt.Errorf("list partitions: %w", err)
 	}
@@ -265,8 +256,8 @@ type PartitionInfo struct {
 	RangeEnd   time.Time
 }
 
-// listPartitions returns information about all existing positions partitions.
-func (m *Manager) listPartitions(ctx context.Context) ([]PartitionInfo, error) {
+// ListPartitions returns information about all existing positions partitions.
+func (m *Manager) ListPartitions(ctx context.Context) ([]PartitionInfo, error) {
 	rows, err := m.pool.Query(ctx, `
 		SELECT c.relname,
 			   pg_get_expr(c.relpartbound, c.oid) as partition_expr
@@ -308,12 +299,6 @@ func (m *Manager) listPartitions(ctx context.Context) ([]PartitionInfo, error) {
 	return partitions, rows.Err()
 }
 
-// ListPartitions returns information about all existing positions partitions.
-// This is the exported version for use by handlers or monitoring.
-func (m *Manager) ListPartitions(ctx context.Context) ([]PartitionInfo, error) {
-	return m.listPartitions(ctx)
-}
-
 // PartitionName returns the canonical partition name for a given month.
 // Format: positions_y{YYYY}m{MM}
 func PartitionName(t time.Time) string {
@@ -346,24 +331,12 @@ func parsePartitionBounds(expr string) (time.Time, time.Time, error) {
 
 // extractQuotedStrings extracts all single-quoted strings from the input.
 func extractQuotedStrings(s string) []string {
+	parts := strings.Split(s, "'")
 	var result []string
-	inQuote := false
-	var current []byte
-
-	for i := 0; i < len(s); i++ {
-		if s[i] == '\'' {
-			if inQuote {
-				result = append(result, string(current))
-				current = current[:0]
-				inQuote = false
-			} else {
-				inQuote = true
-			}
-		} else if inQuote {
-			current = append(current, s[i])
-		}
+	// Odd parts are quoted; the last part is never closed.
+	for i := 1; i < len(parts)-1; i += 2 {
+		result = append(result, parts[i])
 	}
-
 	return result
 }
 

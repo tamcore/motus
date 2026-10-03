@@ -42,26 +42,19 @@ func (r *NotificationRepository) Create(ctx context.Context, rule *model.Notific
 
 // GetByID retrieves a single notification rule by its ID.
 func (r *NotificationRepository) GetByID(ctx context.Context, id int64) (*model.NotificationRule, error) {
-	var rule model.NotificationRule
-	var configJSON []byte
-
-	err := r.pool.QueryRow(ctx, `
+	rows, err := r.pool.Query(ctx, `
 		SELECT id, user_id, name, event_types, channel, config, template, enabled, geofence_ids, created_at, updated_at
 		FROM notification_rules
 		WHERE id = $1
-	`, id).Scan(
-		&rule.ID, &rule.UserID, &rule.Name, &rule.EventTypes, &rule.Channel,
-		&configJSON, &rule.Template, &rule.Enabled, &rule.GeofenceIDs, &rule.CreatedAt, &rule.UpdatedAt,
-	)
+	`, id)
 	if err != nil {
 		return nil, fmt.Errorf("get notification rule by id: %w", err)
 	}
-	if len(configJSON) > 0 {
-		if err := json.Unmarshal(configJSON, &rule.Config); err != nil {
-			return nil, fmt.Errorf("unmarshal config: %w", err)
-		}
+	rule, err := pgx.CollectOneRow(rows, rowToNotificationRule(false))
+	if err != nil {
+		return nil, fmt.Errorf("get notification rule by id: %w", err)
 	}
-	return &rule, nil
+	return rule, nil
 }
 
 // GetByUser retrieves all notification rules for a user.

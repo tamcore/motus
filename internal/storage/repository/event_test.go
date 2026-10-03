@@ -104,33 +104,6 @@ func TestEventRepository_GetRecentByDeviceAndType(t *testing.T) {
 	}
 }
 
-func TestEventRepository_GetByUser(t *testing.T) {
-	pool := testutil.SetupTestDB(t)
-	testutil.CleanTables(t, pool)
-	eventRepo := repository.NewEventRepository(pool)
-	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
-	ctx := context.Background()
-
-	user := createTestUser(t, userRepo)
-	d1 := &model.Device{UniqueID: "evtusr-1-" + time.Now().Format("150405.000"), Name: "D1", Status: "online"}
-	d2 := &model.Device{UniqueID: "evtusr-2-" + time.Now().Format("150405.000"), Name: "D2", Status: "online"}
-	_ = deviceRepo.Create(ctx, d1, user.ID)
-	_ = deviceRepo.Create(ctx, d2, user.ID)
-
-	now := time.Now().UTC()
-	_ = eventRepo.Create(ctx, &model.Event{DeviceID: d1.ID, Type: "geofenceEnter", Timestamp: now})
-	_ = eventRepo.Create(ctx, &model.Event{DeviceID: d2.ID, Type: "geofenceExit", Timestamp: now})
-
-	events, err := eventRepo.GetByUser(ctx, user.ID, 100)
-	if err != nil {
-		t.Fatalf("GetByUser failed: %v", err)
-	}
-	if len(events) != 2 {
-		t.Errorf("expected 2 events, got %d", len(events))
-	}
-}
-
 func TestEventRepository_GetByFilters(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)

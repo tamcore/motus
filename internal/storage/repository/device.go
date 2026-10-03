@@ -29,19 +29,17 @@ const deviceColumns = `id, unique_id, name, protocol, status, speed_limit, last_
 	ignition_on, last_ignition_time, attributes, battery_level,
 	created_at, updated_at`
 
-// scanDevice scans a device row into a model.Device.
-func scanDevice(scanner interface {
-	Scan(dest ...any) error
-}, d *model.Device) error {
+// scanDevice scans deviceColumns, followed by extra, into d.
+func scanDevice(row pgx.Row, d *model.Device, extra ...any) error {
 	var attrs []byte
-	err := scanner.Scan(
+	dest := append([]any{
 		&d.ID, &d.UniqueID, &d.Name, &d.Protocol, &d.Status, &d.SpeedLimit, &d.LastUpdate,
 		&d.PositionID, &d.GroupID, &d.Phone, &d.Model, &d.Contact, &d.Category, &d.Disabled,
 		&d.Mileage, &d.PendingMileage,
 		&d.IgnitionOn, &d.LastIgnitionTime, &attrs, &d.BatteryLevel,
 		&d.CreatedAt, &d.UpdatedAt,
-	)
-	if err != nil {
+	}, extra...)
+	if err := row.Scan(dest...); err != nil {
 		return err
 	}
 	if len(attrs) > 0 {
@@ -102,10 +100,7 @@ func (r *DeviceRepository) GetByUniqueID(ctx context.Context, uniqueID string) (
 // GetByUser retrieves all devices a user has access to.
 func (r *DeviceRepository) GetByUser(ctx context.Context, userID int64) ([]*model.Device, error) {
 	rows, err := r.pool.Query(ctx,
-		`SELECT d.id, d.unique_id, d.name, d.protocol, d.status, d.speed_limit, d.last_update,
-			d.position_id, d.group_id, d.phone, d.model, d.contact, d.category, d.disabled,
-			d.mileage, d.pending_mileage, d.ignition_on, d.last_ignition_time, d.attributes, d.battery_level,
-			d.created_at, d.updated_at
+		`SELECT `+deviceColumns+`
 		 FROM devices d
 		 JOIN user_devices ud ON ud.device_id = d.id
 		 WHERE ud.user_id = $1
@@ -115,11 +110,8 @@ func (r *DeviceRepository) GetByUser(ctx context.Context, userID int64) ([]*mode
 		return nil, fmt.Errorf("get devices by user: %w", err)
 	}
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (*model.Device, error) {
-		d := &model.Device{}
-		if err := scanDevice(row, d); err != nil {
-			return nil, fmt.Errorf("scan device: %w", err)
-		}
-		return d, nil
+		d, err := rowToDevice(row)
+		return &d, err
 	})
 }
 
@@ -149,28 +141,8 @@ func (r *DeviceRepository) GetAllWithOwners(ctx context.Context) ([]model.Device
 	}
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (model.Device, error) {
 		var d model.Device
-		var attrs []byte
-		err := row.Scan(
-			&d.ID, &d.UniqueID, &d.Name, &d.Protocol, &d.Status, &d.SpeedLimit, &d.LastUpdate,
-			&d.PositionID, &d.GroupID, &d.Phone, &d.Model, &d.Contact, &d.Category, &d.Disabled,
-			&d.Mileage, &d.PendingMileage,
-			&d.IgnitionOn, &d.LastIgnitionTime, &attrs, &d.BatteryLevel,
-			&d.CreatedAt, &d.UpdatedAt,
-			&d.OwnerName,
-		)
-		if err != nil {
+		if err := scanDevice(row, &d, &d.OwnerName); err != nil {
 			return model.Device{}, fmt.Errorf("scan device with owner: %w", err)
-		}
-		if len(attrs) > 0 {
-			if err := json.Unmarshal(attrs, &d.Attributes); err != nil {
-				slog.Warn("failed to unmarshal device attributes",
-					slog.Int64("deviceID", d.ID),
-					slog.Any("error", err))
-				d.Attributes = make(map[string]any)
-			}
-		}
-		if d.Attributes == nil {
-			d.Attributes = make(map[string]any)
 		}
 		return d, nil
 	})

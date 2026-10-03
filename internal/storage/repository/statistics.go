@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -69,16 +70,12 @@ func (r *StatisticsRepository) GetPlatformStats(ctx context.Context) (*PlatformS
 	if err != nil {
 		return nil, fmt.Errorf("device status distribution: %w", err)
 	}
-	defer rows.Close()
-	for rows.Next() {
-		var status string
-		var count int64
-		if err := rows.Scan(&status, &count); err != nil {
-			return nil, fmt.Errorf("scan device status: %w", err)
-		}
+	var status string
+	var count int64
+	if _, err := pgx.ForEachRow(rows, []any{&status, &count}, func() error {
 		stats.DevicesByStatus[status] = count
-	}
-	if err := rows.Err(); err != nil {
+		return nil
+	}); err != nil {
 		return nil, fmt.Errorf("device status rows: %w", err)
 	}
 

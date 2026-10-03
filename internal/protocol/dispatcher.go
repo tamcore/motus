@@ -8,6 +8,7 @@ import (
 
 	"github.com/tamcore/motus/internal/model"
 	"github.com/tamcore/motus/internal/storage/repository"
+	"github.com/tamcore/motus/internal/ticker"
 )
 
 const dispatchInterval = 1 * time.Second
@@ -44,16 +45,7 @@ func (d *CommandDispatcher) SetLogger(l *slog.Logger) { d.logger = l }
 
 // Start runs the dispatch loop until ctx is cancelled.
 func (d *CommandDispatcher) Start(ctx context.Context) {
-	ticker := time.NewTicker(d.interval)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			d.dispatch(ctx)
-		}
-	}
+	ticker.Every(ctx, d.interval, func() { d.dispatch(ctx) })
 }
 
 // dispatch delivers the pending commands of all locally online devices,

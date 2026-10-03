@@ -9,7 +9,6 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -17,130 +16,6 @@ import (
 	"github.com/tamcore/motus/internal/storage/repository"
 	"github.com/tamcore/motus/internal/websocket"
 )
-
-// osmandDeviceRepo is an in-memory DeviceRepo for OsmAnd server tests.
-// Methods not used by the server panic via the nil embedded interface.
-type osmandDeviceRepo struct {
-	repository.DeviceRepo
-	mu      sync.Mutex
-	nextID  int64
-	devices map[string]*model.Device
-}
-
-func (r *osmandDeviceRepo) add(d *model.Device) *model.Device {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.nextID++
-	d.ID = r.nextID
-	r.devices[d.UniqueID] = d
-	return d
-}
-
-func (r *osmandDeviceRepo) GetByUniqueID(_ context.Context, uniqueID string) (*model.Device, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if d, ok := r.devices[uniqueID]; ok {
-		c := *d
-		return &c, nil
-	}
-	return nil, fmt.Errorf("device %s not found", uniqueID)
-}
-
-func (r *osmandDeviceRepo) GetByID(_ context.Context, id int64) (*model.Device, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	for _, d := range r.devices {
-		if d.ID == id {
-			c := *d
-			return &c, nil
-		}
-	}
-	return nil, fmt.Errorf("device %d not found", id)
-}
-
-func (r *osmandDeviceRepo) MarkOnline(_ context.Context, id, positionID int64, at time.Time, battery *float64) (*model.Device, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	for _, d := range r.devices {
-		if d.ID == id {
-			d.Status, d.LastUpdate, d.PositionID, d.Disabled = "online", &at, &positionID, false
-			if battery != nil {
-				d.BatteryLevel = battery
-			}
-			c := *d
-			return &c, nil
-		}
-	}
-	return nil, fmt.Errorf("device %d not found", id)
-}
-
-func (r *osmandDeviceRepo) Create(_ context.Context, d *model.Device, _ int64) error {
-	r.add(d)
-	return nil
-}
-
-func (r *osmandDeviceRepo) Update(_ context.Context, d *model.Device) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	c := *d
-	r.devices[d.UniqueID] = &c
-	return nil
-}
-
-func (r *osmandDeviceRepo) UpdateProtocol(_ context.Context, id int64, protocol string) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	for _, d := range r.devices {
-		if d.ID == id {
-			d.Protocol = protocol
-		}
-	}
-	return nil
-}
-
-func (r *osmandDeviceRepo) get(uniqueID string) *model.Device {
-	d, err := r.GetByUniqueID(context.Background(), uniqueID)
-	if err != nil {
-		return nil
-	}
-	return d
-}
-
-// osmandPositionRepo is an in-memory PositionRepo for OsmAnd server tests.
-type osmandPositionRepo struct {
-	repository.PositionRepo
-	mu        sync.Mutex
-	positions []*model.Position
-}
-
-func (r *osmandPositionRepo) Create(_ context.Context, p *model.Position) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	p.ID = int64(len(r.positions) + 1)
-	r.positions = append(r.positions, p)
-	return nil
-}
-
-func (r *osmandPositionRepo) GetLatestByDevice(_ context.Context, deviceID int64) (*model.Position, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	var latest *model.Position
-	for _, p := range r.positions {
-		if p.DeviceID == deviceID && (latest == nil || !p.Timestamp.Before(latest.Timestamp)) {
-			latest = p
-		}
-	}
-	if latest == nil {
-		return nil, fmt.Errorf("no positions")
-	}
-	return latest, nil
-}
-
-func (r *osmandPositionRepo) all() []*model.Position {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	return append([]*model.Position(nil), r.positions...)
-}
 
 // osmandUserRepo resolves the default user for device auto-creation.
 type osmandUserRepo struct{ repository.UserRepo }
@@ -151,16 +26,15 @@ func (osmandUserRepo) GetByEmail(_ context.Context, email string) (*model.User, 
 
 type osmandTestEnv struct {
 	srv       *OsmAndServer
-	devices   *osmandDeviceRepo
-	positions *osmandPositionRepo
+	devices   *memDeviceRepo
+	positions *memPositionRepo
 }
 
 // newOsmAndTestEnv creates an OsmAnd server with one known, offline device "123456".
 func newOsmAndTestEnv(t *testing.T) *osmandTestEnv {
 	t.Helper()
-	devices := &osmandDeviceRepo{devices: map[string]*model.Device{}}
-	devices.add(&model.Device{UniqueID: "123456", Name: "Phone", Protocol: "osmand", Status: "offline"})
-	positions := &osmandPositionRepo{}
+	devices := newMemDeviceRepo(&model.Device{UniqueID: "123456", Name: "Phone", Protocol: "osmand", Status: "offline"})
+	positions := &memPositionRepo{}
 	hub := websocket.NewHub(nil, nil, func(*http.Request) int64 { return 0 })
 	handler := NewPositionHandler(positions, devices, hub, nil)
 	return &osmandTestEnv{
@@ -408,7 +282,7 @@ func TestOsmAndServer_WithoutCoordinates(t *testing.T) {
 }
 
 // failingPositionRepo fails every write, so the app is told to retry.
-type failingPositionRepo struct{ osmandPositionRepo }
+type failingPositionRepo struct{ memPositionRepo }
 
 func (*failingPositionRepo) Create(context.Context, *model.Position) error {
 	return fmt.Errorf("database down")

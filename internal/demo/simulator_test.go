@@ -208,8 +208,6 @@ func TestScaledDuration(t *testing.T) {
 		{name: "1x", multiplier: 1.0, want: 10 * time.Second},
 		{name: "10x", multiplier: 10.0, want: 1 * time.Second},
 		{name: "0.5x", multiplier: 0.5, want: 20 * time.Second},
-		{name: "zero (defaults to 1x)", multiplier: 0, want: 10 * time.Second},
-		{name: "negative (defaults to 1x)", multiplier: -1, want: 10 * time.Second},
 	}
 
 	for _, tt := range tests {

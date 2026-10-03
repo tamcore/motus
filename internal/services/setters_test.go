@@ -20,9 +20,9 @@ func TestNewEventEmitter_DefaultsLogger(t *testing.T) {
 // TestSetGeocoder_IdleService verifies SetGeocoder stores the geocoder.
 func TestSetGeocoder_IdleService(t *testing.T) {
 	s := &IdleService{logger: slog.Default()}
-	s.SetGeocoder(nil, nil)
+	s.SetGeocoder(nil)
 	if s.geocoder != nil {
-		t.Error("expected geocoder to be nil after SetGeocoder(nil, nil)")
+		t.Error("expected geocoder to be nil after SetGeocoder(nil)")
 	}
 }
 

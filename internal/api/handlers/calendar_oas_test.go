@@ -105,6 +105,34 @@ func TestCreateCalendar_StorageErrorIsGeneric(t *testing.T) {
 	}
 }
 
+func TestUpdateCalendar_Errors(t *testing.T) {
+	hasAccess := true
+	h := newCalendarTestHandler(&auditMockCalendarRepo{
+		userHasAccessFn: func(context.Context, *model.User, int64) bool { return hasAccess },
+		getByIDFn: func(_ context.Context, id int64) (*model.Calendar, error) {
+			return &model.Calendar{ID: id, UserID: 1, Name: "Cal", Data: testICalData}, nil
+		},
+		updateFn: func(context.Context, *model.Calendar) error {
+			return errors.New("pq: connection to secret-db-host refused")
+		},
+	})
+	params := oas.UpdateCalendarParams{ID: 4}
+
+	res, _ := h.UpdateCalendar(calendarTestUserCtx(1), &oas.CalendarInput{Name: "New"}, params)
+	if bad, ok := res.(*oas.UpdateCalendarBadRequest); !ok || bad.Error != "failed to update calendar" {
+		t.Errorf("storage error: got %#v", res)
+	}
+	res, _ = h.UpdateCalendar(calendarTestUserCtx(1), &oas.CalendarInput{Data: "not ical"}, params)
+	if bad, ok := res.(*oas.UpdateCalendarBadRequest); !ok || !strings.HasPrefix(bad.Error, "invalid iCalendar data:") {
+		t.Errorf("invalid data: got %#v", res)
+	}
+	hasAccess = false
+	res, _ = h.UpdateCalendar(calendarTestUserCtx(1), &oas.CalendarInput{Name: "New"}, params)
+	if nf, ok := res.(*oas.UpdateCalendarNotFound); !ok || nf.Error != "calendar not found" {
+		t.Errorf("no access: got %#v", res)
+	}
+}
+
 func TestCreateCalendar_MissingName(t *testing.T) {
 	h := newCalendarTestHandler(&auditMockCalendarRepo{})
 

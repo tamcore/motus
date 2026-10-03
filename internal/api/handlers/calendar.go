@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/tamcore/motus/internal/api"
@@ -10,7 +11,6 @@ import (
 	"github.com/tamcore/motus/internal/calendar"
 	"github.com/tamcore/motus/internal/model"
 	"github.com/tamcore/motus/internal/services"
-	"github.com/tamcore/motus/internal/validation"
 )
 
 // --- ogen Handler methods ---
@@ -41,7 +41,7 @@ func (h *Handler) CreateCalendar(ctx context.Context, req *oas.CalendarInput) (o
 	if user == nil {
 		return &oas.CreateCalendarUnauthorized{Error: "unauthorized"}, nil
 	}
-	cal, err := h.cfg.CalendarService.CreateForUser(ctx, user, services.CreateCalendarInput{
+	cal, err := h.cfg.CalendarService.CreateForUser(ctx, user, services.CalendarInput{
 		Name: req.Name,
 		Data: req.Data,
 	})
@@ -58,36 +58,17 @@ func (h *Handler) UpdateCalendar(ctx context.Context, req *oas.CalendarInput, pa
 	if user == nil {
 		return &oas.UpdateCalendarUnauthorized{Error: "unauthorized"}, nil
 	}
-	if !h.cfg.Calendars.UserHasAccess(ctx, user, params.ID) {
-		return &oas.UpdateCalendarNotFound{Error: "calendar not found"}, nil
+	updated, err := h.cfg.CalendarService.UpdateForUser(ctx, user, params.ID, services.CalendarInput{
+		Name: req.Name,
+		Data: req.Data,
+	})
+	if errors.Is(err, services.ErrNotFound) {
+		return &oas.UpdateCalendarNotFound{Error: err.Error()}, nil
 	}
-	existing, err := h.cfg.Calendars.GetByID(ctx, params.ID)
 	if err != nil {
-		return &oas.UpdateCalendarNotFound{Error: "calendar not found"}, nil
+		return &oas.UpdateCalendarBadRequest{Error: services.PublicMessage(err, "failed to update calendar")}, nil
 	}
-
-	updated := *existing
-	if req.Name != "" {
-		if err := validation.ValidateDisplayName(req.Name); err != nil {
-			return &oas.UpdateCalendarBadRequest{Error: err.Error()}, nil
-		}
-		updated.Name = req.Name
-	}
-	if req.Data != "" {
-		if err := calendar.Validate(req.Data); err != nil {
-			return &oas.UpdateCalendarBadRequest{Error: "invalid iCalendar data: " + err.Error()}, nil
-		}
-		updated.Data = req.Data
-	}
-
-	if err := h.cfg.Calendars.Update(ctx, &updated); err != nil {
-		return &oas.UpdateCalendarBadRequest{Error: "failed to update calendar"}, nil
-	}
-
-	h.cfg.AuditLogger.Log(ctx, &user.ID,
-		audit.ActionCalendarUpdate, audit.ResourceCalendar, &updated.ID,
-		map[string]any{"name": updated.Name}, "", "")
-	out := calendarToOAS(&updated)
+	out := calendarToOAS(updated)
 	return &out, nil
 }
 

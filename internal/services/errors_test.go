@@ -10,7 +10,7 @@ import (
 )
 
 func TestPublicMessage(t *testing.T) {
-	_, err := NewCalendarService(nil, nil).CreateForUser(context.Background(), &model.User{ID: 1}, CreateCalendarInput{})
+	_, err := NewCalendarService(nil, nil).CreateForUser(context.Background(), &model.User{ID: 1}, CalendarInput{})
 	if !errors.Is(err, ErrInvalid) || PublicMessage(err, "generic") != "name is required" {
 		t.Errorf("validation error: got %v", err)
 	}

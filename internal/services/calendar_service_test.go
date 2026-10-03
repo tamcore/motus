@@ -30,7 +30,7 @@ func TestCalendarService_CreateForUser_HappyPath(t *testing.T) {
 		t.Fatalf("create user: %v", err)
 	}
 
-	cal, err := svc.CreateForUser(ctx, user, CreateCalendarInput{Name: "Test Cal", Data: testIcal})
+	cal, err := svc.CreateForUser(ctx, user, CalendarInput{Name: "Test Cal", Data: testIcal})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -57,7 +57,7 @@ func TestCalendarService_CreateForUser_EmptyName(t *testing.T) {
 	user := &model.User{Email: "calname@example.com", PasswordHash: "hash", Name: "Cal Name"}
 	_ = userRepo.Create(ctx, user)
 
-	_, err := svc.CreateForUser(ctx, user, CreateCalendarInput{Name: "", Data: testIcal})
+	_, err := svc.CreateForUser(ctx, user, CalendarInput{Name: "", Data: testIcal})
 	if err == nil {
 		t.Fatal("expected error for empty name")
 	}
@@ -70,7 +70,7 @@ func TestCalendarService_CreateForUser_InvalidIcal(t *testing.T) {
 	user := &model.User{Email: "calical@example.com", PasswordHash: "hash", Name: "Cal Ical"}
 	_ = userRepo.Create(ctx, user)
 
-	_, err := svc.CreateForUser(ctx, user, CreateCalendarInput{Name: "Bad Cal", Data: "not-ical"})
+	_, err := svc.CreateForUser(ctx, user, CalendarInput{Name: "Bad Cal", Data: "not-ical"})
 	if err == nil {
 		t.Fatal("expected error for invalid iCal data")
 	}
@@ -84,7 +84,7 @@ func TestCalendarService_CreateForUser_NameTooLong(t *testing.T) {
 	_ = userRepo.Create(ctx, user)
 
 	longName := string(make([]byte, 256))
-	_, err := svc.CreateForUser(ctx, user, CreateCalendarInput{Name: longName, Data: testIcal})
+	_, err := svc.CreateForUser(ctx, user, CalendarInput{Name: longName, Data: testIcal})
 	if err == nil {
 		t.Fatal("expected error for name exceeding max length")
 	}

@@ -86,7 +86,8 @@ kube_*.yaml
 .envrc
 web/test-results/
 web/playwright-report/
-.claude/
+.claude/*
+!.claude/settings.json
 bin/
 /motus
 web/.auth/

@@ -4,9 +4,9 @@ package reports
 
 import (
 	"fmt"
-	"math"
 	"time"
 
+	"github.com/tamcore/motus/internal/geo"
 	"github.com/tamcore/motus/internal/model"
 )
 
@@ -18,8 +18,6 @@ const (
 
 	stopSpeedThreshold = 1.0 // km/h
 	stopMinDuration    = 300 * time.Second
-
-	earthRadiusKm = 6371.0
 )
 
 // Trip is a detected trip. Duration is in seconds, Distance in km, speeds in km/h.
@@ -46,15 +44,6 @@ func speedOf(p *model.Position) float64 {
 	return *p.Speed
 }
 
-func haversineKm(lat1, lon1, lat2, lon2 float64) float64 {
-	rad := math.Pi / 180
-	dLat := (lat2 - lat1) * rad
-	dLon := (lon2 - lon1) * rad
-	a := math.Sin(dLat/2)*math.Sin(dLat/2) +
-		math.Cos(lat1*rad)*math.Cos(lat2*rad)*math.Sin(dLon/2)*math.Sin(dLon/2)
-	return earthRadiusKm * 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
-}
-
 // tripAcc accumulates the aggregates of the trip in progress.
 type tripAcc struct {
 	count              int
@@ -70,7 +59,7 @@ func (a *tripAcc) add(p *model.Position) {
 	if a.count == 0 {
 		a.start, a.maxSpeed = p.Timestamp, s
 	} else {
-		a.distance += haversineKm(a.lastLat, a.lastLon, p.Latitude, p.Longitude)
+		a.distance += geo.HaversineDistance(a.lastLat, a.lastLon, p.Latitude, p.Longitude)
 		a.maxSpeed = max(a.maxSpeed, s)
 	}
 	if s > tripSpeedThreshold {

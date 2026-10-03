@@ -5,8 +5,8 @@
  */
 import type { TrailBookmark, TrailBookmarkPayload } from "$lib/types/api";
 import { formatDate, formatDuration } from "$lib/utils/formatting";
+import { parseLocalBoundary } from "$lib/utils/date-range";
 import {
-  parseLocalBoundary,
   rangeToInputs,
   resolveTrailRange,
   type RangeInputs,

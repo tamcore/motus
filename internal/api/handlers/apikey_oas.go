@@ -90,7 +90,7 @@ func (h *Handler) DeleteApiKey(ctx context.Context, params oas.DeleteApiKeyParam
 		return &oas.DeleteApiKeyNotFound{Error: "API key not found"}, nil
 	}
 
-	if key.UserID != user.ID && !user.IsAdmin() {
+	if !user.CanManage(key.UserID) {
 		return &oas.DeleteApiKeyForbidden{Error: "cannot delete another user's API key"}, nil
 	}
 

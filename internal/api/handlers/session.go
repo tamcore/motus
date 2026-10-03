@@ -306,7 +306,7 @@ func (h *Handler) DeleteSession(ctx context.Context, params oas.DeleteSessionPar
 		}
 	}
 
-	if target.UserID != user.ID && !user.IsAdmin() {
+	if !user.CanManage(target.UserID) {
 		return &oas.DeleteSessionForbidden{Error: "cannot revoke another user's session"}, nil
 	}
 

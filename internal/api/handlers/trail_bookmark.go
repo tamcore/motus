@@ -67,7 +67,7 @@ func (h *Handler) ownBookmark(ctx context.Context, user *model.User, id int64) (
 	if err != nil {
 		return nil, bookmarkStorageError("load", err)
 	}
-	if b.UserID != user.ID && !user.IsAdmin() {
+	if !user.CanManage(b.UserID) {
 		return nil, nil
 	}
 	return b, nil

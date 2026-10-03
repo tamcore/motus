@@ -123,6 +123,10 @@ export class NotificationsPage {
     return this.page.locator('[role="dialog"] .geofence-unavailable');
   }
 
+  get unavailableGeofenceHint() {
+    return this.page.locator('[role="dialog"] .geofence-unavailable-hint');
+  }
+
   /** Rule card whose name contains the given text. */
   ruleCard(name: string) {
     return this.ruleCards.filter({ has: this.page.locator('.rule-name', { hasText: name }) });

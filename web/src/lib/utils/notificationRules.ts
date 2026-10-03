@@ -166,20 +166,23 @@ export interface GeofenceFilterOption {
 
 /**
  * Checkboxes of the geofence filter: every available geofence (with its owner
- * in admin all-users lists), followed by selected geofences that are no
- * longer available. Those stay selected until the user explicitly unticks
- * them; silently dropping them could turn the filter into "all geofences".
+ * in admin all-users lists), followed by geofences that are no longer
+ * available but are selected or stored in the rule being edited. Those stay
+ * selected until the user explicitly unticks them; silently dropping them
+ * could turn the filter into "all geofences". Stored ones stay listed after
+ * unticking so the user can tick them again before saving.
  */
 export function geofenceFilterOptions(
   selected: number[],
   geofences: ReadonlyArray<{ id: number; name: string; ownerName?: string }>,
+  stored: number[] = [],
 ): GeofenceFilterOption[] {
   const options: GeofenceFilterOption[] = geofences.map((g) => ({
     id: g.id,
     label: g.ownerName ? `${g.name} (${g.ownerName})` : g.name,
     unavailable: false,
   }));
-  for (const id of selected) {
+  for (const id of new Set([...stored, ...selected])) {
     if (!geofences.some((g) => g.id === id)) {
       options.push({ id, label: unavailableGeofenceLabel(id), unavailable: true });
     }

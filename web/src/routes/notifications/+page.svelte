@@ -61,7 +61,7 @@
 	let formText = '';
 
 	$: showGeofenceFilter = hasGeofenceEvent(formEventTypes);
-	$: geofenceOptions = geofenceFilterOptions(formGeofenceIds, geofences);
+	$: geofenceOptions = geofenceFilterOptions(formGeofenceIds, geofences, editingRule?.geofenceIds ?? []);
 	$: commandConflict =
 		formChannel === 'command' ? commandEventConflict(formCommandType, formEventTypes) : null;
 

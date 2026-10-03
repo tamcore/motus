@@ -332,9 +332,17 @@ test.describe('Notification geofence filter and command actions', () => {
     // dropping it (an empty filter would mean all geofences).
     await card.locator('button:has-text("Edit")').click();
     await expect(notifPage.unavailableGeofences).toHaveCount(1);
-    await expect(notifPage.unavailableGeofences.locator('input')).toBeChecked();
-    await notifPage.unavailableGeofences.locator('input').uncheck();
-    await expect(notifPage.unavailableGeofences).toHaveCount(0);
+    const unavailable = notifPage.unavailableGeofences.locator('input');
+    await expect(unavailable).toBeChecked();
+    await expect(notifPage.unavailableGeofenceHint).toBeVisible();
+    // Unticking keeps the row (unchecked) so it can be ticked again.
+    await unavailable.uncheck();
+    await expect(notifPage.unavailableGeofences).toHaveCount(1);
+    await expect(unavailable).not.toBeChecked();
+    await expect(notifPage.unavailableGeofenceHint).toHaveCount(0);
+    await unavailable.check();
+    await expect(notifPage.unavailableGeofenceHint).toBeVisible();
+    await unavailable.uncheck();
     await notifPage.geofenceCheckbox(geofenceName).check();
     await notifPage.updateButton.click();
 

@@ -177,4 +177,21 @@ describe("geofenceFilterOptions", () => {
       { id: 9, label: "Geofence #9 (unavailable)", unavailable: true },
     ]);
   });
+
+  it("keeps an unavailable stored geofence listed after it is unticked", () => {
+    // Unticking must not remove the checkbox, so the user can tick it again.
+    expect(geofenceFilterOptions([1], geofences, [9])).toEqual([
+      { id: 1, label: "Home", unavailable: false },
+      { id: 2, label: "Park (Alice)", unavailable: false },
+      { id: 9, label: "Geofence #9 (unavailable)", unavailable: true },
+    ]);
+  });
+
+  it("lists each unavailable geofence once when it is both stored and selected", () => {
+    expect(geofenceFilterOptions([9], geofences, [9, 1])).toEqual([
+      { id: 1, label: "Home", unavailable: false },
+      { id: 2, label: "Park (Alice)", unavailable: false },
+      { id: 9, label: "Geofence #9 (unavailable)", unavailable: true },
+    ]);
+  });
 });

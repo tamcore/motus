@@ -249,6 +249,7 @@ func Run() {
 
 	// Unified API handler.
 	handler := handlers.NewHandler(handlers.HandlerConfig{
+		AIEnabled:           cfg.AI.Enabled,
 		Users:               userRepo,
 		Sessions:            sessionRepo,
 		Devices:             deviceRepo,
@@ -357,7 +358,6 @@ func Run() {
 			slog.String("baseURL", cfg.AI.BaseURL),
 			slog.Bool("guardrail", cfg.AI.GuardrailEnabled))
 	}
-	handler.SetAIEnabled(cfg.AI.Enabled)
 
 	trustedProxies, err := cfg.Security.TrustedProxyPrefixes()
 	if err != nil {

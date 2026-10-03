@@ -43,9 +43,10 @@ func SecurityHeaders(next http.Handler) http.Handler {
 		// Only effective when served over HTTPS; browsers ignore it on HTTP.
 		h.Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
 
-		// Permissions Policy: disable unused browser features.
+		// Permissions Policy: camera (QR scanner) and geolocation (locate me) are
+		// used by the app; the rest stays disabled.
 		h.Set("Permissions-Policy",
-			"camera=(), microphone=(), geolocation=(), payment=()")
+			"camera=(self), microphone=(), geolocation=(self), payment=()")
 
 		// Prevent cross-origin reads of API responses via <img>, <script>, etc.
 		h.Set("Cross-Origin-Resource-Policy", "same-origin")

@@ -13,7 +13,8 @@ import {
   filterBookmarks,
   type BookmarkFormInput,
 } from "$lib/utils/trail-bookmarks";
-import { parseLocalBoundary, rangeToInputs } from "$lib/utils/trail-range";
+import { parseLocalBoundary } from "$lib/utils/date-range";
+import { rangeToInputs } from "$lib/utils/trail-range";
 import { formatDate, formatDuration } from "$lib/utils/formatting";
 import type { TrailBookmark } from "$lib/types/api";
 

@@ -122,6 +122,6 @@ test.describe('Heatmap custom range', () => {
     const parsed = new URL(requests[requests.length - 1], 'http://x');
     // Local (Europe/Berlin, UTC+1 in January) start of 13 Jan / end of 15 Jan.
     expect(parsed.searchParams.get('from')).toBe('2026-01-12T23:00:00.000Z');
-    expect(parsed.searchParams.get('to')).toBe('2026-01-15T22:59:59.000Z');
+    expect(parsed.searchParams.get('to')).toBe('2026-01-15T22:59:59.999Z');
   });
 });

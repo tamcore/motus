@@ -86,7 +86,7 @@
 			// leaflet.heat extends the global L once; keep that object across revisits.
 			const w = window as unknown as { L?: typeof import('leaflet') };
 			const L = leafletMap.getLeaflet();
-			w.L ??= (L as any)?.default ?? L ?? undefined;
+			w.L ??= (L as any)?.default ?? L;
 			await import('leaflet.heat');
 			heatLayer = w.L?.heatLayer ?? null;
 			if (!heatLayer) throw new Error('leaflet.heat did not register L.heatLayer');
@@ -122,7 +122,9 @@
 		error = '';
 
 		try {
-			const { from: fromISO, to: toISO } = resolveDatePreset(dateRange, customFrom, customTo);
+			const now = new Date();
+			const weekAgo = new Date(resolveDatePreset('week', '', '', now).from);
+			const { from: fromISO, to: toISO } = resolveDatePreset(dateRange, customFrom, customTo, now, weekAgo);
 
 			// The heatmap renders at most HEATMAP_MAX_POINTS, so let the server
 			// sample the range instead of downloading every position.

@@ -173,9 +173,6 @@ func (m *auditMockGeofenceRepo) GetByID(ctx context.Context, id int64) (*model.G
 	}
 	return nil, errors.New("not found")
 }
-func (m *auditMockGeofenceRepo) GetAll(_ context.Context) ([]*model.Geofence, error) {
-	return nil, nil
-}
 func (m *auditMockGeofenceRepo) GetAllWithOwners(_ context.Context) ([]*model.Geofence, error) {
 	return nil, nil
 }

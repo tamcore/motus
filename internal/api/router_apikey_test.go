@@ -254,11 +254,12 @@ func TestRouter_ReadonlyApiKey_BlocksAllWriteEndpoints(t *testing.T) {
 		WriteAccess: middleware.RequireWriteAccess,
 	}
 	handler := handlers.NewHandler(handlers.HandlerConfig{
-		Users:     userRepo,
-		Sessions:  sessionRepo,
-		Devices:   deviceRepo,
-		ApiKeys:   apiKeyRepo,
-		Geofences: geofenceRepo,
+		Users:         userRepo,
+		Sessions:      sessionRepo,
+		Devices:       deviceRepo,
+		ApiKeys:       apiKeyRepo,
+		Geofences:     geofenceRepo,
+		Notifications: repository.NewNotificationRepository(pool),
 	})
 	secHandler := handlers.NewSecurityHandler(sessionRepo, apiKeyRepo, userRepo)
 	router := api.NewRouter(handler, secHandler, nil, routerCfg)
@@ -276,6 +277,10 @@ func TestRouter_ReadonlyApiKey_BlocksAllWriteEndpoints(t *testing.T) {
 		{"POST /api/geofences", http.MethodPost, "/api/geofences", `{"name":"test","area":"CIRCLE"}`},
 		{"PUT /api/geofences/1", http.MethodPut, "/api/geofences/1", `{"name":"updated"}`},
 		{"DELETE /api/geofences/1", http.MethodDelete, "/api/geofences/1", ""},
+		{"POST /api/notifications", http.MethodPost, "/api/notifications",
+			`{"name":"test","eventTypes":["deviceOnline"],"channel":"webhook","config":{"webhookUrl":"https://example.com/hook"}}`},
+		{"PUT /api/notifications/1", http.MethodPut, "/api/notifications/1", `{"name":"updated"}`},
+		{"DELETE /api/notifications/1", http.MethodDelete, "/api/notifications/1", ""},
 	}
 
 	for _, tc := range testCases {

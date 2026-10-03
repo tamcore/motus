@@ -6,6 +6,14 @@ GPS tracking platform: Go backend (chi router) + SvelteKit frontend. Receives GP
 positions via H02/Watch/OsmAnd protocols, stores in PostgreSQL (PostGIS), serves a web UI with
 maps, geofences, notifications, reports, and device management.
 
+## Coding Style: ponytail
+
+Work in `/ponytail full` mode (the `ponytail` plugin is enabled in `.claude/settings.json`):
+the smallest change that solves the problem, stdlib/platform before new code, no speculative
+abstractions. Before writing a helper, search for an existing one. In reviews, duplicated
+helpers, validators or parsers are a merge blocker, not an optional follow-up. For Go code,
+also follow the `modern-go-guidelines` plugin.
+
 ## Architecture
 
 ```

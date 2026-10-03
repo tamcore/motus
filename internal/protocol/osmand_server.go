@@ -175,21 +175,18 @@ func (s *OsmAndServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // outdated; without a last known location nothing is stored (nil).
 func (s *OsmAndServer) position(ctx context.Context, device *model.Device, msg *osmand.Message) *model.Position {
 	now := time.Now().UTC()
-	deviceTime := msg.Timestamp
-	speed, course, altitude := msg.Speed, msg.Course, msg.Altitude
-
 	p := &model.Position{
 		DeviceID:   device.ID,
 		Protocol:   s.name,
 		ServerTime: &now,
-		DeviceTime: &deviceTime,
+		DeviceTime: new(msg.Timestamp),
 		Timestamp:  msg.Timestamp,
 		Valid:      msg.Valid,
 		Latitude:   msg.Latitude,
 		Longitude:  msg.Longitude,
-		Speed:      &speed,
-		Course:     &course,
-		Altitude:   &altitude,
+		Speed:      new(msg.Speed),
+		Course:     new(msg.Course),
+		Altitude:   new(msg.Altitude),
 		Accuracy:   msg.Accuracy,
 		Network:    msg.Network,
 		Attributes: msg.Attributes,

@@ -446,14 +446,14 @@ export interface UserStats {
 /** A single audit log entry. */
 export interface AuditEntry {
   id: number;
-  timestamp: string;
-  userId?: number | null;
   action: string;
-  resourceType?: string | null;
-  resourceId?: number | null;
-  details?: Record<string, unknown>;
-  ipAddress?: string | null;
-  userAgent?: string | null;
+  userId: number;
+  userEmail?: string;
+  resourceType?: string;
+  resourceId?: string;
+  metadata?: Record<string, unknown>;
+  ipAddress?: string;
+  createdAt: string;
 }
 
 /** Paginated response from the audit log endpoint. */

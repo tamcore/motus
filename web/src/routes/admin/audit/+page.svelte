@@ -236,7 +236,7 @@
 						{#each entries as entry (entry.id)}
 							<tr>
 								<td class="time-cell">
-									{formatDate(entry.timestamp)}
+									{formatDate(entry.createdAt)}
 								</td>
 								<td>
 									<span class="action-badge {getActionClass(entry.action)}">
@@ -261,7 +261,7 @@
 									{/if}
 								</td>
 								<td class="details-cell">
-									{#if entry.details && Object.keys(entry.details).length > 0}
+									{#if entry.metadata && Object.keys(entry.metadata).length > 0}
 										<button
 											class="details-toggle"
 											on:click={() => toggleDetails(entry.id)}
@@ -274,10 +274,10 @@
 									{/if}
 								</td>
 							</tr>
-							{#if expandedId === entry.id && entry.details}
+							{#if expandedId === entry.id && entry.metadata}
 								<tr class="details-row">
 									<td colspan="5">
-										<pre class="details-content">{formatDetails(entry.details)}</pre>
+										<pre class="details-content">{formatDetails(entry.metadata)}</pre>
 									</td>
 								</tr>
 							{/if}

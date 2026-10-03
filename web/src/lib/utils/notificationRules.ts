@@ -1,11 +1,6 @@
 import type { NotificationConfigCommand } from "$lib/types/api";
 import { EVENT_TYPES } from "$lib/stores/notifications";
-import {
-  commandAttributesPayload,
-  COMMAND_TYPE_LABELS,
-  formatInterval,
-  MAX_REPORTING_INTERVAL_SECONDS,
-} from "./commands";
+import { buildCommandAttributes, COMMAND_TYPE_LABELS, type CommandFormValues, formatInterval } from "./commands";
 
 /**
  * Command types a notification rule may send automatically, in display
@@ -15,24 +10,9 @@ export const NOTIFICATION_COMMAND_TYPES: readonly string[] = Object.keys(COMMAND
   (t) => t !== "factoryReset",
 );
 
-/** Raw form inputs of the command parameters. */
-export interface CommandFormValues {
-  frequency?: string;
-  phoneNumber?: string;
-  speed?: string;
-  text?: string;
-}
-
 /** True when the event types include a geofence transition. */
 export function hasGeofenceEvent(eventTypes: string[]): boolean {
   return eventTypes.includes("geofenceEnter") || eventTypes.includes("geofenceExit");
-}
-
-function parsePositiveInt(raw: string | undefined): number | null {
-  const s = (raw ?? "").trim();
-  if (!/^\d+$/.test(s)) return null;
-  const n = Number(s);
-  return n > 0 ? n : null;
 }
 
 /**
@@ -44,43 +24,9 @@ export function buildCommandConfig(
   values: CommandFormValues,
 ): { config?: NotificationConfigCommand; error?: string } {
   if (!commandType) return { error: "Select a command" };
-
-  const attrs: Record<string, unknown> = {};
-  switch (commandType) {
-    case "positionPeriodic": {
-      const freq = parsePositiveInt(values.frequency);
-      if (freq === null) return { error: "Interval must be a positive whole number of seconds" };
-      if (freq > MAX_REPORTING_INTERVAL_SECONDS) {
-        return { error: `Interval must be at most ${MAX_REPORTING_INTERVAL_SECONDS} seconds (1 day)` };
-      }
-      attrs.frequency = freq;
-      break;
-    }
-    case "sosNumber": {
-      const phone = (values.phoneNumber ?? "").trim();
-      if (!phone) return { error: "SOS number is required" };
-      attrs.phoneNumber = phone;
-      break;
-    }
-    case "setSpeedAlarm": {
-      const s = (values.speed ?? "").trim();
-      const speed = Number(s);
-      if (s === "" || !Number.isFinite(speed) || speed < 0) {
-        return { error: "Speed must be 0 or a positive number" };
-      }
-      attrs.speed = speed;
-      break;
-    }
-    case "custom": {
-      const text = (values.text ?? "").trim();
-      if (!text) return { error: "Command text is required" };
-      attrs.text = text;
-      break;
-    }
-  }
-
+  const { attributes, error } = buildCommandAttributes(commandType, values);
+  if (error) return { error };
   const config: NotificationConfigCommand = { channel: "command", commandType };
-  const attributes = commandAttributesPayload(commandType, attrs);
   if (attributes) config.attributes = attributes;
   return { config };
 }

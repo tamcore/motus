@@ -1,11 +1,12 @@
 import { describe, it, expect } from "vitest";
 import {
-  commandAttributesPayload,
+  buildCommandAttributes,
   commandIntervalLabel,
   commandSentMessage,
   COMMAND_TYPE_LABELS,
   DEFAULT_REPORTING_INTERVAL_SECONDS,
   formatInterval,
+  MAX_REPORTING_INTERVAL_SECONDS,
   REPORTING_INTERVAL_PRESETS,
 } from "./commands";
 
@@ -81,37 +82,45 @@ describe("commandIntervalLabel", () => {
 // The API decodes command attributes as a oneOf discriminated by "type"
 // (docs/openapi.yaml CommandAttributes). Attributes without "type" or an
 // empty object are rejected with "unable to detect sum type variant".
-describe("commandAttributesPayload", () => {
-  it("adds the command type as discriminator", () => {
-    expect(commandAttributesPayload("positionPeriodic", { frequency: 60 })).toEqual({
-      type: "positionPeriodic",
-      frequency: 60,
+describe("buildCommandAttributes", () => {
+  it("validates parameters and adds the command type as discriminator", () => {
+    expect(buildCommandAttributes("positionPeriodic", { frequency: "20" })).toEqual({
+      attributes: { type: "positionPeriodic", frequency: 20 },
     });
-    expect(commandAttributesPayload("sosNumber", { phoneNumber: "+49123" })).toEqual({
-      type: "sosNumber",
-      phoneNumber: "+49123",
+    expect(buildCommandAttributes("sosNumber", { phoneNumber: " +49123 " })).toEqual({
+      attributes: { type: "sosNumber", phoneNumber: "+49123" },
     });
-    expect(commandAttributesPayload("setSpeedAlarm", { speed: 0 })).toEqual({
-      type: "setSpeedAlarm",
-      speed: 0,
+    expect(buildCommandAttributes("setSpeedAlarm", { speed: "0" })).toEqual({
+      attributes: { type: "setSpeedAlarm", speed: 0 },
     });
-    expect(commandAttributesPayload("custom", { text: "UPLOAD,60" })).toEqual({
-      type: "custom",
-      text: "UPLOAD,60",
+    expect(buildCommandAttributes("custom", { text: "UPLOAD,60" })).toEqual({
+      attributes: { type: "custom", text: "UPLOAD,60" },
     });
   });
 
   it("omits attributes for commands without parameters", () => {
-    expect(commandAttributesPayload("rebootDevice", {})).toBeUndefined();
-    expect(commandAttributesPayload("positionSingle", {})).toBeUndefined();
-    expect(commandAttributesPayload("factoryReset", {})).toBeUndefined();
+    expect(buildCommandAttributes("rebootDevice", {})).toEqual({});
+    expect(buildCommandAttributes("positionSingle", { frequency: "20" })).toEqual({});
+    expect(buildCommandAttributes("factoryReset", {})).toEqual({});
   });
 
-  it("does not let a caller override the discriminator", () => {
-    expect(commandAttributesPayload("custom", { type: "other", text: "x" })).toEqual({
-      type: "custom",
-      text: "x",
+  it("rejects a missing, non-positive or too large interval", () => {
+    expect(MAX_REPORTING_INTERVAL_SECONDS).toBe(86400);
+    for (const frequency of ["", "0", "1.5"]) {
+      expect(buildCommandAttributes("positionPeriodic", { frequency }).error).toMatch(/interval/i);
+    }
+    expect(buildCommandAttributes("positionPeriodic", { frequency: "86400" }).attributes).toEqual({
+      type: "positionPeriodic",
+      frequency: 86400,
     });
+    expect(buildCommandAttributes("positionPeriodic", { frequency: "86401" }).error).toMatch(/86400/);
+  });
+
+  it("rejects empty or invalid parameters", () => {
+    expect(buildCommandAttributes("sosNumber", { phoneNumber: " " }).error).toBeTruthy();
+    expect(buildCommandAttributes("setSpeedAlarm", { speed: "-1" }).error).toBeTruthy();
+    expect(buildCommandAttributes("setSpeedAlarm", { speed: "" }).error).toBeTruthy();
+    expect(buildCommandAttributes("custom", { text: "" }).error).toBeTruthy();
   });
 });
 

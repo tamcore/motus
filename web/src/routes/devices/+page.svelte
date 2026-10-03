@@ -5,7 +5,8 @@
 	import { currentUser } from '$lib/stores/auth';
 	import { refreshHandler } from '$lib/stores/refresh';
 	import { mileageToDisplay, mileageFromDisplay, formatMileage, formatRelative } from '$lib/utils/formatting';
-	import { commandAttributesPayload, commandIntervalLabel, commandSentMessage, COMMAND_TYPE_LABELS } from '$lib/utils/commands';
+	import { commandIntervalLabel, commandSentMessage, COMMAND_TYPE_LABELS } from '$lib/utils/commands';
+	import { buildCommandConfig } from '$lib/utils/notificationRules';
 	import { settings } from '$lib/stores/settings';
 	import AllDevicesToggle from '$lib/components/AllDevicesToggle.svelte';
 	import Button from '$lib/components/Button.svelte';
@@ -106,46 +107,25 @@
 		commandSentInfo = '';
 		commandSending = true;
 
-		const attributes: Record<string, unknown> = {};
-		if (commandType === 'positionPeriodic') {
-			const freq = parseInt(commandFrequency, 10);
-			if (!freq || freq <= 0) {
-				commandError = 'Interval must be a positive number';
-				commandSending = false;
-				return;
-			}
-			attributes.frequency = freq;
-		} else if (commandType === 'sosNumber') {
-			if (!commandSosNumber.trim()) {
-				commandError = 'SOS number is required';
-				commandSending = false;
-				return;
-			}
-			attributes.phoneNumber = commandSosNumber.trim();
-		} else if (commandType === 'setSpeedAlarm') {
-			const speed = parseInt(commandSpeed, 10);
-			if (isNaN(speed) || speed < 0) {
-				commandError = 'Speed must be 0 or a positive number';
-				commandSending = false;
-				return;
-			}
-			attributes.speed = speed;
-		} else if (commandType === 'custom') {
-			if (!commandText.trim()) {
-				commandError = 'Command text is required';
-				commandSending = false;
-				return;
-			}
-			attributes.text = commandText.trim();
+		const { config, error } = buildCommandConfig(commandType, {
+			frequency: commandFrequency,
+			phoneNumber: commandSosNumber,
+			speed: commandSpeed,
+			text: commandText
+		});
+		if (!config) {
+			commandError = error ?? 'Invalid command';
+			commandSending = false;
+			return;
 		}
 
 		try {
 			const sent = await api.sendCommand({
 				deviceId: commandDevice.id,
 				type: commandType,
-				attributes: commandAttributesPayload(commandType, attributes)
+				attributes: config.attributes
 			});
-			commandSentInfo = commandSentMessage(commandType, attributes, sent.status);
+			commandSentInfo = commandSentMessage(commandType, config.attributes ?? {}, sent.status);
 
 			// Poll for result up to 5s
 			let resultFound = false;

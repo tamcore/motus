@@ -146,18 +146,6 @@ export function buildBookmarkPayload(
   return { ok: true, payload: { deviceId: input.deviceId, name, description, from, to } };
 }
 
-/** User-facing message for a failed request (unwraps `{"error": "..."}` bodies). */
-export function bookmarkErrorMessage(err: unknown, fallback: string): string {
-  if (!(err instanceof Error) || err.message === "") return fallback;
-  try {
-    const body = JSON.parse(err.message) as { error?: unknown } | null;
-    if (body && typeof body.error === "string" && body.error !== "") return body.error;
-  } catch {
-    // Plain-text message.
-  }
-  return err.message;
-}
-
 /** Case-insensitive search over name, description and device name. */
 export function filterBookmarks(list: TrailBookmark[], query: string): TrailBookmark[] {
   const q = query.trim().toLowerCase();

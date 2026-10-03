@@ -2,10 +2,6 @@ import { getStoredAuthToken } from "$lib/auth-token-store";
 
 let csrfToken: string | null = null;
 
-export function getCsrfToken(): string | null {
-  return csrfToken;
-}
-
 export function setCsrfToken(v: string | null): void {
   csrfToken = v;
 }

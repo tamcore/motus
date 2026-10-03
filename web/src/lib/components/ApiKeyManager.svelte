@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { api, APIError } from '$lib/api/client';
+	import { api } from '$lib/api/client';
 	import type { ApiKey } from '$lib/types/api';
 	import { formatDate } from '$lib/utils/formatting';
 	import Button from '$lib/components/Button.svelte';
@@ -57,13 +57,7 @@
 		try {
 			apiKeys = await api.getApiKeys();
 		} catch (e: unknown) {
-			if (e instanceof APIError) {
-				listError = `Failed to load API keys: ${e.message}`;
-			} else if (e instanceof Error) {
-				listError = `Failed to load API keys: ${e.message}`;
-			} else {
-				listError = 'Failed to load API keys. Please try again.';
-			}
+			listError = e instanceof Error ? `Failed to load API keys: ${e.message}` : 'Failed to load API keys. Please try again.';
 		} finally {
 			loading = false;
 		}
@@ -154,13 +148,7 @@
 				}
 			}, 50);
 		} catch (e: unknown) {
-			if (e instanceof APIError) {
-				createError = e.message;
-			} else if (e instanceof Error) {
-				createError = e.message;
-			} else {
-				createError = 'Failed to create API key. Please try again.';
-			}
+			createError = e instanceof Error ? e.message : 'Failed to create API key. Please try again.';
 		} finally {
 			creating = false;
 		}

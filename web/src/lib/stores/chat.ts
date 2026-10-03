@@ -81,7 +81,12 @@ export async function sendMessage(userText: string): Promise<void> {
 }
 
 export async function newConversation(): Promise<void> {
-  await clearHistory();
+  try {
+    await clearHistory();
+  } catch (err) {
+    chatError.set(err instanceof Error ? err.message : "Failed to clear the conversation");
+    return;
+  }
   chatMessages.set([]);
   chatError.set(null);
 }

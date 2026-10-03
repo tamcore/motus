@@ -3,7 +3,6 @@ import {
   BOOKMARK_DESCRIPTION_MAX,
   BOOKMARK_NAME_MAX,
   bookmarkDuration,
-  bookmarkErrorMessage,
   bookmarkMapHref,
   bookmarkMatchesRange,
   bookmarkOriginalFromRange,
@@ -303,20 +302,6 @@ describe("buildBookmarkPayload", () => {
   it("allows an empty description", () => {
     const result = buildBookmarkPayload(form({ description: "" }));
     expect(result.ok && result.payload.description).toBe("");
-  });
-});
-
-describe("bookmarkErrorMessage", () => {
-  it("unwraps JSON error bodies", () => {
-    expect(bookmarkErrorMessage(new Error('{"error":"name is required"}'), "x")).toBe(
-      "name is required",
-    );
-  });
-
-  it("keeps plain messages and falls back for unknown errors", () => {
-    expect(bookmarkErrorMessage(new Error("boom"), "x")).toBe("boom");
-    expect(bookmarkErrorMessage("nope", "fallback")).toBe("fallback");
-    expect(bookmarkErrorMessage(new Error(""), "fallback")).toBe("fallback");
   });
 });
 

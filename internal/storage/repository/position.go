@@ -342,16 +342,12 @@ func (r *PositionRepository) countByDevice(ctx context.Context, userID int64, fr
 	if err != nil {
 		return nil, fmt.Errorf("count by device: %w", err)
 	}
-	defer rows.Close()
 	counts := make(map[int64]int64)
-	for rows.Next() {
-		var id, n int64
-		if err := rows.Scan(&id, &n); err != nil {
-			return nil, fmt.Errorf("count by device: %w", err)
-		}
+	var id, n int64
+	if _, err := pgx.ForEachRow(rows, []any{&id, &n}, func() error {
 		counts[id] = n
-	}
-	if err := rows.Err(); err != nil {
+		return nil
+	}); err != nil {
 		return nil, fmt.Errorf("count by device: %w", err)
 	}
 	return counts, nil

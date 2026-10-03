@@ -91,20 +91,15 @@ func (r *EventRepository) SumTripDistance(ctx context.Context, deviceIDs []int64
 	if err != nil {
 		return nil, 0, fmt.Errorf("sum trip distance: %w", err)
 	}
-	defer rows.Close()
-
 	var totals []DeviceTripTotal
 	var grandTotal float64
-	for rows.Next() {
-		var t DeviceTripTotal
-		if err := rows.Scan(&t.DeviceID, &t.DistanceKm, &t.TripCount); err != nil {
-			return nil, 0, fmt.Errorf("scan trip total: %w", err)
-		}
+	var t DeviceTripTotal
+	if _, err := pgx.ForEachRow(rows, []any{&t.DeviceID, &t.DistanceKm, &t.TripCount}, func() error {
 		totals = append(totals, t)
 		grandTotal += t.DistanceKm
-	}
-	if err := rows.Err(); err != nil {
-		return nil, 0, err
+		return nil
+	}); err != nil {
+		return nil, 0, fmt.Errorf("scan trip total: %w", err)
 	}
 	return totals, grandTotal, nil
 }

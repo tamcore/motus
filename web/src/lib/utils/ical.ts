@@ -47,9 +47,9 @@ function makeIcal(
   summary: string,
   dtstart: string,
   dtend: string,
-  rrule: string,
+  rrule?: string,
 ): string {
-  const lines = [
+  return [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
     "PRODID:-//Motus//Calendar//EN",
@@ -57,11 +57,10 @@ function makeIcal(
     `SUMMARY:${summary}`,
     `DTSTART:${dtstart}`,
     `DTEND:${dtend}`,
-    `RRULE:${rrule}`,
+    ...(rrule ? [`RRULE:${rrule}`] : []),
     "END:VEVENT",
     "END:VCALENDAR",
-  ];
-  return lines.join("\r\n");
+  ].join("\r\n");
 }
 
 /**
@@ -169,7 +168,8 @@ function parseIcalEvents(icalData: string): ParsedEvent[] {
         const params = parseRruleParams(event.rrule);
         event.freq = params.FREQ || null;
         if (params.BYDAY) {
-          event.byDay = params.BYDAY.split(",").map((d) => d.trim());
+          // Strip numeric prefixes (e.g., "1MO" -> "MO").
+          event.byDay = params.BYDAY.split(",").map((d) => d.trim().replace(/^\d+/, ""));
         }
         if (params.UNTIL) {
           event.until = parseIcalDateTime(`UNTIL:${params.UNTIL}`);
@@ -240,17 +240,24 @@ function formatTime12h(date: Date): string {
   return date.toLocaleTimeString("en-US", { timeZone: "UTC", hour: "numeric", minute: "2-digit" });
 }
 
+/** Sorted weekday indices (Sun=0) of BYDAY codes. */
+function dayIndices(days: string[]): number[] {
+  return days
+    .map((d) => ICAL_DAYS.indexOf(d as (typeof ICAL_DAYS)[number]))
+    .filter((i) => i !== -1)
+    .sort((a, b) => a - b);
+}
+
+/** Milliseconds since UTC midnight. */
+function utcTimeOfDayMs(d: Date): number {
+  return (d.getUTCHours() * 3600 + d.getUTCMinutes() * 60 + d.getUTCSeconds()) * 1000;
+}
+
 /**
  * Convert iCal day abbreviations to human-readable day list.
  */
 function formatDayList(days: string[]): string {
-  // Strip numeric prefixes (e.g., "1MO" -> "MO")
-  const cleaned = days.map((d) => d.replace(/^\d+/, ""));
-
-  const indices = cleaned
-    .map((d) => ICAL_DAYS.indexOf(d as (typeof ICAL_DAYS)[number]))
-    .filter((i) => i !== -1)
-    .sort((a, b) => a - b);
+  const indices = dayIndices(days);
 
   if (indices.length === 0) return "";
 
@@ -327,30 +334,6 @@ export function getScheduleSummary(icalData: string): string {
 // ---------------------------------------------------------------------------
 
 /**
- * Check whether the current time falls within any VEVENT in the iCalendar data.
- * This is a client-side approximation; the authoritative check is via the
- * backend's GET /api/calendars/{id}/check endpoint.
- */
-export function isActiveNow(icalData: string): boolean {
-  if (!icalData || !icalData.trim()) return false;
-
-  try {
-    const events = parseIcalEvents(icalData);
-    const now = new Date();
-
-    for (const event of events) {
-      if (isEventActiveAt(event, now)) {
-        return true;
-      }
-    }
-
-    return false;
-  } catch {
-    return false;
-  }
-}
-
-/**
  * Get a human-readable status string: "Active now" or "Next active: <description>".
  */
 export function getActiveStatus(icalData: string): {
@@ -416,6 +399,13 @@ function isEventActiveAt(event: ParsedEvent, t: Date): boolean {
   return false;
 }
 
+/** Whether the time of day of t falls within the window starting at the time of day of start. */
+function inDailyWindow(start: Date, eventDurationMs: number, t: Date): boolean {
+  const startMs = utcTimeOfDayMs(start);
+  const nowMs = utcTimeOfDayMs(t);
+  return nowMs >= startMs && nowMs < startMs + eventDurationMs;
+}
+
 /**
  * Check if time t falls within a WEEKLY BYDAY recurrence.
  */
@@ -425,28 +415,9 @@ function isActiveInWeeklyByDay(
   t: Date,
 ): boolean {
   if (!event.dtstart) return false;
-
-  // Check if past the recurrence end date (UNTIL boundary)
   if (event.until && t > event.until) return false;
-
-  const currentDayIdx = t.getUTCDay();
-  const currentDayIcal = ICAL_DAYS[currentDayIdx];
-
-  const cleaned = event.byDay.map((d) => d.replace(/^\d+/, ""));
-  if (!cleaned.includes(currentDayIcal)) return false;
-
-  // Check if current time-of-day is within the event window
-  const startHour = event.dtstart.getUTCHours();
-  const startMin = event.dtstart.getUTCMinutes();
-  const startSec = event.dtstart.getUTCSeconds();
-  const startMs = (startHour * 3600 + startMin * 60 + startSec) * 1000;
-
-  const nowHour = t.getUTCHours();
-  const nowMin = t.getUTCMinutes();
-  const nowSec = t.getUTCSeconds();
-  const nowMs = (nowHour * 3600 + nowMin * 60 + nowSec) * 1000;
-
-  return nowMs >= startMs && nowMs < startMs + eventDurationMs;
+  if (!event.byDay.includes(ICAL_DAYS[t.getUTCDay()])) return false;
+  return inDailyWindow(event.dtstart, eventDurationMs, t);
 }
 
 /**
@@ -458,45 +429,15 @@ function isActiveInDailyRecurrence(
   t: Date,
 ): boolean {
   if (!event.dtstart) return false;
-
-  // Check if past the recurrence end date (UNTIL boundary)
   if (event.until && t > event.until) return false;
 
   const params = event.rrule ? parseRruleParams(event.rrule) : {};
   const interval = parseInt(params.INTERVAL || "1") || 1;
-
-  if (interval === 1) {
-    // Every day - just check time of day
-    const startHour = event.dtstart.getUTCHours();
-    const startMin = event.dtstart.getUTCMinutes();
-    const startSec = event.dtstart.getUTCSeconds();
-    const startMs = (startHour * 3600 + startMin * 60 + startSec) * 1000;
-
-    const nowHour = t.getUTCHours();
-    const nowMin = t.getUTCMinutes();
-    const nowSec = t.getUTCSeconds();
-    const nowMs = (nowHour * 3600 + nowMin * 60 + nowSec) * 1000;
-
-    return nowMs >= startMs && nowMs < startMs + eventDurationMs;
-  }
-
-  // For intervals > 1, check if the day matches
   const daysDiff = Math.floor(
     (t.getTime() - event.dtstart.getTime()) / (86400 * 1000),
   );
   if (daysDiff < 0 || daysDiff % interval !== 0) return false;
-
-  const startHour = event.dtstart.getUTCHours();
-  const startMin = event.dtstart.getUTCMinutes();
-  const startSec = event.dtstart.getUTCSeconds();
-  const startMs = (startHour * 3600 + startMin * 60 + startSec) * 1000;
-
-  const nowHour = t.getUTCHours();
-  const nowMin = t.getUTCMinutes();
-  const nowSec = t.getUTCSeconds();
-  const nowMs = (nowHour * 3600 + nowMin * 60 + nowSec) * 1000;
-
-  return nowMs >= startMs && nowMs < startMs + eventDurationMs;
+  return inDailyWindow(event.dtstart, eventDurationMs, t);
 }
 
 /**
@@ -508,28 +449,15 @@ function getNextOccurrenceLabel(events: ParsedEvent[], now: Date): string {
 
     if (event.freq === "WEEKLY" && event.byDay.length > 0) {
       const currentDayIdx = now.getUTCDay();
-      const cleaned = event.byDay.map((d) => d.replace(/^\d+/, ""));
-      const dayIndices = cleaned
-        .map((d) => ICAL_DAYS.indexOf(d as (typeof ICAL_DAYS)[number]))
-        .filter((i) => i !== -1)
-        .sort((a, b) => a - b);
+      const days = dayIndices(event.byDay);
 
       // Find next matching day
       for (let offset = 0; offset <= 7; offset++) {
         const checkDay = (currentDayIdx + offset) % 7;
-        if (dayIndices.includes(checkDay)) {
+        if (days.includes(checkDay)) {
           if (offset === 0) {
             // Today - check if the event hasn't started yet
-            const startHour = event.dtstart.getUTCHours();
-            const startMin = event.dtstart.getUTCMinutes();
-            const nowTimeMs =
-              (now.getUTCHours() * 3600 +
-                now.getUTCMinutes() * 60 +
-                now.getUTCSeconds()) *
-              1000;
-            const startTimeMs = (startHour * 3600 + startMin * 60) * 1000;
-
-            if (nowTimeMs < startTimeMs) {
+            if (utcTimeOfDayMs(now) < utcTimeOfDayMs(event.dtstart)) {
               return `Next: Today at ${formatTime12h(event.dtstart)}`;
             }
             continue; // Past today's window, check next day
@@ -542,16 +470,7 @@ function getNextOccurrenceLabel(events: ParsedEvent[], now: Date): string {
     }
 
     if (event.freq === "DAILY") {
-      const startHour = event.dtstart.getUTCHours();
-      const startMin = event.dtstart.getUTCMinutes();
-      const nowTimeMs =
-        (now.getUTCHours() * 3600 +
-          now.getUTCMinutes() * 60 +
-          now.getUTCSeconds()) *
-        1000;
-      const startTimeMs = (startHour * 3600 + startMin * 60) * 1000;
-
-      if (nowTimeMs < startTimeMs) {
+      if (utcTimeOfDayMs(now) < utcTimeOfDayMs(event.dtstart)) {
         return `Next: Today at ${formatTime12h(event.dtstart)}`;
       }
       return `Next: Tomorrow at ${formatTime12h(event.dtstart)}`;
@@ -686,48 +605,24 @@ export function buildDateRangeIcal(config: DateRangeBuilderConfig): string {
   const validationError = validateDateRangeConfig(config);
   if (validationError) return "";
 
-  const startParts = config.startDate.split("-");
-  const endParts = config.endDate.split("-");
-
-  const sh = String(config.startHour).padStart(2, "0");
-  const sm = String(config.startMinute).padStart(2, "0");
-  const eh = String(config.endHour).padStart(2, "0");
-  const em = String(config.endMinute).padStart(2, "0");
-
-  const dtstart = `${startParts.join("")}T${sh}${sm}00`;
-  // DTEND uses the same date as DTSTART (event duration within a single day)
-  const dtend = `${startParts.join("")}T${eh}${em}00`;
-
-  // UNTIL date is the end date at 23:59:59
-  const until = `${endParts.join("")}T235959`;
-
-  const lines = [
-    "BEGIN:VCALENDAR",
-    "VERSION:2.0",
-    "PRODID:-//Motus//Calendar//EN",
-    "BEGIN:VEVENT",
-    "SUMMARY:Custom Schedule",
-    `DTSTART:${dtstart}`,
-    `DTEND:${dtend}`,
-  ];
+  const startDay = config.startDate.replaceAll("-", "");
+  const endDay = config.endDate.replaceAll("-", "");
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const startTime = `${pad(config.startHour)}${pad(config.startMinute)}00`;
+  const endTime = `${pad(config.endHour)}${pad(config.endMinute)}00`;
+  const until = `${endDay}T235959`;
+  const dtstart = `${startDay}T${startTime}`;
 
   if (config.recurrence === "none") {
-    // No recurrence - single event spanning from startDate to endDate
-    // For "none" recurrence, DTEND uses the end date
-    lines[lines.length - 1] = `DTEND:${endParts.join("")}T${eh}${em}00`;
-  } else if (config.recurrence === "daily") {
-    lines.push(`RRULE:FREQ=DAILY;UNTIL=${until}`);
-  } else if (config.recurrence === "weekly") {
-    const activeDays = config.weeklyDays
-      .map((active, i) => (active ? ICAL_DAYS[i] : null))
-      .filter(Boolean);
-    lines.push(
-      `RRULE:FREQ=WEEKLY;BYDAY=${activeDays.join(",")};UNTIL=${until}`,
-    );
+    // A single event spanning from startDate to endDate.
+    return makeIcal("Custom Schedule", dtstart, `${endDay}T${endTime}`);
   }
-
-  lines.push("END:VEVENT", "END:VCALENDAR");
-  return lines.join("\r\n");
+  // Recurring: each occurrence lasts within a single day, until endDate.
+  const rrule =
+    config.recurrence === "daily"
+      ? `FREQ=DAILY;UNTIL=${until}`
+      : `FREQ=WEEKLY;BYDAY=${ICAL_DAYS.filter((_, i) => config.weeklyDays[i]).join(",")};UNTIL=${until}`;
+  return makeIcal("Custom Schedule", dtstart, `${startDay}T${endTime}`, rrule);
 }
 
 /**

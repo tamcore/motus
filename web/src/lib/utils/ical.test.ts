@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { isActiveNow, getActiveStatus, getDateRange } from "./ical";
+import { getActiveStatus, getDateRange } from "./ical";
 
 /**
  * Helper: build a minimal iCalendar string with a VEVENT.
@@ -26,7 +26,7 @@ function makeIcal(opts: {
   return lines.join("\r\n");
 }
 
-describe("isActiveNow - recurrence boundary checks", () => {
+describe("getActiveStatus - recurrence boundary checks", () => {
   afterEach(() => {
     vi.useRealTimers();
   });
@@ -43,7 +43,7 @@ describe("isActiveNow - recurrence boundary checks", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(Date.UTC(2026, 1, 17, 12, 0, 0)));
 
-    expect(isActiveNow(ical)).toBe(false);
+    expect(getActiveStatus(ical).active).toBe(false);
   });
 
   it("should return false for expired weekly recurrence (UNTIL in the past)", () => {
@@ -58,7 +58,7 @@ describe("isActiveNow - recurrence boundary checks", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(Date.UTC(2026, 1, 18, 12, 0, 0)));
 
-    expect(isActiveNow(ical)).toBe(false);
+    expect(getActiveStatus(ical).active).toBe(false);
   });
 
   it("should return true for active weekly recurrence (UNTIL in the future)", () => {
@@ -73,7 +73,7 @@ describe("isActiveNow - recurrence boundary checks", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(Date.UTC(2026, 1, 18, 12, 0, 0)));
 
-    expect(isActiveNow(ical)).toBe(true);
+    expect(getActiveStatus(ical).active).toBe(true);
   });
 
   it("should return true for 24/7 infinite daily recurrence (no UNTIL)", () => {
@@ -88,7 +88,7 @@ describe("isActiveNow - recurrence boundary checks", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(Date.UTC(2026, 1, 17, 14, 30, 0)));
 
-    expect(isActiveNow(ical)).toBe(true);
+    expect(getActiveStatus(ical).active).toBe(true);
   });
 
   it("should return true for active daily recurrence with UNTIL in the future", () => {
@@ -103,7 +103,7 @@ describe("isActiveNow - recurrence boundary checks", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(Date.UTC(2026, 1, 17, 12, 0, 0)));
 
-    expect(isActiveNow(ical)).toBe(true);
+    expect(getActiveStatus(ical).active).toBe(true);
   });
 });
 

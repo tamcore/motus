@@ -1,4 +1,4 @@
-import { test, expect, type APIRequestContext } from '@playwright/test';
+import { test, expect, type APIRequestContext, type Page } from '@playwright/test';
 import { test as authTest } from '../fixtures/auth-fixture';
 import { GeofencesPage } from '../page-objects/GeofencesPage';
 
@@ -357,6 +357,116 @@ test.describe('Geofence delete confirmation', () => {
 
     const res = await page.request.get(`/api/geofences/${fenceId}`);
     expect(res.status()).toBe(404);
+    await ctx.close();
+  });
+});
+
+// Drawing a geofence on the map and saving it end-to-end. Regression for:
+// (a) rectangles not rendering while dragging (leaflet-draw's area tooltip
+//     throws a ReferenceError in the strict-mode bundle), and
+// (b) saving failing for every shape (POST /api/geofences required the WKT
+//     `area` field, but the UI sends only GeoJSON `geometry`).
+test.describe('Geofence drawing and creation', () => {
+  const prefix = 'PW Drawn';
+
+  test.afterEach(async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: '.auth/user.json' });
+    const page = await ctx.newPage();
+    const csrf = await getCSRF(page.request);
+    const res = await page.request.get('/api/geofences');
+    if (res.ok()) {
+      for (const g of (await res.json()) as { id: number; name: string }[]) {
+        if (g.name.startsWith(prefix)) {
+          await page.request.delete(`/api/geofences/${g.id}`, { headers: { 'X-CSRF-Token': csrf } });
+        }
+      }
+    }
+    await ctx.close();
+  });
+
+  async function mapCenter(page: Page) {
+    const box = await page.locator('.leaflet-container').first().boundingBox();
+    if (!box) throw new Error('map has no bounding box');
+    return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  }
+
+  async function saveAndExpect(page: Page, name: string) {
+    const geofencesPage = new GeofencesPage(page);
+    await expect(geofencesPage.nameInput).toBeVisible();
+    await geofencesPage.nameInput.fill(name);
+
+    const createResponse = page.waitForResponse(
+      (r) => r.url().endsWith('/api/geofences') && r.request().method() === 'POST',
+    );
+    await geofencesPage.saveButton.click();
+    const res = await createResponse;
+    expect(res.status()).toBe(201);
+    const body = await res.json();
+    expect(body.geometry).toContain('Polygon');
+
+    await expect(page.locator('.fence-item', { hasText: name })).toBeVisible();
+    await expect(page.locator('.geofence-error')).toHaveCount(0);
+  }
+
+  test('rectangle renders while dragging and saves', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: '.auth/user.json' });
+    const page = await ctx.newPage();
+    const pageErrors: string[] = [];
+    page.on('pageerror', (e) => pageErrors.push(e.message));
+
+    await new GeofencesPage(page).goto();
+    const c = await mapCenter(page);
+
+    await page.click('.leaflet-draw-draw-rectangle');
+    await page.mouse.move(c.x - 80, c.y - 60);
+    await page.mouse.down();
+    await page.mouse.move(c.x, c.y, { steps: 5 });
+    await page.mouse.move(c.x + 80, c.y + 60, { steps: 5 });
+
+    // The rubber-band rectangle must follow the cursor while dragging.
+    const shape = page.locator('.leaflet-overlay-pane path').last();
+    await expect(shape).toBeVisible();
+    const box = await shape.boundingBox();
+    expect(box?.width ?? 0).toBeGreaterThan(100);
+    expect(box?.height ?? 0).toBeGreaterThan(80);
+
+    await page.mouse.up();
+    expect(pageErrors.filter((m) => m.includes('type is not defined'))).toEqual([]);
+
+    await saveAndExpect(page, `${prefix} Rectangle`);
+    await ctx.close();
+  });
+
+  test('polygon draws and saves', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: '.auth/user.json' });
+    const page = await ctx.newPage();
+    await new GeofencesPage(page).goto();
+    const c = await mapCenter(page);
+
+    await page.click('.leaflet-draw-draw-polygon');
+    await page.mouse.click(c.x - 80, c.y - 60);
+    await page.mouse.click(c.x + 80, c.y - 60);
+    await page.mouse.click(c.x, c.y + 70);
+    // Clicking the first vertex closes the polygon.
+    await page.mouse.click(c.x - 80, c.y - 60);
+
+    await saveAndExpect(page, `${prefix} Polygon`);
+    await ctx.close();
+  });
+
+  test('circle draws and saves', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: '.auth/user.json' });
+    const page = await ctx.newPage();
+    await new GeofencesPage(page).goto();
+    const c = await mapCenter(page);
+
+    await page.click('.leaflet-draw-draw-circle');
+    await page.mouse.move(c.x, c.y);
+    await page.mouse.down();
+    await page.mouse.move(c.x + 60, c.y + 40, { steps: 5 });
+    await page.mouse.up();
+
+    await saveAndExpect(page, `${prefix} Circle`);
     await ctx.close();
   });
 });

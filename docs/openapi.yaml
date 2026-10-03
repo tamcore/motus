@@ -674,12 +674,16 @@ components:
 
     GeofenceInput:
       type: object
-      required: [name, area]
+      description: >-
+        At least one of `area` (WKT, Traccar-compatible) or `geometry`
+        (GeoJSON, sent by the web UI) is required; `geometry` wins when both
+        are set.
+      required: [name]
       properties:
         name: { type: string }
         description: { type: string }
-        area: { type: string }
-        geometry: { type: string }
+        area: { type: string, description: "WKT geometry (Traccar-compatible)" }
+        geometry: { type: string, description: "GeoJSON geometry" }
         calendarId: { type: integer, format: int64, nullable: true }
         attributes:
           $ref: '#/components/schemas/Attributes'

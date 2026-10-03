@@ -5,6 +5,12 @@
 	import { refreshHandler } from '$lib/stores/refresh';
 	import { useUserLocation } from '$lib/composables/useUserLocation';
 	import { buildPopupElement, type PopupRow } from '$lib/utils/popup';
+	import {
+		GEOFENCE_STYLE,
+		buildCreateGeofencePayload,
+		geofenceDrawOptions,
+		layerToGeoJSON
+	} from '$lib/utils/geofence-draw';
 	import Button from '$lib/components/Button.svelte';
 	import Input from '$lib/components/Input.svelte';
 	import Modal from '$lib/components/Modal.svelte';
@@ -55,12 +61,6 @@
 	const DEFAULT_CENTER: [number, number] = [51.1657, 10.4515];
 	const DEFAULT_ZOOM = 6;
 
-	const GEOFENCE_STYLE = {
-		color: '#00d4ff',
-		weight: 2,
-		fillOpacity: 0.15
-	};
-
 	/**
 	 * Look up a calendar name by its ID from the loaded calendar list.
 	 */
@@ -94,40 +94,6 @@
 		});
 		await Promise.all(checks);
 		calendarActiveStatus = newStatus;
-	}
-
-	/**
-	 * Convert a Leaflet drawn layer into a GeoJSON geometry object.
-	 * Handles Circle (converted to a 32-point polygon approximation),
-	 * Polygon, and Rectangle.
-	 */
-	function layerToGeoJSON(layer: any): any {
-		if (layer instanceof L.Circle) {
-			// Approximate circle as a polygon with 32 vertices
-			const center = layer.getLatLng();
-			const radius = layer.getRadius();
-			const points: [number, number][] = [];
-			for (let i = 0; i < 32; i++) {
-				const angle = (i / 32) * 2 * Math.PI;
-				// Approximate meter offset to degrees
-				const dLat = (radius * Math.cos(angle)) / 111320;
-				const dLng = (radius * Math.sin(angle)) / (111320 * Math.cos((center.lat * Math.PI) / 180));
-				points.push([center.lng + dLng, center.lat + dLat]);
-			}
-			points.push(points[0]); // Close the ring
-			return {
-				type: 'Polygon',
-				coordinates: [points]
-			};
-		} else if (layer instanceof L.Polygon || layer instanceof L.Rectangle) {
-			const coords = layer.getLatLngs()[0].map((ll: any) => [ll.lng, ll.lat]);
-			coords.push(coords[0]); // Close the polygon
-			return {
-				type: 'Polygon',
-				coordinates: [coords]
-			};
-		}
-		return null;
 	}
 
 	/**
@@ -371,28 +337,7 @@
 			return;
 		}
 
-		drawControl = new L.Control.Draw({
-			position: 'topleft',
-			draw: {
-				polyline: false,
-				marker: false,
-				circlemarker: false,
-				rectangle: {
-					shapeOptions: GEOFENCE_STYLE
-				},
-				polygon: {
-					allowIntersection: false,
-					shapeOptions: GEOFENCE_STYLE
-				},
-				circle: {
-					shapeOptions: GEOFENCE_STYLE
-				}
-			},
-			edit: {
-				featureGroup: drawnItems,
-				remove: false // We handle deletion via sidebar
-			}
-		});
+		drawControl = new L.Control.Draw(geofenceDrawOptions(drawnItems));
 
 		map.addControl(drawControl);
 
@@ -426,20 +371,15 @@
 	async function saveGeofence() {
 		if (!pendingLayer || !newGeofenceName.trim()) return;
 
-		const geometry = layerToGeoJSON(pendingLayer);
-		if (!geometry) {
+		const payload = buildCreateGeofencePayload(L, pendingLayer, newGeofenceName, newGeofenceCalendarId);
+		if (!payload) {
 			cancelCreate();
 			return;
 		}
 
 		saving = true;
 		try {
-			const created = await api.createGeofence({
-				name: newGeofenceName.trim(),
-				description: '',
-				geometry: JSON.stringify(geometry),
-				calendarId: newGeofenceCalendarId
-			});
+			const created = await api.createGeofence(payload);
 
 			// Remove the temporary drawn layer and render from the persisted data
 			// (This keeps our rendering consistent with what the backend stores.)
@@ -558,7 +498,7 @@
 		if (!editingShape || !shapeEditLayer) return;
 
 		shapeEditLayer.editing.disable();
-		const geometry = layerToGeoJSON(shapeEditLayer);
+		const geometry = layerToGeoJSON(L, shapeEditLayer);
 		if (!geometry) {
 			cancelShapeEdit();
 			return;

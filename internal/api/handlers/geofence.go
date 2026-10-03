@@ -59,6 +59,7 @@ func (h *Handler) CreateGeofence(ctx context.Context, req *oas.GeofenceInput) (o
 
 	desc, _ := req.Description.Get()
 	geom, _ := req.Geometry.Get()
+	area, _ := req.Area.Get()
 
 	var calID *int64
 	if v, ok := req.CalendarId.Get(); ok {
@@ -73,7 +74,7 @@ func (h *Handler) CreateGeofence(ctx context.Context, req *oas.GeofenceInput) (o
 		Name:        req.Name,
 		Description: desc,
 		Geometry:    geom,
-		Area:        req.Area,
+		Area:        area,
 		CalendarID:  calID,
 		Attributes:  attrs,
 	})

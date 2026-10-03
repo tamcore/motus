@@ -11713,8 +11713,10 @@ func (s *GeofenceInput) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
-		e.FieldStart("area")
-		e.Str(s.Area)
+		if s.Area.Set {
+			e.FieldStart("area")
+			s.Area.Encode(e)
+		}
 	}
 	{
 		if s.Geometry.Set {
@@ -11777,11 +11779,9 @@ func (s *GeofenceInput) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"description\"")
 			}
 		case "area":
-			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
-				v, err := d.Str()
-				s.Area = string(v)
-				if err != nil {
+				s.Area.Reset()
+				if err := s.Area.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -11828,7 +11828,7 @@ func (s *GeofenceInput) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000101,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

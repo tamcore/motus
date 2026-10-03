@@ -4040,14 +4040,18 @@ func (*Geofence) createGeofenceRes() {}
 func (*Geofence) getGeofenceRes()    {}
 func (*Geofence) updateGeofenceRes() {}
 
+// At least one of `area` (WKT, Traccar-compatible) or `geometry` (GeoJSON, sent by the web UI) is
+// required; `geometry` wins when both are set.
 // Ref: #/components/schemas/GeofenceInput
 type GeofenceInput struct {
-	Name        string        `json:"name"`
-	Description OptString     `json:"description"`
-	Area        string        `json:"area"`
-	Geometry    OptString     `json:"geometry"`
-	CalendarId  OptNilInt64   `json:"calendarId"`
-	Attributes  OptAttributes `json:"attributes"`
+	Name        string    `json:"name"`
+	Description OptString `json:"description"`
+	// WKT geometry (Traccar-compatible).
+	Area OptString `json:"area"`
+	// GeoJSON geometry.
+	Geometry   OptString     `json:"geometry"`
+	CalendarId OptNilInt64   `json:"calendarId"`
+	Attributes OptAttributes `json:"attributes"`
 }
 
 // GetName returns the value of Name.
@@ -4061,7 +4065,7 @@ func (s *GeofenceInput) GetDescription() OptString {
 }
 
 // GetArea returns the value of Area.
-func (s *GeofenceInput) GetArea() string {
+func (s *GeofenceInput) GetArea() OptString {
 	return s.Area
 }
 
@@ -4091,7 +4095,7 @@ func (s *GeofenceInput) SetDescription(val OptString) {
 }
 
 // SetArea sets the value of Area.
-func (s *GeofenceInput) SetArea(val string) {
+func (s *GeofenceInput) SetArea(val OptString) {
 	s.Area = val
 }
 

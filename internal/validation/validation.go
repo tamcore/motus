@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -97,7 +98,7 @@ func validateText(field, s string, maxChars int) error {
 }
 
 func isForbiddenControl(r rune) bool {
-	return r < 0x20 && r != '\n' && r != '\t'
+	return unicode.IsControl(r) && r != '\n' && r != '\t'
 }
 
 // ValidateDeviceUniqueID checks that the given string is a valid device

@@ -198,6 +198,8 @@ func TestValidateText_CountsCharacters(t *testing.T) {
 		{"empty", "", 5, false},
 		{"angle bracket", "a<b", 5, true},
 		{"control char", "a\x01b", 5, true},
+		{"DEL", "a\x7fb", 5, true},
+		{"C1 control", "a\u0085b", 5, true},
 		{"newline and tab allowed", "a\n\tb", 5, false},
 	}
 	for _, tt := range tests {

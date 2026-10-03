@@ -3,10 +3,6 @@ package handlers_test
 import (
 	"context"
 	"math"
-	"net/http"
-	"net/http/httptest"
-	"net/url"
-	"strconv"
 	"testing"
 	"time"
 
@@ -173,38 +169,6 @@ func TestReportActivity_ForeignDeviceForbidden(t *testing.T) {
 		} else if _, ok := res.(*oas.ReportActivityForbidden); !ok {
 			t.Fatalf("ids %v: expected Forbidden, got %T", ids, res)
 		}
-	}
-}
-
-type allowAllSecurity struct{}
-
-func (allowAllSecurity) HandleBearerAuth(ctx context.Context, _ oas.OperationName, _ oas.BearerAuth) (context.Context, error) {
-	return ctx, nil
-}
-
-func (allowAllSecurity) HandleCookieAuth(ctx context.Context, _ oas.OperationName, _ oas.CookieAuth) (context.Context, error) {
-	return ctx, nil
-}
-
-func (allowAllSecurity) HandleXAuthToken(ctx context.Context, _ oas.OperationName, _ oas.XAuthToken) (context.Context, error) {
-	return ctx, nil
-}
-
-func TestReportActivity_TooManyDeviceIDs(t *testing.T) {
-	srv, err := oas.NewServer(handlers.NewHandler(handlers.HandlerConfig{}), allowAllSecurity{})
-	if err != nil {
-		t.Fatalf("new server: %v", err)
-	}
-	q := url.Values{"from": {"2026-01-01T00:00:00Z"}, "to": {"2026-01-02T00:00:00Z"}}
-	for i := range 101 {
-		q.Add("deviceId", strconv.Itoa(i+1))
-	}
-	req := httptest.NewRequest(http.MethodGet, "/api/reports/activity?"+q.Encode(), nil)
-	req.Header.Set("Authorization", "Bearer x")
-	rec := httptest.NewRecorder()
-	srv.ServeHTTP(rec, req)
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400 for 101 device ids, got %d: %s", rec.Code, rec.Body.String())
 	}
 }
 

@@ -2044,7 +2044,8 @@ type GetPositionsParams struct {
 	From     OptDateTime `json:",omitempty,omitzero"`
 	To       OptDateTime `json:",omitempty,omitzero"`
 	// With from/to: return at most this many positions, evenly spaced over the whole range (every
-	// ceil(total/limit)-th position). Omitted or larger values use the server maximum of 10000.
+	// ceil(total/limit)-th position). Omitted or larger values use the server maximum of 10000. Without
+	// deviceId the limit is shared per device: devices with few positions keep all of them.
 	Limit OptInt `json:",omitempty,omitzero"`
 }
 

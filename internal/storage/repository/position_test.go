@@ -486,6 +486,49 @@ func TestPositionRepository_StreamByUserAndTimeRange_WithLimit(t *testing.T) {
 	}
 }
 
+func TestPositionRepository_StreamByUserAndTimeRange_PerDeviceSampling(t *testing.T) {
+	pool := testutil.SetupTestDB(t)
+	testutil.CleanTables(t, pool)
+	posRepo := repository.NewPositionRepository(pool)
+	deviceRepo := repository.NewDeviceRepository(pool)
+	userRepo := repository.NewUserRepository(pool)
+	ctx := t.Context()
+
+	user, busy := createTestDevice(t, pool, deviceRepo, userRepo)
+	quiet := &model.Device{UniqueID: "pos-quiet-" + time.Now().Format("150405.000000000"), Name: "Quiet", Status: "online"}
+	if err := deviceRepo.Create(ctx, quiet, user.ID); err != nil {
+		t.Fatalf("create quiet device: %v", err)
+	}
+	now := time.Now().UTC()
+	for i := range 20 {
+		if err := posRepo.Create(ctx, &model.Position{DeviceID: busy.ID, Latitude: 52, Longitude: 13, Timestamp: now.Add(time.Duration(-20+i) * time.Minute)}); err != nil {
+			t.Fatalf("create busy position %d: %v", i, err)
+		}
+	}
+	for i := range 2 {
+		if err := posRepo.Create(ctx, &model.Position{DeviceID: quiet.ID, Latitude: 48, Longitude: 11, Timestamp: now.Add(time.Duration(-30+i*10) * time.Minute)}); err != nil {
+			t.Fatalf("create quiet position %d: %v", i, err)
+		}
+	}
+
+	perDevice := map[int64]int{}
+	var stamps []time.Time
+	err := posRepo.StreamByUserAndTimeRange(ctx, user.ID, now.Add(-time.Hour), now.Add(time.Minute), 6, func(p *model.Position) error {
+		perDevice[p.DeviceID]++
+		stamps = append(stamps, p.Timestamp)
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("StreamByUserAndTimeRange: %v", err)
+	}
+	if perDevice[quiet.ID] != 2 || perDevice[busy.ID] != 4 {
+		t.Errorf("limit=6 kept quiet=%d busy=%d, want quiet=2 (all) busy=4", perDevice[quiet.ID], perDevice[busy.ID])
+	}
+	if !slices.IsSortedFunc(stamps, time.Time.Compare) {
+		t.Error("positions not in time order")
+	}
+}
+
 func TestPositionRepository_GetLatestAll(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)

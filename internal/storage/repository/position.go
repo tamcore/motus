@@ -1,10 +1,13 @@
 package repository
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"maps"
+	"slices"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -27,6 +30,10 @@ func NewPositionRepository(pool *pgxpool.Pool) *PositionRepository {
 const positionColumns = `id, device_id, protocol, server_time, device_time,
 	timestamp, valid, latitude, longitude, altitude, speed, course,
 	address, accuracy, network, geofence_ids, outdated, attributes`
+
+const qualifiedPositionColumns = `p.id, p.device_id, p.protocol, p.server_time, p.device_time,
+	p.timestamp, p.valid, p.latitude, p.longitude, p.altitude, p.speed, p.course,
+	p.address, p.accuracy, p.network, p.geofence_ids, p.outdated, p.attributes`
 
 // Create inserts a new position record.
 func (r *PositionRepository) Create(ctx context.Context, p *model.Position) error {
@@ -282,23 +289,95 @@ func (r *PositionRepository) CountAllByTimeRange(ctx context.Context, from, to t
 	return n, nil
 }
 
+const userRangeFilter = `FROM positions p
+		 JOIN user_devices ud ON ud.device_id = p.device_id
+		 WHERE ud.user_id = $1 AND p.timestamp >= $2 AND p.timestamp <= $3`
+
 // StreamByUserAndTimeRange calls fn for each position belonging to any device
-// owned by userID within the time range, ordered by timestamp ascending. limit
-// works as for StreamByDeviceAndTimeRange.
+// owned by userID within the time range, ordered by timestamp ascending. With
+// limit > 0 at most limit rows are kept, sampled per device so that busy
+// devices do not crowd out quiet ones (see deviceStrides).
 func (r *PositionRepository) StreamByUserAndTimeRange(
 	ctx context.Context, userID int64, from, to time.Time, limit int,
 	fn func(*model.Position) error,
 ) error {
-	err := r.streamSampled(ctx, fn, limit, `SELECT p.id, p.device_id, p.protocol, p.server_time, p.device_time,
-		 p.timestamp, p.valid, p.latitude, p.longitude, p.altitude, p.speed, p.course,
-		 p.address, p.accuracy, p.network, p.geofence_ids, p.outdated, p.attributes
-		 FROM positions p
-		 JOIN user_devices ud ON ud.device_id = p.device_id
-		 WHERE ud.user_id = $1 AND p.timestamp >= $2 AND p.timestamp <= $3`, userID, from, to)
-	if err != nil {
+	if err := r.streamUserRange(ctx, userID, from, to, limit, fn); err != nil {
 		return fmt.Errorf("stream positions by user and time range: %w", err)
 	}
 	return nil
+}
+
+func (r *PositionRepository) streamUserRange(ctx context.Context, userID int64, from, to time.Time, limit int, fn func(*model.Position) error) error {
+	plain := `SELECT ` + qualifiedPositionColumns + ` ` + userRangeFilter + ` ORDER BY p.timestamp ASC`
+	if limit <= 0 {
+		return r.stream(ctx, fn, plain, userID, from, to)
+	}
+	counts, err := r.countByDevice(ctx, userID, from, to)
+	if err != nil {
+		return err
+	}
+	strides, sampled := deviceStrides(counts, limit)
+	// LIMIT keeps the bound when rows arrive between the count and the scan.
+	if !sampled {
+		return r.stream(ctx, fn, plain+` LIMIT $4`, userID, from, to, limit)
+	}
+	ids := make([]int64, 0, len(strides))
+	steps := make([]int64, 0, len(strides))
+	for id, stride := range strides {
+		ids = append(ids, id)
+		steps = append(steps, stride)
+	}
+	return r.stream(ctx, fn, `SELECT `+positionColumns+` FROM (
+			SELECT `+qualifiedPositionColumns+`, row_number() OVER (PARTITION BY p.device_id ORDER BY p.timestamp) - 1 AS rn
+			`+userRangeFilter+` AND p.device_id = ANY($4)
+		 ) w
+		 JOIN unnest($4::bigint[], $5::bigint[]) AS s(device_id, stride) USING (device_id)
+		 WHERE w.rn % s.stride = 0
+		 ORDER BY timestamp ASC
+		 LIMIT $6`, userID, from, to, ids, steps, limit)
+}
+
+func (r *PositionRepository) countByDevice(ctx context.Context, userID int64, from, to time.Time) (map[int64]int64, error) {
+	rows, err := r.pool.Query(ctx, `SELECT p.device_id, count(*) `+userRangeFilter+` GROUP BY p.device_id`, userID, from, to)
+	if err != nil {
+		return nil, fmt.Errorf("count by device: %w", err)
+	}
+	defer rows.Close()
+	counts := make(map[int64]int64)
+	for rows.Next() {
+		var id, n int64
+		if err := rows.Scan(&id, &n); err != nil {
+			return nil, fmt.Errorf("count by device: %w", err)
+		}
+		counts[id] = n
+	}
+	return counts, rows.Err()
+}
+
+// deviceStrides splits limit fairly across devices: devices with fewer rows
+// than their share keep all of them, the rest is shared among busier devices.
+// It returns each device's sampling stride (keep rows where rn%stride == 0) and
+// whether any row is dropped. Devices left without budget are omitted.
+func deviceStrides(counts map[int64]int64, limit int) (map[int64]int64, bool) {
+	ids := slices.SortedFunc(maps.Keys(counts), func(a, b int64) int {
+		return cmp.Or(cmp.Compare(counts[a], counts[b]), cmp.Compare(a, b))
+	})
+	strides := make(map[int64]int64, len(ids))
+	remaining := int64(limit)
+	sampled := false
+	for i, id := range ids {
+		count := counts[id]
+		take := min(count, remaining/int64(len(ids)-i))
+		if take == 0 {
+			sampled = true
+			continue
+		}
+		stride := (count + take - 1) / take
+		strides[id] = stride
+		remaining -= (count + stride - 1) / stride
+		sampled = sampled || stride > 1
+	}
+	return strides, sampled
 }
 
 // streamSampled streams the rows of query ordered by timestamp. With limit > 0

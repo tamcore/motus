@@ -361,10 +361,9 @@ export interface NotificationLog {
   ruleId: number;
   eventId?: number;
   status: "sent" | "queued" | "failed";
-  sentAt?: string;
+  sentAt?: string | null;
   error?: string;
   responseCode?: number;
-  createdAt: string;
 }
 
 // ---------------------------------------------------------------------------

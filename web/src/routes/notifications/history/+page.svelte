@@ -63,12 +63,8 @@
 			const allLogs = await Promise.all(logPromises);
 			const merged = allLogs.flat();
 
-			// Sort by createdAt descending (most recent first)
-			merged.sort((a, b) => {
-				const timeA = new Date(a.createdAt).getTime();
-				const timeB = new Date(b.createdAt).getTime();
-				return timeB - timeA;
-			});
+			// Newest first; queued logs (no sentAt yet) last, then by id.
+			merged.sort((a, b) => (b.sentAt ?? '').localeCompare(a.sentAt ?? '') || b.id - a.id);
 
 			logs = merged;
 		} catch (err: any) {
@@ -173,7 +169,7 @@
 					<tbody>
 						{#each filteredLogs as log (log.id)}
 							<tr class:row-success={log.status === 'sent'} class:row-failure={log.status === 'failed'}>
-								<td class="cell-time">{formatDate(log.createdAt)}</td>
+								<td class="cell-time">{log.sentAt ? formatDate(log.sentAt) : '-'}</td>
 								<td class="cell-rule">{log.ruleName}</td>
 								<td>
 									{#each log.eventTypes as et}

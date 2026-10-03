@@ -15,7 +15,7 @@ type cacheEntry struct {
 
 // Cache is a thread-safe, TTL-based cache for geocoded addresses.
 // Keys are lat/lon pairs rounded to 4 decimal places (~11m precision).
-// Expiration is lazy: entries are checked on read and cleaned up periodically.
+// Expired entries are ignored on read and removed by Cleanup.
 type Cache struct {
 	mu      sync.RWMutex
 	entries map[string]cacheEntry
@@ -36,10 +36,7 @@ func NewCache(ttl time.Duration) *Cache {
 // At the equator, 0.0001 degrees is about 11 meters, providing a reasonable
 // balance between precision and cache reuse.
 func cacheKey(lat, lon float64) string {
-	// Round to 4 decimal places.
-	rlat := math.Round(lat*10000) / 10000
-	rlon := math.Round(lon*10000) / 10000
-	return fmt.Sprintf("%.4f,%.4f", rlat, rlon)
+	return fmt.Sprintf("%.4f,%.4f", math.Round(lat*10000)/10000, math.Round(lon*10000)/10000)
 }
 
 // Get retrieves a cached address for the given coordinates.
@@ -52,22 +49,9 @@ func (c *Cache) Get(lat, lon float64) (string, bool) {
 	entry, ok := c.entries[key]
 	c.mu.RUnlock()
 
-	if !ok {
+	if !ok || c.now().After(entry.expiresAt) {
 		return "", false
 	}
-
-	// Lazy expiration: check if the entry has expired.
-	if c.now().After(entry.expiresAt) {
-		// Remove expired entry under write lock.
-		c.mu.Lock()
-		// Double-check: another goroutine may have already removed or renewed it.
-		if e, ok := c.entries[key]; ok && c.now().After(e.expiresAt) {
-			delete(c.entries, key)
-		}
-		c.mu.Unlock()
-		return "", false
-	}
-
 	return entry.address, true
 }
 

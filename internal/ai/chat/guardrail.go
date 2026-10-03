@@ -53,7 +53,7 @@ func (s *Service) classifyTopic(ctx context.Context, msgs []Message) (bool, erro
 	}
 
 	completion, err := s.client.Chat.Completions.New(ctx, openai.ChatCompletionNewParams{
-		Model:       s.guardrailModel,
+		Model:       s.cfg.GuardrailModel,
 		Messages:    history,
 		MaxTokens:   param.NewOpt(int64(guardrailMaxTokens)),
 		Temperature: param.NewOpt(0.0),

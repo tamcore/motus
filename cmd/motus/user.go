@@ -279,34 +279,26 @@ func newUserSetPasswordCmd() *cobra.Command {
 
 // filterUsers returns users matching the given field=value filter.
 func filterUsers(users []*model.User, filter string) []*model.User {
-	parts := strings.SplitN(filter, "=", 2)
-	if len(parts) != 2 {
+	field, value, ok := strings.Cut(filter, "=")
+	if !ok {
 		fatalFn("invalid filter format (expected field=value)", slog.String("filter", filter))
 		return nil
 	}
-	field, value := strings.ToLower(parts[0]), strings.ToLower(parts[1])
+	field, value = strings.ToLower(field), strings.ToLower(value)
 
-	var result []*model.User
-	for _, u := range users {
-		switch field {
-		case "role":
-			if strings.ToLower(u.Role) == value {
-				result = append(result, u)
-			}
-		case "email":
-			if strings.Contains(strings.ToLower(u.Email), value) {
-				result = append(result, u)
-			}
-		case "name":
-			if strings.Contains(strings.ToLower(u.Name), value) {
-				result = append(result, u)
-			}
-		default:
-			fatalFn("unknown filter field (supported: role, email, name)", slog.String("field", field))
-			return nil
-		}
+	var keep func(*model.User) bool
+	switch field {
+	case "role":
+		keep = func(u *model.User) bool { return strings.ToLower(u.Role) == value }
+	case "email":
+		keep = func(u *model.User) bool { return strings.Contains(strings.ToLower(u.Email), value) }
+	case "name":
+		keep = func(u *model.User) bool { return strings.Contains(strings.ToLower(u.Name), value) }
+	default:
+		fatalFn("unknown filter field (supported: role, email, name)", slog.String("field", field))
+		return nil
 	}
-	return result
+	return slices.DeleteFunc(slices.Clone(users), func(u *model.User) bool { return !keep(u) })
 }
 
 // sortUsers sorts users in-place by the given field.

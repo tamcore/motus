@@ -168,13 +168,17 @@ func requireUser(ctx context.Context) (*model.User, error) {
 	return user, nil
 }
 
-// requireWriteAccess returns an error for readonly API keys.
+// requireWriter is requireUser that also rejects readonly API keys.
 // Cookie/session users always have write access.
-func requireWriteAccess(ctx context.Context) error {
-	if key := api.ApiKeyFromContext(ctx); key != nil && key.IsReadonly() {
-		return errors.New("write access denied: readonly API key")
+func requireWriter(ctx context.Context) (*model.User, error) {
+	user, err := requireUser(ctx)
+	if err != nil {
+		return nil, err
 	}
-	return nil
+	if key := api.ApiKeyFromContext(ctx); key != nil && key.IsReadonly() {
+		return nil, errors.New("write access denied: readonly API key")
+	}
+	return user, nil
 }
 
 func jsonResult(v any) *mcp.CallToolResult {
@@ -383,11 +387,8 @@ func handleListGeofences(ctx context.Context, _ mcp.CallToolRequest, deps Deps) 
 }
 
 func handleCreateGeofence(ctx context.Context, req mcp.CallToolRequest, deps Deps) (*mcp.CallToolResult, error) {
-	user, err := requireUser(ctx)
+	user, err := requireWriter(ctx)
 	if err != nil {
-		return mcp.NewToolResultError(err.Error()), nil
-	}
-	if err := requireWriteAccess(ctx); err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
@@ -442,9 +443,6 @@ func handleGeocodeAddress(ctx context.Context, req mcp.CallToolRequest, deps Dep
 	if err != nil {
 		return mcp.NewToolResultError("address is required"), nil
 	}
-	if deps.ForwardGeocoder == nil {
-		return mcp.NewToolResultError("geocoding not available"), nil
-	}
 	lat, lon, displayName, err := deps.ForwardGeocoder.ForwardGeocode(ctx, address)
 	if err != nil {
 		return mcp.NewToolResultError("geocoding failed: " + err.Error()), nil
@@ -462,9 +460,6 @@ func handleListCalendars(ctx context.Context, _ mcp.CallToolRequest, deps Deps) 
 	user, err := requireUser(ctx)
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
-	}
-	if deps.Calendars == nil {
-		return mcp.NewToolResultError("calendar service not available"), nil
 	}
 
 	cals, err := deps.Calendars.GetByUser(ctx, user.ID)
@@ -484,15 +479,9 @@ func handleListCalendars(ctx context.Context, _ mcp.CallToolRequest, deps Deps) 
 }
 
 func handleCreateCalendar(ctx context.Context, req mcp.CallToolRequest, deps Deps) (*mcp.CallToolResult, error) {
-	user, err := requireUser(ctx)
+	user, err := requireWriter(ctx)
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
-	}
-	if err := requireWriteAccess(ctx); err != nil {
-		return mcp.NewToolResultError(err.Error()), nil
-	}
-	if deps.CalendarService == nil {
-		return mcp.NewToolResultError("calendar service not available"), nil
 	}
 
 	name, err := req.RequireString("name")
@@ -547,11 +536,8 @@ func handleCreateCalendar(ctx context.Context, req mcp.CallToolRequest, deps Dep
 // ---- geofence update / delete handlers --------------------------------------
 
 func handleUpdateGeofence(ctx context.Context, req mcp.CallToolRequest, deps Deps) (*mcp.CallToolResult, error) {
-	user, err := requireUser(ctx)
+	user, err := requireWriter(ctx)
 	if err != nil {
-		return mcp.NewToolResultError(err.Error()), nil
-	}
-	if err := requireWriteAccess(ctx); err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
@@ -594,11 +580,8 @@ func handleUpdateGeofence(ctx context.Context, req mcp.CallToolRequest, deps Dep
 }
 
 func handleDeleteGeofence(ctx context.Context, req mcp.CallToolRequest, deps Deps) (*mcp.CallToolResult, error) {
-	user, err := requireUser(ctx)
+	user, err := requireWriter(ctx)
 	if err != nil {
-		return mcp.NewToolResultError(err.Error()), nil
-	}
-	if err := requireWriteAccess(ctx); err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
@@ -623,9 +606,6 @@ func handleListNotificationRules(ctx context.Context, _ mcp.CallToolRequest, dep
 	user, err := requireUser(ctx)
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
-	}
-	if deps.Notifications == nil {
-		return mcp.NewToolResultError("notification service not available"), nil
 	}
 
 	rules, err := deps.Notifications.GetByUser(ctx, user.ID)
@@ -654,15 +634,9 @@ func handleListNotificationRules(ctx context.Context, _ mcp.CallToolRequest, dep
 }
 
 func handleCreateNotificationRule(ctx context.Context, req mcp.CallToolRequest, deps Deps) (*mcp.CallToolResult, error) {
-	user, err := requireUser(ctx)
+	user, err := requireWriter(ctx)
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
-	}
-	if err := requireWriteAccess(ctx); err != nil {
-		return mcp.NewToolResultError(err.Error()), nil
-	}
-	if deps.Notifications == nil {
-		return mcp.NewToolResultError("notification service not available"), nil
 	}
 
 	name, err := req.RequireString("name")
@@ -709,24 +683,16 @@ func handleCreateNotificationRule(ctx context.Context, req mcp.CallToolRequest, 
 		return mcp.NewToolResultError("failed to create rule: " + err.Error()), nil
 	}
 
-	if deps.AuditLogger != nil {
-		deps.AuditLogger.Log(ctx, &user.ID, audit.ActionNotifCreate, audit.ResourceNotification, &rule.ID,
-			map[string]any{"name": rule.Name, "channel": rule.Channel}, "", "")
-	}
+	deps.AuditLogger.Log(ctx, &user.ID, audit.ActionNotifCreate, audit.ResourceNotification, &rule.ID,
+		map[string]any{"name": rule.Name, "channel": rule.Channel}, "", "")
 
 	return jsonResult(map[string]any{"id": rule.ID, "name": rule.Name}), nil
 }
 
 func handleUpdateNotificationRule(ctx context.Context, req mcp.CallToolRequest, deps Deps) (*mcp.CallToolResult, error) {
-	user, err := requireUser(ctx)
+	user, err := requireWriter(ctx)
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
-	}
-	if err := requireWriteAccess(ctx); err != nil {
-		return mcp.NewToolResultError(err.Error()), nil
-	}
-	if deps.Notifications == nil {
-		return mcp.NewToolResultError("notification service not available"), nil
 	}
 
 	idStr, err := req.RequireString("id")
@@ -789,15 +755,9 @@ func handleUpdateNotificationRule(ctx context.Context, req mcp.CallToolRequest, 
 }
 
 func handleDeleteNotificationRule(ctx context.Context, req mcp.CallToolRequest, deps Deps) (*mcp.CallToolResult, error) {
-	user, err := requireUser(ctx)
+	user, err := requireWriter(ctx)
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
-	}
-	if err := requireWriteAccess(ctx); err != nil {
-		return mcp.NewToolResultError(err.Error()), nil
-	}
-	if deps.Notifications == nil {
-		return mcp.NewToolResultError("notification service not available"), nil
 	}
 
 	idStr, err := req.RequireString("id")
@@ -953,9 +913,6 @@ func handleListTrailBookmarks(ctx context.Context, req mcp.CallToolRequest, deps
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
-	if deps.TrailBookmarks == nil {
-		return mcp.NewToolResultError("trail bookmarks not available"), nil
-	}
 
 	var deviceID *int64
 	id, err := resolveDeviceID(ctx, req, user, deps)
@@ -1038,9 +995,6 @@ func resolveDeviceID(ctx context.Context, req mcp.CallToolRequest, user *model.U
 // resolveCoords returns lat/lon from the request, geocoding address if needed.
 func resolveCoords(ctx context.Context, req mcp.CallToolRequest, deps Deps) (lat, lon float64, err error) {
 	if addr := req.GetString("address", ""); addr != "" {
-		if deps.ForwardGeocoder == nil {
-			return 0, 0, errors.New("geocoding not available")
-		}
 		lat, lon, _, err = deps.ForwardGeocoder.ForwardGeocode(ctx, addr)
 		return
 	}

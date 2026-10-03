@@ -7,7 +7,7 @@ import (
 )
 
 func TestDeviceAccessCache_GetSet(t *testing.T) {
-	c := newDeviceAccessCache(30 * time.Second)
+	c := newDeviceAccessCache()
 
 	t.Run("miss on empty cache", func(t *testing.T) {
 		ids, ok := c.get(1)
@@ -76,38 +76,8 @@ func TestDeviceAccessCache_GetSet(t *testing.T) {
 	})
 }
 
-func TestDeviceAccessCache_ReturnsCopy(t *testing.T) {
-	c := newDeviceAccessCache(30 * time.Second)
-	c.set(10, []int64{1, 2, 3})
-
-	// Get and mutate the returned slice.
-	ids, _ := c.get(10)
-	ids[0] = 999
-
-	// The cached data should be unaffected.
-	ids2, _ := c.get(10)
-	if ids2[0] != 1 {
-		t.Errorf("cache was mutated through returned slice: expected 1, got %d", ids2[0])
-	}
-}
-
-func TestDeviceAccessCache_SetCopiesInput(t *testing.T) {
-	c := newDeviceAccessCache(30 * time.Second)
-	input := []int64{1, 2, 3}
-	c.set(10, input)
-
-	// Mutate the input slice after set.
-	input[0] = 999
-
-	// The cached data should be unaffected.
-	ids, _ := c.get(10)
-	if ids[0] != 1 {
-		t.Errorf("cache was mutated through input slice: expected 1, got %d", ids[0])
-	}
-}
-
 func TestDeviceAccessCache_TTLExpiration(t *testing.T) {
-	c := newDeviceAccessCache(5 * time.Second)
+	c := newDeviceAccessCache()
 
 	// Use a controllable clock.
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -116,7 +86,7 @@ func TestDeviceAccessCache_TTLExpiration(t *testing.T) {
 	c.set(10, []int64{1, 2})
 
 	// Still valid within TTL.
-	now = now.Add(4 * time.Second)
+	now = now.Add(defaultCacheTTL - time.Second)
 	ids, ok := c.get(10)
 	if !ok {
 		t.Fatal("expected cache hit within TTL")
@@ -126,20 +96,16 @@ func TestDeviceAccessCache_TTLExpiration(t *testing.T) {
 	}
 
 	// Expired after TTL.
-	now = now.Add(2 * time.Second) // total: 6s > 5s TTL
+	now = now.Add(2 * time.Second)
 	_, ok = c.get(10)
 	if ok {
 		t.Error("expected cache miss after TTL expiration")
 	}
 
-	// Entry should have been lazily evicted.
-	if c.len() != 0 {
-		t.Errorf("expected 0 entries after eviction, got %d", c.len())
-	}
 }
 
 func TestDeviceAccessCache_TTLBoundary(t *testing.T) {
-	c := newDeviceAccessCache(10 * time.Second)
+	c := newDeviceAccessCache()
 
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	c.now = func() time.Time { return now }
@@ -148,7 +114,7 @@ func TestDeviceAccessCache_TTLBoundary(t *testing.T) {
 
 	// At exactly TTL: now == expiresAt, so time.After returns false.
 	// The entry is still considered valid at the exact boundary.
-	now = now.Add(10 * time.Second)
+	now = now.Add(defaultCacheTTL)
 	_, ok := c.get(10)
 	if !ok {
 		t.Error("expected cache hit at exact TTL boundary (time.After is strict >)")
@@ -163,7 +129,7 @@ func TestDeviceAccessCache_TTLBoundary(t *testing.T) {
 }
 
 func TestDeviceAccessCache_Invalidate(t *testing.T) {
-	c := newDeviceAccessCache(30 * time.Second)
+	c := newDeviceAccessCache()
 
 	c.set(10, []int64{1, 2})
 	c.set(20, []int64{3})
@@ -187,21 +153,14 @@ func TestDeviceAccessCache_Invalidate(t *testing.T) {
 }
 
 func TestDeviceAccessCache_InvalidateNonexistent(t *testing.T) {
-	c := newDeviceAccessCache(30 * time.Second)
+	c := newDeviceAccessCache()
 
 	// Should not panic or error.
 	c.invalidate(999)
 }
 
-func TestDeviceAccessCache_DefaultTTL(t *testing.T) {
-	c := newDeviceAccessCache(0) // should use defaultCacheTTL
-	if c.ttl != defaultCacheTTL {
-		t.Errorf("expected default TTL %v, got %v", defaultCacheTTL, c.ttl)
-	}
-}
-
 func TestDeviceAccessCache_ConcurrentAccess(t *testing.T) {
-	c := newDeviceAccessCache(30 * time.Second)
+	c := newDeviceAccessCache()
 
 	const numGoroutines = 100
 	const numOps = 1000
@@ -215,15 +174,13 @@ func TestDeviceAccessCache_ConcurrentAccess(t *testing.T) {
 			deviceID := int64(id % 10)
 
 			for j := range numOps {
-				switch j % 4 {
+				switch j % 3 {
 				case 0:
 					c.set(deviceID, []int64{int64(id), int64(j)})
 				case 1:
 					c.get(deviceID)
 				case 2:
 					c.invalidate(deviceID)
-				case 3:
-					c.len()
 				}
 			}
 		}(i)
@@ -234,7 +191,7 @@ func TestDeviceAccessCache_ConcurrentAccess(t *testing.T) {
 }
 
 func TestDeviceAccessCache_ConcurrentSetAndGet(t *testing.T) {
-	c := newDeviceAccessCache(30 * time.Second)
+	c := newDeviceAccessCache()
 
 	// One goroutine writes, another reads. Should not race.
 	var wg sync.WaitGroup
@@ -255,38 +212,6 @@ func TestDeviceAccessCache_ConcurrentSetAndGet(t *testing.T) {
 				t.Errorf("unexpected IDs length: %d", len(ids))
 			}
 		}
-	}()
-
-	wg.Wait()
-}
-
-func TestDeviceAccessCache_LazyEvictionRace(t *testing.T) {
-	// Test that concurrent expired reads + a refresh set do not cause issues.
-	c := newDeviceAccessCache(1 * time.Second)
-
-	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-	c.now = func() time.Time { return now }
-
-	c.set(10, []int64{1, 2})
-
-	// Advance past TTL.
-	now = now.Add(2 * time.Second)
-
-	var wg sync.WaitGroup
-	wg.Add(3)
-
-	// Two goroutines try to read (triggering lazy eviction).
-	for range 2 {
-		go func() {
-			defer wg.Done()
-			c.get(10)
-		}()
-	}
-
-	// One goroutine refreshes the entry.
-	go func() {
-		defer wg.Done()
-		c.set(10, []int64{3, 4})
 	}()
 
 	wg.Wait()

@@ -654,10 +654,6 @@ func (s *Server) decodeH02(ctx context.Context, line string) (*model.Position, s
 	}
 
 	// Build the position model.
-	speed := msg.Speed
-	course := msg.Course
-	altitude := msg.Altitude
-
 	now := time.Now().UTC()
 	position := &model.Position{
 		DeviceID:   device.ID,
@@ -668,9 +664,9 @@ func (s *Server) decodeH02(ctx context.Context, line string) (*model.Position, s
 		Valid:      msg.Valid,
 		Latitude:   msg.Latitude,
 		Longitude:  msg.Longitude,
-		Speed:      &speed,
-		Course:     &course,
-		Altitude:   &altitude,
+		Speed:      new(msg.Speed),
+		Course:     new(msg.Course),
+		Altitude:   new(msg.Altitude),
 		Attributes: map[string]any{
 			"flags":    msg.Flags,
 			"ignition": msg.Ignition,
@@ -829,21 +825,18 @@ func (s *Server) recordWatchCommandReply(ctx context.Context, device *model.Devi
 // known location they are only stored when they carry an alarm.
 func (s *Server) watchPosition(ctx context.Context, device *model.Device, p *watch.Position) *model.Position {
 	now := time.Now().UTC()
-	deviceTime := p.Timestamp
-	speed, course, altitude := p.Speed, p.Course, p.Altitude
-
 	position := &model.Position{
 		DeviceID:   device.ID,
 		Protocol:   "watch",
 		ServerTime: &now,
-		DeviceTime: &deviceTime,
+		DeviceTime: new(p.Timestamp),
 		Timestamp:  p.Timestamp,
 		Valid:      p.Valid,
 		Latitude:   p.Latitude,
 		Longitude:  p.Longitude,
-		Speed:      &speed,
-		Course:     &course,
-		Altitude:   &altitude,
+		Speed:      new(p.Speed),
+		Course:     new(p.Course),
+		Altitude:   new(p.Altitude),
 		Network:    p.Network,
 		Attributes: p.Attributes,
 	}

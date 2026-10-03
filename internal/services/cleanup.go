@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/tamcore/motus/internal/ticker"
 )
 
 const expiredRetention = 7 * 24 * time.Hour
@@ -33,25 +34,15 @@ func NewCleanupService(pool *pgxpool.Pool, interval time.Duration, logger *slog.
 // Performs cleanup immediately on start, then periodically at the configured interval.
 func (s *CleanupService) Start(ctx context.Context) {
 	s.logger.Info("starting expired data cleanup service")
-	ticker := time.NewTicker(s.interval)
-	defer ticker.Stop()
-
-	// Run immediately on startup
 	if err := s.RunOnce(ctx); err != nil {
 		s.logger.Error("cleanup error on startup", slog.Any("error", err))
 	}
-
-	for {
-		select {
-		case <-ctx.Done():
-			s.logger.Info("stopping expired data cleanup service")
-			return
-		case <-ticker.C:
-			if err := s.RunOnce(ctx); err != nil {
-				s.logger.Error("cleanup error", slog.Any("error", err))
-			}
+	ticker.Every(ctx, s.interval, func() {
+		if err := s.RunOnce(ctx); err != nil {
+			s.logger.Error("cleanup error", slog.Any("error", err))
 		}
-	}
+	})
+	s.logger.Info("stopping expired data cleanup service")
 }
 
 // RunOnce performs a single cleanup cycle.

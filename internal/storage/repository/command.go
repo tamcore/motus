@@ -62,14 +62,8 @@ func (r *CommandRepository) GetPendingByUniqueIDs(ctx context.Context, uniqueIDs
 	}
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (PendingCommand, error) {
 		pc := PendingCommand{Command: &model.Command{}}
-		var attrs []byte
-		cmd := pc.Command
-		if err := row.Scan(&cmd.ID, &cmd.DeviceID, &cmd.Type, &attrs, &cmd.Status, &cmd.Result, &cmd.CreatedAt, &cmd.ExecutedAt,
-			&pc.UniqueID, &pc.Protocol); err != nil {
+		if err := scanCommand(row, pc.Command, &pc.UniqueID, &pc.Protocol); err != nil {
 			return pc, fmt.Errorf("scan pending command: %w", err)
-		}
-		if len(attrs) > 0 {
-			_ = json.Unmarshal(attrs, &cmd.Attributes)
 		}
 		return pc, nil
 	})
@@ -125,33 +119,41 @@ func (r *CommandRepository) AppendResult(ctx context.Context, id int64, chunk st
 // for a device. Used to associate incoming SMS response chunks with the command that
 // triggered them.
 func (r *CommandRepository) GetLatestSentByDevice(ctx context.Context, deviceID int64) (*model.Command, error) {
-	cmd := &model.Command{}
-	var attrs []byte
-	err := r.pool.QueryRow(ctx,
+	rows, err := r.pool.Query(ctx,
 		`SELECT id, device_id, type, attributes, status, result, created_at, executed_at
 		 FROM commands
 		 WHERE device_id = $1 AND status IN ('sent', 'executed')
 		 ORDER BY created_at DESC
 		 LIMIT 1`,
 		deviceID,
-	).Scan(&cmd.ID, &cmd.DeviceID, &cmd.Type, &attrs, &cmd.Status, &cmd.Result, &cmd.CreatedAt, &cmd.ExecutedAt)
+	)
 	if err != nil {
 		return nil, fmt.Errorf("get latest sent command: %w", err)
 	}
-	if len(attrs) > 0 {
-		_ = json.Unmarshal(attrs, &cmd.Attributes)
+	cmd, err := pgx.CollectOneRow(rows, rowToCommand)
+	if err != nil {
+		return nil, fmt.Errorf("get latest sent command: %w", err)
 	}
 	return cmd, nil
 }
 
-func rowToCommand(row pgx.CollectableRow) (*model.Command, error) {
-	cmd := &model.Command{}
+// scanCommand scans a command row, followed by extra, into cmd.
+func scanCommand(row pgx.Row, cmd *model.Command, extra ...any) error {
 	var attrs []byte
-	if err := row.Scan(&cmd.ID, &cmd.DeviceID, &cmd.Type, &attrs, &cmd.Status, &cmd.Result, &cmd.CreatedAt, &cmd.ExecutedAt); err != nil {
-		return nil, fmt.Errorf("scan command: %w", err)
+	dest := append([]any{&cmd.ID, &cmd.DeviceID, &cmd.Type, &attrs, &cmd.Status, &cmd.Result, &cmd.CreatedAt, &cmd.ExecutedAt}, extra...)
+	if err := row.Scan(dest...); err != nil {
+		return err
 	}
 	if len(attrs) > 0 {
 		_ = json.Unmarshal(attrs, &cmd.Attributes)
+	}
+	return nil
+}
+
+func rowToCommand(row pgx.CollectableRow) (*model.Command, error) {
+	cmd := &model.Command{}
+	if err := scanCommand(row, cmd); err != nil {
+		return nil, fmt.Errorf("scan command: %w", err)
 	}
 	return cmd, nil
 }

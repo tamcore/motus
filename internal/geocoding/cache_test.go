@@ -89,11 +89,6 @@ func TestCache_Expiration(t *testing.T) {
 	if ok {
 		t.Error("expected cache miss after TTL")
 	}
-
-	// Entry should have been removed (lazy expiration).
-	if cache.Size() != 0 {
-		t.Errorf("expected 0 entries after expiration, got %d", cache.Size())
-	}
 }
 
 func TestCache_OverwriteEntry(t *testing.T) {

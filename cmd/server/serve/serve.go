@@ -308,7 +308,6 @@ func Run() {
 		if cfg.Geocoding.Enabled {
 			cachedGeocoder = geocoding.NewCachedGeocoder(nominatim, cfg.Geocoding.CacheTTL, geocodeLogger)
 			slog.Info("geocoding enabled",
-				slog.String("provider", cfg.Geocoding.Provider),
 				slog.String("cacheTTL", cfg.Geocoding.CacheTTL.String()),
 				slog.Float64("rateLimit", cfg.Geocoding.RateLimit),
 				slog.Bool("sharedRateLimit", geocodeLimiter != nil),
@@ -401,7 +400,7 @@ func Run() {
 	// Idle detection service.
 	idleService := services.NewIdleService(deviceRepo, positionRepo, eventRepo, hub, notificationService, svcLogger)
 	if cachedGeocoder != nil {
-		idleService.SetGeocoder(cachedGeocoder, positionRepo)
+		idleService.SetGeocoder(cachedGeocoder)
 	}
 
 	// Mileage tracking service.

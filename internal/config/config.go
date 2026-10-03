@@ -141,9 +141,6 @@ type GeocodingConfig struct {
 	// Enabled controls whether server-side reverse geocoding is active.
 	// Loaded from MOTUS_GEOCODING_ENABLED. Default: true.
 	Enabled bool
-	// Provider selects the geocoding backend. Currently only "nominatim" is supported.
-	// Loaded from MOTUS_GEOCODING_PROVIDER. Default: "nominatim".
-	Provider string
 	// URL is the reverse geocoding API endpoint.
 	// Loaded from MOTUS_GEOCODING_URL. Default: "https://nominatim.openstreetmap.org/reverse".
 	URL string
@@ -417,7 +414,6 @@ func LoadFromEnv() (*Config, error) {
 		},
 		Geocoding: GeocodingConfig{
 			Enabled:   parseEnv("MOTUS_GEOCODING_ENABLED", true, strconv.ParseBool),
-			Provider:  getEnv("MOTUS_GEOCODING_PROVIDER", "nominatim"),
 			URL:       getEnv("MOTUS_GEOCODING_URL", "https://nominatim.openstreetmap.org/reverse"),
 			CacheTTL:  parseEnv("MOTUS_GEOCODING_CACHE_TTL", time.Hour, time.ParseDuration),
 			RateLimit: parseEnv("MOTUS_GEOCODING_RATE_LIMIT", 1.0, parseFloat),

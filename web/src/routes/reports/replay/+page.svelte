@@ -10,6 +10,7 @@
 	import { toRoutePositions, type RoutePosition as Position } from '$lib/utils/route-points';
 	import { normalizeTimeParam } from '$lib/utils/report-links';
 	import { dateValue } from '$lib/utils/trail-range';
+	import { downloadGPX } from '$lib/utils/gpx';
 	import { formatDate, formatDuration, formatSpeed, formatDistance } from '$lib/utils/formatting';
 	import type { Device } from '$lib/types/api';
 	import { Chart, registerables } from 'chart.js';
@@ -887,6 +888,18 @@
 							<line x1="18" y1="20" x2="18" y2="10"/>
 							<line x1="12" y1="20" x2="12" y2="4"/>
 							<line x1="6" y1="20" x2="6" y2="14"/>
+						</svg>
+					</button>
+					<button
+						class="map-control-btn"
+						on:click={() => downloadGPX(positions, `route-${selectedDeviceId || 'unknown'}`)}
+						title="Download GPX"
+						aria-label="Download GPX"
+					>
+						<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+							<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+							<polyline points="7 10 12 15 17 10"/>
+							<line x1="12" y1="15" x2="12" y2="3"/>
 						</svg>
 					</button>
 					<button

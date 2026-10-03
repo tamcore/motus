@@ -73,7 +73,6 @@ vi.mock("chart.js", () => {
 });
 
 import ReplayPage from "../routes/reports/replay/+page.svelte";
-import RoutePage from "../routes/reports/route/+page.svelte";
 
 describe("reports/replay page", () => {
   beforeEach(() => {
@@ -147,32 +146,6 @@ describe("reports/replay page", () => {
       await waitFor(() => expect(container.querySelector("#replay-from")).not.toBeNull());
       expect((container.querySelector("#replay-from") as HTMLInputElement).value).toBe("2026-10-03");
       expect((container.querySelector("#replay-to") as HTMLInputElement).value).toBe("2026-10-03");
-    });
-  });
-});
-
-describe("reports/route page", () => {
-  beforeEach(() => {
-    getPositionPoints.mockReset();
-  });
-
-  it("repairs an offset timestamp whose '+' was decoded to a space", async () => {
-    pageUrl.current = new URL(
-      "http://localhost/reports/route?deviceId=1&from=2026-10-03T07:48:24+02:00&to=2026-10-03T08:17:34+02:00",
-    );
-    getPositionPoints.mockResolvedValue([
-      { lat: 50, lon: 10, speed: 30, fixTime: "2026-10-03T05:48:24Z" },
-      { lat: 50.1, lon: 10.1, speed: 40, fixTime: "2026-10-03T05:49:24Z" },
-    ]);
-
-    const { container } = render(RoutePage);
-
-    await waitFor(() => expect(container.querySelector(".controls-container")).not.toBeNull());
-    expect(getPositionPoints).toHaveBeenCalledWith({
-      deviceId: 1,
-      from: "2026-10-03T05:48:24.000Z",
-      to: "2026-10-03T06:17:34.000Z",
-      limit: 10000,
     });
   });
 });

@@ -412,8 +412,7 @@
 								{#if columnConfig.avgSpeed}<td>{formatSpeed(getTripAvgSpeed(trip))}</td>{/if}
 								{#if columnConfig.maxSpeed}<td>{formatSpeed(trip.maxSpeed)}</td>{/if}
 								<td>
-									<a href={tripLink('/reports/route', trip)} class="view-link">Route</a>
-									<a href={tripLink('/reports/replay', trip)} class="view-link replay-link">Replay</a>
+									<a href={tripLink(trip)} class="view-link replay-link">Replay</a>
 									{#if isTripOngoing(trip)}
 										<a href="/map?device={trip.deviceId}" class="view-link live-link">Live</a>
 									{/if}
@@ -596,7 +595,6 @@
 	.trips-table tr:hover td { background-color: var(--bg-secondary); }
 	.view-link { color: var(--accent-primary); text-decoration: none; font-weight: var(--font-medium); }
 	.view-link:hover { text-decoration: underline; }
-	.replay-link { margin-left: var(--space-2); }
 	.stats-grid {
 		display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 		gap: var(--space-4);

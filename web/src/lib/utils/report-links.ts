@@ -1,4 +1,4 @@
-/** Trip fields needed to link to the route and replay views. */
+/** Trip fields needed to link to the replay view. */
 export interface TripRange {
   deviceId: number;
   startTime: string;
@@ -6,17 +6,17 @@ export interface TripRange {
 }
 
 /**
- * Link to a per-trip report view. The times are percent-encoded: the server
+ * Link to the replay of a trip. The times are percent-encoded: the server
  * emits RFC 3339 offsets such as "+02:00", and an unencoded "+" is decoded to
  * a space, which the API rejects.
  */
-export function tripLink(path: "/reports/route" | "/reports/replay", trip: TripRange): string {
+export function tripLink(trip: TripRange): string {
   const query = new URLSearchParams({
     deviceId: String(trip.deviceId),
     from: trip.startTime,
     to: trip.endTime,
   });
-  return `${path}?${query}`;
+  return `/reports/replay?${query}`;
 }
 
 // "2026-10-03T07:48:24 02:00": a "+02:00" offset decoded from an unencoded link.

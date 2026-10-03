@@ -98,9 +98,9 @@ vulnerable stdlib.
 ### Pre-commit hooks run Go tests (short mode)
 `.pre-commit-config.yaml` runs `go test -short`, `go fmt`, `go fix`, `golangci-lint` (includes govet), and
 a `generate-check` hook. The `-short` flag skips integration tests that need Docker
-(PostGIS via testcontainers, Redis via testcontainers). The skip is implemented in
-`testutil.SetupTestDB(t)` and `setupRedis(t)` via `testing.Short()`. Full integration
-tests run in CI where Docker is available.
+(PostGIS via testcontainers). The skip is implemented in `testutil.SetupTestDB(t)` via
+`testing.Short()`. Redis tests use in-process miniredis and run in `-short` mode too.
+Full integration tests run in CI where Docker is available.
 
 The `generate-check` hook triggers only when `docs/openapi.yaml` is staged. It runs
 `make generate` then `git diff --exit-code internal/api/oas/` — the commit is blocked if

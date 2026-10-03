@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { ALL_TIME_START } from '$lib/utils/date-range';
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
 	import { page } from '$app/stores';
@@ -101,7 +102,7 @@
 				return { from: prevMonthStart.toISOString(), to: currentMonthStart.toISOString() };
 			}
 			case 'all':
-				return { from: new Date('2020-01-01').toISOString(), to: now.toISOString() };
+				return { from: ALL_TIME_START.toISOString(), to: now.toISOString() };
 			case 'custom':
 				return {
 					from: customFrom ? new Date(customFrom).toISOString() : now.toISOString(),

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { ALL_TIME_START } from '$lib/utils/date-range';
 	import { onMount, onDestroy } from 'svelte';
 	import { api, fetchDevices } from '$lib/api/client';
 	import { currentUser } from '$lib/stores/auth';
@@ -128,7 +129,7 @@
 				from = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 				break;
 			case 'all':
-				from = new Date('2020-01-01');
+				from = new Date(ALL_TIME_START);
 				break;
 			case 'custom':
 				from = customFrom

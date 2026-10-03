@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/stores';
+	import { replaceState } from '$app/navigation';
 	import { api, fetchDevices, fetchPositions } from '$lib/api/client';
 	import { wsManager } from '$lib/stores/websocket';
 	import { settings } from '$lib/stores/settings';
@@ -10,12 +11,26 @@
 	import { getOverlayById } from '$lib/utils/map-overlays';
 	import { buildPopupElement, type PopupRow } from '$lib/utils/popup';
 	import type { Device, Position } from '$lib/types/api';
+	import {
+		positionToRoutePosition,
+		toRoutePositions,
+		type RoutePosition
+	} from '$lib/utils/route-points';
 	import StatusIndicator from '$lib/components/StatusIndicator.svelte';
 	import MapLayerControl from '$lib/components/MapLayerControl.svelte';
 	import AllDevicesToggle from '$lib/components/AllDevicesToggle.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import { formatSpeed, formatRelative, getCardinalDirection } from '$lib/utils/formatting';
 	import { useUserLocation } from '$lib/composables/useUserLocation';
+	import TrailRangeSelector from '$lib/components/TrailRangeSelector.svelte';
+	import { trailRange } from '$lib/stores/trailRange';
+	import {
+		isLiveRange,
+		resolveTrailRange,
+		trailRangeFromSearchParams,
+		trailRangeToSearchParams,
+		type TrailRange
+	} from '$lib/utils/trail-range';
 
 	const leafletMap = useLeaflet();
 	const userLocation = useUserLocation();
@@ -36,7 +51,18 @@
 	let sidebarOpen = true;
 	let searchQuery = '';
 	let showTrail = false;
-	let trailPositions: Position[] = [];
+	let trailPositions: RoutePosition[] = [];
+	// Applied range: starts at the saved one; a URL range applies to this view
+	// only, an explicit selection is also saved.
+	let activeTrailRange: TrailRange = $trailRange;
+	let trailLoading = false;
+	let trailError = '';
+	// Incremented per trail request so stale responses (range changed or trail
+	// hidden mid-flight) are discarded.
+	let trailRequestId = 0;
+	// Max points per trail request. The server samples long ranges down to
+	// this, so 30 days / all time stay responsive.
+	const TRAIL_POINT_LIMIT = 5000;
 	let loading = true;
 	let wsConnected = false;
 
@@ -209,6 +235,10 @@
 			applyOverlay(currentOverlayId, currentOverlayOpacity);
 		}
 
+		// Trail range from URL (?trail=7d or ?from=…&to=…) applies to this view only.
+		const urlRange = trailRangeFromSearchParams($page.url.searchParams);
+		if (urlRange) activeTrailRange = urlRange;
+
 		// Check for device query param
 		const deviceParam = $page.url.searchParams.get('device');
 		if (deviceParam) {
@@ -252,6 +282,11 @@
 			console.error('Failed to load map data:', error);
 		} finally {
 			loading = false;
+		}
+
+		// A device link with an explicit range shows that trail right away.
+		if (urlRange && selectedDeviceId && positions.has(selectedDeviceId)) {
+			void loadTrail();
 		}
 
 		// Subscribe to WebSocket messages AFTER Leaflet and map are initialized
@@ -374,8 +409,8 @@
 		}
 
 		// Update trail if viewing this device
-		if (showTrail && selectedDeviceId === pos.deviceId) {
-			trailPositions = [...trailPositions, pos];
+		if (showTrail && selectedDeviceId === pos.deviceId && isLiveRange(activeTrailRange)) {
+			trailPositions = [...trailPositions, positionToRoutePosition(pos)];
 			drawTrail();
 		}
 	}
@@ -383,9 +418,7 @@
 	function selectDevice(deviceId: number) {
 		const map = leafletMap.getMap();
 		selectedDeviceId = deviceId;
-		showTrail = false;
-		trailPositions = [];
-		trailLayer?.clearLayers();
+		hideTrail();
 
 		const pos = positions.get(deviceId);
 		if (pos && map) {
@@ -397,19 +430,30 @@
 	async function loadTrail() {
 		const L = leafletMap.getLeaflet();
 		const map = leafletMap.getMap();
-		if (!selectedDeviceId) return;
+		const deviceId = selectedDeviceId;
+		if (!deviceId) return;
 		showTrail = true;
+		trailError = '';
+		trailLoading = true;
+		const requestId = ++trailRequestId;
+		// Marker clicks and auto-follow change the selection without hiding the
+		// trail, so the device is checked too.
+		const isStale = () =>
+			requestId !== trailRequestId || !showTrail || selectedDeviceId !== deviceId;
 
-		const now = new Date();
-		const from = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+		const { from, to } = resolveTrailRange(activeTrailRange);
 
 		try {
-			trailPositions = await api.getPositions({
-				deviceId: selectedDeviceId,
-				from: from.toISOString(),
-				to: now.toISOString(),
-				limit: 5000
-			});
+			const result = toRoutePositions(
+				await api.getPositionPoints({
+					deviceId,
+					from: from.toISOString(),
+					to: to.toISOString(),
+					limit: TRAIL_POINT_LIMIT
+				})
+			);
+			if (isStale()) return;
+			trailPositions = result;
 			drawTrail();
 
 			// Fit map to trail bounds if we have positions
@@ -419,14 +463,32 @@
 				map.fitBounds(bounds.pad(0.1));
 			}
 		} catch {
+			if (isStale()) return;
+			trailError = 'Failed to load trail';
 			console.error('Failed to load trail');
+		} finally {
+			if (requestId === trailRequestId) trailLoading = false;
 		}
 	}
 
 	function hideTrail() {
+		trailRequestId++;
 		showTrail = false;
+		trailLoading = false;
+		trailError = '';
 		trailPositions = [];
 		trailLayer?.clearLayers();
+	}
+
+	function handleTrailRangeChange(range: TrailRange) {
+		trailRange.set(range);
+		activeTrailRange = $trailRange;
+		// Reflect the range in the URL so the view can be shared/bookmarked.
+		const url = new URL($page.url);
+		url.search = trailRangeToSearchParams(activeTrailRange, url.searchParams).toString();
+		replaceState(url, $page.state);
+		// Picking a range means "show me this trail" for the selected device.
+		void loadTrail();
 	}
 
 	function drawTrail() {
@@ -713,6 +775,7 @@
 							<span class="detail-value">{selectedPosition.course != null ? selectedPosition.course.toFixed(0) : '0'}&deg;</span>
 						</div>
 					</div>
+					<TrailRangeSelector range={activeTrailRange} onChange={handleTrailRangeChange} />
 					<div class="detail-actions">
 						{#if showTrail}
 							<Button
@@ -735,10 +798,23 @@
 								size="sm"
 								on:click={loadTrail}
 							>
-								Show Trail (24h)
+								Show Trail
 							</Button>
 						{/if}
 					</div>
+					{#if showTrail}
+						<p class="trail-status" role="status">
+							{#if trailLoading}
+								Loading trail…
+							{:else if trailError}
+								{trailError}
+							{:else if trailPositions.length === 0}
+								No positions in this range
+							{:else}
+								{trailPositions.length.toLocaleString()} points
+							{/if}
+						</p>
+					{/if}
 				</div>
 			{/if}
 		{/if}
@@ -956,6 +1032,13 @@
 	.detail-actions {
 		display: flex;
 		gap: var(--space-2);
+		margin-top: var(--space-2);
+	}
+
+	.trail-status {
+		margin: var(--space-2) 0 0;
+		font-size: var(--text-xs);
+		color: var(--text-tertiary);
 	}
 
 	.map-container {

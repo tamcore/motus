@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { ALL_TIME_START } from '$lib/utils/date-range';
 	import { onMount, onDestroy, tick } from 'svelte';
 	import { page } from '$app/stores';
 	import { api, fetchDevices } from '$lib/api/client';
@@ -206,7 +207,7 @@
 				to: customTo ? new Date(customTo + 'T23:59:59').toISOString() : to,
 			};
 		}
-		if (datePreset === 'all') return { from: new Date('2020-01-01').toISOString(), to };
+		if (datePreset === 'all') return { from: ALL_TIME_START.toISOString(), to };
 		const from = new Date(now);
 		if (datePreset === 'day') from.setDate(from.getDate() - 1);
 		else if (datePreset === 'week') from.setDate(from.getDate() - 7);

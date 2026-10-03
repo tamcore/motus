@@ -1,12 +1,10 @@
 import { describe, it, expect } from "vitest";
+import { ALL_TIME_START } from "$lib/utils/date-range";
 
-// Guards the "All time" sentinel shared across all three /reports pages and
-// the heatmap page. The value is new Date('2020-01-01') — if any call site
-// drifts to a different date this test catches the regression.
-describe("Reports date range — All time preset", () => {
-  it("uses the 2020-01-01 sentinel matching the heatmap convention", () => {
-    expect(new Date("2020-01-01").toISOString()).toBe(
-      "2020-01-01T00:00:00.000Z",
-    );
+// The "All time" start is shared by the map trail, heatmap and all /reports
+// pages through ALL_TIME_START; this guards its value.
+describe("All time preset", () => {
+  it("starts at 2020-01-01 UTC", () => {
+    expect(ALL_TIME_START.toISOString()).toBe("2020-01-01T00:00:00.000Z");
   });
 });

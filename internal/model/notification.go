@@ -47,10 +47,6 @@ func IsNotificationEventType(eventType string) bool {
 	return notificationEventTypes[eventType]
 }
 
-// MaxReportingIntervalSeconds is the largest positionPeriodic frequency a
-// notification rule may send (one day).
-const MaxReportingIntervalSeconds = 86400
-
 // IsGeofenceEventType reports whether eventType is a geofence transition.
 func IsGeofenceEventType(eventType string) bool {
 	return eventType == EventTypeGeofenceEnter || eventType == EventTypeGeofenceExit

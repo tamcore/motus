@@ -133,9 +133,8 @@ func notificationCommandConfigToModel(c oas.NotificationConfigCommand) (map[stri
 	attrs := oasCommandAttrsToModel(c.Attributes)
 	switch c.CommandType {
 	case model.CommandPositionPeriodic:
-		if f, _ := attrs["frequency"].(int); f <= 0 || f > model.MaxReportingIntervalSeconds {
-			return nil, fmt.Errorf("positionPeriodic requires a frequency between 1 and %d seconds",
-				model.MaxReportingIntervalSeconds)
+		if _, ok := attrs["frequency"].(int); !ok {
+			return nil, fmt.Errorf("positionPeriodic requires a frequency attribute")
 		}
 	case model.CommandSosNumber:
 		if p, _ := attrs["phoneNumber"].(string); p == "" {

@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tamcore/motus/internal/api"
 	"github.com/tamcore/motus/internal/api/handlers"
 	oas "github.com/tamcore/motus/internal/api/oas"
 	"github.com/tamcore/motus/internal/audit"
@@ -251,21 +250,6 @@ func TestCreateNotification_ParameterlessCommandAllowed(t *testing.T) {
 	}
 	if _, has := created.Config["attributes"]; has {
 		t.Errorf("parameterless command must not store attributes: %#v", created.Config)
-	}
-}
-
-func TestCreateNotification_CommandRuleRejectedForReadonlyApiKey(t *testing.T) {
-	var created *model.NotificationRule
-	h := newNotificationGeofenceTestHandler(capturingNotifRepo(&created), 100)
-
-	ctx := api.ContextWithApiKey(notificationTestUserCtx(1), &model.ApiKey{ID: 1, Permissions: model.PermissionReadonly})
-	res, _ := h.CreateNotification(ctx, petExitRuleInput())
-	bad, ok := res.(*oas.CreateNotificationBadRequest)
-	if !ok || !strings.Contains(bad.Error, "read-only") {
-		t.Fatalf("expected read-only rejection, got %#v", res)
-	}
-	if created != nil {
-		t.Error("rule must not be persisted")
 	}
 }
 

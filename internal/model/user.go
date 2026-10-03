@@ -55,6 +55,11 @@ func (u *User) IsAdmin() bool {
 	return u.Role == RoleAdmin
 }
 
+// CanManage reports whether u may manage a resource owned by ownerID.
+func (u *User) CanManage(ownerID int64) bool {
+	return ownerID == u.ID || u.IsAdmin()
+}
+
 // PopulateTraccarFields sets the Traccar-compatible boolean fields
 // from the internal Role field.
 func (u *User) PopulateTraccarFields() {

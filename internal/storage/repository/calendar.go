@@ -134,16 +134,3 @@ func (r *CalendarRepository) UserHasAccess(ctx context.Context, user *model.User
 	).Scan(&exists)
 	return err == nil && exists
 }
-
-// AssociateUser links a calendar to a user. No-op if the association already exists.
-func (r *CalendarRepository) AssociateUser(ctx context.Context, userID, calendarID int64) error {
-	_, err := r.pool.Exec(ctx, `
-		INSERT INTO user_calendars (user_id, calendar_id)
-		VALUES ($1, $2)
-		ON CONFLICT DO NOTHING
-	`, userID, calendarID)
-	if err != nil {
-		return fmt.Errorf("associate user with calendar: %w", err)
-	}
-	return nil
-}

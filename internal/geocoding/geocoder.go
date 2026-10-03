@@ -145,7 +145,7 @@ func (g *NominatimGeocoder) reverseGeocode(ctx context.Context, lat, lon float64
 	}
 
 	if result.DisplayName == "" {
-		return coordinateFallback(lat, lon), nil
+		return CoordinateFallback(lat, lon), nil
 	}
 	return result.DisplayName, nil
 }
@@ -214,8 +214,8 @@ func (g *NominatimGeocoder) getJSON(ctx context.Context, reqURL string, v any) e
 	return nil
 }
 
-// coordinateFallback returns a human-readable coordinate string for use when
+// CoordinateFallback returns a human-readable coordinate string for use when
 // geocoding is disabled or fails.
-func coordinateFallback(lat, lon float64) string {
+func CoordinateFallback(lat, lon float64) string {
 	return fmt.Sprintf("%.5f, %.5f", lat, lon)
 }

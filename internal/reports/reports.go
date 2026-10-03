@@ -3,10 +3,10 @@
 package reports
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/tamcore/motus/internal/geo"
+	"github.com/tamcore/motus/internal/geocoding"
 	"github.com/tamcore/motus/internal/model"
 )
 
@@ -169,7 +169,7 @@ func (d *StopDetector) emit(duration time.Duration) {
 		lat, lon := d.sumLat/float64(d.count), d.sumLon/float64(d.count)
 		addr := d.address
 		if addr == "" {
-			addr = fmt.Sprintf("%.5f, %.5f", lat, lon)
+			addr = geocoding.CoordinateFallback(lat, lon)
 		}
 		d.stops = append(d.stops, Stop{
 			Latitude:      lat,

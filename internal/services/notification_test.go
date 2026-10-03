@@ -33,7 +33,7 @@ func setupNotificationService(t *testing.T) (
 	eventRepo := repository.NewEventRepository(pool)
 	userRepo := repository.NewUserRepository(pool)
 
-	svc := NewNotificationService(notifRepo, deviceRepo, geoRepo, posRepo)
+	svc := NewNotificationService(notifRepo, deviceRepo, geoRepo, posRepo, nil, nil)
 	return svc, notifRepo, deviceRepo, geoRepo, posRepo, eventRepo, userRepo
 }
 

@@ -451,19 +451,32 @@ func notificationRuleToOAS(n *model.NotificationRule) oas.NotificationRule {
 			wh.Headers = oas.OptNotificationConfigWebhookHeaders{Value: headers, Set: true}
 		}
 		config.SetNotificationConfigWebhook(wh)
+	case model.NotificationChannelCommand:
+		cmdType, _ := n.Config["commandType"].(string)
+		attrs, _ := n.Config["attributes"].(map[string]any)
+		config.SetNotificationConfigCommand(oas.NotificationConfigCommand{
+			Channel:     oas.NotificationConfigCommandChannelCommand,
+			CommandType: cmdType,
+			Attributes:  buildCommandAttributes(cmdType, attrs),
+		})
+	}
+	geofenceIDs := n.GeofenceIDs
+	if geofenceIDs == nil {
+		geofenceIDs = []int64{}
 	}
 	return oas.NotificationRule{
-		ID:         n.ID,
-		UserId:     n.UserID,
-		Name:       n.Name,
-		EventTypes: n.EventTypes,
-		Channel:    n.Channel,
-		Config:     config,
-		Template:   n.Template,
-		Enabled:    n.Enabled,
-		OwnerName:  optStr(n.OwnerName),
-		CreatedAt:  n.CreatedAt,
-		UpdatedAt:  n.UpdatedAt,
+		GeofenceIds: geofenceIDs,
+		ID:          n.ID,
+		UserId:      n.UserID,
+		Name:        n.Name,
+		EventTypes:  n.EventTypes,
+		Channel:     n.Channel,
+		Config:      config,
+		Template:    n.Template,
+		Enabled:     n.Enabled,
+		OwnerName:   optStr(n.OwnerName),
+		CreatedAt:   n.CreatedAt,
+		UpdatedAt:   n.UpdatedAt,
 	}
 }
 

@@ -37,7 +37,7 @@ import (
 // notification repo matters for the methods under test. The nil-pool audit
 // logger exercises the audit code paths as documented no-ops.
 func newNotificationTestHandler(notifications repository.NotificationRepo) *handlers.Handler {
-	svc := services.NewNotificationService(notifications, &mockDeviceRepo{}, &auditMockGeofenceRepo{}, &auditMockPositionRepo{})
+	svc := services.NewNotificationService(notifications, &mockDeviceRepo{}, &auditMockGeofenceRepo{}, &auditMockPositionRepo{}, nil, nil)
 	return handlers.NewHandler(handlers.HandlerConfig{
 		Notifications:       notifications,
 		NotificationService: svc,

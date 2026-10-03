@@ -75,6 +75,59 @@ export class NotificationsPage {
     return this.page.locator('[role="dialog"] button:has-text("Update")');
   }
 
+  get channelSelect() {
+    return this.page.locator('[role="dialog"] #channel');
+  }
+
+  get commandTypeSelect() {
+    return this.page.locator('[role="dialog"] #command-type');
+  }
+
+  get frequencyInput() {
+    return this.page.locator('[role="dialog"] input[name="frequency"]');
+  }
+
+  get geofenceFilter() {
+    return this.page.locator('[role="dialog"] .geofence-filter');
+  }
+
+  /** Geofence filter checkbox for the geofence with the given name. */
+  geofenceCheckbox(name: string) {
+    return this.page
+      .locator('[role="dialog"] .geofence-checkbox')
+      .filter({ hasText: name })
+      .locator('input[type="checkbox"]');
+  }
+
+  get formError() {
+    return this.page.locator('[role="dialog"] .form-error');
+  }
+
+  /** Reporting interval preset buttons (incl. "Custom") of ReportingIntervalPicker. */
+  get intervalPresets() {
+    return this.page.locator('[role="dialog"] button.interval-preset');
+  }
+
+  /** Interval preset button with exactly the given label, e.g. "20 sec" or "Custom". */
+  intervalPreset(label: string) {
+    return this.intervalPresets.filter({ hasText: new RegExp(`^${label}$`) });
+  }
+
+  /** Reconnect-loop warning (reboot/custom on device online/offline). */
+  get commandConflict() {
+    return this.page.locator('[role="dialog"] .command-conflict');
+  }
+
+  /** Geofence filter checkboxes of unavailable (deleted/inaccessible) geofences. */
+  get unavailableGeofences() {
+    return this.page.locator('[role="dialog"] .geofence-unavailable');
+  }
+
+  /** Rule card whose name contains the given text. */
+  ruleCard(name: string) {
+    return this.ruleCards.filter({ has: this.page.locator('.rule-name', { hasText: name }) });
+  }
+
   getRuleEditButton(index: number) {
     return this.ruleCards.nth(index).locator('button:has-text("Edit")');
   }

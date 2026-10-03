@@ -755,9 +755,18 @@ func handleUpdateNotificationRule(ctx context.Context, req mcp.CallToolRequest, 
 		if err := validateEventTypes(types); err != nil {
 			return mcp.NewToolResultError(err.Error()), nil
 		}
+		if updated.Channel == model.NotificationChannelCommand {
+			cmdType, _ := updated.Config["commandType"].(string)
+			if err := model.ValidateCommandEventTypes(cmdType, types); err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+		}
 		updated.EventTypes = types
 	}
 	if wu := req.GetString("webhook_url", ""); wu != "" {
+		if existing.Channel != model.NotificationChannelWebhook {
+			return mcp.NewToolResultError("webhook_url can only be set on webhook rules"), nil
+		}
 		if err := notification.ValidateWebhookURL(wu); err != nil {
 			return mcp.NewToolResultError("invalid webhook_url: " + err.Error()), nil
 		}

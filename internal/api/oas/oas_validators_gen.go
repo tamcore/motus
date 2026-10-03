@@ -335,6 +335,27 @@ func (s *CommandAttrPositionPeriodic) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        false,
+			Min:           0,
+			MaxSet:        true,
+			Max:           86400,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Frequency)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "frequency",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -991,6 +1012,56 @@ func (s *LoginRequest) Validate() error {
 	return nil
 }
 
+func (s *NotificationConfigCommand) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Channel.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "channel",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Attributes.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "attributes",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s NotificationConfigCommandChannel) Validate() error {
+	switch s {
+	case "command":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s *NotificationConfigWebhook) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -1059,6 +1130,17 @@ func (s *NotificationRule) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if s.GeofenceIds == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "geofenceIds",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -1069,6 +1151,11 @@ func (s NotificationRuleConfig) Validate() error {
 	switch s.Type {
 	case NotificationConfigWebhookNotificationRuleConfig:
 		if err := s.NotificationConfigWebhook.Validate(); err != nil {
+			return err
+		}
+		return nil
+	case NotificationConfigCommandNotificationRuleConfig:
+		if err := s.NotificationConfigCommand.Validate(); err != nil {
 			return err
 		}
 		return nil

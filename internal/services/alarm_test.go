@@ -209,7 +209,7 @@ func TestCheckAlarm_WithNotificationService(t *testing.T) {
 	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	notifSvc := NewNotificationService(notifRepo, deviceRepo, geoRepo, posRepo)
+	notifSvc := NewNotificationService(notifRepo, deviceRepo, geoRepo, posRepo, nil, nil)
 
 	// Use the mock event repo so that event creation does not hit the DB
 	// (the "alarm" type is not in the DB constraint, but we only need to

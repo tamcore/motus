@@ -83,7 +83,7 @@ func TestNotificationService_SendNotification_WithGeofenceAndPosition(t *testing
 	}
 	_ = notifRepo.Create(ctx, rule)
 
-	svc := NewNotificationService(notifRepo, deviceRepo, geoRepo, posRepo)
+	svc := NewNotificationService(notifRepo, deviceRepo, geoRepo, posRepo, nil, nil)
 
 	// Process the event.
 	if err := svc.ProcessEvent(ctx, event); err != nil {
@@ -132,7 +132,7 @@ func TestNotificationService_ProcessEvent_DeviceNotFound(t *testing.T) {
 	posRepo := repository.NewPositionRepository(pool)
 	ctx := context.Background()
 
-	svc := NewNotificationService(notifRepo, deviceRepo, geoRepo, posRepo)
+	svc := NewNotificationService(notifRepo, deviceRepo, geoRepo, posRepo, nil, nil)
 
 	event := &model.Event{
 		DeviceID:  99999, // Non-existent.
@@ -154,7 +154,7 @@ func TestNewNotificationService(t *testing.T) {
 	geoRepo := repository.NewGeofenceRepository(pool)
 	posRepo := repository.NewPositionRepository(pool)
 
-	svc := NewNotificationService(notifRepo, deviceRepo, geoRepo, posRepo)
+	svc := NewNotificationService(notifRepo, deviceRepo, geoRepo, posRepo, nil, nil)
 	if svc == nil {
 		t.Fatal("expected non-nil service")
 		return
@@ -212,7 +212,7 @@ func TestGeofenceEventService_CreateEvent_WithNotificationService(t *testing.T) 
 	_ = notifRepo.Create(ctx, rule)
 
 	// Create the services.
-	notifSvc := NewNotificationService(notifRepo, deviceRepo, geoRepo, posRepo)
+	notifSvc := NewNotificationService(notifRepo, deviceRepo, geoRepo, posRepo, nil, nil)
 	hub := newTestHub()
 	geoSvc := NewGeofenceEventService(geoRepo, eventRepo, posRepo, hub, notifSvc, nil)
 

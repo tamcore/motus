@@ -13962,6 +13962,172 @@ func (s *LoginUnauthorized) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
+func (s *NotificationConfigCommand) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *NotificationConfigCommand) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("channel")
+		s.Channel.Encode(e)
+	}
+	{
+		e.FieldStart("commandType")
+		e.Str(s.CommandType)
+	}
+	{
+		if s.Attributes.Set {
+			e.FieldStart("attributes")
+			s.Attributes.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfNotificationConfigCommand = [3]string{
+	0: "channel",
+	1: "commandType",
+	2: "attributes",
+}
+
+// Decode decodes NotificationConfigCommand from json.
+func (s *NotificationConfigCommand) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode NotificationConfigCommand to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "channel":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Channel.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"channel\"")
+			}
+		case "commandType":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.CommandType = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"commandType\"")
+			}
+		case "attributes":
+			if err := func() error {
+				s.Attributes.Reset()
+				if err := s.Attributes.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"attributes\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode NotificationConfigCommand")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfNotificationConfigCommand) {
+					name = jsonFieldsNameOfNotificationConfigCommand[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *NotificationConfigCommand) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NotificationConfigCommand) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes NotificationConfigCommandChannel as json.
+func (s NotificationConfigCommandChannel) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes NotificationConfigCommandChannel from json.
+func (s *NotificationConfigCommandChannel) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode NotificationConfigCommandChannel to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch NotificationConfigCommandChannel(v) {
+	case NotificationConfigCommandChannelCommand:
+		*s = NotificationConfigCommandChannelCommand
+	default:
+		*s = NotificationConfigCommandChannel(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NotificationConfigCommandChannel) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NotificationConfigCommandChannel) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *NotificationConfigWebhook) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -14591,6 +14757,14 @@ func (s *NotificationRule) encodeFields(e *jx.Encoder) {
 		e.Bool(s.Enabled)
 	}
 	{
+		e.FieldStart("geofenceIds")
+		e.ArrStart()
+		for _, elem := range s.GeofenceIds {
+			e.Int64(elem)
+		}
+		e.ArrEnd()
+	}
+	{
 		if s.OwnerName.Set {
 			e.FieldStart("ownerName")
 			s.OwnerName.Encode(e)
@@ -14606,7 +14780,7 @@ func (s *NotificationRule) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfNotificationRule = [11]string{
+var jsonFieldsNameOfNotificationRule = [12]string{
 	0:  "id",
 	1:  "userId",
 	2:  "name",
@@ -14615,9 +14789,10 @@ var jsonFieldsNameOfNotificationRule = [11]string{
 	5:  "config",
 	6:  "template",
 	7:  "enabled",
-	8:  "ownerName",
-	9:  "createdAt",
-	10: "updatedAt",
+	8:  "geofenceIds",
+	9:  "ownerName",
+	10: "createdAt",
+	11: "updatedAt",
 }
 
 // Decode decodes NotificationRule from json.
@@ -14731,6 +14906,26 @@ func (s *NotificationRule) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"enabled\"")
 			}
+		case "geofenceIds":
+			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				s.GeofenceIds = make([]int64, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem int64
+					v, err := d.Int64()
+					elem = int64(v)
+					if err != nil {
+						return err
+					}
+					s.GeofenceIds = append(s.GeofenceIds, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"geofenceIds\"")
+			}
 		case "ownerName":
 			if err := func() error {
 				s.OwnerName.Reset()
@@ -14742,7 +14937,7 @@ func (s *NotificationRule) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"ownerName\"")
 			}
 		case "createdAt":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.CreatedAt = v
@@ -14754,7 +14949,7 @@ func (s *NotificationRule) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"createdAt\"")
 			}
 		case "updatedAt":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.UpdatedAt = v
@@ -14776,7 +14971,7 @@ func (s *NotificationRule) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000110,
+		0b00001101,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -14847,6 +15042,22 @@ func (s NotificationRuleConfig) encodeFields(e *jx.Encoder) {
 				}
 			}
 		}
+	case NotificationConfigCommandNotificationRuleConfig:
+		e.FieldStart("channel")
+		e.Str("command")
+		{
+			s := s.NotificationConfigCommand
+			{
+				e.FieldStart("commandType")
+				e.Str(s.CommandType)
+			}
+			{
+				if s.Attributes.Set {
+					e.FieldStart("attributes")
+					s.Attributes.Encode(e)
+				}
+			}
+		}
 	}
 }
 
@@ -14876,6 +15087,9 @@ func (s *NotificationRuleConfig) Decode(d *jx.Decoder) error {
 				case "webhook":
 					s.Type = NotificationConfigWebhookNotificationRuleConfig
 					found = true
+				case "command":
+					s.Type = NotificationConfigCommandNotificationRuleConfig
+					found = true
 				default:
 					return errors.Errorf("unknown type %s", typ)
 				}
@@ -14892,6 +15106,10 @@ func (s *NotificationRuleConfig) Decode(d *jx.Decoder) error {
 	switch s.Type {
 	case NotificationConfigWebhookNotificationRuleConfig:
 		if err := s.NotificationConfigWebhook.Decode(d); err != nil {
+			return err
+		}
+	case NotificationConfigCommandNotificationRuleConfig:
+		if err := s.NotificationConfigCommand.Decode(d); err != nil {
 			return err
 		}
 	default:
@@ -14954,15 +15172,26 @@ func (s *NotificationRuleInput) encodeFields(e *jx.Encoder) {
 			s.Enabled.Encode(e)
 		}
 	}
+	{
+		if s.GeofenceIds != nil {
+			e.FieldStart("geofenceIds")
+			e.ArrStart()
+			for _, elem := range s.GeofenceIds {
+				e.Int64(elem)
+			}
+			e.ArrEnd()
+		}
+	}
 }
 
-var jsonFieldsNameOfNotificationRuleInput = [6]string{
+var jsonFieldsNameOfNotificationRuleInput = [7]string{
 	0: "name",
 	1: "eventTypes",
 	2: "channel",
 	3: "config",
 	4: "template",
 	5: "enabled",
+	6: "geofenceIds",
 }
 
 // Decode decodes NotificationRuleInput from json.
@@ -15047,6 +15276,25 @@ func (s *NotificationRuleInput) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"enabled\"")
+			}
+		case "geofenceIds":
+			if err := func() error {
+				s.GeofenceIds = make([]int64, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem int64
+					v, err := d.Int64()
+					elem = int64(v)
+					if err != nil {
+						return err
+					}
+					s.GeofenceIds = append(s.GeofenceIds, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"geofenceIds\"")
 			}
 		default:
 			return d.Skip()
@@ -19169,6 +19417,44 @@ func (s *SudoStatus) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *SudoStatus) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes TestNotificationBadRequest as json.
+func (s *TestNotificationBadRequest) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes TestNotificationBadRequest from json.
+func (s *TestNotificationBadRequest) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode TestNotificationBadRequest to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = TestNotificationBadRequest(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *TestNotificationBadRequest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *TestNotificationBadRequest) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

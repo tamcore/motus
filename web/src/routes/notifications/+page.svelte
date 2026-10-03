@@ -8,6 +8,7 @@
 	import Modal from '$lib/components/Modal.svelte';
 	import StatusIndicator from '$lib/components/StatusIndicator.svelte';
 	import AllDevicesToggle from '$lib/components/AllDevicesToggle.svelte';
+	import ReportingIntervalPicker from '$lib/components/ReportingIntervalPicker.svelte';
 	import {
 		notificationRules,
 		EVENT_TYPES,
@@ -16,20 +17,53 @@
 		DEFAULT_TEMPLATE
 	} from '$lib/stores/notifications';
 	import type { NotificationRule, NotificationLog } from '$lib/stores/notifications';
-	import type { NotificationConfigWebhook } from '$lib/types/api';
+	import type {
+		Geofence,
+		NotificationChannel,
+		NotificationConfig,
+		NotificationConfigWebhook
+	} from '$lib/types/api';
+	import { COMMAND_TYPE_LABELS, DEFAULT_REPORTING_INTERVAL_SECONDS } from '$lib/utils/commands';
+	import {
+		NOTIFICATION_COMMAND_TYPES,
+		buildCommandConfig,
+		commandEventConflict,
+		commandFormValues,
+		describeCommandAction,
+		describeGeofenceFilter,
+		geofenceFilterOptions,
+		hasGeofenceEvent
+	} from '$lib/utils/notificationRules';
 
 	let loading = true;
 	let error = '';
 	let showModal = false;
 	let editingRule: NotificationRule | null = null;
+	let formError = '';
+
+	// Geofence lookup for the geofence filter and the rule cards. Admins load
+	// every geofence, so the filters of other users' rules (admin "All users"
+	// toggle) resolve as well.
+	let geofences: Geofence[] = [];
 
 	// Form state
 	let formName = '';
 	let formEventTypes: string[] = [];
-	let formChannel: 'webhook' = 'webhook';
+	let formChannel: NotificationChannel = 'webhook';
 	let formWebhookUrl = '';
 	let formHeaders: Array<{ key: string; value: string }> = [];
 	let formTemplate = DEFAULT_TEMPLATE;
+	let formGeofenceIds: number[] = [];
+	let formCommandType = NOTIFICATION_COMMAND_TYPES[0];
+	let formFrequency = String(DEFAULT_REPORTING_INTERVAL_SECONDS);
+	let formSosNumber = '';
+	let formSpeed = '';
+	let formText = '';
+
+	$: showGeofenceFilter = hasGeofenceEvent(formEventTypes);
+	$: geofenceOptions = geofenceFilterOptions(formGeofenceIds, geofences);
+	$: commandConflict =
+		formChannel === 'command' ? commandEventConflict(formCommandType, formEventTypes) : null;
 
 	// Test notification state
 	let testingId: number | null = null;
@@ -41,9 +75,36 @@
 	let logsLoading = false;
 
 	onMount(async () => {
-		await loadRules();
-		$refreshHandler = loadRules;
+		await Promise.all([loadRules(), loadGeofences()]);
+		$refreshHandler = refresh;
 	});
+
+	function isAdminUser(): boolean {
+		return ($currentUser as Record<string, unknown> | null)?.administrator === true;
+	}
+
+	async function refresh() {
+		await Promise.all([loadRules(), loadGeofences()]);
+	}
+
+	async function loadGeofences() {
+		try {
+			if (isAdminUser()) {
+				// Full lookup regardless of the "All users" toggle; the owner is
+				// shown only for other users' geofences.
+				const myName = (($currentUser as Record<string, unknown> | null)?.name as string) || '';
+				geofences = (await api.getAllGeofences()).map((g) =>
+					g.ownerName && g.ownerName === myName ? { ...g, ownerName: undefined } : g
+				);
+			} else {
+				geofences = await api.getGeofences();
+			}
+		} catch (err) {
+			// The geofence filter is optional; rules still work without it.
+			console.error('Failed to load geofences:', err);
+			geofences = [];
+		}
+	}
 
 	onDestroy(() => { $refreshHandler = null; });
 
@@ -51,8 +112,7 @@
 		loading = true;
 		error = '';
 		try {
-			const isAdmin = ($currentUser as Record<string, unknown> | null)?.administrator === true;
-			const rules = await fetchNotifications(isAdmin);
+			const rules = await fetchNotifications(isAdminUser());
 			notificationRules.set(rules);
 		} catch (err: any) {
 			error = 'Failed to load notification rules';
@@ -69,6 +129,13 @@
 		formWebhookUrl = '';
 		formHeaders = [];
 		formTemplate = DEFAULT_TEMPLATE;
+		formGeofenceIds = [];
+		formCommandType = NOTIFICATION_COMMAND_TYPES[0];
+		formFrequency = String(DEFAULT_REPORTING_INTERVAL_SECONDS);
+		formSosNumber = '';
+		formSpeed = '';
+		formText = '';
+		formError = '';
 	}
 
 	function openCreate() {
@@ -78,24 +145,35 @@
 	}
 
 	function openEdit(rule: NotificationRule) {
+		resetForm();
 		editingRule = rule;
 		formName = rule.name;
 		formEventTypes = [...rule.eventTypes];
-		formChannel = 'webhook';
-		formTemplate = rule.template;
+		formChannel = rule.channel;
+		formGeofenceIds = [...(rule.geofenceIds ?? [])];
 
-		formWebhookUrl = rule.config?.webhookUrl || '';
-		formHeaders = rule.config?.headers
-			? Object.entries(rule.config.headers).map(([key, value]) => ({
-					key,
-					value: String(value)
-				}))
-			: [];
+		if (rule.config?.channel === 'command') {
+			formCommandType = rule.config.commandType;
+			const values = commandFormValues(rule.config);
+			formFrequency = values.frequency;
+			formSosNumber = values.phoneNumber;
+			formSpeed = values.speed;
+			formText = values.text;
+		} else if (rule.config?.channel === 'webhook') {
+			formTemplate = rule.template;
+			formWebhookUrl = rule.config.webhookUrl || '';
+			formHeaders = rule.config.headers
+				? Object.entries(rule.config.headers).map(([key, value]) => ({
+						key,
+						value: String(value)
+					}))
+				: [];
+		}
 
 		showModal = true;
 	}
 
-	function buildConfig(): NotificationConfigWebhook {
+	function buildWebhookConfig(): NotificationConfigWebhook {
 		const cfg: NotificationConfigWebhook = { channel: 'webhook', webhookUrl: formWebhookUrl };
 		const filteredHeaders = formHeaders.filter((h) => h.key.trim());
 		if (filteredHeaders.length > 0) {
@@ -104,16 +182,46 @@
 		return cfg;
 	}
 
+	function toggleGeofence(id: number, checked: boolean) {
+		formGeofenceIds = checked
+			? [...formGeofenceIds, id]
+			: formGeofenceIds.filter((g) => g !== id);
+	}
+
 	async function handleSubmit() {
 		error = '';
+		formError = '';
+
+		let config: NotificationConfig;
+		if (formChannel === 'command') {
+			if (commandConflict) {
+				formError = commandConflict;
+				return;
+			}
+			const built = buildCommandConfig(formCommandType, {
+				frequency: formFrequency,
+				phoneNumber: formSosNumber,
+				speed: formSpeed,
+				text: formText
+			});
+			if (!built.config) {
+				formError = built.error ?? 'Invalid command';
+				return;
+			}
+			config = built.config;
+		} else {
+			config = buildWebhookConfig();
+		}
 
 		const ruleData = {
 			name: formName,
 			eventTypes: formEventTypes,
 			channel: formChannel,
-			config: buildConfig(),
-			template: formTemplate,
-			enabled: editingRule ? editingRule.enabled : true
+			config,
+			template: formChannel === 'webhook' ? formTemplate : '',
+			enabled: editingRule ? editingRule.enabled : true,
+			// An empty filter means "all geofences".
+			geofenceIds: showGeofenceFilter ? formGeofenceIds : []
 		};
 
 		try {
@@ -129,6 +237,7 @@
 			error = editingRule
 				? 'Failed to update notification rule'
 				: 'Failed to create notification rule';
+			formError = err?.message ? `${error}: ${err.message}` : error;
 			console.error(err);
 		}
 	}
@@ -142,7 +251,8 @@
 				channel: rule.channel,
 				config: rule.config,
 				template: rule.template,
-				enabled: !rule.enabled
+				enabled: !rule.enabled,
+				geofenceIds: rule.geofenceIds ?? []
 			});
 			await loadRules();
 		} catch (err: any) {
@@ -212,7 +322,9 @@
 	}
 
 	function getDestination(rule: NotificationRule): string {
-		return rule.config?.webhookUrl || 'No URL set';
+		if (rule.config?.channel === 'command') return describeCommandAction(rule.config);
+		if (rule.config?.channel === 'webhook') return rule.config.webhookUrl || 'No URL set';
+		return 'No URL set';
 	}
 
 	function formatLogTime(dateStr: string): string {
@@ -231,7 +343,7 @@
 		<div class="page-header">
 			<h1 class="page-title">Notification Rules</h1>
 			<div class="header-actions">
-				<AllDevicesToggle on:change={loadRules} />
+				<AllDevicesToggle on:change={refresh} />
 				<a href="/notifications/history" class="history-link">
 					<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
 						<circle cx="12" cy="12" r="10"/>
@@ -293,9 +405,15 @@
 						</div>
 						<div class="rule-body">
 							<div class="rule-detail">
-								<span class="detail-label">Destination:</span>
-								<span class="detail-value truncate">{getDestination(rule)}</span>
+								<span class="detail-label">{rule.channel === 'command' ? 'Action:' : 'Destination:'}</span>
+								<span class="detail-value truncate rule-destination">{getDestination(rule)}</span>
 							</div>
+							{#if hasGeofenceEvent(rule.eventTypes)}
+								<div class="rule-detail">
+									<span class="detail-label">Geofences:</span>
+									<span class="detail-value truncate rule-geofences">{describeGeofenceFilter(rule.geofenceIds, geofences)}</span>
+								</div>
+							{/if}
 							{#if rule.updatedAt}
 								<div class="rule-detail">
 									<span class="detail-label">Last updated:</span>
@@ -304,12 +422,14 @@
 							{/if}
 						</div>
 						<div class="rule-footer">
-							<Button
-								size="sm"
-								variant="secondary"
-								loading={testingId === rule.id}
-								on:click={() => testRule(rule)}
-							>Test</Button>
+							{#if rule.channel !== 'command'}
+								<Button
+									size="sm"
+									variant="secondary"
+									loading={testingId === rule.id}
+									on:click={() => testRule(rule)}
+								>Test</Button>
+							{/if}
 							<Button size="sm" variant="secondary" on:click={() => viewLogs(rule)}>Logs</Button>
 							<Button size="sm" variant="secondary" on:click={() => openEdit(rule)}>Edit</Button>
 							<Button size="sm" variant="danger" on:click={() => deleteRule(rule.id)}>Delete</Button>
@@ -376,6 +496,48 @@
 			{/if}
 		</div>
 
+		{#if showGeofenceFilter}
+			<div class="form-group geofence-filter">
+				<span class="form-label">Geofences</span>
+				{#if geofenceOptions.length === 0}
+					<span class="form-hint">No geofences yet. The rule applies to all geofences.</span>
+				{:else}
+					<div class="event-type-grid">
+						{#each geofenceOptions as g (g.id)}
+							<label
+								class="event-type-checkbox geofence-checkbox"
+								class:geofence-unavailable={g.unavailable}
+								title={g.unavailable
+									? 'This geofence was deleted or is no longer accessible. Untick it to remove it from the rule.'
+									: undefined}
+							>
+								<input
+									type="checkbox"
+									value={g.id}
+									checked={formGeofenceIds.includes(g.id)}
+									on:change={(e) => {
+										const target = e.target;
+										if (target instanceof HTMLInputElement) toggleGeofence(g.id, target.checked);
+									}}
+								/>
+								<span>{g.label}</span>
+							</label>
+						{/each}
+					</div>
+					{#if geofenceOptions.some((g) => g.unavailable && formGeofenceIds.includes(g.id))}
+						<span class="form-hint form-hint--warning geofence-unavailable-hint">
+							Unavailable geofences never trigger this rule. Untick them to remove them.
+						</span>
+					{/if}
+					<span class="form-hint geofence-filter-hint">
+						{formGeofenceIds.length === 0
+							? 'No geofence selected: geofence events of all geofences trigger this rule.'
+							: 'Only enter/exit events of the selected geofences trigger this rule.'}
+					</span>
+				{/if}
+			</div>
+		{/if}
+
 		<div class="form-group">
 			<label for="channel" class="form-label">Channel</label>
 			<select id="channel" bind:value={formChannel} class="select">
@@ -385,45 +547,76 @@
 			</select>
 		</div>
 
-		<Input
-			label="Webhook URL"
-			name="webhookUrl"
-			placeholder="https://example.com/webhook"
-			required
-			bind:value={formWebhookUrl}
-		/>
-
-		<div class="form-group">
-			<span class="form-label">Headers (optional)</span>
-			{#each formHeaders as header, i}
-				<div class="header-row">
-					<input type="text" placeholder="Key" bind:value={header.key} class="header-input" />
-					<input type="text" placeholder="Value" bind:value={header.value} class="header-input" />
-					<button
-						type="button"
-						on:click={() => removeHeader(i)}
-						class="remove-btn"
-						aria-label="Remove header"
-					>X</button>
-				</div>
-			{/each}
-			<Button type="button" size="sm" variant="secondary" on:click={addHeader}>
-				+ Add Header
-			</Button>
-		</div>
-
-		<div class="form-group">
-			<label for="template" class="form-label">Message Template</label>
-			<textarea id="template" bind:value={formTemplate} rows="5" class="template-textarea"></textarea>
-			<div class="template-variables">
-				<span class="variables-label">Available variables:</span>
-				{#each TEMPLATE_VARIABLES as variable}
-					<button type="button" class="variable-btn" on:click={() => insertVariable(variable)}>
-						{variable}
-					</button>
-				{/each}
+		{#if formChannel === 'command'}
+			<div class="form-group">
+				<label for="command-type" class="form-label">Command</label>
+				<select id="command-type" bind:value={formCommandType} class="select">
+					{#each NOTIFICATION_COMMAND_TYPES as type}
+						<option value={type}>{COMMAND_TYPE_LABELS[type] ?? type}</option>
+					{/each}
+				</select>
+				<span class="form-hint">
+					Sent to the device that triggered the event. Offline devices receive it when they reconnect.
+				</span>
+				{#if commandConflict}
+					<span class="form-hint form-hint--error command-conflict">{commandConflict}</span>
+				{/if}
 			</div>
-		</div>
+
+			{#if formCommandType === 'positionPeriodic'}
+				<ReportingIntervalPicker bind:value={formFrequency} />
+			{:else if formCommandType === 'sosNumber'}
+				<Input name="sosNumber" label="SOS Phone Number" placeholder="+1234567890" bind:value={formSosNumber} />
+			{:else if formCommandType === 'setSpeedAlarm'}
+				<Input name="speed" label="Speed Limit (km/h, 0 = disable)" placeholder="80" bind:value={formSpeed} />
+			{:else if formCommandType === 'custom'}
+				<Input name="text" label="Raw Command" placeholder="rconf" bind:value={formText} />
+			{/if}
+		{:else}
+			<Input
+				label="Webhook URL"
+				name="webhookUrl"
+				placeholder="https://example.com/webhook"
+				required
+				bind:value={formWebhookUrl}
+			/>
+
+			<div class="form-group">
+				<span class="form-label">Headers (optional)</span>
+				{#each formHeaders as header, i}
+					<div class="header-row">
+						<input type="text" placeholder="Key" bind:value={header.key} class="header-input" />
+						<input type="text" placeholder="Value" bind:value={header.value} class="header-input" />
+						<button
+							type="button"
+							on:click={() => removeHeader(i)}
+							class="remove-btn"
+							aria-label="Remove header"
+						>X</button>
+					</div>
+				{/each}
+				<Button type="button" size="sm" variant="secondary" on:click={addHeader}>
+					+ Add Header
+				</Button>
+			</div>
+
+			<div class="form-group">
+				<label for="template" class="form-label">Message Template</label>
+				<textarea id="template" bind:value={formTemplate} rows="5" class="template-textarea"></textarea>
+				<div class="template-variables">
+					<span class="variables-label">Available variables:</span>
+					{#each TEMPLATE_VARIABLES as variable}
+						<button type="button" class="variable-btn" on:click={() => insertVariable(variable)}>
+							{variable}
+						</button>
+					{/each}
+				</div>
+			</div>
+		{/if}
+
+		{#if formError}
+			<div class="form-error" role="alert">{formError}</div>
+		{/if}
 	</form>
 
 	<svelte:fragment slot="footer">
@@ -452,7 +645,7 @@
 			{#each logs as log (log.id)}
 				<div class="log-entry" class:log-success={log.status === 'sent'} class:log-failure={log.status === 'failed'}>
 					<div class="log-header">
-						<StatusIndicator status={log.status === 'sent' ? 'online' : 'offline'} />
+						<StatusIndicator status={log.status === 'sent' ? 'online' : log.status === 'queued' ? 'idle' : 'offline'} />
 						<span class="log-status">{log.status}</span>
 						<span class="log-time">{formatLogTime(log.createdAt)}</span>
 					</div>
@@ -605,6 +798,10 @@
 		background-color: rgba(0, 212, 255, 0.15);
 		color: var(--accent-primary);
 	}
+	.channel-command {
+		background-color: color-mix(in srgb, var(--color-warning, #f59e0b) 15%, transparent);
+		color: var(--color-warning, #f59e0b);
+	}
 
 	/* Toggle */
 	.toggle-switch {
@@ -747,9 +944,28 @@
 		margin: 0;
 	}
 
+	.form-hint {
+		font-size: var(--text-xs, 0.75rem);
+		color: var(--text-secondary);
+	}
 	.form-hint--error {
 		font-size: var(--text-xs, 0.75rem);
 		color: var(--error, #ef4444);
+	}
+	.form-error {
+		padding: var(--space-2) var(--space-3);
+		border-radius: var(--radius-md);
+		background-color: color-mix(in srgb, var(--error, #ef4444) 12%, transparent);
+		color: var(--error, #ef4444);
+		font-size: var(--text-sm);
+	}
+	.form-hint--warning {
+		font-size: var(--text-xs, 0.75rem);
+		color: var(--warning, #f59e0b);
+	}
+	.geofence-unavailable span {
+		font-style: italic;
+		color: var(--warning, #f59e0b);
 	}
 
 	/* Headers */

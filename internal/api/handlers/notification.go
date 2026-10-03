@@ -2,13 +2,16 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/tamcore/motus/internal/api"
 	oas "github.com/tamcore/motus/internal/api/oas"
 	"github.com/tamcore/motus/internal/audit"
 	"github.com/tamcore/motus/internal/model"
 	"github.com/tamcore/motus/internal/notification"
+	"github.com/tamcore/motus/internal/services"
 )
 
 // validEventTypes lists the event types the notification system supports.
@@ -27,7 +30,151 @@ var validEventTypes = map[string]bool{
 
 // validChannels lists the notification delivery channels.
 var validChannels = map[string]bool{
-	"webhook": true,
+	model.NotificationChannelWebhook: true,
+	model.NotificationChannelCommand: true,
+}
+
+// notificationRuleFromInput validates a create/update request and returns the
+// rule fields it describes. ID, UserID, timestamps and the geofence filter
+// (see resolveRuleGeofenceIDs) are left to the caller. On invalid input it
+// returns a client-facing error message. requireTemplate enforces a non-empty
+// template for webhook rules (create only, matching the historical update
+// behaviour).
+func notificationRuleFromInput(ctx context.Context, req *oas.NotificationRuleInput, requireTemplate bool) (*model.NotificationRule, string) {
+	if req.Name == "" {
+		return nil, "name is required"
+	}
+	if len(req.EventTypes) == 0 {
+		return nil, "at least one event type is required"
+	}
+	for _, et := range req.EventTypes {
+		if !validEventTypes[et] {
+			return nil, fmt.Sprintf("invalid event type: %s", et)
+		}
+	}
+	if !validChannels[req.Channel] {
+		return nil, "invalid channel"
+	}
+
+	tmpl, _ := req.Template.Get()
+	var cfg map[string]any
+	switch req.Channel {
+	case model.NotificationChannelCommand:
+		// Command rules send device commands; apply the same readonly-key
+		// restriction as POST /api/commands/send (also enforced by the
+		// WriteAccess middleware).
+		if key := api.ApiKeyFromContext(ctx); key != nil && key.IsReadonly() {
+			return nil, "this API key has read-only permissions"
+		}
+		cmdCfg, ok := req.Config.GetNotificationConfigCommand()
+		if !ok {
+			return nil, "config does not match channel command"
+		}
+		var err error
+		if cfg, err = notificationCommandConfigToModel(cmdCfg); err != nil {
+			return nil, err.Error()
+		}
+		if err := model.ValidateCommandEventTypes(cmdCfg.CommandType, req.EventTypes); err != nil {
+			return nil, err.Error()
+		}
+		tmpl = "" // command rules have no message
+	default:
+		if _, ok := req.Config.GetNotificationConfigWebhook(); !ok {
+			return nil, "config does not match channel " + req.Channel
+		}
+		if requireTemplate && tmpl == "" {
+			return nil, "template is required"
+		}
+		var err error
+		if cfg, err = oasNotificationConfigToModel(req.Config); err != nil {
+			return nil, err.Error()
+		}
+	}
+
+	enabled, _ := req.Enabled.Get()
+	return &model.NotificationRule{
+		Name:       req.Name,
+		EventTypes: req.EventTypes,
+		Channel:    req.Channel,
+		Config:     cfg,
+		Template:   tmpl,
+		Enabled:    enabled,
+	}, ""
+}
+
+// resolveRuleGeofenceIDs returns the normalized geofence filter (sorted,
+// unique; empty = all geofences) for a create (existing == nil) or update.
+//
+// On update, an absent geofenceIds field (nil) keeps the stored filter, while
+// an explicit [] clears it. IDs already stored in the rule are accepted as-is
+// even if the geofence was deleted or is no longer accessible, so the rule
+// stays editable; only newly added IDs must be accessible to the user.
+func (h *Handler) resolveRuleGeofenceIDs(ctx context.Context, user *model.User, eventTypes []string, requested []int64, existing *model.NotificationRule) ([]int64, string) {
+	ids := requested
+	var stored []int64
+	if existing != nil {
+		stored = existing.GeofenceIDs
+		if requested == nil {
+			ids = stored
+		}
+	}
+	if len(ids) == 0 {
+		return []int64{}, ""
+	}
+	if !slices.ContainsFunc(eventTypes, model.IsGeofenceEventType) {
+		if requested == nil {
+			// The inherited filter has no effect without geofence events.
+			return []int64{}, ""
+		}
+		return nil, "geofenceIds require a geofenceEnter or geofenceExit event type"
+	}
+	out := slices.Compact(slices.Sorted(slices.Values(ids)))
+	for _, id := range out {
+		if slices.Contains(stored, id) {
+			continue
+		}
+		if id <= 0 || h.cfg.Geofences == nil || !h.cfg.Geofences.UserHasAccess(ctx, user, id) {
+			return nil, fmt.Sprintf("geofence %d not found or access denied", id)
+		}
+	}
+	return out, ""
+}
+
+// notificationCommandConfigToModel validates a command-channel config and
+// converts it to the stored config map {commandType, attributes?}.
+func notificationCommandConfigToModel(c oas.NotificationConfigCommand) (map[string]any, error) {
+	if !slices.Contains(model.NotificationCommandTypes(), c.CommandType) {
+		return nil, fmt.Errorf("invalid command type for notification rule: %q", c.CommandType)
+	}
+	if c.Attributes.Set && string(c.Attributes.Value.Type) != c.CommandType {
+		return nil, fmt.Errorf("command attributes of type %s do not match command type %s",
+			c.Attributes.Value.Type, c.CommandType)
+	}
+	attrs := oasCommandAttrsToModel(c.Attributes)
+	switch c.CommandType {
+	case model.CommandPositionPeriodic:
+		if f, _ := attrs["frequency"].(int); f <= 0 || f > model.MaxReportingIntervalSeconds {
+			return nil, fmt.Errorf("positionPeriodic requires a frequency between 1 and %d seconds",
+				model.MaxReportingIntervalSeconds)
+		}
+	case model.CommandSosNumber:
+		if p, _ := attrs["phoneNumber"].(string); p == "" {
+			return nil, fmt.Errorf("sosNumber requires a phoneNumber attribute")
+		}
+	case model.CommandSetSpeedAlarm:
+		if s, ok := attrs["speed"].(float64); !ok || s < 0 {
+			return nil, fmt.Errorf("setSpeedAlarm requires a speed attribute >= 0")
+		}
+	case model.CommandCustom:
+		if t, _ := attrs["text"].(string); t == "" {
+			return nil, fmt.Errorf("custom commands require a non-empty 'text' attribute")
+		}
+	}
+	cfg := map[string]any{"commandType": c.CommandType}
+	if len(attrs) > 0 {
+		cfg["attributes"] = attrs
+	}
+	return cfg, nil
 }
 
 // --- ogen Handler methods ---
@@ -58,40 +205,14 @@ func (h *Handler) CreateNotification(ctx context.Context, req *oas.NotificationR
 	if user == nil {
 		return &oas.CreateNotificationUnauthorized{Error: "unauthorized"}, nil
 	}
-	if req.Name == "" {
-		return &oas.CreateNotificationBadRequest{Error: "name is required"}, nil
+	rule, msg := notificationRuleFromInput(ctx, req, true)
+	if msg != "" {
+		return &oas.CreateNotificationBadRequest{Error: msg}, nil
 	}
-	if len(req.EventTypes) == 0 {
-		return &oas.CreateNotificationBadRequest{Error: "at least one event type is required"}, nil
+	if rule.GeofenceIDs, msg = h.resolveRuleGeofenceIDs(ctx, user, req.EventTypes, req.GeofenceIds, nil); msg != "" {
+		return &oas.CreateNotificationBadRequest{Error: msg}, nil
 	}
-	for _, et := range req.EventTypes {
-		if !validEventTypes[et] {
-			return &oas.CreateNotificationBadRequest{Error: fmt.Sprintf("invalid event type: %s", et)}, nil
-		}
-	}
-	if !validChannels[req.Channel] {
-		return &oas.CreateNotificationBadRequest{Error: "invalid channel"}, nil
-	}
-	tmpl, _ := req.Template.Get()
-	if tmpl == "" {
-		return &oas.CreateNotificationBadRequest{Error: "template is required"}, nil
-	}
-
-	cfg, cfgErr := oasNotificationConfigToModel(req.Config)
-	if cfgErr != nil {
-		return &oas.CreateNotificationBadRequest{Error: cfgErr.Error()}, nil
-	}
-
-	enabled, _ := req.Enabled.Get()
-	rule := &model.NotificationRule{
-		UserID:     user.ID,
-		Name:       req.Name,
-		EventTypes: req.EventTypes,
-		Channel:    req.Channel,
-		Config:     cfg,
-		Template:   tmpl,
-		Enabled:    enabled,
-	}
+	rule.UserID = user.ID
 	if err := h.cfg.Notifications.Create(ctx, rule); err != nil {
 		return &oas.CreateNotificationBadRequest{Error: "failed to create notification rule"}, nil
 	}
@@ -112,24 +233,9 @@ func (h *Handler) UpdateNotification(ctx context.Context, req *oas.NotificationR
 	if user == nil {
 		return &oas.UpdateNotificationUnauthorized{Error: "unauthorized"}, nil
 	}
-	if req.Name == "" {
-		return &oas.UpdateNotificationBadRequest{Error: "name is required"}, nil
-	}
-	if len(req.EventTypes) == 0 {
-		return &oas.UpdateNotificationBadRequest{Error: "at least one event type is required"}, nil
-	}
-	for _, et := range req.EventTypes {
-		if !validEventTypes[et] {
-			return &oas.UpdateNotificationBadRequest{Error: fmt.Sprintf("invalid event type: %s", et)}, nil
-		}
-	}
-	if !validChannels[req.Channel] {
-		return &oas.UpdateNotificationBadRequest{Error: "invalid channel"}, nil
-	}
-
-	cfg, cfgErr := oasNotificationConfigToModel(req.Config)
-	if cfgErr != nil {
-		return &oas.UpdateNotificationBadRequest{Error: cfgErr.Error()}, nil
+	rule, msg := notificationRuleFromInput(ctx, req, false)
+	if msg != "" {
+		return &oas.UpdateNotificationBadRequest{Error: msg}, nil
 	}
 
 	existing, err := h.cfg.Notifications.GetByID(ctx, params.ID)
@@ -139,19 +245,12 @@ func (h *Handler) UpdateNotification(ctx context.Context, req *oas.NotificationR
 	if existing.UserID != user.ID && !user.IsAdmin() {
 		return &oas.UpdateNotificationForbidden{Error: "access denied"}, nil
 	}
-
-	tmpl, _ := req.Template.Get()
-	enabled, _ := req.Enabled.Get()
-	rule := &model.NotificationRule{
-		ID:         params.ID,
-		UserID:     existing.UserID,
-		Name:       req.Name,
-		EventTypes: req.EventTypes,
-		Channel:    req.Channel,
-		Config:     cfg,
-		Template:   tmpl,
-		Enabled:    enabled,
+	if rule.GeofenceIDs, msg = h.resolveRuleGeofenceIDs(ctx, user, req.EventTypes, req.GeofenceIds, existing); msg != "" {
+		return &oas.UpdateNotificationBadRequest{Error: msg}, nil
 	}
+
+	rule.ID = params.ID
+	rule.UserID = existing.UserID
 	if err := h.cfg.Notifications.Update(ctx, rule); err != nil {
 		return &oas.UpdateNotificationBadRequest{Error: "failed to update notification rule"}, nil
 	}
@@ -232,6 +331,9 @@ func (h *Handler) TestNotification(ctx context.Context, params oas.TestNotificat
 		return &oas.TestNotificationForbidden{Error: "access denied"}, nil
 	}
 	if _, err := h.cfg.NotificationService.SendTestNotification(ctx, rule); err != nil {
+		if errors.Is(err, services.ErrTestNotSupported) {
+			return &oas.TestNotificationBadRequest{Error: err.Error()}, nil
+		}
 		return &oas.TestNotificationNotFound{Error: err.Error()}, nil
 	}
 	return &oas.TestNotificationNoContent{}, nil

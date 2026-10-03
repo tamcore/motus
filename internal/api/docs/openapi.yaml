@@ -439,7 +439,10 @@ components:
       required: [type, frequency]
       properties:
         type: { type: string, enum: [positionPeriodic] }
-        frequency: { type: integer }
+        frequency:
+          type: integer
+          maximum: 86400
+          description: Reporting interval in seconds (at most one day).
 
     CommandAttrSosNumber:
       type: object
@@ -458,10 +461,35 @@ components:
     NotificationRuleConfig:
       oneOf:
         - $ref: '#/components/schemas/NotificationConfigWebhook'
+        - $ref: '#/components/schemas/NotificationConfigCommand'
       discriminator:
         propertyName: channel
         mapping:
           webhook: '#/components/schemas/NotificationConfigWebhook'
+          command: '#/components/schemas/NotificationConfigCommand'
+
+    NotificationConfigCommand:
+      type: object
+      description: >-
+        Sends a device command to the device that triggered the event. The
+        command is queued and delivered immediately when the device is
+        connected, otherwise on its next connection (same path as
+        POST /api/commands/send).
+      required: [channel, commandType]
+      properties:
+        channel:
+          type: string
+          enum: [command]
+        commandType:
+          type: string
+          description: >-
+            Command type (see GET /api/commands/types). factoryReset is not
+            allowed. rebootDevice and custom cannot be combined with the
+            deviceOnline/deviceOffline event types (the device would reconnect
+            and trigger the rule again without end). positionPeriodic requires
+            a frequency between 1 and 86400 seconds.
+        attributes:
+          $ref: '#/components/schemas/CommandAttributes'
 
     NotificationConfigWebhook:
       type: object
@@ -807,7 +835,7 @@ components:
 
     NotificationRule:
       type: object
-      required: [id, userId, name, eventTypes, channel, config, template, enabled, createdAt, updatedAt]
+      required: [id, userId, name, eventTypes, channel, config, template, enabled, geofenceIds, createdAt, updatedAt]
       properties:
         id: { type: integer, format: int64 }
         userId: { type: integer, format: int64 }
@@ -820,6 +848,12 @@ components:
           $ref: '#/components/schemas/NotificationRuleConfig'
         template: { type: string }
         enabled: { type: boolean }
+        geofenceIds:
+          type: array
+          description: >-
+            Geofences that geofenceEnter/geofenceExit events must reference
+            for the rule to fire. Empty means all geofences.
+          items: { type: integer, format: int64 }
         ownerName: { type: string }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
@@ -835,8 +869,21 @@ components:
         channel: { type: string }
         config:
           $ref: '#/components/schemas/NotificationRuleConfig'
-        template: { type: string }
+        template:
+          type: string
+          description: Message template (required for the webhook channel, ignored for command).
         enabled: { type: boolean }
+        geofenceIds:
+          type: array
+          description: >-
+            Restrict geofenceEnter/geofenceExit events to these geofences.
+            An empty list matches all geofences. On create, omitting the field
+            also matches all geofences; on update, omitting it keeps the
+            current filter and only an explicit empty list clears it. Requires
+            a geofence event type. Every newly added geofence must be
+            accessible; IDs already stored in the rule (e.g. of a deleted
+            geofence) may be resent unchanged.
+          items: { type: integer, format: int64 }
 
     NotificationLog:
       type: object
@@ -2488,6 +2535,8 @@ paths:
       responses:
         "204":
           description: Test notification sent
+        "400":
+          $ref: '#/components/responses/BadRequest'
         "401":
           $ref: '#/components/responses/Unauthorized'
         "403":

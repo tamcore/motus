@@ -132,9 +132,6 @@ func Run() {
 		)
 	}
 
-	// Notification service (needs to be created before geofence event service).
-	notificationService := services.NewNotificationService(notificationRepo, deviceRepo, geofenceRepo, positionRepo)
-
 	calendarRepo := repository.NewCalendarRepository(pool)
 	trailBookmarkRepo := repository.NewTrailBookmarkRepository(pool)
 
@@ -156,6 +153,19 @@ func Run() {
 	// Command encoders. The WATCH encoder reads each device's connection
 	// session (manufacturer, frame indexing) from the registry.
 	encoderRegistry := protocol.NewEncoderRegistry(deviceRegistry)
+
+	// Notification service (needs to be created before geofence event service).
+	// Command notification rules send device commands through the same path
+	// as POST /api/commands/send (pending queue + immediate delivery).
+	notificationService := services.NewNotificationService(
+		notificationRepo, deviceRepo, geofenceRepo, positionRepo,
+		&protocol.CommandSubmitter{
+			Commands: commandRepo,
+			Encoders: encoderRegistry,
+			Registry: deviceRegistry,
+		},
+		auditLogger,
+	)
 
 	if cfg.OIDC.Enabled {
 		slog.Info("OIDC authentication enabled",

@@ -31,6 +31,9 @@ export const COMMAND_TYPE_LABELS: Readonly<Record<string, string>> = {
 /** Reporting interval preselected for "Set Reporting Interval". */
 export const DEFAULT_REPORTING_INTERVAL_SECONDS = 60;
 
+/** Largest reporting interval the API accepts (one day, docs/openapi.yaml). */
+export const MAX_REPORTING_INTERVAL_SECONDS = 86400;
+
 /** Quick-select reporting intervals offered for "Set Reporting Interval". */
 export const REPORTING_INTERVAL_PRESETS: ReadonlyArray<{ seconds: number; label: string }> = [
   { seconds: 5, label: "5 sec" },

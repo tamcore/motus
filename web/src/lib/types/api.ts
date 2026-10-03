@@ -299,7 +299,17 @@ export interface NotificationConfigWebhook {
   webhookUrl: string;
   headers?: Record<string, string>;
 }
-export type NotificationConfig = NotificationConfigWebhook;
+/**
+ * Sends a device command to the device that triggered the event. Attributes
+ * use the same discriminated shape as POST /api/commands/send.
+ */
+export interface NotificationConfigCommand {
+  channel: "command";
+  commandType: string;
+  attributes?: Record<string, unknown>;
+}
+export type NotificationConfig = NotificationConfigWebhook | NotificationConfigCommand;
+export type NotificationChannel = NotificationConfig["channel"];
 
 /** A notification rule defining when and how to send notifications. */
 export interface NotificationRule {
@@ -307,10 +317,12 @@ export interface NotificationRule {
   userId: number;
   name: string;
   eventTypes: string[];
-  channel: "webhook";
+  channel: NotificationChannel;
   config: NotificationConfig;
   template: string;
   enabled: boolean;
+  /** Geofence filter for geofence enter/exit events; empty = all geofences. */
+  geofenceIds: number[];
   createdAt: string;
   updatedAt: string;
   /** Present only in admin list-all responses. */
@@ -325,6 +337,7 @@ export interface CreateNotificationPayload {
   config: NotificationConfig;
   template?: string;
   enabled?: boolean;
+  geofenceIds?: number[];
 }
 
 /** Payload for updating a notification rule. */
@@ -335,6 +348,7 @@ export interface UpdateNotificationPayload {
   config?: NotificationConfig;
   template?: string;
   enabled?: boolean;
+  geofenceIds?: number[];
 }
 
 /** A notification delivery log entry. */

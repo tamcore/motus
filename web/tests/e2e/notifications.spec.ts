@@ -1,3 +1,4 @@
+import type { Page } from '@playwright/test';
 import { test, expect } from '../fixtures/auth-fixture';
 import { NotificationsPage } from '../page-objects/NotificationsPage';
 
@@ -145,3 +146,200 @@ test.describe('Notifications Page', () => {
     await expect(notifPage.getRuleTestButton(0)).toBeVisible();
   });
 });
+
+// Geofence filter + "Device Command" channel (e.g. pet tracking: report
+// every 20 s after leaving home, every 300 s once back home).
+test.describe('Notification geofence filter and command actions', () => {
+  let notifPage: NotificationsPage;
+  const geofenceName = `PW Home ${Date.now()}`;
+  let geofenceId: number;
+
+  async function csrfToken(page: Page): Promise<string> {
+    const res = await page.request.get('/api/session');
+    return res.headers()['x-csrf-token'] ?? '';
+  }
+
+  test.beforeAll(async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: '.auth/user.json' });
+    const page = await ctx.newPage();
+    const res = await page.request.post('/api/geofences', {
+      headers: { 'X-CSRF-Token': await csrfToken(page) },
+      data: {
+        name: geofenceName,
+        area: 'POLYGON((11.57 48.12,11.6 48.12,11.6 48.15,11.57 48.15,11.57 48.12))',
+      },
+    });
+    expect(res.status()).toBe(201);
+    geofenceId = (await res.json()).id;
+    await ctx.close();
+  });
+
+  test.afterAll(async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: '.auth/user.json' });
+    const page = await ctx.newPage();
+    await page.request.delete(`/api/geofences/${geofenceId}`, {
+      headers: { 'X-CSRF-Token': await csrfToken(page) },
+    });
+    await ctx.close();
+  });
+
+  test.beforeEach(async ({ authedPage }) => {
+    notifPage = new NotificationsPage(authedPage);
+    await notifPage.goto();
+  });
+
+  // Remove the rules these tests create so other notification tests (e.g.
+  // the empty state) are unaffected.
+  test.afterEach(async ({ authedPage }) => {
+    const res = await authedPage.request.get('/api/notifications');
+    if (!res.ok()) return;
+    const rules: Array<{ id: number; name: string }> = await res.json();
+    const csrf = await csrfToken(authedPage);
+    for (const rule of rules.filter((r) => r.name.includes(geofenceName) || r.name.startsWith('PW Pet'))) {
+      await authedPage.request.delete(`/api/notifications/${rule.id}`, {
+        headers: { 'X-CSRF-Token': csrf },
+      });
+    }
+  });
+
+  test('offers Device Command channel with interval presets instead of webhook fields', async ({ authedPage }) => {
+    await notifPage.createButton.click();
+    await notifPage.channelSelect.selectOption('command');
+
+    await expect(notifPage.commandTypeSelect).toBeVisible();
+    await expect(notifPage.commandTypeSelect).toHaveValue('positionPeriodic');
+    // Same ReportingIntervalPicker as the device command dialog; 1 min is the default.
+    await expect(notifPage.intervalPresets).toHaveText(['5 sec', '20 sec', '1 min', '5 min', '10 min', 'Custom']);
+    await expect(notifPage.intervalPreset('1 min')).toHaveAttribute('aria-pressed', 'true');
+    await expect(notifPage.frequencyInput).toHaveCount(0);
+    await expect(notifPage.webhookUrlInput).toHaveCount(0);
+    await expect(notifPage.templateTextarea).toHaveCount(0);
+    await expect(notifPage.commandTypeSelect.locator('option[value="factoryReset"]')).toHaveCount(0);
+    // The Interval Automation dialog was removed; the rule form covers it.
+    await notifPage.cancelButton.click();
+    await expect(authedPage.locator('button:has-text("Interval Automation")')).toHaveCount(0);
+  });
+
+  test('shows the geofence filter only for geofence events', async () => {
+    await notifPage.createButton.click();
+    await expect(notifPage.geofenceFilter).toHaveCount(0);
+
+    await notifPage.selectEventTypes('geofenceExit');
+    await expect(notifPage.geofenceFilter).toBeVisible();
+    await expect(notifPage.geofenceCheckbox(geofenceName)).toBeVisible();
+    await expect(notifPage.geofenceFilter).toContainText('all geofences');
+  });
+
+  test('rejects a custom interval above one day', async () => {
+    await notifPage.createButton.click();
+    await notifPage.nameInput.fill('PW Pet invalid');
+    await notifPage.selectEventTypes('geofenceExit');
+    await notifPage.channelSelect.selectOption('command');
+    await notifPage.intervalPreset('Custom').click();
+    await notifPage.frequencyInput.fill('86401');
+    await notifPage.submitButton.click();
+
+    await expect(notifPage.formError).toContainText('86400');
+    await expect(notifPage.modal).toBeVisible();
+  });
+
+  test('blocks reboot commands on device online/offline', async () => {
+    await notifPage.createButton.click();
+    await notifPage.nameInput.fill('PW Pet reboot loop');
+    await notifPage.selectEventTypes('deviceOnline');
+    await notifPage.channelSelect.selectOption('command');
+    await notifPage.commandTypeSelect.selectOption('rebootDevice');
+
+    await expect(notifPage.commandConflict).toContainText('Device Online');
+    await notifPage.submitButton.click();
+    await expect(notifPage.formError).toContainText('reconnect');
+    await expect(notifPage.modal).toBeVisible();
+
+    // A non-reconnect event is fine.
+    await notifPage.commandTypeSelect.selectOption('positionSingle');
+    await expect(notifPage.commandConflict).toHaveCount(0);
+  });
+
+  test('creates a command rule for a selected geofence', async () => {
+    const ruleName = 'PW Pet left home';
+    await notifPage.createButton.click();
+    await notifPage.nameInput.fill(ruleName);
+    await notifPage.selectEventTypes('geofenceExit');
+    await notifPage.geofenceCheckbox(geofenceName).check();
+    await notifPage.channelSelect.selectOption('command');
+    await notifPage.intervalPreset('20 sec').click();
+    await notifPage.submitButton.click();
+
+    await expect(notifPage.modal).toHaveCount(0, { timeout: 10000 });
+    const card = notifPage.ruleCard(ruleName);
+    await expect(card).toBeVisible();
+    await expect(card.locator('.rule-destination')).toHaveText('Set Reporting Interval: 20 s');
+    await expect(card.locator('.rule-geofences')).toHaveText(geofenceName);
+    await expect(card.locator('.channel-command')).toBeVisible();
+    // Command rules cannot be tested without sending a real command.
+    await expect(card.locator('button:has-text("Test")')).toHaveCount(0);
+
+    // Editing restores the command and geofence selection.
+    await card.locator('button:has-text("Edit")').click();
+    await expect(notifPage.channelSelect).toHaveValue('command');
+    await expect(notifPage.intervalPreset('20 sec')).toHaveAttribute('aria-pressed', 'true');
+    await expect(notifPage.geofenceCheckbox(geofenceName)).toBeChecked();
+    await notifPage.cancelButton.click();
+  });
+
+  test('keeps a deleted geofence visible in the rule until it is removed explicitly', async ({ authedPage }) => {
+    const ruleName = 'PW Pet back home';
+    const tmpName = `PW Tmp ${Date.now()}`;
+    const csrf = await csrfToken(authedPage);
+    const gfRes = await authedPage.request.post('/api/geofences', {
+      headers: { 'X-CSRF-Token': csrf },
+      data: {
+        name: tmpName,
+        area: 'POLYGON((11.5 48.1,11.52 48.1,11.52 48.12,11.5 48.12,11.5 48.1))',
+      },
+    });
+    expect(gfRes.status()).toBe(201);
+    const tmpId: number = (await gfRes.json()).id;
+    const ruleRes = await authedPage.request.post('/api/notifications', {
+      headers: { 'X-CSRF-Token': csrf },
+      data: {
+        name: ruleName,
+        eventTypes: ['geofenceEnter'],
+        channel: 'command',
+        geofenceIds: [tmpId],
+        config: {
+          channel: 'command',
+          commandType: 'positionPeriodic',
+          attributes: { type: 'positionPeriodic', frequency: 300 },
+        },
+        enabled: true,
+      },
+    });
+    expect(ruleRes.status()).toBe(201);
+    await authedPage.request.delete(`/api/geofences/${tmpId}`, { headers: { 'X-CSRF-Token': csrf } });
+
+    await notifPage.goto();
+    const card = notifPage.ruleCard(ruleName);
+    await expect(card.locator('.rule-destination')).toHaveText('Set Reporting Interval: 300 s (5 min)');
+    await expect(card.locator('.rule-geofences')).toHaveText(`Geofence #${tmpId} (unavailable)`);
+
+    // The enabled toggle resends the stored (deleted) geofence ID and must work.
+    await card.locator('.toggle-switch').click();
+    await expect(card).toHaveClass(/disabled/);
+    await expect(authedPage.locator('.error-banner')).toHaveCount(0);
+
+    // The editor shows the unavailable geofence selected instead of silently
+    // dropping it (an empty filter would mean all geofences).
+    await card.locator('button:has-text("Edit")').click();
+    await expect(notifPage.unavailableGeofences).toHaveCount(1);
+    await expect(notifPage.unavailableGeofences.locator('input')).toBeChecked();
+    await notifPage.unavailableGeofences.locator('input').uncheck();
+    await expect(notifPage.unavailableGeofences).toHaveCount(0);
+    await notifPage.geofenceCheckbox(geofenceName).check();
+    await notifPage.updateButton.click();
+
+    await expect(notifPage.modal).toHaveCount(0, { timeout: 10000 });
+    await expect(card.locator('.rule-geofences')).toHaveText(geofenceName);
+  });
+});
+

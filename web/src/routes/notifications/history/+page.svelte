@@ -110,6 +110,7 @@
 					<select id="status-filter" bind:value={statusFilter} class="select">
 						<option value="all">All</option>
 						<option value="sent">Sent</option>
+						<option value="queued">Queued</option>
 						<option value="failed">Failed</option>
 					</select>
 				</div>
@@ -175,7 +176,7 @@
 								</td>
 								<td>
 									<div class="status-cell">
-										<StatusIndicator status={log.status === 'sent' ? 'online' : 'offline'} />
+										<StatusIndicator status={log.status === 'sent' ? 'online' : log.status === 'queued' ? 'idle' : 'offline'} />
 										<span class="status-text status-{log.status}">{log.status}</span>
 									</div>
 								</td>
@@ -410,6 +411,15 @@
 
 	.status-failed {
 		color: var(--error);
+	}
+
+	.status-queued {
+		color: var(--text-secondary);
+	}
+
+	.channel-command {
+		background-color: color-mix(in srgb, var(--color-warning, #f59e0b) 15%, transparent);
+		color: var(--color-warning, #f59e0b);
 	}
 
 	.cell-details {

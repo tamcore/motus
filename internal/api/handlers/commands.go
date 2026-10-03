@@ -17,6 +17,16 @@ func isValidCommandType(t string) bool {
 	return slices.Contains(model.SupportedCommandTypes(), t)
 }
 
+// commandSubmitter returns the shared command send path over the handler's
+// repositories and protocol registries.
+func (h *Handler) commandSubmitter() *protocol.CommandSubmitter {
+	return &protocol.CommandSubmitter{
+		Commands: h.cfg.Commands,
+		Encoders: h.cfg.EncoderRegistry,
+		Registry: h.cfg.DeviceRegistry,
+	}
+}
+
 // --- ogen Handler methods ---
 
 // oasCommandInputToModel converts an oas.CommandInput to a model.Command.
@@ -139,48 +149,21 @@ func (h *Handler) SendCommand(ctx context.Context, req *oas.SendCommandRequest) 
 	if err != nil {
 		return &oas.SendCommandNotFound{Error: "device not found"}, nil
 	}
-	if !slices.Contains(h.cfg.EncoderRegistry.SupportedCommands(device.Protocol), req.Type) {
+	// Validate, encode, persist as pending and deliver immediately when the
+	// device is connected — the same path notification command rules use.
+	submitter := h.commandSubmitter()
+	cmd, err := submitter.Submit(ctx, device, req.Type, attrs)
+	switch {
+	case errors.Is(err, protocol.ErrCommandUnsupported):
 		return &oas.SendCommandBadRequest{
 			Error: "command type " + req.Type + " is not supported by device protocol " + device.Protocol,
 		}, nil
-	}
-
-	// Encode the command payload.
-	// Custom commands are framed by the protocol encoder when there is one
-	// (WATCH) and sent verbatim otherwise.
-	var payload []byte
-	if req.Type == model.CommandCustom || h.cfg.EncoderRegistry != nil {
-		modelCmd := &model.Command{Type: req.Type, Attributes: attrs}
-		payload, err = h.cfg.EncoderRegistry.Encode(device.Protocol, modelCmd, device.UniqueID)
-		if errors.Is(err, protocol.ErrNoEncoder) {
-			return &oas.SendCommandBadRequest{Error: "no encoder for device protocol: " + device.Protocol}, nil
-		}
-		if err != nil {
-			return &oas.SendCommandBadRequest{Error: "encode command: " + err.Error()}, nil
-		}
-	}
-
-	// Save command as pending before dispatching (device can respond within ms).
-	cmd := &model.Command{
-		DeviceID:   req.DeviceId,
-		Type:       req.Type,
-		Attributes: attrs,
-		Status:     model.CommandStatusPending,
-	}
-	if err := h.cfg.Commands.Create(ctx, cmd); err != nil {
+	case errors.Is(err, protocol.ErrNoEncoder):
+		return &oas.SendCommandBadRequest{Error: "no encoder for device protocol: " + device.Protocol}, nil
+	case errors.Is(err, protocol.ErrCommandEncode):
+		return &oas.SendCommandBadRequest{Error: err.Error()}, nil
+	case err != nil:
 		return &oas.SendCommandBadRequest{Error: "failed to create command"}, nil
-	}
-
-	// Attempt immediate delivery if device is online.
-	online := h.cfg.DeviceRegistry != nil && h.cfg.DeviceRegistry.IsOnline(device.UniqueID)
-	if online && payload != nil {
-		if updErr := h.cfg.Commands.UpdateStatus(ctx, cmd.ID, model.CommandStatusSent); updErr == nil {
-			if h.cfg.DeviceRegistry.Send(device.UniqueID, payload) {
-				cmd.Status = model.CommandStatusSent
-			} else {
-				_ = h.cfg.Commands.UpdateStatus(ctx, cmd.ID, model.CommandStatusPending)
-			}
-		}
 	}
 
 	if h.cfg.AuditLogger != nil {

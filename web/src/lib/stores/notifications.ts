@@ -1,19 +1,7 @@
 import { writable, derived } from "svelte/store";
-import type { NotificationConfig } from "$lib/types/api";
+import type { NotificationRule } from "$lib/types/api";
 
-export interface NotificationRule {
-  id: number;
-  userId: number;
-  name: string;
-  eventTypes: string[];
-  channel: "webhook";
-  config: NotificationConfig;
-  template: string;
-  enabled: boolean;
-  createdAt: string;
-  updatedAt: string;
-  ownerName?: string;
-}
+export type { NotificationRule };
 
 export interface NotificationLog {
   id: number;
@@ -39,7 +27,10 @@ export const EVENT_TYPES = [
   { value: "tripCompleted", label: "Trip Completed" },
 ];
 
-export const CHANNELS = [{ value: "webhook", label: "Webhook" }];
+export const CHANNELS = [
+  { value: "webhook", label: "Webhook" },
+  { value: "command", label: "Device Command" },
+];
 
 export const TEMPLATE_VARIABLES = [
   "{{device.id}}",

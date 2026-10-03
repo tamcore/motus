@@ -2382,8 +2382,9 @@ func (s *CommandAttrCustomType) UnmarshalText(data []byte) error {
 
 // Ref: #/components/schemas/CommandAttrPositionPeriodic
 type CommandAttrPositionPeriodic struct {
-	Type      CommandAttrPositionPeriodicType `json:"type"`
-	Frequency int                             `json:"frequency"`
+	Type CommandAttrPositionPeriodicType `json:"type"`
+	// Reporting interval in seconds (at most one day).
+	Frequency int `json:"frequency"`
 }
 
 // GetType returns the value of Type.
@@ -4455,6 +4456,84 @@ type LogoutNoContent struct{}
 
 func (*LogoutNoContent) logoutRes() {}
 
+// Sends a device command to the device that triggered the event. The command is queued and delivered
+// immediately when the device is connected, otherwise on its next connection (same path as POST
+// /api/commands/send).
+// Ref: #/components/schemas/NotificationConfigCommand
+type NotificationConfigCommand struct {
+	Channel NotificationConfigCommandChannel `json:"channel"`
+	// Command type (see GET /api/commands/types). factoryReset is not allowed. rebootDevice and custom
+	// cannot be combined with the deviceOnline/deviceOffline event types (the device would reconnect and
+	// trigger the rule again without end). positionPeriodic requires a frequency between 1 and 86400
+	// seconds.
+	CommandType string               `json:"commandType"`
+	Attributes  OptCommandAttributes `json:"attributes"`
+}
+
+// GetChannel returns the value of Channel.
+func (s *NotificationConfigCommand) GetChannel() NotificationConfigCommandChannel {
+	return s.Channel
+}
+
+// GetCommandType returns the value of CommandType.
+func (s *NotificationConfigCommand) GetCommandType() string {
+	return s.CommandType
+}
+
+// GetAttributes returns the value of Attributes.
+func (s *NotificationConfigCommand) GetAttributes() OptCommandAttributes {
+	return s.Attributes
+}
+
+// SetChannel sets the value of Channel.
+func (s *NotificationConfigCommand) SetChannel(val NotificationConfigCommandChannel) {
+	s.Channel = val
+}
+
+// SetCommandType sets the value of CommandType.
+func (s *NotificationConfigCommand) SetCommandType(val string) {
+	s.CommandType = val
+}
+
+// SetAttributes sets the value of Attributes.
+func (s *NotificationConfigCommand) SetAttributes(val OptCommandAttributes) {
+	s.Attributes = val
+}
+
+type NotificationConfigCommandChannel string
+
+const (
+	NotificationConfigCommandChannelCommand NotificationConfigCommandChannel = "command"
+)
+
+// AllValues returns all NotificationConfigCommandChannel values.
+func (NotificationConfigCommandChannel) AllValues() []NotificationConfigCommandChannel {
+	return []NotificationConfigCommandChannel{
+		NotificationConfigCommandChannelCommand,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotificationConfigCommandChannel) MarshalText() ([]byte, error) {
+	switch s {
+	case NotificationConfigCommandChannelCommand:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotificationConfigCommandChannel) UnmarshalText(data []byte) error {
+	switch NotificationConfigCommandChannel(data) {
+	case NotificationConfigCommandChannelCommand:
+		*s = NotificationConfigCommandChannelCommand
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/NotificationConfigWebhook
 type NotificationConfigWebhook struct {
 	Channel    NotificationConfigWebhookChannel    `json:"channel"`
@@ -4644,9 +4723,12 @@ type NotificationRule struct {
 	Config     NotificationRuleConfig `json:"config"`
 	Template   string                 `json:"template"`
 	Enabled    bool                   `json:"enabled"`
-	OwnerName  OptString              `json:"ownerName"`
-	CreatedAt  time.Time              `json:"createdAt"`
-	UpdatedAt  time.Time              `json:"updatedAt"`
+	// Geofences that geofenceEnter/geofenceExit events must reference for the rule to fire. Empty means
+	// all geofences.
+	GeofenceIds []int64   `json:"geofenceIds"`
+	OwnerName   OptString `json:"ownerName"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
 // GetID returns the value of ID.
@@ -4687,6 +4769,11 @@ func (s *NotificationRule) GetTemplate() string {
 // GetEnabled returns the value of Enabled.
 func (s *NotificationRule) GetEnabled() bool {
 	return s.Enabled
+}
+
+// GetGeofenceIds returns the value of GeofenceIds.
+func (s *NotificationRule) GetGeofenceIds() []int64 {
+	return s.GeofenceIds
 }
 
 // GetOwnerName returns the value of OwnerName.
@@ -4744,6 +4831,11 @@ func (s *NotificationRule) SetEnabled(val bool) {
 	s.Enabled = val
 }
 
+// SetGeofenceIds sets the value of GeofenceIds.
+func (s *NotificationRule) SetGeofenceIds(val []int64) {
+	s.GeofenceIds = val
+}
+
 // SetOwnerName sets the value of OwnerName.
 func (s *NotificationRule) SetOwnerName(val OptString) {
 	s.OwnerName = val
@@ -4768,6 +4860,7 @@ type NotificationRuleConfig struct {
 	// Type selects the active sum variant, switch on this field.
 	Type                      NotificationRuleConfigType
 	NotificationConfigWebhook NotificationConfigWebhook
+	NotificationConfigCommand NotificationConfigCommand
 }
 
 // NotificationRuleConfigType is oneOf type of NotificationRuleConfig.
@@ -4776,11 +4869,17 @@ type NotificationRuleConfigType string
 // Possible values for NotificationRuleConfigType.
 const (
 	NotificationConfigWebhookNotificationRuleConfig NotificationRuleConfigType = "webhook"
+	NotificationConfigCommandNotificationRuleConfig NotificationRuleConfigType = "command"
 )
 
 // IsNotificationConfigWebhook reports whether NotificationRuleConfig is NotificationConfigWebhook.
 func (s NotificationRuleConfig) IsNotificationConfigWebhook() bool {
 	return s.Type == NotificationConfigWebhookNotificationRuleConfig
+}
+
+// IsNotificationConfigCommand reports whether NotificationRuleConfig is NotificationConfigCommand.
+func (s NotificationRuleConfig) IsNotificationConfigCommand() bool {
+	return s.Type == NotificationConfigCommandNotificationRuleConfig
 }
 
 // SetNotificationConfigWebhook sets NotificationRuleConfig to NotificationConfigWebhook.
@@ -4804,14 +4903,42 @@ func NewNotificationConfigWebhookNotificationRuleConfig(v NotificationConfigWebh
 	return s
 }
 
+// SetNotificationConfigCommand sets NotificationRuleConfig to NotificationConfigCommand.
+func (s *NotificationRuleConfig) SetNotificationConfigCommand(v NotificationConfigCommand) {
+	s.Type = NotificationConfigCommandNotificationRuleConfig
+	s.NotificationConfigCommand = v
+}
+
+// GetNotificationConfigCommand returns NotificationConfigCommand and true boolean if NotificationRuleConfig is NotificationConfigCommand.
+func (s NotificationRuleConfig) GetNotificationConfigCommand() (v NotificationConfigCommand, ok bool) {
+	if !s.IsNotificationConfigCommand() {
+		return v, false
+	}
+	return s.NotificationConfigCommand, true
+}
+
+// NewNotificationConfigCommandNotificationRuleConfig returns new NotificationRuleConfig from NotificationConfigCommand.
+func NewNotificationConfigCommandNotificationRuleConfig(v NotificationConfigCommand) NotificationRuleConfig {
+	var s NotificationRuleConfig
+	s.SetNotificationConfigCommand(v)
+	return s
+}
+
 // Ref: #/components/schemas/NotificationRuleInput
 type NotificationRuleInput struct {
 	Name       string                 `json:"name"`
 	EventTypes []string               `json:"eventTypes"`
 	Channel    string                 `json:"channel"`
 	Config     NotificationRuleConfig `json:"config"`
-	Template   OptString              `json:"template"`
-	Enabled    OptBool                `json:"enabled"`
+	// Message template (required for the webhook channel, ignored for command).
+	Template OptString `json:"template"`
+	Enabled  OptBool   `json:"enabled"`
+	// Restrict geofenceEnter/geofenceExit events to these geofences. An empty list matches all geofences.
+	// On create, omitting the field also matches all geofences; on update, omitting it keeps the current
+	// filter and only an explicit empty list clears it. Requires a geofence event type. Every newly added
+	// geofence must be accessible; IDs already stored in the rule (e.g. of a deleted geofence) may be
+	// resent unchanged.
+	GeofenceIds []int64 `json:"geofenceIds"`
 }
 
 // GetName returns the value of Name.
@@ -4844,6 +4971,11 @@ func (s *NotificationRuleInput) GetEnabled() OptBool {
 	return s.Enabled
 }
 
+// GetGeofenceIds returns the value of GeofenceIds.
+func (s *NotificationRuleInput) GetGeofenceIds() []int64 {
+	return s.GeofenceIds
+}
+
 // SetName sets the value of Name.
 func (s *NotificationRuleInput) SetName(val string) {
 	s.Name = val
@@ -4872,6 +5004,11 @@ func (s *NotificationRuleInput) SetTemplate(val OptString) {
 // SetEnabled sets the value of Enabled.
 func (s *NotificationRuleInput) SetEnabled(val OptBool) {
 	s.Enabled = val
+}
+
+// SetGeofenceIds sets the value of GeofenceIds.
+func (s *NotificationRuleInput) SetGeofenceIds(val []int64) {
+	s.GeofenceIds = val
 }
 
 // Ref: #/components/schemas/OIDCConfig
@@ -7108,6 +7245,10 @@ func (s *SudoStatus) SetTargetUserId(val OptNilInt64) {
 }
 
 func (*SudoStatus) getSudoStatusRes() {}
+
+type TestNotificationBadRequest Error
+
+func (*TestNotificationBadRequest) testNotificationRes() {}
 
 type TestNotificationForbidden Error
 

@@ -68,14 +68,12 @@ describe("heatmap page", () => {
   });
 
   describe("custom range", () => {
-    const origTZ = process.env.TZ;
     beforeEach(() => {
       // A zone east of UTC, so UTC midnight and local midnight differ.
-      process.env.TZ = "Europe/Berlin";
+      vi.stubEnv("TZ", "Europe/Berlin");
     });
     afterEach(() => {
-      if (origTZ === undefined) delete process.env.TZ;
-      else process.env.TZ = origTZ;
+      vi.unstubAllEnvs();
     });
 
     it("queries from local midnight of the start day to the end of the end day", async () => {

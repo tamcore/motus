@@ -44,113 +44,80 @@ func (h *Handler) reportDevices(ctx context.Context, user *model.User, ids []int
 	return devices, nil
 }
 
-// streamReport streams each device's positions in [from, to], unsampled and
-// in timestamp order, into add, then calls done once the device is complete.
-func (h *Handler) streamReport(ctx context.Context, devices []*model.Device, from, to time.Time,
-	add func(*model.Position), done func(*model.Device),
-) error {
-	for _, d := range devices {
-		if err := h.streamDevice(ctx, d.ID, from, to, add); err != nil {
-			return fmt.Errorf("device %d: %w", d.ID, err)
-		}
-		done(d)
-	}
-	return nil
-}
-
-func (h *Handler) streamDevice(ctx context.Context, deviceID int64, from, to time.Time, add func(*model.Position)) error {
+// deviceActivity streams one device's positions in [from, to] once, unsampled
+// and in timestamp order, into both the trip and the stop detector.
+func (h *Handler) deviceActivity(ctx context.Context, d *model.Device, from, to time.Time) ([]oas.ReportTrip, []oas.ReportStop, error) {
 	ctx, cancel := context.WithTimeout(ctx, positionQueryTimeout)
 	defer cancel()
-	return h.cfg.Positions.StreamTrackByDeviceAndTimeRange(ctx, deviceID, from, to, func(p *model.Position) error {
-		add(p)
+	var (
+		td reports.TripDetector
+		sd reports.StopDetector
+	)
+	err := h.cfg.Positions.StreamTrackByDeviceAndTimeRange(ctx, d.ID, from, to, func(p *model.Position) error {
+		td.Add(p)
+		sd.Add(p)
 		return nil
 	})
+	if err != nil {
+		return nil, nil, fmt.Errorf("device %d: %w", d.ID, err)
+	}
+
+	var trips []oas.ReportTrip
+	for _, t := range td.Trips() {
+		trips = append(trips, oas.ReportTrip{
+			DeviceId:   d.ID,
+			DeviceName: d.Name,
+			StartTime:  t.StartTime,
+			EndTime:    t.EndTime,
+			Duration:   t.Duration,
+			Distance:   t.Distance,
+			AvgSpeed:   t.AvgSpeed * kmhToKnotsRatio,
+			MaxSpeed:   t.MaxSpeed * kmhToKnotsRatio,
+		})
+	}
+	var stops []oas.ReportStop
+	for _, s := range sd.Stops() {
+		stops = append(stops, oas.ReportStop{
+			DeviceId:      d.ID,
+			DeviceName:    d.Name,
+			Latitude:      s.Latitude,
+			Longitude:     s.Longitude,
+			Address:       s.Address,
+			ArrivalTime:   s.ArrivalTime,
+			DepartureTime: s.DepartureTime,
+			Duration:      s.Duration,
+		})
+	}
+	return trips, stops, nil
 }
 
-// ReportTrips implements oas.Handler for GET /api/reports/trips.
-func (h *Handler) ReportTrips(ctx context.Context, params oas.ReportTripsParams) (oas.ReportTripsRes, error) {
+// ReportActivity implements oas.Handler for GET /api/reports/activity.
+func (h *Handler) ReportActivity(ctx context.Context, params oas.ReportActivityParams) (oas.ReportActivityRes, error) {
 	user := api.UserFromContext(ctx)
 	if user == nil {
-		return &oas.ReportTripsUnauthorized{Error: "unauthorized"}, nil
+		return &oas.ReportActivityUnauthorized{Error: "unauthorized"}, nil
 	}
 	if params.To.Before(params.From) {
-		return &oas.ReportTripsBadRequest{Error: "to must not be before from"}, nil
+		return &oas.ReportActivityBadRequest{Error: "to must not be before from"}, nil
 	}
 	devices, err := h.reportDevices(ctx, user, params.DeviceId)
 	if errors.Is(err, errReportAccessDenied) {
-		return &oas.ReportTripsForbidden{Error: err.Error()}, nil
+		return &oas.ReportActivityForbidden{Error: err.Error()}, nil
 	}
 	if err != nil {
 		slog.Error("resolve report devices failed", slog.Int64("userID", user.ID), slog.Any("error", err))
-		return nil, errors.New("failed to build trip report")
+		return nil, errors.New("failed to build activity report")
 	}
 
-	result := oas.ReportTripsOKApplicationJSON{}
-	det := &reports.TripDetector{}
-	err = h.streamReport(ctx, devices, params.From, params.To,
-		func(p *model.Position) { det.Add(p) },
-		func(d *model.Device) {
-			for _, t := range det.Trips() {
-				result = append(result, oas.ReportTrip{
-					DeviceId:   d.ID,
-					DeviceName: d.Name,
-					StartTime:  t.StartTime,
-					EndTime:    t.EndTime,
-					Duration:   t.Duration,
-					Distance:   t.Distance,
-					AvgSpeed:   t.AvgSpeed * kmhToKnotsRatio,
-					MaxSpeed:   t.MaxSpeed * kmhToKnotsRatio,
-				})
-			}
-			det = &reports.TripDetector{}
-		})
-	if err != nil {
-		slog.Error("trip report failed", slog.Int64("userID", user.ID), slog.Any("error", err))
-		return nil, errors.New("failed to build trip report")
+	result := &oas.ReportActivity{Trips: []oas.ReportTrip{}, Stops: []oas.ReportStop{}}
+	for _, d := range devices {
+		trips, stops, err := h.deviceActivity(ctx, d, params.From, params.To)
+		if err != nil {
+			slog.Error("activity report failed", slog.Int64("userID", user.ID), slog.Any("error", err))
+			return nil, errors.New("failed to build activity report")
+		}
+		result.Trips = append(result.Trips, trips...)
+		result.Stops = append(result.Stops, stops...)
 	}
-	return &result, nil
-}
-
-// ReportStops implements oas.Handler for GET /api/reports/stops.
-func (h *Handler) ReportStops(ctx context.Context, params oas.ReportStopsParams) (oas.ReportStopsRes, error) {
-	user := api.UserFromContext(ctx)
-	if user == nil {
-		return &oas.ReportStopsUnauthorized{Error: "unauthorized"}, nil
-	}
-	if params.To.Before(params.From) {
-		return &oas.ReportStopsBadRequest{Error: "to must not be before from"}, nil
-	}
-	devices, err := h.reportDevices(ctx, user, params.DeviceId)
-	if errors.Is(err, errReportAccessDenied) {
-		return &oas.ReportStopsForbidden{Error: err.Error()}, nil
-	}
-	if err != nil {
-		slog.Error("resolve report devices failed", slog.Int64("userID", user.ID), slog.Any("error", err))
-		return nil, errors.New("failed to build stop report")
-	}
-
-	result := oas.ReportStopsOKApplicationJSON{}
-	det := &reports.StopDetector{}
-	err = h.streamReport(ctx, devices, params.From, params.To,
-		func(p *model.Position) { det.Add(p) },
-		func(d *model.Device) {
-			for _, s := range det.Stops() {
-				result = append(result, oas.ReportStop{
-					DeviceId:      d.ID,
-					DeviceName:    d.Name,
-					Latitude:      s.Latitude,
-					Longitude:     s.Longitude,
-					Address:       s.Address,
-					ArrivalTime:   s.ArrivalTime,
-					DepartureTime: s.DepartureTime,
-					Duration:      s.Duration,
-				})
-			}
-			det = &reports.StopDetector{}
-		})
-	if err != nil {
-		slog.Error("stop report failed", slog.Int64("userID", user.ID), slog.Any("error", err))
-		return nil, errors.New("failed to build stop report")
-	}
-	return &result, nil
+	return result, nil
 }

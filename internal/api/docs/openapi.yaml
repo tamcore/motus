@@ -733,6 +733,19 @@ components:
         attributes:
           $ref: '#/components/schemas/EventAttributes'
 
+    ReportActivity:
+      type: object
+      required: [trips, stops]
+      properties:
+        trips:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReportTrip'
+        stops:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReportStop'
+
     ReportTrip:
       type: object
       required: [deviceId, deviceName, startTime, endTime, duration, distance, avgSpeed, maxSpeed]
@@ -2158,15 +2171,18 @@ paths:
         default:
           $ref: '#/components/responses/UnexpectedError'
 
-  /api/reports/trips:
+  /api/reports/activity:
     get:
-      operationId: reportTrips
-      summary: Detect trips in a time range
+      operationId: reportActivity
+      summary: Detect trips and stops in a time range
       description: |
+        Streams each device's positions once and returns both reports.
         A trip starts when speed exceeds 5 km/h and ends after a stop of at
         least 5 minutes or a gap of at least 1 hour between positions. Trips
-        shorter than 60 seconds are dropped. Speeds are in knots (as in
-        /api/positions), distance in kilometers, duration in seconds.
+        shorter than 60 seconds are dropped. A stop is a period of at least
+        5 minutes below 1 km/h; its latitude and longitude are the mean of the
+        stop positions. Speeds are in knots (as in /api/positions), distance
+        in kilometers, durations in seconds.
       tags: [reports]
       security:
         - cookieAuth: []
@@ -2178,47 +2194,11 @@ paths:
         - $ref: '#/components/parameters/ReportTo'
       responses:
         "200":
-          description: Trip report
+          description: Trip and stop report
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ReportTrip'
-        "400":
-          $ref: '#/components/responses/BadRequest'
-        "401":
-          $ref: '#/components/responses/Unauthorized'
-        "403":
-          $ref: '#/components/responses/Forbidden'
-        default:
-          $ref: '#/components/responses/UnexpectedError'
-
-  /api/reports/stops:
-    get:
-      operationId: reportStops
-      summary: Detect stops in a time range
-      description: |
-        A stop is a period of at least 5 minutes below 1 km/h. Duration is in
-        seconds; latitude and longitude are the mean of the stop positions.
-      tags: [reports]
-      security:
-        - cookieAuth: []
-        - bearerAuth: []
-        - xAuthToken: []
-      parameters:
-        - $ref: '#/components/parameters/ReportDeviceIds'
-        - $ref: '#/components/parameters/ReportFrom'
-        - $ref: '#/components/parameters/ReportTo'
-      responses:
-        "200":
-          description: Stop report
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ReportStop'
+                $ref: '#/components/schemas/ReportActivity'
         "400":
           $ref: '#/components/responses/BadRequest'
         "401":

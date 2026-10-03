@@ -197,13 +197,9 @@
 				const device = devices.find((d) => d.id === devId);
 				if (!device) return;
 				try {
-					const params = { deviceIds: [devId], from, to };
-					const [deviceTrips, deviceStops] = await Promise.all([
-						api.getTripReport(params),
-						api.getStopReport(params),
-					]);
-					allTrips.push(...deviceTrips);
-					allStops.push(...deviceStops);
+					const report = await api.getActivityReport({ deviceIds: [devId], from, to });
+					allTrips.push(...report.trips);
+					allStops.push(...report.stops);
 				} catch (err) {
 					console.error(`Failed to fetch reports for device ${device.name}:`, err);
 				}

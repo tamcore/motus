@@ -17213,6 +17213,253 @@ func (s *PositionPoint) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode implements json.Marshaler.
+func (s *ReportActivity) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ReportActivity) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("trips")
+		e.ArrStart()
+		for _, elem := range s.Trips {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("stops")
+		e.ArrStart()
+		for _, elem := range s.Stops {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+}
+
+var jsonFieldsNameOfReportActivity = [2]string{
+	0: "trips",
+	1: "stops",
+}
+
+// Decode decodes ReportActivity from json.
+func (s *ReportActivity) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ReportActivity to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "trips":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				s.Trips = make([]ReportTrip, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem ReportTrip
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Trips = append(s.Trips, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"trips\"")
+			}
+		case "stops":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				s.Stops = make([]ReportStop, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem ReportStop
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Stops = append(s.Stops, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"stops\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ReportActivity")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfReportActivity) {
+					name = jsonFieldsNameOfReportActivity[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ReportActivity) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ReportActivity) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ReportActivityBadRequest as json.
+func (s *ReportActivityBadRequest) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes ReportActivityBadRequest from json.
+func (s *ReportActivityBadRequest) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ReportActivityBadRequest to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = ReportActivityBadRequest(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ReportActivityBadRequest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ReportActivityBadRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ReportActivityForbidden as json.
+func (s *ReportActivityForbidden) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes ReportActivityForbidden from json.
+func (s *ReportActivityForbidden) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ReportActivityForbidden to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = ReportActivityForbidden(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ReportActivityForbidden) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ReportActivityForbidden) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ReportActivityUnauthorized as json.
+func (s *ReportActivityUnauthorized) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes ReportActivityUnauthorized from json.
+func (s *ReportActivityUnauthorized) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ReportActivityUnauthorized to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = ReportActivityUnauthorized(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ReportActivityUnauthorized) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ReportActivityUnauthorized) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes ReportEventsOKApplicationJSON as json.
 func (s ReportEventsOKApplicationJSON) Encode(e *jx.Encoder) {
 	unwrapped := []Event(s)
@@ -17478,170 +17725,6 @@ func (s *ReportStop) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
-// Encode encodes ReportStopsBadRequest as json.
-func (s *ReportStopsBadRequest) Encode(e *jx.Encoder) {
-	unwrapped := (*Error)(s)
-
-	unwrapped.Encode(e)
-}
-
-// Decode decodes ReportStopsBadRequest from json.
-func (s *ReportStopsBadRequest) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode ReportStopsBadRequest to nil")
-	}
-	var unwrapped Error
-	if err := func() error {
-		if err := unwrapped.Decode(d); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		return errors.Wrap(err, "alias")
-	}
-	*s = ReportStopsBadRequest(unwrapped)
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s *ReportStopsBadRequest) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *ReportStopsBadRequest) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes ReportStopsForbidden as json.
-func (s *ReportStopsForbidden) Encode(e *jx.Encoder) {
-	unwrapped := (*Error)(s)
-
-	unwrapped.Encode(e)
-}
-
-// Decode decodes ReportStopsForbidden from json.
-func (s *ReportStopsForbidden) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode ReportStopsForbidden to nil")
-	}
-	var unwrapped Error
-	if err := func() error {
-		if err := unwrapped.Decode(d); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		return errors.Wrap(err, "alias")
-	}
-	*s = ReportStopsForbidden(unwrapped)
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s *ReportStopsForbidden) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *ReportStopsForbidden) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes ReportStopsOKApplicationJSON as json.
-func (s ReportStopsOKApplicationJSON) Encode(e *jx.Encoder) {
-	unwrapped := []ReportStop(s)
-
-	e.ArrStart()
-	for _, elem := range unwrapped {
-		elem.Encode(e)
-	}
-	e.ArrEnd()
-}
-
-// Decode decodes ReportStopsOKApplicationJSON from json.
-func (s *ReportStopsOKApplicationJSON) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode ReportStopsOKApplicationJSON to nil")
-	}
-	var unwrapped []ReportStop
-	if err := func() error {
-		unwrapped = make([]ReportStop, 0)
-		if err := d.Arr(func(d *jx.Decoder) error {
-			var elem ReportStop
-			if err := elem.Decode(d); err != nil {
-				return err
-			}
-			unwrapped = append(unwrapped, elem)
-			return nil
-		}); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		return errors.Wrap(err, "alias")
-	}
-	*s = ReportStopsOKApplicationJSON(unwrapped)
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s ReportStopsOKApplicationJSON) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *ReportStopsOKApplicationJSON) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes ReportStopsUnauthorized as json.
-func (s *ReportStopsUnauthorized) Encode(e *jx.Encoder) {
-	unwrapped := (*Error)(s)
-
-	unwrapped.Encode(e)
-}
-
-// Decode decodes ReportStopsUnauthorized from json.
-func (s *ReportStopsUnauthorized) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode ReportStopsUnauthorized to nil")
-	}
-	var unwrapped Error
-	if err := func() error {
-		if err := unwrapped.Decode(d); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		return errors.Wrap(err, "alias")
-	}
-	*s = ReportStopsUnauthorized(unwrapped)
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s *ReportStopsUnauthorized) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *ReportStopsUnauthorized) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
 // Encode implements json.Marshaler.
 func (s *ReportTrip) Encode(e *jx.Encoder) {
 	e.ObjStart()
@@ -17853,170 +17936,6 @@ func (s *ReportTrip) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ReportTrip) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes ReportTripsBadRequest as json.
-func (s *ReportTripsBadRequest) Encode(e *jx.Encoder) {
-	unwrapped := (*Error)(s)
-
-	unwrapped.Encode(e)
-}
-
-// Decode decodes ReportTripsBadRequest from json.
-func (s *ReportTripsBadRequest) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode ReportTripsBadRequest to nil")
-	}
-	var unwrapped Error
-	if err := func() error {
-		if err := unwrapped.Decode(d); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		return errors.Wrap(err, "alias")
-	}
-	*s = ReportTripsBadRequest(unwrapped)
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s *ReportTripsBadRequest) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *ReportTripsBadRequest) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes ReportTripsForbidden as json.
-func (s *ReportTripsForbidden) Encode(e *jx.Encoder) {
-	unwrapped := (*Error)(s)
-
-	unwrapped.Encode(e)
-}
-
-// Decode decodes ReportTripsForbidden from json.
-func (s *ReportTripsForbidden) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode ReportTripsForbidden to nil")
-	}
-	var unwrapped Error
-	if err := func() error {
-		if err := unwrapped.Decode(d); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		return errors.Wrap(err, "alias")
-	}
-	*s = ReportTripsForbidden(unwrapped)
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s *ReportTripsForbidden) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *ReportTripsForbidden) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes ReportTripsOKApplicationJSON as json.
-func (s ReportTripsOKApplicationJSON) Encode(e *jx.Encoder) {
-	unwrapped := []ReportTrip(s)
-
-	e.ArrStart()
-	for _, elem := range unwrapped {
-		elem.Encode(e)
-	}
-	e.ArrEnd()
-}
-
-// Decode decodes ReportTripsOKApplicationJSON from json.
-func (s *ReportTripsOKApplicationJSON) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode ReportTripsOKApplicationJSON to nil")
-	}
-	var unwrapped []ReportTrip
-	if err := func() error {
-		unwrapped = make([]ReportTrip, 0)
-		if err := d.Arr(func(d *jx.Decoder) error {
-			var elem ReportTrip
-			if err := elem.Decode(d); err != nil {
-				return err
-			}
-			unwrapped = append(unwrapped, elem)
-			return nil
-		}); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		return errors.Wrap(err, "alias")
-	}
-	*s = ReportTripsOKApplicationJSON(unwrapped)
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s ReportTripsOKApplicationJSON) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *ReportTripsOKApplicationJSON) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes ReportTripsUnauthorized as json.
-func (s *ReportTripsUnauthorized) Encode(e *jx.Encoder) {
-	unwrapped := (*Error)(s)
-
-	unwrapped.Encode(e)
-}
-
-// Decode decodes ReportTripsUnauthorized from json.
-func (s *ReportTripsUnauthorized) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode ReportTripsUnauthorized to nil")
-	}
-	var unwrapped Error
-	if err := func() error {
-		if err := unwrapped.Decode(d); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		return errors.Wrap(err, "alias")
-	}
-	*s = ReportTripsUnauthorized(unwrapped)
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s *ReportTripsUnauthorized) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *ReportTripsUnauthorized) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

@@ -18,26 +18,26 @@ import (
 	"github.com/tamcore/motus/internal/storage/repository/testutil"
 )
 
-func TestReportTrips_Unauthorized(t *testing.T) {
+func TestReportActivity_Unauthorized(t *testing.T) {
 	h := handlers.NewHandler(handlers.HandlerConfig{})
-	res, err := h.ReportTrips(context.Background(), oas.ReportTripsParams{})
+	res, err := h.ReportActivity(context.Background(), oas.ReportActivityParams{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if _, ok := res.(*oas.ReportTripsUnauthorized); !ok {
+	if _, ok := res.(*oas.ReportActivityUnauthorized); !ok {
 		t.Fatalf("expected Unauthorized, got %T", res)
 	}
 }
 
-func TestReportStops_ToBeforeFrom(t *testing.T) {
+func TestReportActivity_ToBeforeFrom(t *testing.T) {
 	h := handlers.NewHandler(handlers.HandlerConfig{})
 	ctx := api.ContextWithUser(context.Background(), &model.User{ID: 1})
 	now := time.Now()
-	res, err := h.ReportStops(ctx, oas.ReportStopsParams{From: now, To: now.Add(-time.Hour)})
+	res, err := h.ReportActivity(ctx, oas.ReportActivityParams{From: now, To: now.Add(-time.Hour)})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if _, ok := res.(*oas.ReportStopsBadRequest); !ok {
+	if _, ok := res.(*oas.ReportActivityBadRequest); !ok {
 		t.Fatalf("expected BadRequest, got %T", res)
 	}
 }
@@ -100,22 +100,32 @@ func (e *reportsEnv) ctx() context.Context {
 	return api.ContextWithUser(context.Background(), e.user)
 }
 
-func TestReportTrips_ByDevice(t *testing.T) {
-	env := setupReports(t)
-	res, err := env.handler.ReportTrips(env.ctx(), oas.ReportTripsParams{
-		DeviceId: []int64{env.device.ID}, From: env.start.Add(-time.Minute), To: env.start.Add(time.Hour),
-	})
+func (e *reportsEnv) activity(t *testing.T, ids []int64, from, to time.Time) oas.ReportActivityRes {
+	t.Helper()
+	res, err := e.handler.ReportActivity(e.ctx(), oas.ReportActivityParams{DeviceId: ids, From: from, To: to})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	list, ok := res.(*oas.ReportTripsOKApplicationJSON)
+	return res
+}
+
+func requireActivity(t *testing.T, res oas.ReportActivityRes) *oas.ReportActivity {
+	t.Helper()
+	a, ok := res.(*oas.ReportActivity)
 	if !ok {
-		t.Fatalf("expected OK, got %T", res)
+		t.Fatalf("expected *oas.ReportActivity, got %T", res)
 	}
-	if len(*list) != 1 {
-		t.Fatalf("expected 1 trip, got %d", len(*list))
+	return a
+}
+
+func TestReportActivity_ByDevice(t *testing.T) {
+	env := setupReports(t)
+	a := requireActivity(t, env.activity(t, []int64{env.device.ID}, env.start.Add(-time.Minute), env.start.Add(time.Hour)))
+
+	if len(a.Trips) != 1 {
+		t.Fatalf("expected 1 trip, got %d", len(a.Trips))
 	}
-	trip := (*list)[0]
+	trip := a.Trips[0]
 	if trip.DeviceId != env.device.ID || trip.DeviceName != "Reports Device" {
 		t.Errorf("unexpected device %d %q", trip.DeviceId, trip.DeviceName)
 	}
@@ -126,51 +136,11 @@ func TestReportTrips_ByDevice(t *testing.T) {
 	if math.Abs(trip.MaxSpeed-36/1.852) > 1e-6 || math.Abs(trip.AvgSpeed-36/1.852) > 1e-6 {
 		t.Errorf("speeds must be in knots, got avg %v max %v", trip.AvgSpeed, trip.MaxSpeed)
 	}
-}
 
-func TestReportTrips_AllUserDevices(t *testing.T) {
-	env := setupReports(t)
-	res, err := env.handler.ReportTrips(env.ctx(), oas.ReportTripsParams{
-		From: env.start.Add(-time.Minute), To: env.start.Add(time.Hour),
-	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	if len(a.Stops) != 1 {
+		t.Fatalf("expected 1 stop, got %d", len(a.Stops))
 	}
-	list, ok := res.(*oas.ReportTripsOKApplicationJSON)
-	if !ok || len(*list) != 1 {
-		t.Fatalf("expected 1 trip of the user's device, got %T %v", res, list)
-	}
-}
-
-func TestReportTrips_ForeignDeviceForbidden(t *testing.T) {
-	env := setupReports(t)
-	res, err := env.handler.ReportTrips(env.ctx(), oas.ReportTripsParams{
-		DeviceId: []int64{env.other.ID}, From: env.start, To: env.start.Add(time.Hour),
-	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if _, ok := res.(*oas.ReportTripsForbidden); !ok {
-		t.Fatalf("expected Forbidden, got %T", res)
-	}
-}
-
-func TestReportStops_ByDevice(t *testing.T) {
-	env := setupReports(t)
-	res, err := env.handler.ReportStops(env.ctx(), oas.ReportStopsParams{
-		DeviceId: []int64{env.device.ID}, From: env.start.Add(-time.Minute), To: env.start.Add(time.Hour),
-	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	list, ok := res.(*oas.ReportStopsOKApplicationJSON)
-	if !ok {
-		t.Fatalf("expected OK, got %T", res)
-	}
-	if len(*list) != 1 {
-		t.Fatalf("expected 1 stop, got %d", len(*list))
-	}
-	stop := (*list)[0]
+	stop := a.Stops[0]
 	if !stop.ArrivalTime.Equal(env.start.Add(11*time.Minute)) || stop.Duration != 540 {
 		t.Errorf("unexpected stop %+v", stop)
 	}
@@ -179,16 +149,30 @@ func TestReportStops_ByDevice(t *testing.T) {
 	}
 }
 
-func TestReportStops_ForeignDeviceForbidden(t *testing.T) {
+func TestReportActivity_AllUserDevices(t *testing.T) {
 	env := setupReports(t)
-	res, err := env.handler.ReportStops(env.ctx(), oas.ReportStopsParams{
-		DeviceId: []int64{env.device.ID, env.other.ID}, From: env.start, To: env.start.Add(time.Hour),
-	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	a := requireActivity(t, env.activity(t, nil, env.start.Add(-time.Minute), env.start.Add(time.Hour)))
+	if len(a.Trips) != 1 || len(a.Stops) != 1 {
+		t.Fatalf("expected 1 trip and 1 stop of the user's device, got %d/%d", len(a.Trips), len(a.Stops))
 	}
-	if _, ok := res.(*oas.ReportStopsForbidden); !ok {
-		t.Fatalf("expected Forbidden, got %T", res)
+}
+
+func TestReportActivity_EmptyRangeReturnsEmptyArrays(t *testing.T) {
+	env := setupReports(t)
+	a := requireActivity(t, env.activity(t, []int64{env.device.ID}, env.start.Add(-48*time.Hour), env.start.Add(-47*time.Hour)))
+	if a.Trips == nil || a.Stops == nil || len(a.Trips) != 0 || len(a.Stops) != 0 {
+		t.Fatalf("expected empty non-nil arrays, got %#v / %#v", a.Trips, a.Stops)
+	}
+}
+
+func TestReportActivity_ForeignDeviceForbidden(t *testing.T) {
+	env := setupReports(t)
+	for _, ids := range [][]int64{{env.other.ID}, {env.device.ID, env.other.ID}} {
+		if res := env.activity(t, ids, env.start, env.start.Add(time.Hour)); res == nil {
+			t.Fatal("nil response")
+		} else if _, ok := res.(*oas.ReportActivityForbidden); !ok {
+			t.Fatalf("ids %v: expected Forbidden, got %T", ids, res)
+		}
 	}
 }
 
@@ -206,7 +190,7 @@ func (allowAllSecurity) HandleXAuthToken(ctx context.Context, _ oas.OperationNam
 	return ctx, nil
 }
 
-func TestReportTrips_TooManyDeviceIDs(t *testing.T) {
+func TestReportActivity_TooManyDeviceIDs(t *testing.T) {
 	srv, err := oas.NewServer(handlers.NewHandler(handlers.HandlerConfig{}), allowAllSecurity{})
 	if err != nil {
 		t.Fatalf("new server: %v", err)
@@ -215,7 +199,7 @@ func TestReportTrips_TooManyDeviceIDs(t *testing.T) {
 	for i := range 101 {
 		q.Add("deviceId", strconv.Itoa(i+1))
 	}
-	req := httptest.NewRequest(http.MethodGet, "/api/reports/trips?"+q.Encode(), nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/reports/activity?"+q.Encode(), nil)
 	req.Header.Set("Authorization", "Bearer x")
 	rec := httptest.NewRecorder()
 	srv.ServeHTTP(rec, req)
@@ -224,29 +208,18 @@ func TestReportTrips_TooManyDeviceIDs(t *testing.T) {
 	}
 }
 
-func TestReportTrips_DuplicateDeviceIDsDeduped(t *testing.T) {
+func TestReportActivity_DuplicateDeviceIDsDeduped(t *testing.T) {
 	env := setupReports(t)
-	res, err := env.handler.ReportTrips(env.ctx(), oas.ReportTripsParams{
-		DeviceId: []int64{env.device.ID, env.device.ID}, From: env.start.Add(-time.Minute), To: env.start.Add(time.Hour),
-	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	list, ok := res.(*oas.ReportTripsOKApplicationJSON)
-	if !ok || len(*list) != 1 {
-		t.Fatalf("expected 1 trip for duplicated device id, got %T %v", res, list)
+	a := requireActivity(t, env.activity(t, []int64{env.device.ID, env.device.ID}, env.start.Add(-time.Minute), env.start.Add(time.Hour)))
+	if len(a.Trips) != 1 || len(a.Stops) != 1 {
+		t.Fatalf("expected 1 trip and 1 stop for duplicated device id, got %d/%d", len(a.Trips), len(a.Stops))
 	}
 }
 
-func TestReportStops_NonexistentDeviceForbidden(t *testing.T) {
+func TestReportActivity_NonexistentDeviceForbidden(t *testing.T) {
 	env := setupReports(t)
-	res, err := env.handler.ReportStops(env.ctx(), oas.ReportStopsParams{
-		DeviceId: []int64{env.other.ID + 1000}, From: env.start, To: env.start.Add(time.Hour),
-	})
-	if err != nil {
-		t.Fatalf("nonexistent device must not be a server error: %v", err)
-	}
-	if _, ok := res.(*oas.ReportStopsForbidden); !ok {
+	res := env.activity(t, []int64{env.other.ID + 1000}, env.start, env.start.Add(time.Hour))
+	if _, ok := res.(*oas.ReportActivityForbidden); !ok {
 		t.Fatalf("expected Forbidden, got %T", res)
 	}
 }

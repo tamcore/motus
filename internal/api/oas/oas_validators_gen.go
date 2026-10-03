@@ -1262,6 +1262,74 @@ func (s *PositionPoint) Validate() error {
 	return nil
 }
 
+func (s *ReportActivity) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.Trips == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Trips {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "trips",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.Stops == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Stops {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "stops",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s ReportEventsOKApplicationJSON) Validate() error {
 	alias := ([]Event)(s)
 	if alias == nil {
@@ -1332,31 +1400,6 @@ func (s *ReportStop) Validate() error {
 	return nil
 }
 
-func (s ReportStopsOKApplicationJSON) Validate() error {
-	alias := ([]ReportStop)(s)
-	if alias == nil {
-		return errors.New("nil is invalid value")
-	}
-	var failures []validate.FieldError
-	for i, elem := range alias {
-		if err := func() error {
-			if err := elem.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			failures = append(failures, validate.FieldError{
-				Name:  fmt.Sprintf("[%d]", i),
-				Error: err,
-			})
-		}
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
 func (s *ReportTrip) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -1406,31 +1449,6 @@ func (s *ReportTrip) Validate() error {
 			Name:  "maxSpeed",
 			Error: err,
 		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s ReportTripsOKApplicationJSON) Validate() error {
-	alias := ([]ReportTrip)(s)
-	if alias == nil {
-		return errors.New("nil is invalid value")
-	}
-	var failures []validate.FieldError
-	for i, elem := range alias {
-		if err := func() error {
-			if err := elem.Validate(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			failures = append(failures, validate.FieldError{
-				Name:  fmt.Sprintf("[%d]", i),
-				Error: err,
-			})
-		}
 	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}

@@ -125,12 +125,19 @@ test.describe('Error Handling', () => {
   });
 
   test('should handle reports API failure', async ({ authedPage }) => {
+    await authedPage.addInitScript(() => {
+      const origFetch = window.fetch;
+      window.fetch = async function (input, init) {
+        const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+        if (url.includes('/api/reports/activity')) {
+          return new Response('Server Error', { status: 500 });
+        }
+        return origFetch.apply(globalThis, [input, init] as Parameters<typeof fetch>);
+      } as typeof fetch;
+    });
     await authedPage.goto('/reports');
     await authedPage.waitForSelector('h1:has-text("Reports")');
 
-    await authedPage.route('**/api/reports/*', (route) => {
-      route.fulfill({ status: 500, body: 'Server Error' });
-    });
     await authedPage.click('button:has-text("Apply")');
     await authedPage.waitForTimeout(2000);
     // Should not crash, empty state should show

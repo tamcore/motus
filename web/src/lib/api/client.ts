@@ -283,22 +283,19 @@ export const api = {
     );
   },
 
-  /** Server-side trip report; speeds are converted from knots to km/h. */
-  getTripReport: (params: ReportParams) =>
-    request<Omit<Trip, "id">[]>(`/reports/trips?${reportQuery(params)}`).then((trips) =>
-      trips.map((t, i) => ({
+  /** Server-side trips and stops in one pass; trip speeds are converted from knots to km/h. */
+  getActivityReport: (params: ReportParams) =>
+    request<{ trips: Omit<Trip, "id">[]; stops: Omit<Stop, "id">[] }>(
+      `/reports/activity?${reportQuery(params)}`,
+    ).then(({ trips, stops }) => ({
+      trips: trips.map((t, i): Trip => ({
         ...t,
         id: `trip-${t.deviceId}-${i}`,
         avgSpeed: t.avgSpeed * KNOTS_TO_KMH,
         maxSpeed: t.maxSpeed * KNOTS_TO_KMH,
       })),
-    ),
-
-  /** Server-side stop report. */
-  getStopReport: (params: ReportParams) =>
-    request<Omit<Stop, "id">[]>(`/reports/stops?${reportQuery(params)}`).then((stops) =>
-      stops.map((s, i) => ({ ...s, id: `stop-${s.deviceId}-${i}` })),
-    ),
+      stops: stops.map((s, i): Stop => ({ ...s, id: `stop-${s.deviceId}-${i}` })),
+    })),
 
   /** Compact range points (lat, lon, speed, fixTime), sampled to `limit` by the server. */
   getPositionPoints: (params: {

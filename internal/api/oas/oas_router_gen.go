@@ -57,7 +57,7 @@ var (
 		"GET":  "Authorization,X-Auth-Token",
 		"POST": "Authorization,Content-Type,X-Auth-Token",
 	}
-	rn92AllowedHeaders = map[string]string{
+	rn91AllowedHeaders = map[string]string{
 		"POST": "Authorization,Content-Type,X-Auth-Token",
 	}
 	rn56AllowedHeaders = map[string]string{
@@ -111,7 +111,7 @@ var (
 	rn75AllowedHeaders = map[string]string{
 		"GET": "Authorization,X-Auth-Token",
 	}
-	rn94AllowedHeaders = map[string]string{
+	rn93AllowedHeaders = map[string]string{
 		"POST": "Authorization,X-Auth-Token",
 	}
 	rn62AllowedHeaders = map[string]string{
@@ -123,16 +123,13 @@ var (
 	rn61AllowedHeaders = map[string]string{
 		"GET": "Authorization,X-Auth-Token",
 	}
-	rn96AllowedHeaders = map[string]string{
+	rn95AllowedHeaders = map[string]string{
 		"PUT": "Authorization,Content-Type,X-Auth-Token",
 	}
 	rn87AllowedHeaders = map[string]string{
 		"GET": "Authorization,X-Auth-Token",
 	}
 	rn89AllowedHeaders = map[string]string{
-		"GET": "Authorization,X-Auth-Token",
-	}
-	rn90AllowedHeaders = map[string]string{
 		"GET": "Authorization,X-Auth-Token",
 	}
 	rn47AllowedHeaders = map[string]string{
@@ -825,7 +822,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "POST",
-										allowedHeaders: rn92AllowedHeaders,
+										allowedHeaders: rn91AllowedHeaders,
 										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
@@ -1342,7 +1339,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "POST",
-										allowedHeaders: rn94AllowedHeaders,
+										allowedHeaders: rn93AllowedHeaders,
 										acceptPost:     "",
 										acceptPatch:    "",
 									})
@@ -1475,7 +1472,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						default:
 							s.notAllowed(w, r, notAllowedParams{
 								allowedMethods: "PUT",
-								allowedHeaders: rn96AllowedHeaders,
+								allowedHeaders: rn95AllowedHeaders,
 								acceptPost:     "",
 								acceptPatch:    "",
 							})
@@ -1498,6 +1495,31 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					break
 				}
 				switch elem[0] {
+				case 'a': // Prefix: "activity"
+
+					if l := len("activity"); len(elem) >= l && elem[0:l] == "activity" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch r.Method {
+						case "GET":
+							s.handleReportActivityRequest([0]string{}, elemIsEscaped, w, r)
+						default:
+							s.notAllowed(w, r, notAllowedParams{
+								allowedMethods: "GET",
+								allowedHeaders: rn87AllowedHeaders,
+								acceptPost:     "",
+								acceptPatch:    "",
+							})
+						}
+
+						return
+					}
+
 				case 'e': // Prefix: "events"
 
 					if l := len("events"); len(elem) >= l && elem[0:l] == "events" {
@@ -1514,57 +1536,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						default:
 							s.notAllowed(w, r, notAllowedParams{
 								allowedMethods: "GET",
-								allowedHeaders: rn87AllowedHeaders,
-								acceptPost:     "",
-								acceptPatch:    "",
-							})
-						}
-
-						return
-					}
-
-				case 's': // Prefix: "stops"
-
-					if l := len("stops"); len(elem) >= l && elem[0:l] == "stops" {
-						elem = elem[l:]
-					} else {
-						break
-					}
-
-					if len(elem) == 0 {
-						// Leaf node.
-						switch r.Method {
-						case "GET":
-							s.handleReportStopsRequest([0]string{}, elemIsEscaped, w, r)
-						default:
-							s.notAllowed(w, r, notAllowedParams{
-								allowedMethods: "GET",
 								allowedHeaders: rn89AllowedHeaders,
-								acceptPost:     "",
-								acceptPatch:    "",
-							})
-						}
-
-						return
-					}
-
-				case 't': // Prefix: "trips"
-
-					if l := len("trips"); len(elem) >= l && elem[0:l] == "trips" {
-						elem = elem[l:]
-					} else {
-						break
-					}
-
-					if len(elem) == 0 {
-						// Leaf node.
-						switch r.Method {
-						case "GET":
-							s.handleReportTripsRequest([0]string{}, elemIsEscaped, w, r)
-						default:
-							s.notAllowed(w, r, notAllowedParams{
-								allowedMethods: "GET",
-								allowedHeaders: rn90AllowedHeaders,
 								acceptPost:     "",
 								acceptPatch:    "",
 							})
@@ -3702,6 +3674,31 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 					break
 				}
 				switch elem[0] {
+				case 'a': // Prefix: "activity"
+
+					if l := len("activity"); len(elem) >= l && elem[0:l] == "activity" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch method {
+						case "GET":
+							r.name = ReportActivityOperation
+							r.summary = "Detect trips and stops in a time range"
+							r.operationID = "reportActivity"
+							r.operationGroup = ""
+							r.pathPattern = "/api/reports/activity"
+							r.args = args
+							r.count = 0
+							return r, true
+						default:
+							return
+						}
+					}
+
 				case 'e': // Prefix: "events"
 
 					if l := len("events"); len(elem) >= l && elem[0:l] == "events" {
@@ -3719,56 +3716,6 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							r.operationID = "reportEvents"
 							r.operationGroup = ""
 							r.pathPattern = "/api/reports/events"
-							r.args = args
-							r.count = 0
-							return r, true
-						default:
-							return
-						}
-					}
-
-				case 's': // Prefix: "stops"
-
-					if l := len("stops"); len(elem) >= l && elem[0:l] == "stops" {
-						elem = elem[l:]
-					} else {
-						break
-					}
-
-					if len(elem) == 0 {
-						// Leaf node.
-						switch method {
-						case "GET":
-							r.name = ReportStopsOperation
-							r.summary = "Detect stops in a time range"
-							r.operationID = "reportStops"
-							r.operationGroup = ""
-							r.pathPattern = "/api/reports/stops"
-							r.args = args
-							r.count = 0
-							return r, true
-						default:
-							return
-						}
-					}
-
-				case 't': // Prefix: "trips"
-
-					if l := len("trips"); len(elem) >= l && elem[0:l] == "trips" {
-						elem = elem[l:]
-					} else {
-						break
-					}
-
-					if len(elem) == 0 {
-						// Leaf node.
-						switch method {
-						case "GET":
-							r.name = ReportTripsOperation
-							r.summary = "Detect trips in a time range"
-							r.operationID = "reportTrips"
-							r.operationGroup = ""
-							r.pathPattern = "/api/reports/trips"
 							r.args = args
 							r.count = 0
 							return r, true

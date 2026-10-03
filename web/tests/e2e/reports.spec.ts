@@ -127,7 +127,7 @@ test.describe('Reports Page', () => {
     await authedPage.waitForLoadState('networkidle');
 
     const responsePromise = authedPage.waitForResponse(
-      (resp) => resp.url().includes('/api/reports/trips'),
+      (resp) => resp.url().includes('/api/reports/activity'),
       { timeout: 15000 },
     );
     await reportsPage.applyButton.click();

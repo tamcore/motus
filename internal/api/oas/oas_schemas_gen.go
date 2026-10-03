@@ -6447,6 +6447,46 @@ func (s *PositionPoint) SetAltitude(val OptFloat64) {
 	s.Altitude = val
 }
 
+// Ref: #/components/schemas/ReportActivity
+type ReportActivity struct {
+	Trips []ReportTrip `json:"trips"`
+	Stops []ReportStop `json:"stops"`
+}
+
+// GetTrips returns the value of Trips.
+func (s *ReportActivity) GetTrips() []ReportTrip {
+	return s.Trips
+}
+
+// GetStops returns the value of Stops.
+func (s *ReportActivity) GetStops() []ReportStop {
+	return s.Stops
+}
+
+// SetTrips sets the value of Trips.
+func (s *ReportActivity) SetTrips(val []ReportTrip) {
+	s.Trips = val
+}
+
+// SetStops sets the value of Stops.
+func (s *ReportActivity) SetStops(val []ReportStop) {
+	s.Stops = val
+}
+
+func (*ReportActivity) reportActivityRes() {}
+
+type ReportActivityBadRequest Error
+
+func (*ReportActivityBadRequest) reportActivityRes() {}
+
+type ReportActivityForbidden Error
+
+func (*ReportActivityForbidden) reportActivityRes() {}
+
+type ReportActivityUnauthorized Error
+
+func (*ReportActivityUnauthorized) reportActivityRes() {}
+
 type ReportEventsOKApplicationJSON []Event
 
 func (*ReportEventsOKApplicationJSON) reportEventsRes() {}
@@ -6545,22 +6585,6 @@ func (s *ReportStop) SetDuration(val float64) {
 	s.Duration = val
 }
 
-type ReportStopsBadRequest Error
-
-func (*ReportStopsBadRequest) reportStopsRes() {}
-
-type ReportStopsForbidden Error
-
-func (*ReportStopsForbidden) reportStopsRes() {}
-
-type ReportStopsOKApplicationJSON []ReportStop
-
-func (*ReportStopsOKApplicationJSON) reportStopsRes() {}
-
-type ReportStopsUnauthorized Error
-
-func (*ReportStopsUnauthorized) reportStopsRes() {}
-
 // Ref: #/components/schemas/ReportTrip
 type ReportTrip struct {
 	DeviceId   int64     `json:"deviceId"`
@@ -6656,22 +6680,6 @@ func (s *ReportTrip) SetAvgSpeed(val float64) {
 func (s *ReportTrip) SetMaxSpeed(val float64) {
 	s.MaxSpeed = val
 }
-
-type ReportTripsBadRequest Error
-
-func (*ReportTripsBadRequest) reportTripsRes() {}
-
-type ReportTripsForbidden Error
-
-func (*ReportTripsForbidden) reportTripsRes() {}
-
-type ReportTripsOKApplicationJSON []ReportTrip
-
-func (*ReportTripsOKApplicationJSON) reportTripsRes() {}
-
-type ReportTripsUnauthorized Error
-
-func (*ReportTripsUnauthorized) reportTripsRes() {}
 
 type SendCommandBadRequest Error
 

@@ -2798,6 +2798,61 @@ func encodePasskeyRegisterFinishResponse(response PasskeyRegisterFinishRes, w ht
 	}
 }
 
+func encodeReportActivityResponse(response ReportActivityRes, w http.ResponseWriter, span trace.Span) error {
+	switch response := response.(type) {
+	case *ReportActivity:
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(200)
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *ReportActivityBadRequest:
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(400)
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *ReportActivityUnauthorized:
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(401)
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *ReportActivityForbidden:
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(403)
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	default:
+		return errors.Errorf("unexpected response type: %T", response)
+	}
+}
+
 func encodeReportEventsResponse(response ReportEventsRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *ReportEventsOKApplicationJSON:
@@ -2815,116 +2870,6 @@ func encodeReportEventsResponse(response ReportEventsRes, w http.ResponseWriter,
 	case *Error:
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
-
-		e := new(jx.Encoder)
-		response.Encode(e)
-		if _, err := e.WriteTo(w); err != nil {
-			return errors.Wrap(err, "write")
-		}
-
-		return nil
-
-	default:
-		return errors.Errorf("unexpected response type: %T", response)
-	}
-}
-
-func encodeReportStopsResponse(response ReportStopsRes, w http.ResponseWriter, span trace.Span) error {
-	switch response := response.(type) {
-	case *ReportStopsOKApplicationJSON:
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.WriteHeader(200)
-
-		e := new(jx.Encoder)
-		response.Encode(e)
-		if _, err := e.WriteTo(w); err != nil {
-			return errors.Wrap(err, "write")
-		}
-
-		return nil
-
-	case *ReportStopsBadRequest:
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.WriteHeader(400)
-
-		e := new(jx.Encoder)
-		response.Encode(e)
-		if _, err := e.WriteTo(w); err != nil {
-			return errors.Wrap(err, "write")
-		}
-
-		return nil
-
-	case *ReportStopsUnauthorized:
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.WriteHeader(401)
-
-		e := new(jx.Encoder)
-		response.Encode(e)
-		if _, err := e.WriteTo(w); err != nil {
-			return errors.Wrap(err, "write")
-		}
-
-		return nil
-
-	case *ReportStopsForbidden:
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.WriteHeader(403)
-
-		e := new(jx.Encoder)
-		response.Encode(e)
-		if _, err := e.WriteTo(w); err != nil {
-			return errors.Wrap(err, "write")
-		}
-
-		return nil
-
-	default:
-		return errors.Errorf("unexpected response type: %T", response)
-	}
-}
-
-func encodeReportTripsResponse(response ReportTripsRes, w http.ResponseWriter, span trace.Span) error {
-	switch response := response.(type) {
-	case *ReportTripsOKApplicationJSON:
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.WriteHeader(200)
-
-		e := new(jx.Encoder)
-		response.Encode(e)
-		if _, err := e.WriteTo(w); err != nil {
-			return errors.Wrap(err, "write")
-		}
-
-		return nil
-
-	case *ReportTripsBadRequest:
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.WriteHeader(400)
-
-		e := new(jx.Encoder)
-		response.Encode(e)
-		if _, err := e.WriteTo(w); err != nil {
-			return errors.Wrap(err, "write")
-		}
-
-		return nil
-
-	case *ReportTripsUnauthorized:
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.WriteHeader(401)
-
-		e := new(jx.Encoder)
-		response.Encode(e)
-		if _, err := e.WriteTo(w); err != nil {
-			return errors.Wrap(err, "write")
-		}
-
-		return nil
-
-	case *ReportTripsForbidden:
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.WriteHeader(403)
 
 		e := new(jx.Encoder)
 		response.Encode(e)

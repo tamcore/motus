@@ -269,16 +269,12 @@ type PasskeyRegisterFinishRes interface {
 	passkeyRegisterFinishRes()
 }
 
+type ReportActivityRes interface {
+	reportActivityRes()
+}
+
 type ReportEventsRes interface {
 	reportEventsRes()
-}
-
-type ReportStopsRes interface {
-	reportStopsRes()
-}
-
-type ReportTripsRes interface {
-	reportTripsRes()
 }
 
 type SendCommandRes interface {

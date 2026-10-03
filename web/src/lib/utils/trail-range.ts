@@ -3,7 +3,7 @@
  * "now", or an absolute custom range with ISO from/to timestamps (custom
  * input, URL params, saved bookmarks).
  */
-import { ALL_TIME_START } from "./date-range";
+import { ALL_TIME_START, dateValue, parseLocalBoundary, timeValue } from "./date-range";
 
 export type TrailRelativePreset = "24h" | "48h" | "7d" | "30d" | "all";
 export type TrailPreset = TrailRelativePreset | "custom";
@@ -76,28 +76,6 @@ export function resolveTrailRange(
 /** Whether live positions belong on the trail: the range has not ended yet. */
 export function isLiveRange(range: TrailRange, now: Date = new Date()): boolean {
   return range.preset !== "custom" || new Date(range.to).getTime() >= now.getTime();
-}
-
-const pad2 = (n: number) => String(n).padStart(2, "0");
-/** Local `yyyy-mm-dd` of a date, as used by native date inputs. */
-export const dateValue = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-const timeValue = (d: Date) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
-
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const TIME_RE = /^\d{2}:\d{2}$/;
-
-/**
- * Parses native date (yyyy-mm-dd) + optional time (HH:mm) input values as
- * local time. A start covers its whole minute from :00.000, an end up to
- * :59.999; an empty time means 00:00 / 23:59. Returns null for invalid input.
- */
-export function parseLocalBoundary(date: string, time: string, edge: "start" | "end"): Date | null {
-  if (!DATE_RE.test(date) || (time !== "" && !TIME_RE.test(time))) return null;
-  const hm = time || (edge === "start" ? "00:00" : "23:59");
-  const d = new Date(`${date}T${hm}:${edge === "start" ? "00.000" : "59.999"}`);
-  // Reject overflowing values such as 2026-02-31 or 24:30.
-  if (isNaN(d.getTime()) || dateValue(d) !== date || timeValue(d) !== hm) return null;
-  return d;
 }
 
 /** Native date/time input values: date `yyyy-mm-dd`, time `HH:mm` or empty (whole day). */

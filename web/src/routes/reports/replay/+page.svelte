@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { RELATIVE_DATE_PRESETS, resolveDatePreset, type DatePreset } from '$lib/utils/date-range';
+	import { RELATIVE_DATE_PRESETS, dateValue, resolveDatePreset, type DatePreset } from '$lib/utils/date-range';
 	import { onMount, onDestroy, tick } from 'svelte';
 	import { page } from '$app/stores';
 	import { api, fetchDevices } from '$lib/api/client';
@@ -9,7 +9,6 @@
 	import { haversineDistance } from '$lib/utils/trips';
 	import { toRoutePositions, type RoutePosition as Position } from '$lib/utils/route-points';
 	import { normalizeTimeParam } from '$lib/utils/report-links';
-	import { dateValue } from '$lib/utils/trail-range';
 	import { downloadGPX } from '$lib/utils/gpx';
 	import { formatDate, formatDuration, formatSpeed, formatDistance } from '$lib/utils/formatting';
 	import type { Device } from '$lib/types/api';

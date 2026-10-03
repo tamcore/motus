@@ -5,8 +5,7 @@
 	import { api, fetchDevices } from '$lib/api/client';
 	import { refreshHandler } from '$lib/stores/refresh';
 	import { mileageToDisplay, mileageFromDisplay, formatMileage, formatRelative } from '$lib/utils/formatting';
-	import { commandIntervalLabel, commandSentMessage, COMMAND_TYPE_LABELS } from '$lib/utils/commands';
-	import { buildCommandConfig } from '$lib/utils/notificationRules';
+	import { buildCommandAttributes, commandIntervalLabel, commandSentMessage, COMMAND_TYPE_LABELS } from '$lib/utils/commands';
 	import { settings } from '$lib/stores/settings';
 	import AllDevicesToggle from '$lib/components/AllDevicesToggle.svelte';
 	import Button from '$lib/components/Button.svelte';
@@ -91,14 +90,14 @@
 		commandSentInfo = '';
 		commandSending = true;
 
-		const { config, error } = buildCommandConfig(commandType, {
+		const { attributes, error } = buildCommandAttributes(commandType, {
 			frequency: commandFrequency,
 			phoneNumber: commandSosNumber,
 			speed: commandSpeed,
 			text: commandText
 		});
-		if (!config) {
-			commandError = error ?? 'Invalid command';
+		if (error) {
+			commandError = error;
 			commandSending = false;
 			return;
 		}
@@ -107,9 +106,9 @@
 			const sent = await api.sendCommand({
 				deviceId: commandDevice.id,
 				type: commandType,
-				attributes: config.attributes
+				attributes
 			});
-			commandSentInfo = commandSentMessage(commandType, config.attributes ?? {}, sent.status);
+			commandSentInfo = commandSentMessage(commandType, attributes ?? {}, sent.status);
 
 			// Poll for result up to 5s
 			let resultFound = false;

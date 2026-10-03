@@ -5,6 +5,8 @@
  * active/next-active status determination for calendar schedules.
  */
 
+import { dateValue, parseLocalBoundary } from "./date-range";
+
 // ---------------------------------------------------------------------------
 // Template types and definitions
 // ---------------------------------------------------------------------------
@@ -697,10 +699,10 @@ export function parseIcalToDateRangeConfig(
     }
 
     // If no end date parsed, default to start date + 30 days
-    if (!config.endDate && config.startDate) {
-      const start = new Date(config.startDate);
+    const start = parseLocalBoundary(config.startDate, "", "start");
+    if (!config.endDate && start) {
       start.setDate(start.getDate() + 30);
-      config.endDate = start.toISOString().split("T")[0];
+      config.endDate = dateValue(start);
     }
 
     return config;

@@ -2,10 +2,10 @@
 	import { RELATIVE_DATE_PRESETS, resolveDatePreset, type DatePreset } from '$lib/utils/date-range';
 	import type { Device } from '$lib/types/api';
 	import { onMount, onDestroy } from 'svelte';
-	import { browser } from '$app/environment';
 	import { page } from '$app/stores';
 	import { api, fetchDevices } from '$lib/api/client';
 	import { refreshHandler } from '$lib/stores/refresh';
+	import { persisted } from '$lib/stores/persisted';
 	import { exportTripsToCSV } from '$lib/utils/trips';
 	import { exportStopsToCSV } from '$lib/utils/stops';
 	import { tripLink } from '$lib/utils/report-links';
@@ -46,7 +46,7 @@
 	let customTo = '';
 
 	// Column visibility configuration
-	let columnConfig: Record<string, boolean> = {
+	const DEFAULT_COLUMNS: Record<string, boolean> = {
 		device: true,
 		startTime: true,
 		endTime: true,
@@ -55,8 +55,10 @@
 		avgSpeed: true,
 		maxSpeed: true,
 	};
+	const columnConfig = persisted('motus_report_columns', DEFAULT_COLUMNS, (saved) =>
+		saved && typeof saved === 'object' ? { ...DEFAULT_COLUMNS, ...saved } : null
+	);
 	let showColumnConfig = false;
-	let columnConfigLoaded = false;
 
 	const columnLabels: Record<string, string> = {
 		device: 'Device',
@@ -76,11 +78,6 @@
 	const ONGOING_THRESHOLD_MS = 5 * 60 * 1000;
 	function isTripOngoing(trip: Trip): boolean {
 		return Date.now() - new Date(trip.endTime).getTime() < ONGOING_THRESHOLD_MS;
-	}
-
-	// Save column config on change (only after initial load)
-	$: if (browser && columnConfigLoaded) {
-		localStorage.setItem('motus_report_columns', JSON.stringify(columnConfig));
 	}
 
 	$: totalDistance = trips.reduce((sum, t) => sum + t.distance, 0);
@@ -203,19 +200,6 @@
 	}
 
 	onMount(async () => {
-		// Load column config from localStorage
-		if (browser) {
-			const saved = localStorage.getItem('motus_report_columns');
-			if (saved) {
-				try {
-					columnConfig = { ...columnConfig, ...JSON.parse(saved) };
-				} catch {
-					// ignore malformed data
-				}
-			}
-			columnConfigLoaded = true;
-		}
-
 		await reloadDevices();
 		try {
 			// Pre-select device from query param (?device=ID)
@@ -367,7 +351,7 @@
 						>
 							{#each Object.keys(columnLabels) as key}
 								<label class="column-option">
-									<input type="checkbox" bind:checked={columnConfig[key]} />
+									<input type="checkbox" bind:checked={$columnConfig[key]} />
 									{columnLabels[key]}
 								</label>
 							{/each}
@@ -381,21 +365,21 @@
 			<div class="table-wrapper">
 				<table class="trips-table">
 					<thead><tr>
-						{#if columnConfig.device}<th>Device</th>{/if}
-						{#if columnConfig.startTime}<th>Start Time</th>{/if}
-						{#if columnConfig.endTime}<th>End Time</th>{/if}
-						{#if columnConfig.duration}<th>Duration</th>{/if}
-						{#if columnConfig.distance}<th>Distance</th>{/if}
-						{#if columnConfig.avgSpeed}<th>Avg Speed</th>{/if}
-						{#if columnConfig.maxSpeed}<th>Max Speed</th>{/if}
+						{#if $columnConfig.device}<th>Device</th>{/if}
+						{#if $columnConfig.startTime}<th>Start Time</th>{/if}
+						{#if $columnConfig.endTime}<th>End Time</th>{/if}
+						{#if $columnConfig.duration}<th>Duration</th>{/if}
+						{#if $columnConfig.distance}<th>Distance</th>{/if}
+						{#if $columnConfig.avgSpeed}<th>Avg Speed</th>{/if}
+						{#if $columnConfig.maxSpeed}<th>Max Speed</th>{/if}
 						<th>Actions</th>
 					</tr></thead>
 					<tbody>
 						{#each trips.slice(0, visibleTripCount) as trip (trip.id)}
 							<tr class:ongoing={isTripOngoing(trip)}>
-								{#if columnConfig.device}<td>{trip.deviceName}</td>{/if}
-								{#if columnConfig.startTime}<td>{formatDate(trip.startTime)}</td>{/if}
-								{#if columnConfig.endTime}
+								{#if $columnConfig.device}<td>{trip.deviceName}</td>{/if}
+								{#if $columnConfig.startTime}<td>{formatDate(trip.startTime)}</td>{/if}
+								{#if $columnConfig.endTime}
 									<td>
 										{#if isTripOngoing(trip)}
 											<span class="live-badge">
@@ -407,10 +391,10 @@
 										{/if}
 									</td>
 								{/if}
-								{#if columnConfig.duration}<td>{formatDuration(trip.duration)}</td>{/if}
-								{#if columnConfig.distance}<td>{formatDistance(trip.distance)}</td>{/if}
-								{#if columnConfig.avgSpeed}<td>{formatSpeed(getTripAvgSpeed(trip))}</td>{/if}
-								{#if columnConfig.maxSpeed}<td>{formatSpeed(trip.maxSpeed)}</td>{/if}
+								{#if $columnConfig.duration}<td>{formatDuration(trip.duration)}</td>{/if}
+								{#if $columnConfig.distance}<td>{formatDistance(trip.distance)}</td>{/if}
+								{#if $columnConfig.avgSpeed}<td>{formatSpeed(getTripAvgSpeed(trip))}</td>{/if}
+								{#if $columnConfig.maxSpeed}<td>{formatSpeed(trip.maxSpeed)}</td>{/if}
 								<td>
 									<a href={tripLink(trip)} class="view-link replay-link">Replay</a>
 									{#if isTripOngoing(trip)}

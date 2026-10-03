@@ -73,7 +73,6 @@ export class MapPage {
     return this.page.locator('.leaflet-tile');
   }
 
-
   get hideTrailButton() {
     return this.page.locator('button:has-text("Hide Trail")');
   }
@@ -81,7 +80,6 @@ export class MapPage {
   get trailRangeSelect() {
     return this.page.locator('select.trail-range-select');
   }
-
 
   get trailFromDate() {
     return this.page.locator('#trail-from-date');
@@ -102,7 +100,6 @@ export class MapPage {
   get trailApply() {
     return this.page.locator('button.trail-apply');
   }
-
 
   get trailStatus() {
     return this.page.locator('.trail-status');
@@ -162,10 +159,6 @@ export class MapPage {
 
   get bookmarkSubmit() {
     return this.bookmarkDialog.locator('button[type="submit"]');
-  }
-
-  get bookmarkError() {
-    return this.page.locator('.bookmark-error');
   }
 
   async searchDevices(query: string) {

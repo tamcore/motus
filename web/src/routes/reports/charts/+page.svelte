@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { resolveDatePreset, type DatePreset } from '$lib/utils/date-range';
+	import { dateValue, resolveDatePreset, type DatePreset } from '$lib/utils/date-range';
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
 	import { page } from '$app/stores';
@@ -215,7 +215,7 @@
 	function handleExportPNG() {
 		if (!chartCanvas) return;
 		const link = document.createElement('a');
-		link.download = `motus-chart-${new Date().toISOString().slice(0, 10)}.png`;
+		link.download = `motus-chart-${dateValue(new Date())}.png`;
 		link.href = chartCanvas.toDataURL('image/png');
 		link.click();
 	}

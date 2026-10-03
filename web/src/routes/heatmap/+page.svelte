@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { resolveDatePreset, type DatePreset } from '$lib/utils/date-range';
+	import { dateValue, resolveDatePreset, type DatePreset } from '$lib/utils/date-range';
 	import { onMount, onDestroy } from 'svelte';
 	import { api, fetchDevices } from '$lib/api/client';
 	import { refreshHandler } from '$lib/stores/refresh';
@@ -86,7 +86,7 @@
 			// leaflet.heat extends the global L once; keep that object across revisits.
 			const w = window as unknown as { L?: typeof import('leaflet') };
 			const L = leafletMap.getLeaflet();
-			w.L ??= (L as any)?.default ?? L ?? undefined;
+			w.L ??= (L as any)?.default ?? L;
 			await import('leaflet.heat');
 			heatLayer = w.L?.heatLayer ?? null;
 			if (!heatLayer) throw new Error('leaflet.heat did not register L.heatLayer');
@@ -122,7 +122,9 @@
 		error = '';
 
 		try {
-			const { from: fromISO, to: toISO } = resolveDatePreset(dateRange, customFrom, customTo);
+			const now = new Date();
+			const weekAgo = new Date(resolveDatePreset('week', '', '', now).from);
+			const { from: fromISO, to: toISO } = resolveDatePreset(dateRange, customFrom, customTo, now, weekAgo);
 
 			// The heatmap renders at most HEATMAP_MAX_POINTS, so let the server
 			// sample the range instead of downloading every position.
@@ -248,7 +250,7 @@
 			});
 
 			const link = document.createElement('a');
-			link.download = `motus-heatmap-${new Date().toISOString().slice(0, 10)}.png`;
+			link.download = `motus-heatmap-${dateValue(new Date())}.png`;
 			link.href = canvas.toDataURL('image/png');
 			link.click();
 		} catch (err) {

@@ -35,7 +35,19 @@ describe("resolveDatePreset", () => {
   it("covers whole local days for a custom range", () => {
     expect(resolveDatePreset("custom", "2026-09-01", "2026-09-02", now)).toEqual({
       from: new Date(2026, 8, 1, 0, 0, 0).toISOString(),
-      to: new Date(2026, 8, 2, 23, 59, 59).toISOString(),
+      to: new Date(2026, 8, 2, 23, 59, 59, 999).toISOString(),
+    });
+  });
+
+  it("falls back to emptyFrom for a missing custom start and to now for a missing end", () => {
+    const weekAgo = new Date(2026, 8, 30, 15, 30);
+    expect(resolveDatePreset("custom", "", "", now)).toEqual({
+      from: now.toISOString(),
+      to: now.toISOString(),
+    });
+    expect(resolveDatePreset("custom", "", "", now, weekAgo)).toEqual({
+      from: weekAgo.toISOString(),
+      to: now.toISOString(),
     });
   });
 });

@@ -1063,6 +1063,23 @@ describe("Date Range Builder", () => {
       expect(parsed!.endDate).toBe("2026-03-05");
       expect(parsed!.recurrence).toBe("none");
     });
+
+    it("defaults the end date to 30 local days after the start west of UTC", () => {
+      vi.stubEnv("TZ", "America/New_York");
+      try {
+        const ical = [
+          "BEGIN:VCALENDAR",
+          "BEGIN:VEVENT",
+          "DTSTART:20260301T080000",
+          "RRULE:FREQ=DAILY",
+          "END:VEVENT",
+          "END:VCALENDAR",
+        ].join("\r\n");
+        expect(parseIcalToDateRangeConfig(ical)!.endDate).toBe("2026-03-31");
+      } finally {
+        vi.unstubAllEnvs();
+      }
+    });
   });
 
   // -------------------------------------------------------------------------

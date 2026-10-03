@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# Security scan driver — runs OWASP ZAP, gosec, govulncheck, semgrep, and nuclei
+# Security scan driver — runs OWASP ZAP and nuclei
 # against the motus dev stack running on this host.
+# SAST (gosec, govulncheck, semgrep) runs in .github/workflows/security.yaml.
 #
 # Usage: ./scripts/security-scan.sh [--skip-stack]
 #   --skip-stack   Skip docker compose up (stack already running)
 #
-# Output: security-reports/<timestamp>/{zap-api,zap-full,gosec,govulncheck,semgrep,nuclei,summary}.{html,sarif,json,md}
+# Output: security-reports/<timestamp>/{zap-api,zap-full,nuclei,summary}.{html,json,txt,md}
 #
 # Run on the remote dev host (root@<REMOTE_HOST>) from /root/motus/:
 #   ssh root@<REMOTE_HOST> 'cd /root/motus && bash scripts/security-scan.sh'
@@ -122,52 +123,7 @@ docker run --rm --network host \
     -I || true
 
 # ─────────────────────────────────────────────
-# 5. gosec — Go SAST
-# ─────────────────────────────────────────────
-echo "▸ gosec (Go SAST)..."
-# Exclude generated OAS code (internal/api/oas/) — machine-generated, not auditable
-docker run --rm \
-  -v "${PWD}:/src" \
-  -w /src \
-  securego/gosec:latest \
-  -exclude-dir=internal/api/oas \
-  -fmt sarif \
-  -out "security-reports/${TS}/gosec.sarif" \
-  ./... || true
-
-# ─────────────────────────────────────────────
-# 6. govulncheck — Go vuln DB
-# ─────────────────────────────────────────────
-echo "▸ govulncheck (Go vuln DB)..."
-docker run --rm \
-  -v "${PWD}:/src" \
-  -w /src \
-  golang:1.24 \
-  sh -c "go install golang.org/x/vuln/cmd/govulncheck@latest && \
-         govulncheck -format json ./... 2>&1" \
-  > "${REPORT_DIR}/govulncheck.json" || true
-
-# ─────────────────────────────────────────────
-# 7. semgrep — multi-language SAST
-# ─────────────────────────────────────────────
-echo "▸ semgrep (SAST)..."
-docker run --rm \
-  -v "${PWD}:/src" \
-  -w /src \
-  returntocorp/semgrep:latest \
-  semgrep scan \
-    --config p/default \
-    --config p/golang \
-    --config p/javascript \
-    --config p/owasp-top-ten \
-    --exclude "internal/api/oas" \
-    --exclude "web/node_modules" \
-    --exclude "web/.svelte-kit" \
-    --sarif \
-    -o "security-reports/${TS}/semgrep.sarif" || true
-
-# ─────────────────────────────────────────────
-# 8. nuclei — web vuln templates
+# 5. nuclei — web vuln templates
 # ─────────────────────────────────────────────
 echo "▸ nuclei (web vuln templates)..."
 docker run --rm --network host \
@@ -181,15 +137,12 @@ docker run --rm --network host \
   -stats || true
 
 # ─────────────────────────────────────────────
-# 9. Summary
+# 6. Summary
 # ─────────────────────────────────────────────
 echo "▸ Generating summary..."
 
 count_zap_api="?"
 count_zap_full="?"
-count_gosec="?"
-count_govulncheck="0"
-count_semgrep="?"
 count_nuclei="0"
 
 [[ -f "${REPORT_DIR}/zap-api.json" ]] && \
@@ -206,23 +159,6 @@ d = json.load(open('${REPORT_DIR}/zap-full.json'))
 print(sum(len(s.get('instances',[])) for r in d.get('site',[]) for s in r.get('alerts',[])))
 " 2>/dev/null || echo "?")
 
-[[ -f "${REPORT_DIR}/gosec.sarif" ]] && \
-  count_gosec=$(python3 -c "
-import json
-d = json.load(open('${REPORT_DIR}/gosec.sarif'))
-print(sum(len(r.get('results',[])) for r in d.get('runs',[])))
-" 2>/dev/null || echo "?")
-
-[[ -f "${REPORT_DIR}/govulncheck.json" ]] && \
-  count_govulncheck=$(grep -c '"type":"finding"' "${REPORT_DIR}/govulncheck.json" 2>/dev/null || echo "0")
-
-[[ -f "${REPORT_DIR}/semgrep.sarif" ]] && \
-  count_semgrep=$(python3 -c "
-import json
-d = json.load(open('${REPORT_DIR}/semgrep.sarif'))
-print(sum(len(r.get('results',[])) for r in d.get('runs',[])))
-" 2>/dev/null || echo "?")
-
 [[ -f "${REPORT_DIR}/nuclei.json" ]] && \
   count_nuclei=$(wc -l < "${REPORT_DIR}/nuclei.json" 2>/dev/null | tr -d ' ' || echo "0")
 
@@ -235,9 +171,6 @@ cat > "${REPORT_DIR}/summary.md" <<EOF
 |------|------|----------|--------|
 | ZAP API scan | DAST (OpenAPI) | ${count_zap_api} instances | zap-api.html / zap-api.json |
 | ZAP full scan | DAST (spider+active) | ${count_zap_full} instances | zap-full.html / zap-full.json |
-| gosec | SAST (Go) | ${count_gosec} results | gosec.sarif |
-| govulncheck | Vuln DB (Go modules) | ${count_govulncheck} findings | govulncheck.json |
-| semgrep | SAST (multi-lang, OWASP) | ${count_semgrep} results | semgrep.sarif |
 | nuclei | Web vuln templates | ${count_nuclei} findings | nuclei.json / nuclei.txt |
 
 ## Scope
@@ -245,7 +178,6 @@ cat > "${REPORT_DIR}/summary.md" <<EOF
 - Target: ${TARGET_URL}
 - Stack: docker-compose.yaml + docker-compose.dev.yaml (rate limits relaxed: 1000/10000)
 - Auth: readonly Bearer API key (rotate after scan)
-- Excluded from SAST: internal/api/oas/ (generated code)
 - Deferred: trivy (container CVEs), GPS TCP port fuzzing (5013/5093)
 
 ## Next Steps
@@ -254,8 +186,7 @@ cat > "${REPORT_DIR}/summary.md" <<EOF
    - fix-now: Critical/High
    - fix-later: Medium
    - false-positive: document reason, add to per-tool ignore file
-2. If findings exist: add .github/workflows/security.yaml (gosec+govulncheck+semgrep)
-   and a zap-baseline job to e2e.yaml
+2. If findings exist: consider a zap-baseline job in e2e.yaml
 EOF
 
 echo ""

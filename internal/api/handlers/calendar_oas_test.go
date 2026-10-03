@@ -22,6 +22,7 @@ import (
 	oas "github.com/tamcore/motus/internal/api/oas"
 	"github.com/tamcore/motus/internal/audit"
 	"github.com/tamcore/motus/internal/model"
+	"github.com/tamcore/motus/internal/services"
 	"github.com/tamcore/motus/internal/storage/repository"
 )
 
@@ -41,9 +42,11 @@ END:VCALENDAR`
 // with a nil-pool audit logger (Log is a documented no-op without a pool),
 // so the audit code paths in create/update/delete are exercised.
 func newCalendarTestHandler(calendars repository.CalendarRepo) *handlers.Handler {
+	auditLogger := audit.NewLogger(nil)
 	return handlers.NewHandler(handlers.HandlerConfig{
-		Calendars:   calendars,
-		AuditLogger: audit.NewLogger(nil),
+		Calendars:       calendars,
+		CalendarService: services.NewCalendarService(calendars, auditLogger),
+		AuditLogger:     auditLogger,
 	})
 }
 

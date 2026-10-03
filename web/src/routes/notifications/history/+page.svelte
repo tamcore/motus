@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/stores';
-	import { api } from '$lib/api/client';
+	import { api, fetchNotifications } from '$lib/api/client';
 	import { refreshHandler } from '$lib/stores/refresh';
 	import { formatDate } from '$lib/utils/formatting';
 	import { EVENT_TYPES } from '$lib/stores/notifications';
@@ -36,8 +36,8 @@
 		loading = true;
 		error = '';
 		try {
-			// Fetch all notification rules first
-			rules = await api.getNotifications();
+			// Same scope as the rules page, so ?rule= links to other users' rules resolve.
+			rules = await fetchNotifications();
 
 			if (rules.length === 0) {
 				logs = [];

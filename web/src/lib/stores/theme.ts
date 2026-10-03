@@ -1,57 +1,34 @@
-import { writable } from "svelte/store";
+import { get } from "svelte/store";
+import { persisted } from "./persisted";
 
 type Theme = "dark" | "light" | "auto";
 
-function getInitialTheme(): Theme {
-  const stored = localStorage.getItem("motus_theme") as Theme;
-  if (stored && ["dark", "light", "auto"].includes(stored)) {
-    return stored;
-  }
+const THEMES: readonly string[] = ["dark", "light", "auto"];
 
-  return "auto";
+const stored = persisted<Theme>("motus_theme", "auto", (value) =>
+  THEMES.includes(value as string) ? (value as Theme) : null,
+);
+
+function applyTheme(theme: Theme): void {
+  const effective =
+    theme === "auto"
+      ? window.matchMedia("(prefers-color-scheme: dark)").matches
+        ? "dark"
+        : "light"
+      : theme;
+  document.documentElement.setAttribute("data-theme", effective);
 }
 
-function getEffectiveTheme(theme: Theme): "dark" | "light" {
-  if (theme === "auto") {
-    return window.matchMedia("(prefers-color-scheme: dark)").matches
-      ? "dark"
-      : "light";
-  }
-  return theme;
-}
-
-function createThemeStore() {
-  const { subscribe, set } = writable<Theme>(getInitialTheme());
-
-  return {
-    subscribe,
-    setTheme: (theme: Theme) => {
-      localStorage.setItem("motus_theme", theme);
-      document.documentElement.setAttribute(
-        "data-theme",
-        getEffectiveTheme(theme),
-      );
-      set(theme);
-    },
-    initialize: () => {
-      const theme = getInitialTheme();
-      document.documentElement.setAttribute(
-        "data-theme",
-        getEffectiveTheme(theme),
-      );
-
-      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-      mediaQuery.addEventListener("change", () => {
-        const currentTheme = localStorage.getItem("motus_theme") as Theme;
-        if (currentTheme === "auto") {
-          document.documentElement.setAttribute(
-            "data-theme",
-            getEffectiveTheme("auto"),
-          );
-        }
-      });
-    },
-  };
-}
-
-export const theme = createThemeStore();
+export const theme = {
+  subscribe: stored.subscribe,
+  setTheme: (value: Theme) => {
+    stored.set(value);
+    applyTheme(value);
+  },
+  initialize: () => {
+    applyTheme(get(stored));
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+      if (get(stored) === "auto") applyTheme("auto");
+    });
+  },
+};

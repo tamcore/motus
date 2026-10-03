@@ -1,4 +1,5 @@
-import { writable, get } from "svelte/store";
+import { get } from "svelte/store";
+import { persisted } from "./persisted";
 
 export interface UserSettings {
   dateFormat: "iso" | "locale" | "relative";
@@ -31,37 +32,14 @@ const defaultSettings: UserSettings = {
   showAllDevices: false,
 };
 
-function loadSettings(): UserSettings {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      return { ...defaultSettings, ...JSON.parse(saved) };
-    }
-  } catch {
-    // Corrupted storage, use defaults
-  }
+const store = persisted<UserSettings>(STORAGE_KEY, defaultSettings, (saved) =>
+  saved && typeof saved === "object" ? { ...defaultSettings, ...saved } : null,
+);
 
-  return defaultSettings;
-}
-
-function createSettingsStore() {
-  const { subscribe, set, update } = writable<UserSettings>(loadSettings());
-
-  subscribe((value) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
-  });
-
-  return {
-    subscribe,
-    set,
-    update,
-    reset: () => {
-      set(defaultSettings);
-    },
-  };
-}
-
-export const settings = createSettingsStore();
+export const settings = {
+  ...store,
+  reset: () => store.set(defaultSettings),
+};
 
 /**
  * Get a snapshot of current settings (for use outside reactive contexts).

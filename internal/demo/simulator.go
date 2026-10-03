@@ -372,14 +372,7 @@ func addSpeedVariation(speed float64) float64 {
 // smoothAcceleration gradually moves currentSpeed toward targetSpeed, clamping
 // the change per step to maxChange km/h.
 func smoothAcceleration(currentSpeed, targetSpeed, maxChange float64) float64 {
-	diff := targetSpeed - currentSpeed
-	if math.Abs(diff) <= maxChange {
-		return targetSpeed
-	}
-	if diff > 0 {
-		return currentSpeed + maxChange
-	}
-	return currentSpeed - maxChange
+	return min(max(targetSpeed, currentSpeed-maxChange), currentSpeed+maxChange)
 }
 
 // pointInterval calculates how long to wait between sending two consecutive
@@ -472,14 +465,8 @@ func reversePoints(points []RoutePoint) []RoutePoint {
 	n := len(points)
 	reversed := make([]RoutePoint, n)
 	for i, pt := range points {
-		reversed[n-1-i] = RoutePoint{
-			Lat:      pt.Lat,
-			Lon:      pt.Lon,
-			Ele:      pt.Ele,
-			Speed:    pt.Speed,
-			Course:   math.Mod(pt.Course+180, 360),
-			Distance: pt.Distance,
-		}
+		pt.Course = math.Mod(pt.Course+180, 360)
+		reversed[n-1-i] = pt
 	}
 	// First point in reversed list has no predecessor distance.
 	if n > 0 {
@@ -489,10 +476,8 @@ func reversePoints(points []RoutePoint) []RoutePoint {
 }
 
 // scaledDuration applies the speed multiplier to a duration.
-// Higher multiplier means shorter real-time duration.
+// Higher multiplier means shorter real-time duration. NewSimulator keeps the
+// multiplier positive.
 func scaledDuration(d time.Duration, multiplier float64) time.Duration {
-	if multiplier <= 0 {
-		multiplier = 1.0
-	}
 	return time.Duration(float64(d) / multiplier)
 }

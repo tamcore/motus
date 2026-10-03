@@ -70,10 +70,8 @@ func (h *Handler) CreateApiKey(ctx context.Context, req *oas.ApiKeyInput) (oas.C
 		return &oas.CreateApiKeyBadRequest{Error: "failed to create API key"}, nil
 	}
 
-	if h.cfg.AuditLogger != nil {
-		h.cfg.AuditLogger.Log(ctx, &user.ID, audit.ActionApiKeyCreate, audit.ResourceApiKey, &key.ID,
-			map[string]any{"name": key.Name, "permissions": key.Permissions}, "", "")
-	}
+	h.cfg.AuditLogger.Log(ctx, &user.ID, audit.ActionApiKeyCreate, audit.ResourceApiKey, &key.ID,
+		map[string]any{"name": key.Name, "permissions": key.Permissions}, "", "")
 
 	result := apiKeyToOAS(key, true)
 	return &result, nil
@@ -100,10 +98,8 @@ func (h *Handler) DeleteApiKey(ctx context.Context, params oas.DeleteApiKeyParam
 		return &oas.DeleteApiKeyForbidden{Error: "failed to delete API key"}, nil
 	}
 
-	if h.cfg.AuditLogger != nil {
-		h.cfg.AuditLogger.Log(ctx, &user.ID, audit.ActionApiKeyDelete, audit.ResourceApiKey, &params.ID,
-			map[string]any{"name": key.Name, "keyOwnerUserId": key.UserID}, "", "")
-	}
+	h.cfg.AuditLogger.Log(ctx, &user.ID, audit.ActionApiKeyDelete, audit.ResourceApiKey, &params.ID,
+		map[string]any{"name": key.Name, "keyOwnerUserId": key.UserID}, "", "")
 
 	return &oas.DeleteApiKeyNoContent{}, nil
 }

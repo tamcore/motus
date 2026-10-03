@@ -217,13 +217,11 @@ func (h *Handler) tokenLogin(ctx context.Context, token string) (oas.GetSessionR
 		})
 	}
 
-	if h.cfg.AuditLogger != nil {
-		details := map[string]any{"method": "token"}
-		if apiKey != nil {
-			details["apiKeyId"] = apiKey.ID
-		}
-		h.cfg.AuditLogger.Log(ctx, &user.ID, audit.ActionSessionLogin, audit.ResourceSession, nil, details, "", "")
+	details := map[string]any{"method": "token"}
+	if apiKey != nil {
+		details["apiKeyId"] = apiKey.ID
 	}
+	h.cfg.AuditLogger.Log(ctx, &user.ID, audit.ActionSessionLogin, audit.ResourceSession, nil, details, "", "")
 
 	user.PopulateTraccarFields()
 	out := userToOAS(user)

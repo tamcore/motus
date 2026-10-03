@@ -708,7 +708,7 @@ func handleUpdateNotificationRule(ctx context.Context, req mcp.CallToolRequest, 
 	if err != nil || existing == nil {
 		return mcp.NewToolResultError("rule not found"), nil
 	}
-	if existing.UserID != user.ID && !user.IsAdmin() {
+	if !user.CanManage(existing.UserID) {
 		return mcp.NewToolResultError("access denied"), nil
 	}
 
@@ -773,7 +773,7 @@ func handleDeleteNotificationRule(ctx context.Context, req mcp.CallToolRequest, 
 	if err != nil || existing == nil {
 		return mcp.NewToolResultError("rule not found"), nil
 	}
-	if existing.UserID != user.ID && !user.IsAdmin() {
+	if !user.CanManage(existing.UserID) {
 		return mcp.NewToolResultError("access denied"), nil
 	}
 

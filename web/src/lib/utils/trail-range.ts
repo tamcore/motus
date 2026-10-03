@@ -5,8 +5,6 @@
  */
 import { ALL_TIME_START } from "./date-range";
 
-export { ALL_TIME_START };
-
 export type TrailRelativePreset = "24h" | "48h" | "7d" | "30d" | "all";
 export type TrailPreset = TrailRelativePreset | "custom";
 
@@ -80,10 +78,54 @@ export function isLiveRange(range: TrailRange, now: Date = new Date()): boolean 
   return range.preset !== "custom" || new Date(range.to).getTime() >= now.getTime();
 }
 
+const pad2 = (n: number) => String(n).padStart(2, "0");
+const dateValue = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const timeValue = (d: Date) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const TIME_RE = /^\d{2}:\d{2}$/;
+
 /**
- * Builds a custom range from native date (yyyy-mm-dd) and optional time
- * (HH:mm) input values in local time. An empty time means the start / end of
- * the day. Returns null when a date is missing or the start is after the end.
+ * Parses native date (yyyy-mm-dd) + optional time (HH:mm) input values as
+ * local time. A start covers its whole minute from :00.000, an end up to
+ * :59.999; an empty time means 00:00 / 23:59. Returns null for invalid input.
+ */
+export function parseLocalBoundary(date: string, time: string, edge: "start" | "end"): Date | null {
+  if (!DATE_RE.test(date) || (time !== "" && !TIME_RE.test(time))) return null;
+  const hm = time || (edge === "start" ? "00:00" : "23:59");
+  const d = new Date(`${date}T${hm}:${edge === "start" ? "00.000" : "59.999"}`);
+  // Reject overflowing values such as 2026-02-31 or 24:30.
+  if (isNaN(d.getTime()) || dateValue(d) !== date || timeValue(d) !== hm) return null;
+  return d;
+}
+
+/** Native date/time input values: date `yyyy-mm-dd`, time `HH:mm` or empty (whole day). */
+export interface RangeInputs {
+  fromDate: string;
+  fromTime: string;
+  toDate: string;
+  toTime: string;
+}
+
+/**
+ * Input values for a range (relative presets end at `now`). A start at
+ * 00:00 / an end at 23:59 leaves the time empty (whole day).
+ */
+export function rangeToInputs(range: TrailRange, now: Date = new Date()): RangeInputs {
+  const { from, to } = resolveTrailRange(range, now);
+  const fromIsDayStart = from.getHours() === 0 && from.getMinutes() === 0;
+  const toIsDayEnd = to.getHours() === 23 && to.getMinutes() === 59;
+  return {
+    fromDate: dateValue(from),
+    fromTime: fromIsDayStart ? "" : timeValue(from),
+    toDate: dateValue(to),
+    toTime: toIsDayEnd ? "" : timeValue(to),
+  };
+}
+
+/**
+ * Builds a custom range from native input values in local time. Returns null
+ * when a value is missing/invalid or the start is after the end.
  */
 export function customTrailRange(
   fromDate: string,
@@ -91,10 +133,9 @@ export function customTrailRange(
   toDate: string,
   toTime: string,
 ): TrailRange | null {
-  if (!fromDate || !toDate) return null;
-  const from = new Date(`${fromDate}T${fromTime ? `${fromTime}:00` : "00:00:00"}`);
-  const to = new Date(`${toDate}T${toTime ? `${toTime}:59` : "23:59:59"}`);
-  if (isNaN(from.getTime()) || isNaN(to.getTime()) || from > to) return null;
+  const from = parseLocalBoundary(fromDate, fromTime, "start");
+  const to = parseLocalBoundary(toDate, toTime, "end");
+  if (!from || !to || from > to) return null;
   return { preset: "custom", from: from.toISOString(), to: to.toISOString() };
 }
 

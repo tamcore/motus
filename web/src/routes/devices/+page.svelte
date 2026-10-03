@@ -150,7 +150,7 @@
 	let formModel = '';
 	let formCategory = '';
 	let formProtocol = '';
-	let formMileage = '';
+	let formMileage: number | null = null;
 
 	$: filtered = devices.filter(
 		(d) =>
@@ -201,7 +201,7 @@
 		formModel = '';
 		formCategory = '';
 		formProtocol = '';
-		formMileage = '';
+		formMileage = null;
 		error = '';
 		showModal = true;
 	}
@@ -214,7 +214,7 @@
 		formModel = device.model || '';
 		formCategory = device.category || '';
 		formProtocol = device.protocol || '';
-		formMileage = device.mileage != null ? Math.round(mileageToDisplay(device.mileage)).toString() : '';
+		formMileage = device.mileage != null ? Math.round(mileageToDisplay(device.mileage)) : null;
 		error = '';
 		showModal = true;
 	}
@@ -261,9 +261,7 @@
 		error = '';
 
 		try {
-			const mileageKm = formMileage.trim()
-				? mileageFromDisplay(parseFloat(formMileage.trim()))
-				: undefined;
+			const mileageKm = formMileage != null ? mileageFromDisplay(formMileage) : undefined;
 
 			if (mileageKm !== undefined && (isNaN(mileageKm) || mileageKm < 0)) {
 				error = 'Mileage must be a positive number';
@@ -312,12 +310,6 @@
 		}
 	}
 
-	function getStatusType(status: string): 'online' | 'offline' | 'idle' | 'moving' {
-		if (status === 'online') return 'online';
-		if (status === 'idle') return 'idle';
-		if (status === 'moving') return 'moving';
-		return 'offline';
-	}
 </script>
 
 <svelte:head>
@@ -387,7 +379,7 @@
 							{#each filtered as device (device.id)}
 								<tr class="table-row" class:other-user={device.ownerName}>
 									<td class="td-status">
-										<StatusIndicator status={getStatusType(device.status)} showLabel />
+										<StatusIndicator status={device.status} showLabel />
 									</td>
 									<td class="td-name">
 										<span class="device-name">{device.name}</span>
@@ -461,7 +453,7 @@
 							>
 								<div class="summary-main">
 									<div class="summary-name-status">
-										<StatusIndicator status={getStatusType(device.status)} />
+										<StatusIndicator status={device.status} />
 										<span class="device-name">{device.name}</span>
 										{#if device.ownerName}
 											<span class="owner-badge" title="Owned by {device.ownerName}">{device.ownerName}</span>
@@ -513,7 +505,7 @@
 										<div class="detail-item">
 											<span class="detail-label">Status</span>
 											<span class="detail-value">
-												<StatusIndicator status={getStatusType(device.status)} showLabel />
+												<StatusIndicator status={device.status} showLabel />
 											</span>
 										</div>
 										<div class="detail-item">
@@ -830,11 +822,6 @@
 		margin-bottom: var(--space-6);
 	}
 
-	.page-title {
-		font-size: var(--text-3xl);
-		font-weight: var(--font-bold);
-		color: var(--text-primary);
-	}
 
 	.toolbar {
 		display: flex;

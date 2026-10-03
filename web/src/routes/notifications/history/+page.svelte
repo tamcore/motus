@@ -176,7 +176,7 @@
 								</td>
 								<td>
 									<div class="status-cell">
-										<StatusIndicator status={log.status === 'sent' ? 'online' : log.status === 'queued' ? 'idle' : 'offline'} />
+										<StatusIndicator status={log.status} />
 										<span class="status-text status-{log.status}">{log.status}</span>
 									</div>
 								</td>

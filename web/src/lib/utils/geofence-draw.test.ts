@@ -3,7 +3,6 @@ import * as leaflet from "leaflet";
 import {
   GEOFENCE_STYLE,
   geofenceDrawOptions,
-  buildCreateGeofencePayload,
   layerToGeoJSON,
 } from "./geofence-draw";
 
@@ -97,23 +96,5 @@ describe("layerToGeoJSON", () => {
 
   it("returns null for unsupported layers", () => {
     expect(layerToGeoJSON(L, L.marker([52.52, 13.4]))).toBeNull();
-  });
-});
-
-describe("buildCreateGeofencePayload", () => {
-  it("builds the POST /api/geofences body with a GeoJSON geometry string", () => {
-    const rect = L.rectangle([
-      [52.5, 13.3],
-      [52.55, 13.45],
-    ]);
-    const payload = buildCreateGeofencePayload(L, rect, "  Office  ", null);
-    expect(payload).not.toBeNull();
-    expect(payload!.name).toBe("Office");
-    expect(payload!.calendarId).toBeNull();
-    expect(JSON.parse(payload!.geometry).type).toBe("Polygon");
-  });
-
-  it("returns null when the layer cannot be converted", () => {
-    expect(buildCreateGeofencePayload(L, L.marker([52.52, 13.4]), "x", null)).toBeNull();
   });
 });

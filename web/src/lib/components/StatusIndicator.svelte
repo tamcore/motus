@@ -1,12 +1,22 @@
 <script lang="ts">
-	export let status: 'online' | 'offline' | 'idle' | 'moving' = 'offline';
+	/** A device status or a notification delivery status ('sent', 'queued', 'failed'). */
+	export let status = 'offline';
 	export let showLabel = false;
+
+	const KINDS: Record<string, 'online' | 'idle' | 'moving'> = {
+		online: 'online',
+		idle: 'idle',
+		moving: 'moving',
+		sent: 'online',
+		queued: 'idle'
+	};
+	$: kind = KINDS[status] ?? 'offline';
 </script>
 
-<div class="status-indicator" role="status" aria-label="{status}">
-	<span class="dot status-{status}"></span>
+<div class="status-indicator" role="status" aria-label="{kind}">
+	<span class="dot status-{kind}"></span>
 	{#if showLabel}
-		<span class="label">{status}</span>
+		<span class="label">{kind}</span>
 	{/if}
 </div>
 

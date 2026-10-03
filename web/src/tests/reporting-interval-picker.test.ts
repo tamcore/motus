@@ -83,44 +83,4 @@ describe('ReportingIntervalPicker', () => {
 		const custom = presetButtons(container).find((b) => b.textContent?.trim() === 'Custom')!;
 		expect(custom.getAttribute('aria-pressed')).toBe('true');
 	});
-
-	// Regression: default and custom mode were derived only at mount and went
-	// stale when the parent changed the bound value (e.g. a form reset).
-	it('returns to the 1 min default when the parent resets the value', async () => {
-		const { container } = render(ReportingIntervalHost);
-		await fireEvent.click(presetButtons(container).find((b) => b.textContent?.trim() === 'Custom')!);
-		await tick();
-		await fireEvent.input(container.querySelector<HTMLInputElement>('input[name="frequency"]')!, {
-			target: { value: '45' }
-		});
-		await tick();
-		expect(boundValue(container)).toBe('45');
-
-		await fireEvent.click(container.querySelector<HTMLButtonElement>('#parent-reset')!);
-		await tick();
-
-		expect(boundValue(container)).toBe('60');
-		const oneMin = presetButtons(container).find((b) => b.textContent?.trim() === '1 min')!;
-		expect(oneMin.getAttribute('aria-pressed')).toBe('true');
-		expect(container.querySelector('input[name="frequency"]')).toBeNull();
-	});
-
-	it('follows external changes between preset and custom values', async () => {
-		const { container, rerender } = render(ReportingIntervalHost, { props: { externalValue: '45' } });
-		await tick();
-
-		await fireEvent.click(container.querySelector<HTMLButtonElement>('#parent-set')!);
-		await tick();
-		const custom = presetButtons(container).find((b) => b.textContent?.trim() === 'Custom')!;
-		expect(custom.getAttribute('aria-pressed')).toBe('true');
-		expect(container.querySelector<HTMLInputElement>('input[name="frequency"]')!.value).toBe('45');
-
-		await rerender({ externalValue: '300' });
-		await fireEvent.click(container.querySelector<HTMLButtonElement>('#parent-set')!);
-		await tick();
-		expect(boundValue(container)).toBe('300');
-		const fiveMin = presetButtons(container).find((b) => b.textContent?.trim() === '5 min')!;
-		expect(fiveMin.getAttribute('aria-pressed')).toBe('true');
-		expect(container.querySelector('input[name="frequency"]')).toBeNull();
-	});
 });

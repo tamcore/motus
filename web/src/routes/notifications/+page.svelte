@@ -642,7 +642,7 @@
 			{#each logs as log (log.id)}
 				<div class="log-entry" class:log-success={log.status === 'sent'} class:log-failure={log.status === 'failed'}>
 					<div class="log-header">
-						<StatusIndicator status={log.status === 'sent' ? 'online' : log.status === 'queued' ? 'idle' : 'offline'} />
+						<StatusIndicator status={log.status} />
 						<span class="log-status">{log.status}</span>
 						<span class="log-time">{formatLogTime(log.createdAt)}</span>
 					</div>

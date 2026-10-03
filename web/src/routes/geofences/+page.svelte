@@ -7,7 +7,6 @@
 	import { buildPopupElement, type PopupRow } from '$lib/utils/popup';
 	import {
 		GEOFENCE_STYLE,
-		buildCreateGeofencePayload,
 		geofenceDrawOptions,
 		layerToGeoJSON
 	} from '$lib/utils/geofence-draw';
@@ -266,11 +265,17 @@
 	async function saveGeofence() {
 		if (!pendingLayer || !newGeofenceName.trim()) return;
 
-		const payload = buildCreateGeofencePayload(L, pendingLayer, newGeofenceName, newGeofenceCalendarId);
-		if (!payload) {
+		const geometry = layerToGeoJSON(L, pendingLayer);
+		if (!geometry) {
 			cancelCreate();
 			return;
 		}
+		const payload = {
+			name: newGeofenceName.trim(),
+			description: '',
+			geometry: JSON.stringify(geometry),
+			calendarId: newGeofenceCalendarId
+		};
 
 		saving = true;
 		try {
@@ -619,7 +624,7 @@
 	<div class="map-container" bind:this={mapContainer}>
 		{#if loading}
 			<div class="map-loading">
-				<div class="spinner"></div>
+				<div class="spinner spinner-lg"></div>
 			</div>
 		{/if}
 
@@ -1018,14 +1023,6 @@
 		z-index: 500;
 	}
 
-	.spinner {
-		width: 48px;
-		height: 48px;
-		border: 4px solid var(--border-color);
-		border-top-color: var(--accent-primary);
-		border-radius: 50%;
-		animation: spin 0.8s linear infinite;
-	}
 
 	.spinner.small {
 		width: 20px;

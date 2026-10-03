@@ -27,12 +27,6 @@ import (
 
 const bookmarkNotFound = "trail bookmark not found"
 
-// Length limits in characters (Unicode code points), matching the web UI.
-const (
-	trailBookmarkNameMaxChars        = 200
-	trailBookmarkDescriptionMaxChars = 2000
-)
-
 // validateTrailBookmarkInput normalises and validates a bookmark payload,
 // returning the trimmed name and description.
 func validateTrailBookmarkInput(req *oas.TrailBookmarkInput) (name, description string, err error) {
@@ -40,11 +34,11 @@ func validateTrailBookmarkInput(req *oas.TrailBookmarkInput) (name, description 
 	if name == "" {
 		return "", "", errors.New("name is required")
 	}
-	if err := validation.ValidateText(name, trailBookmarkNameMaxChars); err != nil {
+	if err := validation.ValidateDisplayName(name); err != nil {
 		return "", "", fmt.Errorf("invalid name: %w", err)
 	}
 	description = strings.TrimSpace(req.Description.Or(""))
-	if err := validation.ValidateText(description, trailBookmarkDescriptionMaxChars); err != nil {
+	if err := validation.ValidateDescription(description); err != nil {
 		return "", "", fmt.Errorf("invalid description: %w", err)
 	}
 	if req.From.IsZero() || req.To.IsZero() {

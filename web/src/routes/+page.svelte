@@ -26,11 +26,6 @@
 			? devices
 			: devices.filter((d) => d.status === statusFilter);
 
-	/** Check whether a device status counts as "active" (online, moving, or idle). */
-	function isDeviceActive(status: string): boolean {
-		return status === 'online' || status === 'moving' || status === 'idle';
-	}
-
 	/** Get display location for a position (address if available, otherwise coordinates). */
 	function getLocationText(pos: Position): string {
 		if (pos.address) return pos.address;
@@ -251,7 +246,7 @@
 						</div>
 						{#if pos}
 							<div class="position-info">
-								{#if isDeviceActive(device.status)}
+								{#if device.status === 'online'}
 									<span class="info-speed">{formatSpeed(pos.speed)}</span>
 									{#if pos.course != null}
 										<span class="info-heading">

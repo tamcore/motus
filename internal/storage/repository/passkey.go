@@ -110,18 +110,6 @@ func (r *PasskeyRepository) Delete(ctx context.Context, id, userID int64) error 
 	return nil
 }
 
-// DeleteAllByUser removes every passkey credential for a user.
-func (r *PasskeyRepository) DeleteAllByUser(ctx context.Context, userID int64) error {
-	_, err := r.pool.Exec(ctx,
-		`DELETE FROM passkey_credentials WHERE user_id = $1`,
-		userID,
-	)
-	if err != nil {
-		return fmt.Errorf("delete passkey credentials for user: %w", err)
-	}
-	return nil
-}
-
 // scanPasskey scans a single passkey row. sign_count is stored as BIGINT and
 // read back through an int64 before narrowing to the uint32 the WebAuthn library
 // expects.

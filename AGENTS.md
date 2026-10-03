@@ -96,7 +96,7 @@ fails on already-patched Go standard library CVEs, and release binaries ship the
 vulnerable stdlib.
 
 ### Pre-commit hooks run Go tests (short mode)
-`.pre-commit-config.yaml` runs `go test -short`, `go vet`, `go fmt`, `golangci-lint`, and
+`.pre-commit-config.yaml` runs `go test -short`, `go fmt`, `go fix`, `golangci-lint` (includes govet), and
 a `generate-check` hook. The `-short` flag skips integration tests that need Docker
 (PostGIS via testcontainers, Redis via testcontainers). The skip is implemented in
 `testutil.SetupTestDB(t)` and `setupRedis(t)` via `testing.Short()`. Full integration

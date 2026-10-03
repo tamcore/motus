@@ -2,6 +2,7 @@ package reports
 
 import (
 	"math"
+	"reflect"
 	"testing"
 	"time"
 
@@ -214,5 +215,74 @@ func TestStops_SlowSpeedEndsStop(t *testing.T) {
 	got := stops(pos(0, 52, 0), pos(6*time.Minute, 52, 0), pos(7*time.Minute, 52, 1), pos(8*time.Minute, 52, 0))
 	if len(got) != 1 || got[0].Duration != 420 {
 		t.Fatalf("speed >= 1 km/h must end the stop, got %+v", got)
+	}
+}
+
+// Locks in the no-retention contract: StreamTrackByDeviceAndTimeRange passes
+// one reused *model.Position (and reused speed/address storage) for every row.
+func TestDetectors_ReusedPositionMatchesFreshCopies(t *testing.T) {
+	addrs := []string{"Depot A", "Depot B", "Depot C", "Depot D"}
+	var seq []*model.Position
+	seq = append(seq, moving(10, 0, 10*time.Second, 52)...)
+	for i := range 10 {
+		p := pos(100*time.Second+time.Duration(i)*time.Minute, 52.01, 0)
+		if i%3 == 0 {
+			p.Address = &addrs[i/3]
+		}
+		seq = append(seq, p)
+	}
+	seq = append(seq, moving(10, 15*time.Minute, 10*time.Second, 52.02)...)
+	for i := range 7 {
+		seq = append(seq, pos(17*time.Minute+time.Duration(i)*time.Minute, 52.03, 0))
+	}
+	seq = append(seq, &model.Position{Timestamp: base.Add(24 * time.Minute), Latitude: 52.03, Longitude: 13})
+
+	var freshTrips TripDetector
+	var freshStops StopDetector
+	for _, p := range seq {
+		cp := *p
+		freshTrips.Add(&cp)
+		freshStops.Add(&cp)
+	}
+
+	var (
+		reusedTrips TripDetector
+		reusedStops StopDetector
+		row         model.Position
+		speed       float64
+		address     string
+	)
+	for _, p := range seq {
+		row.Timestamp, row.Latitude, row.Longitude = p.Timestamp, p.Latitude, p.Longitude
+		row.Speed, row.Address = nil, nil
+		if p.Speed != nil {
+			speed = *p.Speed
+			row.Speed = &speed
+		}
+		if p.Address != nil {
+			address = *p.Address
+			row.Address = &address
+		}
+		reusedTrips.Add(&row)
+		reusedStops.Add(&row)
+	}
+
+	wantTrips, gotTrips := freshTrips.Trips(), reusedTrips.Trips()
+	wantStops, gotStops := freshStops.Stops(), reusedStops.Stops()
+	if !reflect.DeepEqual(gotTrips, wantTrips) {
+		t.Errorf("trips differ with reused position:\n got %+v\nwant %+v", gotTrips, wantTrips)
+	}
+	if !reflect.DeepEqual(gotStops, wantStops) {
+		t.Errorf("stops differ with reused position:\n got %+v\nwant %+v", gotStops, wantStops)
+	}
+	if len(wantTrips) != 2 || len(wantStops) != 2 {
+		t.Fatalf("expected 2 trips and 2 stops, got %d/%d", len(wantTrips), len(wantStops))
+	}
+	if gotStops[0].Address != addrs[0] {
+		t.Errorf("first stop address = %q, want %q", gotStops[0].Address, addrs[0])
+	}
+	// The trailing open stop is emitted and ends at the last position.
+	if last := wantStops[1]; !last.DepartureTime.Equal(base.Add(24 * time.Minute)) {
+		t.Errorf("trailing stop departure = %v", last.DepartureTime)
 	}
 }

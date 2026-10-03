@@ -726,7 +726,7 @@
 										<StatusIndicator status={device.status} />
 									</span>
 								</div>
-								{#if device.status === 'online' || device.status === 'moving'}
+								{#if device.status === 'online'}
 									{#if pos}
 										<span class="device-meta">
 											{pos.speed != null ? formatSpeed(pos.speed) : 'N/A'}

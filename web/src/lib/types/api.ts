@@ -64,13 +64,16 @@ export interface UpdateProfilePayload {
 // Device
 // ---------------------------------------------------------------------------
 
+/** Device connection state; "unknown" means it never connected. */
+export type DeviceStatus = "online" | "offline" | "unknown";
+
 /** A GPS tracking device. */
 export interface Device {
   id: number;
   uniqueId: string;
   name: string;
   protocol?: string;
-  status: string;
+  status: DeviceStatus;
   speedLimit?: number | null;
   lastUpdate?: string | null;
   positionId?: number | null;
@@ -357,7 +360,7 @@ export interface NotificationLog {
   id: number;
   ruleId: number;
   eventId?: number;
-  status: string;
+  status: "sent" | "queued" | "failed";
   sentAt?: string;
   error?: string;
   responseCode?: number;

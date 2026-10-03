@@ -1,6 +1,7 @@
 package chat
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -33,17 +34,9 @@ type EventSink interface {
 
 // Service orchestrates streaming chat completions with MCP tool dispatch.
 type Service struct {
-	client           *openai.Client
-	model            string
-	maxTokens        int
-	temperature      float64
-	sysPrompt        string
-	maxLoops         int
-	timeout          time.Duration
-	mcpServer        *mcpserver.MCPServer
-	tools            []openai.ChatCompletionToolUnionParam
-	guardrailEnabled bool
-	guardrailModel   string
+	cfg    Config
+	client *openai.Client
+	tools  []openai.ChatCompletionToolUnionParam
 }
 
 // Config holds the Service constructor arguments.
@@ -70,29 +63,15 @@ func NewService(cfg Config) *Service {
 		option.WithAPIKey(cfg.APIKey),
 		option.WithUnsafeAllowHTTP(),
 	)
-	guardrailModel := cfg.GuardrailModel
-	if guardrailModel == "" {
-		guardrailModel = cfg.Model
-	}
-	svc := &Service{
-		client:           &client,
-		model:            cfg.Model,
-		maxTokens:        cfg.MaxTokens,
-		temperature:      cfg.Temperature,
-		sysPrompt:        cfg.SystemPrompt,
-		maxLoops:         cfg.MaxLoops,
-		timeout:          cfg.Timeout,
-		mcpServer:        cfg.MCPServer,
-		guardrailEnabled: cfg.GuardrailEnabled,
-		guardrailModel:   guardrailModel,
-	}
+	cfg.GuardrailModel = cmp.Or(cfg.GuardrailModel, cfg.Model)
+	svc := &Service{cfg: cfg, client: &client}
 	svc.tools = svc.buildTools()
 	return svc
 }
 
 // buildTools converts all registered MCP tools into OpenAI tool params.
 func (s *Service) buildTools() []openai.ChatCompletionToolUnionParam {
-	registered := s.mcpServer.ListTools()
+	registered := s.cfg.MCPServer.ListTools()
 	tools := make([]openai.ChatCompletionToolUnionParam, 0, len(registered))
 	for _, st := range registered {
 		schema := shared.FunctionParameters{}
@@ -121,10 +100,10 @@ type HistoryHandle interface {
 // Stream runs the chat loop, sending SSE events to sink until the model
 // produces a final response or an error occurs.
 func (s *Service) Stream(ctx context.Context, hist HistoryHandle, sink EventSink) error {
-	ctx, cancel := context.WithTimeout(ctx, s.timeout)
+	ctx, cancel := context.WithTimeout(ctx, s.cfg.Timeout)
 	defer cancel()
 
-	if s.guardrailEnabled {
+	if s.cfg.GuardrailEnabled {
 		offTopic, err := s.classifyTopic(ctx, hist.Messages())
 		switch {
 		case err != nil:
@@ -143,7 +122,7 @@ func (s *Service) Stream(ctx context.Context, hist HistoryHandle, sink EventSink
 
 	history := s.buildHistory(hist.Messages())
 
-	for loop := 0; loop < s.maxLoops; loop++ {
+	for range s.cfg.MaxLoops {
 		pendingCalls, text, err := s.streamOnce(ctx, history, sink)
 		if err != nil {
 			slog.Error("ai chat: upstream stream error", slog.Any("error", err))
@@ -197,11 +176,11 @@ func (s *Service) Stream(ctx context.Context, hist HistoryHandle, sink EventSink
 // "tool_calls", pendingCalls is nil and text holds the full response.
 func (s *Service) streamOnce(ctx context.Context, history []openai.ChatCompletionMessageParamUnion, sink EventSink) ([]ToolCall, string, error) {
 	params := openai.ChatCompletionNewParams{
-		Model:       s.model,
+		Model:       s.cfg.Model,
 		Messages:    history,
 		Tools:       s.tools,
-		MaxTokens:   param.NewOpt(int64(s.maxTokens)),
-		Temperature: param.NewOpt(s.temperature),
+		MaxTokens:   param.NewOpt(int64(s.cfg.MaxTokens)),
+		Temperature: param.NewOpt(s.cfg.Temperature),
 	}
 
 	stream := s.client.Chat.Completions.NewStreaming(ctx, params)
@@ -273,7 +252,7 @@ func (s *Service) streamOnce(ctx context.Context, history []openai.ChatCompletio
 
 // dispatchTool invokes an MCP tool by name and returns the JSON result string.
 func (s *Service) dispatchTool(ctx context.Context, name, arguments string) (string, error) {
-	st := s.mcpServer.GetTool(name)
+	st := s.cfg.MCPServer.GetTool(name)
 	if st == nil {
 		return "", fmt.Errorf("unknown tool: %s", name)
 	}
@@ -312,7 +291,7 @@ func (s *Service) dispatchTool(ctx context.Context, name, arguments string) (str
 
 // buildHistory converts input messages to OpenAI format, prepending the system prompt.
 func (s *Service) buildHistory(msgs []Message) []openai.ChatCompletionMessageParamUnion {
-	sysMsg := s.sysPrompt
+	sysMsg := s.cfg.SystemPrompt
 	if sysMsg == "" {
 		sysMsg = "You are a helpful assistant for the motus GPS tracking platform. " +
 			"The authenticated user can manage their own GPS devices, positions, geofences, calendars, and notification rules.\n\n" +

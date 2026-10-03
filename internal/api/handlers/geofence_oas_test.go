@@ -13,6 +13,7 @@ package handlers_test
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -86,6 +87,32 @@ func TestCreateGeofence_Success(t *testing.T) {
 	}
 	if associatedUserID != 1 {
 		t.Errorf("expected geofence associated with user 1, got %d", associatedUserID)
+	}
+}
+
+func TestGeofence_StorageErrorIsGeneric(t *testing.T) {
+	secret := errors.New("pq: connection to secret-db-host refused")
+	h := newGeofenceTestHandler(&auditMockGeofenceRepo{
+		createFn:        func(context.Context, *model.Geofence) error { return secret },
+		updateFn:        func(context.Context, *model.Geofence) error { return secret },
+		userHasAccessFn: func(context.Context, *model.User, int64) bool { return true },
+		getByIDFn: func(_ context.Context, id int64) (*model.Geofence, error) {
+			return &model.Geofence{ID: id, Name: "Geo"}, nil
+		},
+	})
+
+	res, _ := h.CreateGeofence(geofenceTestUserCtx(1), &oas.GeofenceInput{
+		Name:     "Geo",
+		Geometry: oas.NewOptString(testPolygonGeoJSON),
+	})
+	if bad, ok := res.(*oas.CreateGeofenceBadRequest); !ok || bad.Error != "failed to create geofence" {
+		t.Errorf("create: got %#v, want generic failure", res)
+	}
+
+	upd, _ := h.UpdateGeofence(geofenceTestUserCtx(1), &oas.GeofenceUpdateInput{Name: oas.NewOptString("New")},
+		oas.UpdateGeofenceParams{ID: 3})
+	if bad, ok := upd.(*oas.UpdateGeofenceBadRequest); !ok || bad.Error != "failed to update geofence" {
+		t.Errorf("update: got %#v, want generic failure", upd)
 	}
 }
 

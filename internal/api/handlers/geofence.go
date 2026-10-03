@@ -79,7 +79,7 @@ func (h *Handler) CreateGeofence(ctx context.Context, req *oas.GeofenceInput) (o
 		Attributes:  attrs,
 	})
 	if err != nil {
-		return &oas.CreateGeofenceBadRequest{Error: err.Error()}, nil
+		return &oas.CreateGeofenceBadRequest{Error: services.PublicMessage(err, "failed to create geofence")}, nil
 	}
 	out := geofenceToOAS(geofence)
 	return &out, nil
@@ -126,7 +126,7 @@ func (h *Handler) UpdateGeofence(ctx context.Context, req *oas.GeofenceUpdateInp
 		case "geofence not found":
 			return &oas.UpdateGeofenceNotFound{Error: "geofence not found"}, nil
 		default:
-			return &oas.UpdateGeofenceBadRequest{Error: err.Error()}, nil
+			return &oas.UpdateGeofenceBadRequest{Error: services.PublicMessage(err, "failed to update geofence")}, nil
 		}
 	}
 

@@ -30,19 +30,26 @@ type CreateCalendarInput struct {
 	Data string // valid iCalendar (RFC 5545) text
 }
 
-// CreateForUser validates, persists, and audits a new calendar for user.
-func (s *CalendarService) CreateForUser(ctx context.Context, user *model.User, in CreateCalendarInput) (*model.Calendar, error) {
+func validateCalendarInput(in CreateCalendarInput) error {
 	if in.Name == "" {
-		return nil, errors.New("name is required")
+		return errors.New("name is required")
 	}
 	if err := validation.ValidateDisplayName(in.Name); err != nil {
-		return nil, err
+		return err
 	}
 	if in.Data == "" {
-		return nil, errors.New("data is required")
+		return errors.New("data is required")
 	}
 	if err := calendar.Validate(in.Data); err != nil {
-		return nil, fmt.Errorf("invalid iCalendar data: %w", err)
+		return fmt.Errorf("invalid iCalendar data: %w", err)
+	}
+	return nil
+}
+
+// CreateForUser validates, persists, and audits a new calendar for user.
+func (s *CalendarService) CreateForUser(ctx context.Context, user *model.User, in CreateCalendarInput) (*model.Calendar, error) {
+	if err := invalid(validateCalendarInput(in)); err != nil {
+		return nil, err
 	}
 
 	c := &model.Calendar{

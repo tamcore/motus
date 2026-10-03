@@ -91,6 +91,20 @@ func TestCreateCalendar_Success(t *testing.T) {
 	}
 }
 
+func TestCreateCalendar_StorageErrorIsGeneric(t *testing.T) {
+	h := newCalendarTestHandler(&auditMockCalendarRepo{
+		createFn: func(context.Context, *model.Calendar) error {
+			return errors.New("pq: connection to secret-db-host refused")
+		},
+	})
+
+	res, _ := h.CreateCalendar(calendarTestUserCtx(1), &oas.CalendarInput{Name: "Cal", Data: testICalData})
+	bad, ok := res.(*oas.CreateCalendarBadRequest)
+	if !ok || bad.Error != "failed to create calendar" {
+		t.Fatalf("got %#v, want generic failure", res)
+	}
+}
+
 func TestCreateCalendar_MissingName(t *testing.T) {
 	h := newCalendarTestHandler(&auditMockCalendarRepo{})
 

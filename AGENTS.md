@@ -64,7 +64,7 @@ respond without a 401. The ogen `SecurityHandler` enforces per-operation auth re
 `Secure` flag, meaning it's **only sent over HTTPS**. When running over HTTP (e.g.,
 docker-compose E2E tests on `http://localhost:8080`), the CSRF cookie is silently dropped
 by the browser, causing **all** state-changing API requests (POST/PUT/DELETE) to fail
-with 403. Set `MOTUS_ENV=development` in docker-compose.dev.yml.
+with 403. Set `MOTUS_ENV=development` in docker-compose.yaml.
 
 Additionally, gorilla/csrf's `Secure` option only controls the cookie flag — it does NOT
 tell the Origin header check to use `http://` scheme. The middleware must also call
@@ -238,12 +238,12 @@ automatically by `templates/ai-secret.yaml`.
 ### Docker Compose (E2E / local dev)
 
 ```bash
-docker compose -f docker-compose.dev.yml up -d --build --wait
+docker compose -f docker-compose.yaml -f docker-compose.dev.yaml up -d --build --wait
 ```
 
 Starts: `db` (PostGIS) → `migrate` (oneshot) → `seed` (oneshot, creates admin user) → `motus`
 
-All services share a YAML anchor (`x-motus-env`) for environment variables.
+`docker-compose.dev.yaml` overrides the base file to build `Dockerfile.dev` instead of pulling the image.
 Rate limits are set high (1000/10000) for testing.
 
 Default credentials: `admin@motus.local` / `admin`

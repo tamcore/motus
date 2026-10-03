@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ALL_TIME_START } from '$lib/utils/date-range';
+	import { RELATIVE_DATE_PRESETS, resolveDatePreset, type DatePreset } from '$lib/utils/date-range';
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
 	import { page } from '$app/stores';
@@ -42,7 +42,7 @@
 	let stopObserver: IntersectionObserver | undefined;
 	let selectedDeviceId = '';
 	let activeTab: 'trips' | 'stops' | 'summary' = 'trips';
-	let datePreset: 'day' | 'week' | 'month' | 'all' | 'custom' = 'week';
+	let datePreset: DatePreset = 'week';
 	let customFrom = '';
 	let customTo = '';
 
@@ -123,23 +123,6 @@
 		});
 	}
 
-	function getDateRange(): { from: string; to: string } {
-		const now = new Date();
-		const to = now.toISOString();
-		if (datePreset === 'custom') {
-			return {
-				from: customFrom ? new Date(customFrom + 'T00:00:00').toISOString() : to,
-				to: customTo ? new Date(customTo + 'T23:59:59').toISOString() : to
-			};
-		}
-		if (datePreset === 'all') return { from: ALL_TIME_START.toISOString(), to };
-		const from = new Date(now);
-		if (datePreset === 'day') from.setDate(from.getDate() - 1);
-		else if (datePreset === 'week') from.setDate(from.getDate() - 7);
-		else if (datePreset === 'month') from.setDate(from.getDate() - 30);
-		return { from: from.toISOString(), to };
-	}
-
 	function makeScrollObserver(onIntersect: () => void): IntersectionObserver {
 		// Root is null (window viewport). PullToRefresh no longer creates its
 		// own scroll container (uses min-height instead of height: 100% +
@@ -187,7 +170,7 @@
 		fetchingTrips = true;
 		fetchingStops = true;
 		try {
-			const { from, to } = getDateRange();
+			const { from, to } = resolveDatePreset(datePreset, customFrom, customTo);
 			const deviceIds = selectedDeviceId
 				? [Number(selectedDeviceId)] : devices.map((d) => d.id);
 			const allTrips: Trip[] = [];
@@ -312,16 +295,10 @@
 			<div class="filter-group">
 				<span class="filter-label">Date Range</span>
 				<div class="preset-buttons">
-					<button class="preset-btn" class:active={datePreset === 'day'}
-						on:click={() => datePreset = 'day'}>Last 24h</button>
-					<button class="preset-btn" class:active={datePreset === 'week'}
-						on:click={() => datePreset = 'week'}>Last 7d</button>
-					<button class="preset-btn" class:active={datePreset === 'month'}
-						on:click={() => datePreset = 'month'}>Last 30d</button>
-					<button class="preset-btn" class:active={datePreset === 'all'}
-						on:click={() => datePreset = 'all'}>All time</button>
-					<button class="preset-btn" class:active={datePreset === 'custom'}
-						on:click={() => datePreset = 'custom'}>Custom</button>
+					{#each RELATIVE_DATE_PRESETS as p (p.value)}
+						<button class="preset-btn" class:active={datePreset === p.value}
+							on:click={() => (datePreset = p.value)}>{p.label}</button>
+					{/each}
 				</div>
 			</div>
 			{#if datePreset === 'custom'}

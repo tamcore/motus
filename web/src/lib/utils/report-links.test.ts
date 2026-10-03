@@ -3,7 +3,7 @@ import { tripLink, normalizeTimeParam } from "./report-links";
 
 describe("tripLink", () => {
   it("percent-encodes offset timestamps so '+' survives the query string", () => {
-    const href = tripLink("/reports/replay", {
+    const href = tripLink({
       deviceId: 1,
       startTime: "2026-10-03T07:48:24+02:00",
       endTime: "2026-10-03T08:17:34+02:00",
@@ -17,7 +17,7 @@ describe("tripLink", () => {
   });
 
   it("keeps UTC timestamps readable", () => {
-    const href = tripLink("/reports/route", {
+    const href = tripLink({
       deviceId: 7,
       startTime: "2025-01-01T00:00:00Z",
       endTime: "2025-01-02T00:00:00Z",

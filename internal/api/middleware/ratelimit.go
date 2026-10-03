@@ -27,25 +27,21 @@ type RateLimitConfig struct {
 // DefaultLoginRateLimit returns the default rate limit for login endpoints
 // (5 requests per minute). Override with MOTUS_LOGIN_RATE_LIMIT env var.
 func DefaultLoginRateLimit() RateLimitConfig {
-	max := 5.0
-	if v := os.Getenv("MOTUS_LOGIN_RATE_LIMIT"); v != "" {
-		if n, err := strconv.ParseFloat(v, 64); err == nil && n > 0 {
-			max = n
-		}
-	}
-	return RateLimitConfig{Max: max, Period: time.Minute}
+	return perMinuteFromEnv("MOTUS_LOGIN_RATE_LIMIT", 5)
 }
 
 // DefaultAPIRateLimit returns the default rate limit for general API endpoints
 // (100 requests per minute). Override with MOTUS_API_RATE_LIMIT env var.
 func DefaultAPIRateLimit() RateLimitConfig {
-	max := 100.0
-	if v := os.Getenv("MOTUS_API_RATE_LIMIT"); v != "" {
-		if n, err := strconv.ParseFloat(v, 64); err == nil && n > 0 {
-			max = n
-		}
+	return perMinuteFromEnv("MOTUS_API_RATE_LIMIT", 100)
+}
+
+// perMinuteFromEnv ignores unset, unparsable or non-positive values.
+func perMinuteFromEnv(key string, def float64) RateLimitConfig {
+	if n, err := strconv.ParseFloat(os.Getenv(key), 64); err == nil && n > 0 {
+		def = n
 	}
-	return RateLimitConfig{Max: max, Period: time.Minute}
+	return RateLimitConfig{Max: def, Period: time.Minute}
 }
 
 type bucket struct {

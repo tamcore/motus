@@ -130,9 +130,6 @@ clean: ## Clean build artifacts
 
 .PHONY: generate
 generate: ## Regenerate ogen code from docs/openapi.yaml
-	cp docs/openapi.yaml internal/api/docs/openapi.yaml
-	cp docs/scalar.html internal/api/docs/scalar.html
-	cp docs/scalar.js internal/api/docs/scalar.js
 	go generate ./internal/api/...
 
 .PHONY: update-scalar

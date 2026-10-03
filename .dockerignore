@@ -26,10 +26,14 @@ kube_*.yaml
 secrets/
 
 # Docker Compose files (not needed inside the image)
-docker-compose*.yml
+docker-compose*.yaml
 
-# Documentation
-docs/
+# Documentation (docs/ only ships the embedded API reference)
+docs/*
+!docs/embed.go
+!docs/openapi.yaml
+!docs/scalar.html
+!docs/scalar.js
 README.md
 
 # Build tooling (not needed at runtime)

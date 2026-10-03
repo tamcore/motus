@@ -3,17 +3,13 @@ package api_test
 import (
 	"testing"
 
-	"github.com/tamcore/motus/internal/api"
+	"github.com/tamcore/motus/docs"
 )
 
 func TestDocsFS(t *testing.T) {
-	for _, name := range []string{
-		"docs/openapi.yaml",
-		"docs/scalar.html",
-		"docs/scalar.js",
-	} {
-		if _, err := api.DocsFS.Open(name); err != nil {
-			t.Errorf("DocsFS missing %s: %v", name, err)
+	for _, name := range []string{"openapi.yaml", "scalar.html", "scalar.js"} {
+		if _, err := docs.FS.Open(name); err != nil {
+			t.Errorf("docs.FS missing %s: %v", name, err)
 		}
 	}
 }

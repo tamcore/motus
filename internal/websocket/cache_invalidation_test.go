@@ -14,7 +14,7 @@ import (
 // tests inject incoming messages. Implements pubsub.PubSub.
 type mockInvalidationPubSub struct {
 	mu         sync.Mutex
-	published  []invalidationEnvelope
+	published  []redisEnvelope
 	handler    func([]byte)
 	publishErr error
 }
@@ -29,7 +29,7 @@ func (m *mockInvalidationPubSub) Publish(_ context.Context, message any) error {
 	if err != nil {
 		return err
 	}
-	var env invalidationEnvelope
+	var env redisEnvelope
 	if err := json.Unmarshal(data, &env); err != nil {
 		return err
 	}
@@ -46,16 +46,16 @@ func (m *mockInvalidationPubSub) Subscribe(_ context.Context, handler func([]byt
 
 func (m *mockInvalidationPubSub) Close() error { return nil }
 
-func (m *mockInvalidationPubSub) getPublished() []invalidationEnvelope {
+func (m *mockInvalidationPubSub) getPublished() []redisEnvelope {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	result := make([]invalidationEnvelope, len(m.published))
+	result := make([]redisEnvelope, len(m.published))
 	copy(result, m.published)
 	return result
 }
 
 func (m *mockInvalidationPubSub) simulateRemoteInvalidation(originPodID string, deviceID int64) {
-	env := invalidationEnvelope{OriginPodID: originPodID, DeviceID: deviceID}
+	env := redisEnvelope{OriginPodID: originPodID, DeviceID: deviceID}
 	data, _ := json.Marshal(env)
 	m.mu.Lock()
 	h := m.handler

@@ -5,8 +5,6 @@ import (
 	"testing"
 )
 
-func int64Ptr(v int64) *int64 { return &v }
-
 func TestNotificationRule_MatchesEvent(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -17,31 +15,31 @@ func TestNotificationRule_MatchesEvent(t *testing.T) {
 		{
 			name:  "event type not subscribed",
 			rule:  NotificationRule{EventTypes: []string{"geofenceEnter"}},
-			event: Event{Type: "geofenceExit", GeofenceID: int64Ptr(1)},
+			event: Event{Type: "geofenceExit", GeofenceID: new(int64(1))},
 			want:  false,
 		},
 		{
 			name:  "no geofence filter matches every geofence",
 			rule:  NotificationRule{EventTypes: []string{"geofenceEnter"}},
-			event: Event{Type: "geofenceEnter", GeofenceID: int64Ptr(42)},
+			event: Event{Type: "geofenceEnter", GeofenceID: new(int64(42))},
 			want:  true,
 		},
 		{
 			name:  "empty geofence filter matches every geofence",
 			rule:  NotificationRule{EventTypes: []string{"geofenceExit"}, GeofenceIDs: []int64{}},
-			event: Event{Type: "geofenceExit", GeofenceID: int64Ptr(42)},
+			event: Event{Type: "geofenceExit", GeofenceID: new(int64(42))},
 			want:  true,
 		},
 		{
 			name:  "geofence filter matches selected geofence",
 			rule:  NotificationRule{EventTypes: []string{"geofenceEnter"}, GeofenceIDs: []int64{7, 42}},
-			event: Event{Type: "geofenceEnter", GeofenceID: int64Ptr(42)},
+			event: Event{Type: "geofenceEnter", GeofenceID: new(int64(42))},
 			want:  true,
 		},
 		{
 			name:  "geofence filter rejects other geofence",
 			rule:  NotificationRule{EventTypes: []string{"geofenceEnter"}, GeofenceIDs: []int64{7}},
-			event: Event{Type: "geofenceEnter", GeofenceID: int64Ptr(42)},
+			event: Event{Type: "geofenceEnter", GeofenceID: new(int64(42))},
 			want:  false,
 		},
 		{

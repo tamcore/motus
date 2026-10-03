@@ -62,10 +62,8 @@ func (h *Handler) CreateShare(ctx context.Context, req oas.OptCreateShareRequest
 		return &oas.CreateShareForbidden{Error: "failed to create share link"}, nil
 	}
 
-	if h.cfg.AuditLogger != nil {
-		h.cfg.AuditLogger.Log(ctx, &user.ID, audit.ActionShareCreate, audit.ResourceShare, &share.ID,
-			map[string]any{"deviceId": params.ID}, "", "")
-	}
+	h.cfg.AuditLogger.Log(ctx, &user.ID, audit.ActionShareCreate, audit.ResourceShare, &share.ID,
+		map[string]any{"deviceId": params.ID}, "", "")
 
 	result := deviceShareToOAS(share)
 	return &result, nil
@@ -92,10 +90,8 @@ func (h *Handler) DeleteShare(ctx context.Context, params oas.DeleteShareParams)
 		return &oas.DeleteShareForbidden{Error: "failed to delete share"}, nil
 	}
 
-	if h.cfg.AuditLogger != nil {
-		h.cfg.AuditLogger.Log(ctx, &user.ID, audit.ActionShareDelete, audit.ResourceShare, &params.ID,
-			map[string]any{"deviceId": share.DeviceID}, "", "")
-	}
+	h.cfg.AuditLogger.Log(ctx, &user.ID, audit.ActionShareDelete, audit.ResourceShare, &params.ID,
+		map[string]any{"deviceId": share.DeviceID}, "", "")
 
 	return &oas.DeleteShareNoContent{}, nil
 }

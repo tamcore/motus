@@ -27,12 +27,6 @@ import (
 
 const bookmarkNotFound = "trail bookmark not found"
 
-// Length limits in characters (Unicode code points), matching the web UI.
-const (
-	trailBookmarkNameMaxChars        = 200
-	trailBookmarkDescriptionMaxChars = 2000
-)
-
 // validateTrailBookmarkInput normalises and validates a bookmark payload,
 // returning the trimmed name and description.
 func validateTrailBookmarkInput(req *oas.TrailBookmarkInput) (name, description string, err error) {
@@ -40,11 +34,11 @@ func validateTrailBookmarkInput(req *oas.TrailBookmarkInput) (name, description 
 	if name == "" {
 		return "", "", errors.New("name is required")
 	}
-	if err := validation.ValidateText(name, trailBookmarkNameMaxChars); err != nil {
+	if err := validation.ValidateDisplayName(name); err != nil {
 		return "", "", fmt.Errorf("invalid name: %w", err)
 	}
 	description = strings.TrimSpace(req.Description.Or(""))
-	if err := validation.ValidateText(description, trailBookmarkDescriptionMaxChars); err != nil {
+	if err := validation.ValidateDescription(description); err != nil {
 		return "", "", fmt.Errorf("invalid description: %w", err)
 	}
 	if req.From.IsZero() || req.To.IsZero() {
@@ -67,7 +61,7 @@ func (h *Handler) ownBookmark(ctx context.Context, user *model.User, id int64) (
 	if err != nil {
 		return nil, bookmarkStorageError("load", err)
 	}
-	if b.UserID != user.ID && !user.IsAdmin() {
+	if !user.CanManage(b.UserID) {
 		return nil, nil
 	}
 	return b, nil
@@ -135,11 +129,9 @@ func (h *Handler) CreateTrailBookmark(ctx context.Context, req *oas.TrailBookmar
 	}
 	h.fillDeviceName(ctx, b)
 
-	if h.cfg.AuditLogger != nil {
-		h.cfg.AuditLogger.Log(ctx, &user.ID,
-			audit.ActionTrailBookmarkCreate, audit.ResourceTrailBookmark, &b.ID,
-			map[string]any{"name": b.Name, "deviceId": b.DeviceID}, "", "")
-	}
+	h.cfg.AuditLogger.Log(ctx, &user.ID,
+		audit.ActionTrailBookmarkCreate, audit.ResourceTrailBookmark, &b.ID,
+		map[string]any{"name": b.Name, "deviceId": b.DeviceID}, "", "")
 	out := trailBookmarkToOAS(b)
 	return &out, nil
 }
@@ -178,11 +170,9 @@ func (h *Handler) UpdateTrailBookmark(ctx context.Context, req *oas.TrailBookmar
 		h.fillDeviceName(ctx, &updated)
 	}
 
-	if h.cfg.AuditLogger != nil {
-		h.cfg.AuditLogger.Log(ctx, &user.ID,
-			audit.ActionTrailBookmarkUpdate, audit.ResourceTrailBookmark, &updated.ID,
-			map[string]any{"name": updated.Name, "deviceId": updated.DeviceID}, "", "")
-	}
+	h.cfg.AuditLogger.Log(ctx, &user.ID,
+		audit.ActionTrailBookmarkUpdate, audit.ResourceTrailBookmark, &updated.ID,
+		map[string]any{"name": updated.Name, "deviceId": updated.DeviceID}, "", "")
 	out := trailBookmarkToOAS(&updated)
 	return &out, nil
 }
@@ -204,12 +194,9 @@ func (h *Handler) DeleteTrailBookmark(ctx context.Context, params oas.DeleteTrai
 	if err := h.cfg.TrailBookmarks.Delete(ctx, params.ID); err != nil {
 		return nil, bookmarkStorageError("delete", err)
 	}
-	if h.cfg.AuditLogger != nil {
-		id := params.ID
-		h.cfg.AuditLogger.Log(ctx, &user.ID,
-			audit.ActionTrailBookmarkDelete, audit.ResourceTrailBookmark, &id,
-			nil, "", "")
-	}
+	h.cfg.AuditLogger.Log(ctx, &user.ID,
+		audit.ActionTrailBookmarkDelete, audit.ResourceTrailBookmark, &params.ID,
+		nil, "", "")
 	return &oas.DeleteTrailBookmarkNoContent{}, nil
 }
 

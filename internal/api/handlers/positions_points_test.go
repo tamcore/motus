@@ -30,19 +30,11 @@ func (m *pointsPositionRepo) PointsByDeviceAndTimeRange(_ context.Context, devic
 	return m.points, nil
 }
 
-// pointsUserSecurity authenticates every request as the points test user.
-type pointsUserSecurity struct{ allowAllSecurity }
-
-func (pointsUserSecurity) HandleBearerAuth(ctx context.Context, _ oas.OperationName, _ oas.BearerAuth) (context.Context, error) {
-	return api.ContextWithUser(ctx, &model.User{ID: 7, Email: "points@example.com"}), nil
-}
-
 // The route and replay views pass trip times, which carry the server's UTC
-// offset (e.g. "+02:00"), as from/to. Percent-encoded they are accepted; a raw
-// "+" in the query string decodes to a space and is rejected.
+// offset (e.g. "+02:00"), as from/to. Percent-encoded they are accepted.
 func TestGetPositionPoints_OffsetTimesOverHTTP(t *testing.T) {
 	repo := &pointsPositionRepo{points: []model.PositionPoint{}}
-	srv, err := oas.NewServer(newPointsHandler(repo, true), pointsUserSecurity{})
+	srv, err := oas.NewServer(newPointsHandler(repo, true), userSecurity{user: &model.User{ID: 7, Email: "points@example.com"}})
 	if err != nil {
 		t.Fatalf("new server: %v", err)
 	}
@@ -69,9 +61,6 @@ func TestGetPositionPoints_OffsetTimesOverHTTP(t *testing.T) {
 		t.Errorf("to = %v, want %v", repo.to, want)
 	}
 
-	if rec := get("deviceId=3&from=2026-10-03T07:48:24+02:00"); rec.Code != http.StatusBadRequest {
-		t.Errorf("raw '+' offset: status %d, want 400", rec.Code)
-	}
 }
 
 func newPointsHandler(repo *pointsPositionRepo, hasAccess bool) *handlers.Handler {

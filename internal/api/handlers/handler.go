@@ -66,11 +66,6 @@ func NewHandler(cfg HandlerConfig) *Handler {
 	return &Handler{cfg: cfg, loginLimiter: newLoginLimiter()}
 }
 
-// SetAIEnabled updates whether the AI feature is advertised in ServerInfo.
-func (h *Handler) SetAIEnabled(enabled bool) {
-	h.cfg.AIEnabled = enabled
-}
-
 // requireAdminCtx checks that the context contains an authenticated admin user.
 // Returns the admin user and nil on success.
 // NOTE: replaces the http.HandlerFunc-based requireAdmin from the deleted chi

@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"log/slog"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -16,12 +17,7 @@ var skippedPaths = []string{"/api/health", "/metrics", "/api/socket"}
 
 // shouldSkipLog returns true if the request path matches any skipped prefix.
 func shouldSkipLog(path string) bool {
-	for _, prefix := range skippedPaths {
-		if strings.HasPrefix(path, prefix) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(skippedPaths, func(prefix string) bool { return strings.HasPrefix(path, prefix) })
 }
 
 // Logger returns middleware that logs every HTTP request with structured

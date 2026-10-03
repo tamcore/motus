@@ -62,11 +62,9 @@ func (h *Handler) CreateCalendar(ctx context.Context, req *oas.CalendarInput) (o
 		return &oas.CreateCalendarBadRequest{Error: "failed to create calendar"}, nil
 	}
 
-	if h.cfg.AuditLogger != nil {
-		h.cfg.AuditLogger.Log(ctx, &user.ID,
-			audit.ActionCalendarCreate, audit.ResourceCalendar, &cal.ID,
-			map[string]any{"name": cal.Name}, "", "")
-	}
+	h.cfg.AuditLogger.Log(ctx, &user.ID,
+		audit.ActionCalendarCreate, audit.ResourceCalendar, &cal.ID,
+		map[string]any{"name": cal.Name}, "", "")
 	out := calendarToOAS(cal)
 	return &out, nil
 }
@@ -103,11 +101,9 @@ func (h *Handler) UpdateCalendar(ctx context.Context, req *oas.CalendarInput, pa
 		return &oas.UpdateCalendarBadRequest{Error: "failed to update calendar"}, nil
 	}
 
-	if h.cfg.AuditLogger != nil {
-		h.cfg.AuditLogger.Log(ctx, &user.ID,
-			audit.ActionCalendarUpdate, audit.ResourceCalendar, &updated.ID,
-			map[string]any{"name": updated.Name}, "", "")
-	}
+	h.cfg.AuditLogger.Log(ctx, &user.ID,
+		audit.ActionCalendarUpdate, audit.ResourceCalendar, &updated.ID,
+		map[string]any{"name": updated.Name}, "", "")
 	out := calendarToOAS(&updated)
 	return &out, nil
 }
@@ -124,12 +120,9 @@ func (h *Handler) DeleteCalendar(ctx context.Context, params oas.DeleteCalendarP
 	if err := h.cfg.Calendars.Delete(ctx, params.ID); err != nil {
 		return &oas.DeleteCalendarNotFound{Error: "failed to delete calendar"}, nil
 	}
-	if h.cfg.AuditLogger != nil {
-		id := params.ID
-		h.cfg.AuditLogger.Log(ctx, &user.ID,
-			audit.ActionCalendarDelete, audit.ResourceCalendar, &id,
-			nil, "", "")
-	}
+	h.cfg.AuditLogger.Log(ctx, &user.ID,
+		audit.ActionCalendarDelete, audit.ResourceCalendar, &params.ID,
+		nil, "", "")
 	return &oas.DeleteCalendarNoContent{}, nil
 }
 

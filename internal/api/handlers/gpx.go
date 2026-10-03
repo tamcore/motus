@@ -69,12 +69,9 @@ func (h *Handler) ImportGPX(ctx context.Context, req oas.ImportGPXReq, params oa
 		}
 	}
 
-	if h.cfg.AuditLogger != nil {
-		id := params.ID
-		h.cfg.AuditLogger.Log(ctx, &user.ID,
-			audit.ActionGPXImport, audit.ResourceDevice, &id,
-			map[string]any{"deviceId": params.ID, "positions": imported}, "", "")
-	}
+	h.cfg.AuditLogger.Log(ctx, &user.ID,
+		audit.ActionGPXImport, audit.ResourceDevice, &params.ID,
+		map[string]any{"deviceId": params.ID, "positions": imported}, "", "")
 
 	return &oas.ImportGPXOK{
 		Imported: oas.OptInt{Value: imported, Set: true},

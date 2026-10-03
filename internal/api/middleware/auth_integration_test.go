@@ -17,7 +17,6 @@ import (
 func TestMain(m *testing.M) {
 	code := m.Run()
 	testutil.Cleanup()
-	cleanupRedisRLContainer()
 	os.Exit(code)
 }
 

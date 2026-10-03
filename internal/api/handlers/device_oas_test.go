@@ -16,6 +16,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/tamcore/motus/internal/api"
 	"github.com/tamcore/motus/internal/api/handlers"
@@ -315,6 +316,40 @@ func TestUpdateDevice_Success_OAS(t *testing.T) {
 	}
 	if updatedName != "After Update" {
 		t.Errorf("expected persisted name 'After Update', got %q", updatedName)
+	}
+}
+
+func TestUpdateDevice_UniqueIDChangeKeepsIgnitionState_OAS(t *testing.T) {
+	lastIgnition := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
+	var persisted model.Device
+	mock := &mockDeviceRepo{
+		userHasAccessFn: func(_ context.Context, _ *model.User, _ int64) bool { return true },
+		getByIDFn: func(_ context.Context, id int64) (*model.Device, error) {
+			return &model.Device{ID: id, UniqueID: "ign-old", Name: "Car", Status: "online",
+				IgnitionOn: true, LastIgnitionTime: &lastIgnition}, nil
+		},
+		updateFn: func(_ context.Context, d *model.Device) error {
+			persisted = *d
+			return nil
+		},
+	}
+	h := newDeviceTestHandler(mock)
+
+	res, err := h.UpdateDevice(deviceTestUserCtx(1), &oas.DeviceInput{
+		UniqueId: "ign-new",
+		Name:     "Car",
+	}, oas.UpdateDeviceParams{ID: 10})
+	if err != nil {
+		t.Fatalf("UpdateDevice returned error: %v", err)
+	}
+	if _, ok := res.(*oas.Device); !ok {
+		t.Fatalf("expected *oas.Device, got %T", res)
+	}
+	if persisted.UniqueID != "ign-new" {
+		t.Errorf("expected persisted uniqueId 'ign-new', got %q", persisted.UniqueID)
+	}
+	if !persisted.IgnitionOn || persisted.LastIgnitionTime == nil || !persisted.LastIgnitionTime.Equal(lastIgnition) {
+		t.Errorf("ignition state lost: on=%v last=%v", persisted.IgnitionOn, persisted.LastIgnitionTime)
 	}
 }
 

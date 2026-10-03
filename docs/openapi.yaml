@@ -453,6 +453,7 @@ components:
         type: { type: string, enum: [positionPeriodic] }
         frequency:
           type: integer
+          minimum: 1
           maximum: 86400
           description: Reporting interval in seconds (at most one day).
 

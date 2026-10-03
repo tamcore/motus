@@ -7,6 +7,7 @@ import (
 
 	"github.com/tamcore/motus/internal/model"
 	"github.com/tamcore/motus/internal/storage/repository"
+	"github.com/tamcore/motus/internal/ticker"
 	"github.com/tamcore/motus/internal/websocket"
 )
 
@@ -76,25 +77,16 @@ func (s *IdleService) SetMileageService(ms *MileageService) {
 
 // Start begins the idle detection loop. It blocks until the context is cancelled.
 func (s *IdleService) Start(ctx context.Context) {
-	ticker := time.NewTicker(IdleCheckInterval)
-	defer ticker.Stop()
-
 	s.logger.Info("idle detection service started",
 		slog.String("threshold", IdleThreshold.String()),
 		slog.String("checkInterval", IdleCheckInterval.String()),
 	)
-
-	for {
-		select {
-		case <-ctx.Done():
-			s.logger.Info("idle detection service stopped")
-			return
-		case <-ticker.C:
-			if err := s.CheckIdle(ctx); err != nil {
-				s.logger.Error("error checking idle devices", slog.Any("error", err))
-			}
+	ticker.Every(ctx, IdleCheckInterval, func() {
+		if err := s.CheckIdle(ctx); err != nil {
+			s.logger.Error("error checking idle devices", slog.Any("error", err))
 		}
-	}
+	})
+	s.logger.Info("idle detection service stopped")
 }
 
 // CheckIdle scans all devices and creates deviceIdle events for any device

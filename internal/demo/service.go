@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/tamcore/motus/internal/ticker"
 )
 
 // DemoAccount defines a fixed demo account.
@@ -60,30 +61,22 @@ func (s *Service) SeedIfNeeded(ctx context.Context) error {
 // whether the current time matches the configured reset time and triggers
 // a full reset when it does.
 func (s *Service) Start(ctx context.Context) {
-	ticker := time.NewTicker(1 * time.Minute)
-	defer ticker.Stop()
-
 	var lastResetDay int
-
-	for {
-		select {
-		case <-ctx.Done():
-			slog.Info("demo reset service stopped")
+	ticker.Every(ctx, time.Minute, func() {
+		now := time.Now()
+		if now.Format("15:04") != s.resetTime || now.Day() == lastResetDay {
 			return
-		case now := <-ticker.C:
-			currentTime := now.Format("15:04")
-			if currentTime == s.resetTime && now.Day() != lastResetDay {
-				lastResetDay = now.Day()
-				slog.Info("nightly reset triggered")
-				result, err := Reset(ctx, s.pool, s.accounts, DefaultDeviceIMEIs)
-				if err != nil {
-					slog.Error("nightly reset failed", slog.Any("error", err))
-					continue
-				}
-				LogResult(result)
-			}
 		}
-	}
+		lastResetDay = now.Day()
+		slog.Info("nightly reset triggered")
+		result, err := Reset(ctx, s.pool, s.accounts, DefaultDeviceIMEIs)
+		if err != nil {
+			slog.Error("nightly reset failed", slog.Any("error", err))
+			return
+		}
+		LogResult(result)
+	})
+	slog.Info("demo reset service stopped")
 }
 
 // IsDemoAccount checks whether the given email belongs to a demo account.

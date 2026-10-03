@@ -18,6 +18,8 @@
  * Reference: https://github.com/traccar/traccar-web/blob/master/src/common/components/NativeInterface.js
  */
 
+import { api } from "$lib/api/client";
+
 declare global {
   interface Window {
     webkit?: {
@@ -87,14 +89,8 @@ export async function generateLoginToken(): Promise<void> {
   if (!isNativeEnvironment()) return;
 
   try {
-    const response = await fetch("/api/session/token", { method: "POST" });
-    if (response.ok) {
-      const data = await response.json();
-      const token = data.token || "";
-      if (token) {
-        nativePostMessage(`login|${token}`);
-      }
-    }
+    const { token } = await api.generateToken();
+    if (token) nativePostMessage(`login|${token}`);
   } catch {
     // Silently ignore token generation failures in native context.
   }

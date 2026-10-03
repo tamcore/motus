@@ -31,38 +31,28 @@ export async function sendMessage(userText: string): Promise<void> {
     });
   });
 
+  const patchAssistant = (patch: (msg: DisplayMessage) => DisplayMessage) =>
+    chatMessages.update((msgs) => msgs.map((m, i) => (i === assistantIdx ? patch(m) : m)));
+
   try {
     // Send only the new user message — server reconstructs history from Redis.
     const stream = streamChat(userText, abortController.signal);
 
     for await (const event of stream) {
       if (event.type === "token") {
-        chatMessages.update((msgs) => {
-          const updated = [...msgs];
-          updated[assistantIdx] = {
-            ...updated[assistantIdx],
-            content: updated[assistantIdx].content + event.delta,
-          };
-          return updated;
-        });
+        patchAssistant((msg) => ({ ...msg, content: msg.content + event.delta }));
       } else if (event.type === "tool_call") {
-        chatMessages.update((msgs) => {
-          const updated = [...msgs];
-          const msg = { ...updated[assistantIdx] };
-          msg.toolCalls = [...(msg.toolCalls ?? []), { id: event.id, name: event.name }];
-          updated[assistantIdx] = msg;
-          return updated;
-        });
+        patchAssistant((msg) => ({
+          ...msg,
+          toolCalls: [...(msg.toolCalls ?? []), { id: event.id, name: event.name }],
+        }));
       } else if (event.type === "tool_result") {
-        chatMessages.update((msgs) => {
-          const updated = [...msgs];
-          const msg = { ...updated[assistantIdx] };
-          msg.toolCalls = (msg.toolCalls ?? []).map((tc) =>
+        patchAssistant((msg) => ({
+          ...msg,
+          toolCalls: (msg.toolCalls ?? []).map((tc) =>
             tc.id === event.id ? { ...tc, result: event.result, error: event.error } : tc,
-          );
-          updated[assistantIdx] = msg;
-          return updated;
-        });
+          ),
+        }));
       } else if (event.type === "error") {
         chatError.set(event.message);
         break;

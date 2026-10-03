@@ -7,35 +7,13 @@
 
 	const isPreset = (v: string) => REPORTING_INTERVAL_PRESETS.some((p) => String(p.seconds) === v);
 
-	let custom = false;
-	// Last value written by the picker itself. Any other change of `value`
-	// comes from the parent (initial value, form reset, ...) and re-derives
-	// the default and custom mode instead of keeping stale mount-time state.
-	let ownValue: string | undefined;
-
-	$: if (value !== ownValue) syncFromParent(value);
-
-	function syncFromParent(v: string) {
-		if (!v) {
-			custom = false;
-			ownValue = value = String(DEFAULT_REPORTING_INTERVAL_SECONDS);
-		} else {
-			custom = !isPreset(v);
-			ownValue = v;
-		}
-	}
+	// Initial value only: forms mount the picker after setting it.
+	if (!value) value = String(DEFAULT_REPORTING_INTERVAL_SECONDS);
+	let custom = !isPreset(value);
 
 	function selectPreset(seconds: number) {
 		custom = false;
-		ownValue = value = String(seconds);
-	}
-
-	function selectCustom() {
-		custom = true;
-	}
-
-	function onCustomInput(e: Event) {
-		ownValue = (e.target as HTMLInputElement).value;
+		value = String(seconds);
 	}
 </script>
 
@@ -58,13 +36,13 @@
 			class="interval-preset"
 			class:active={custom}
 			aria-pressed={custom}
-			on:click={selectCustom}
+			on:click={() => (custom = true)}
 		>
 			Custom
 		</button>
 	</div>
 	{#if custom}
-		<Input name="frequency" label="Interval (seconds)" placeholder="30" bind:value on:input={onCustomInput} />
+		<Input name="frequency" label="Interval (seconds)" placeholder="30" bind:value />
 	{/if}
 </div>
 

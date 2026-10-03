@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { fly } from 'svelte/transition';
-	import { pwa, showUpdateNotification } from '$lib/stores/pwa';
+	import { pwa } from '$lib/stores/pwa';
 
 	function handleUpdate() {
 		pwa.applyUpdate();
 	}
 </script>
 
-{#if $showUpdateNotification}
+{#if $pwa.updateAvailable}
 	<div
 		class="update-notification"
 		role="alert"

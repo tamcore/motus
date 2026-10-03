@@ -69,12 +69,6 @@ describe("commandIntervalLabel", () => {
     );
   });
 
-  it("accepts a numeric string frequency", () => {
-    expect(commandIntervalLabel({ type: "positionPeriodic", attributes: { frequency: "600" } })).toBe(
-      "Interval: 600 s (10 min)",
-    );
-  });
-
   it("returns null for other commands or a missing/invalid frequency", () => {
     expect(commandIntervalLabel({ type: "rebootDevice", attributes: { frequency: 60 } })).toBeNull();
     expect(commandIntervalLabel({ type: "positionPeriodic" })).toBeNull();

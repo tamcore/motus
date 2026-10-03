@@ -1,5 +1,6 @@
 import { writable } from "svelte/store";
 import type { WebSocketMessage } from "$lib/types/api";
+import { speedToKmh } from "$lib/api/client";
 
 /** Maximum length of raw message content included in warning logs. */
 const LOG_TRUNCATE_LENGTH = 200;
@@ -23,6 +24,19 @@ class WebSocketManager {
     }, 30000);
   }
 
+  /** Drops the current socket, nulling its handlers so a stale onclose cannot fire. */
+  private detach(): WebSocket | null {
+    const ws = this.ws;
+    if (ws) {
+      ws.onopen = null;
+      ws.onmessage = null;
+      ws.onclose = null;
+      ws.onerror = null;
+    }
+    this.ws = null;
+    return ws;
+  }
+
   private stopPingInterval() {
     if (this.pingInterval) {
       clearInterval(this.pingInterval);
@@ -44,13 +58,7 @@ class WebSocketManager {
     }
 
     // Clean up any existing dead socket before creating a new one
-    if (this.ws) {
-      this.ws.onopen = null;
-      this.ws.onmessage = null;
-      this.ws.onclose = null;
-      this.ws.onerror = null;
-      this.ws = null;
-    }
+    this.detach();
 
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const url = `${protocol}//${window.location.host}/api/socket`;
@@ -78,12 +86,7 @@ class WebSocketManager {
       if (this.ws !== ws) return;
       try {
         const data: WebSocketMessage = JSON.parse(event.data);
-        // Normalize speed from knots (Traccar API) to km/h (internal UI unit).
-        if (data.positions?.length) {
-          data.positions = data.positions.map((pos) =>
-            pos.speed != null ? { ...pos, speed: pos.speed * 1.852 } : pos,
-          );
-        }
+        if (data.positions?.length) data.positions = data.positions.map(speedToKmh);
         this.lastMessage.set(data);
       } catch (err) {
         // Log malformed messages for debugging but don't crash
@@ -129,15 +132,7 @@ class WebSocketManager {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
-    if (this.ws) {
-      // Null out handlers before closing to prevent stale onclose from firing
-      this.ws.onopen = null;
-      this.ws.onmessage = null;
-      this.ws.onclose = null;
-      this.ws.onerror = null;
-      this.ws.close();
-      this.ws = null;
-    }
+    this.detach()?.close();
     this.connected.set(false);
   }
 }

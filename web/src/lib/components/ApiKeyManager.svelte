@@ -1,10 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { api, APIError } from '$lib/api/client';
+	import { api } from '$lib/api/client';
 	import type { ApiKey } from '$lib/types/api';
 	import { formatDate } from '$lib/utils/formatting';
 	import Button from '$lib/components/Button.svelte';
-	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import Input from '$lib/components/Input.svelte';
 	import QrCodeDialog from '$lib/components/QrCodeDialog.svelte';
@@ -33,10 +32,7 @@
 	let tokenCopied = false;
 	let tokenInputEl: HTMLInputElement;
 
-	// ---------------------------------------------------------------------------
-	// Delete confirmation state
-	// ---------------------------------------------------------------------------
-	let confirmingDeleteId: number | null = null;
+	let actionError = '';
 
 	// ---------------------------------------------------------------------------
 	// QR Code dialog state
@@ -57,13 +53,7 @@
 		try {
 			apiKeys = await api.getApiKeys();
 		} catch (e: unknown) {
-			if (e instanceof APIError) {
-				listError = `Failed to load API keys: ${e.message}`;
-			} else if (e instanceof Error) {
-				listError = `Failed to load API keys: ${e.message}`;
-			} else {
-				listError = 'Failed to load API keys. Please try again.';
-			}
+			listError = e instanceof Error ? `Failed to load API keys: ${e.message}` : 'Failed to load API keys. Please try again.';
 		} finally {
 			loading = false;
 		}
@@ -154,13 +144,7 @@
 				}
 			}, 50);
 		} catch (e: unknown) {
-			if (e instanceof APIError) {
-				createError = e.message;
-			} else if (e instanceof Error) {
-				createError = e.message;
-			} else {
-				createError = 'Failed to create API key. Please try again.';
-			}
+			createError = e instanceof Error ? e.message : 'Failed to create API key. Please try again.';
 		} finally {
 			creating = false;
 		}
@@ -194,10 +178,15 @@
 	// ---------------------------------------------------------------------------
 	// Delete
 	// ---------------------------------------------------------------------------
-	async function confirmDelete(id: number) {
-		await api.deleteApiKey(id);
-		apiKeys = apiKeys.filter((k) => k.id !== id);
-		confirmingDeleteId = null;
+	async function deleteKey(key: ApiKey) {
+		if (!confirm(`Revoke "${key.name}"? Any integrations using this key will immediately stop working.`)) return;
+		actionError = '';
+		try {
+			await api.deleteApiKey(key.id);
+			apiKeys = apiKeys.filter((k) => k.id !== key.id);
+		} catch (e: unknown) {
+			actionError = e instanceof Error ? e.message : 'Failed to revoke API key. Please try again.';
+		}
 	}
 
 	// ---------------------------------------------------------------------------
@@ -241,10 +230,6 @@
 		tomorrow.setDate(tomorrow.getDate() + 1);
 		return tomorrow.toISOString().split('T')[0];
 	}
-
-	$: confirmingKeyName = confirmingDeleteId !== null
-		? apiKeys.find((k) => k.id === confirmingDeleteId)?.name ?? 'this key'
-		: '';
 </script>
 
 <section class="settings-section api-keys-section">
@@ -302,7 +287,7 @@
 						</div>
 					</div>
 					<div class="key-actions">
-						<Button variant="danger" size="sm" on:click={() => (confirmingDeleteId = key.id)}>
+						<Button variant="danger" size="sm" on:click={() => deleteKey(key)}>
 							Revoke
 						</Button>
 					</div>
@@ -333,19 +318,8 @@
 		</details>
 	{/if}
 
-	<!-- Delete confirmation -->
-	{#if confirmingDeleteId !== null}
-		{@const id = confirmingDeleteId}
-		<ConfirmDialog
-			confirmLabel="Revoke Key"
-			busyLabel="Revoking..."
-			fallbackError="Failed to revoke API key. Please try again."
-			onConfirm={() => confirmDelete(id)}
-			onCancel={() => (confirmingDeleteId = null)}
-		>
-			Are you sure you want to revoke <strong>{confirmingKeyName}</strong>?
-			Any integrations using this key will immediately stop working.
-		</ConfirmDialog>
+	{#if actionError}
+		<div class="message error" role="alert">{actionError}</div>
 	{/if}
 </section>
 

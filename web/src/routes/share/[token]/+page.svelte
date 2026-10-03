@@ -2,9 +2,11 @@
 	import { page } from '$app/stores';
 	import { onMount, onDestroy } from 'svelte';
 	import { useLeaflet } from '$lib/composables/useLeaflet';
-	import { useUserLocation } from '$lib/composables/useUserLocation';
+	import { useUserLocation, userLocationLayers } from '$lib/composables/useUserLocation';
 	import { buildPopupElement } from '$lib/utils/popup';
 	import type { Device } from '$lib/types/api';
+	import { formatSpeed, getCardinalDirection } from '$lib/utils/formatting';
+	import { speedToKmh } from '$lib/api/client';
 
 	const API_BASE = '/api';
 	const SHARE_UNIT_KEY = 'motus_share_units';
@@ -27,15 +29,8 @@
 
 	const leafletMap = useLeaflet();
 	const userLocation = useUserLocation();
+	const userLayers = userLocationLayers(() => leafletMap.getLeaflet(), () => leafletMap.getMap(), false);
 
-	// User location layers
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	let userAccuracyCircle: any = null;
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	let userDotMarker: any = null;
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	let userHeadingMarker: any = null;
-	let firstUserFix = false;
 
 	// State
 	let token = '';
@@ -64,7 +59,7 @@
 
 	$: token = $page.params.token || '';
 	$: position = positions.length > 0 ? positions[0] : null;
-	$: formattedSpeed = formatSpeedWithUnits(position?.speed, units);
+	$: formattedSpeed = position?.speed == null ? '--' : formatSpeed(position.speed, units);
 	$: formattedCourse = position?.course != null ? `${Math.round(position.course)}` : '--';
 	$: courseDirection = position?.course != null ? getCardinalDirection(position.course) : '';
 	$: lastUpdateText = position ? formatTimeAgo(position.fixTime) : 'No data';
@@ -98,17 +93,8 @@
 		}
 	}
 
-	function formatSpeedWithUnits(speed: number | null | undefined, u: 'metric' | 'imperial'): string {
-		if (speed === null || speed === undefined) return '--';
-		if (u === 'imperial') {
-			const mph = speed * 0.621371;
-			return `${mph.toFixed(1)} mph`;
-		}
-		return `${speed.toFixed(1)} km/h`;
-	}
-
-	function formatSpeed(speed: number | null | undefined): string {
-		return formatSpeedWithUnits(speed, units);
+	function formatSpeedText(speed: number | null | undefined): string {
+		return speed == null ? '--' : formatSpeed(speed, units);
 	}
 
 	function formatTimeAgo(dateStr: string): string {
@@ -126,12 +112,6 @@
 		return d.toLocaleString();
 	}
 
-	function getCardinalDirection(degrees: number): string {
-		const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-		const idx = Math.round(degrees / 45) % 8;
-		return dirs[idx];
-	}
-
 	// --- API ---
 	async function fetchSharedDevice(): Promise<boolean> {
 		try {
@@ -146,10 +126,7 @@
 			}
 			const data = await response.json();
 			device = data.device;
-			// Normalize speed from knots (Traccar API) to km/h (internal UI unit).
-			positions = (data.positions || []).map((pos: SharedPosition) =>
-				pos.speed != null ? { ...pos, speed: pos.speed * 1.852 } : pos
-			);
+			positions = (data.positions || []).map((pos: SharedPosition) => speedToKmh(pos));
 
 			// Initialize trail from initial position
 			const latestPos = positions.length > 0 ? positions[0] : null;
@@ -251,17 +228,16 @@
 	function handleWebSocketMessage(data: any) {
 		if (data.positions && Array.isArray(data.positions)) {
 			for (const pos of data.positions) {
-				const newPos: SharedPosition = {
+				const newPos: SharedPosition = speedToKmh({
 					id: pos.id,
 					deviceId: pos.deviceId,
 					latitude: pos.latitude,
 					longitude: pos.longitude,
-					// Normalize speed from knots (Traccar API) to km/h (internal UI unit).
-				speed: pos.speed != null ? pos.speed * 1.852 : null,
+					speed: pos.speed ?? null,
 					course: pos.course ?? null,
 					fixTime: pos.fixTime || pos.timestamp || new Date().toISOString(),
 					attributes: pos.attributes
-				};
+				});
 
 				// Update positions array (most recent first)
 				positions = [newPos];
@@ -337,7 +313,7 @@
 
 	function getPopupContent(): HTMLElement | string {
 		if (!position || !device) return '';
-		const speed = formatSpeed(position.speed);
+		const speed = formatSpeedText(position.speed);
 		const course = position.course != null ? `${Math.round(position.course)}deg ${getCardinalDirection(position.course)}` : 'N/A';
 		const time = position.fixTime ? new Date(position.fixTime).toLocaleString() : 'Unknown';
 		return buildPopupElement([
@@ -421,7 +397,6 @@
 		await leafletMap.initialize(mapContainer, {
 			center: [51.505, -0.09],
 			zoom: 13,
-			tileAttribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
 		});
 
 		const L = leafletMap.getLeaflet()!;
@@ -440,109 +415,18 @@
 
 	// React to user position changes
 	$: if (userLocation.position) {
-		updateUserLocationLayers();
+		userLayers.updatePosition(userLocation.position);
 	}
 
 	// React to heading changes
 	$: if (userLocation.heading !== null || userLocation.position) {
-		updateUserHeadingLayer();
-	}
-
-	function updateUserLocationLayers() {
-		const L = leafletMap.getLeaflet();
-		const map = leafletMap.getMap();
-		const pos = userLocation.position;
-		if (!L || !map || !pos) return;
-
-		const latlng: [number, number] = [pos.lat, pos.lng];
-
-		if (userAccuracyCircle) {
-			userAccuracyCircle.setLatLng(latlng);
-			userAccuracyCircle.setRadius(pos.accuracy);
-		} else {
-			userAccuracyCircle = L.circle(latlng, {
-				radius: pos.accuracy,
-				color: '#4285F4',
-				fillColor: '#4285F4',
-				fillOpacity: 0.1,
-				weight: 1,
-				interactive: false,
-			}).addTo(map);
-		}
-
-		const dotHtml = `
-			<div class="user-location-dot">
-				<div class="user-location-dot-inner"></div>
-			</div>`;
-
-		if (userDotMarker) {
-			userDotMarker.setLatLng(latlng);
-		} else {
-			userDotMarker = L.marker(latlng, {
-				icon: L.divIcon({
-					className: 'user-location-marker',
-					html: dotHtml,
-					iconSize: [16, 16],
-					iconAnchor: [8, 8],
-				}),
-				interactive: false,
-				zIndexOffset: 1000,
-			}).addTo(map);
-		}
-
-		if (!firstUserFix) {
-			firstUserFix = true;
-			// Don't pan — let the user compare their position to the tracked device
-		}
-	}
-
-	function updateUserHeadingLayer() {
-		const L = leafletMap.getLeaflet();
-		const map = leafletMap.getMap();
-		const pos = userLocation.position;
-		const heading = userLocation.heading;
-		if (!L || !map || !pos) return;
-
-		const latlng: [number, number] = [pos.lat, pos.lng];
-
-		if (userHeadingMarker) {
-			map.removeLayer(userHeadingMarker);
-			userHeadingMarker = null;
-		}
-
-		if (heading === null || !userLocation.active) return;
-
-		const coneHtml = `
-			<svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"
-				style="transform: rotate(${heading}deg); transform-origin: 20px 20px;">
-				<path d="M20 0 L26 20 L20 16 L14 20 Z" fill="#4285F4" fill-opacity="0.5"/>
-			</svg>`;
-
-		userHeadingMarker = L.marker(latlng, {
-			icon: L.divIcon({
-				className: 'user-heading-marker',
-				html: coneHtml,
-				iconSize: [40, 40],
-				iconAnchor: [20, 20],
-			}),
-			interactive: false,
-			zIndexOffset: 999,
-		}).addTo(map);
-	}
-
-	function removeUserLocationLayers() {
-		const map = leafletMap.getMap();
-		if (!map) return;
-		if (userAccuracyCircle) { map.removeLayer(userAccuracyCircle); userAccuracyCircle = null; }
-		if (userDotMarker) { map.removeLayer(userDotMarker); userDotMarker = null; }
-		if (userHeadingMarker) { map.removeLayer(userHeadingMarker); userHeadingMarker = null; }
+		userLayers.updateHeading(userLocation.position, userLocation.heading, userLocation.active);
 	}
 
 	async function toggleLocateMe() {
 		if (userLocation.active) {
 			userLocation.stop();
-			firstUserFix = false;
-			removeUserLocationLayers();
+			userLayers.remove();
 		} else {
 			await userLocation.start();
 		}
@@ -582,7 +466,7 @@
 <div class="share-page">
 	{#if loading}
 		<div class="loading-screen">
-			<div class="spinner"></div>
+			<div class="spinner spinner-lg"></div>
 			<p>Loading shared device...</p>
 		</div>
 	{:else if error}
@@ -762,14 +646,6 @@
 		text-align: center;
 	}
 
-	.spinner {
-		width: 48px;
-		height: 48px;
-		border: 4px solid var(--border-color, #333);
-		border-top-color: var(--accent-primary, #00d4ff);
-		border-radius: 50%;
-		animation: spin 0.8s linear infinite;
-	}
 
 	.loading-screen p,
 	.error-screen p {

@@ -8,7 +8,7 @@
 	import { wsManager } from '$lib/stores/websocket';
 	import { pwa } from '$lib/stores/pwa';
 	import { api, APIError } from '$lib/api/client';
-	import { hydrateAuthToken, setAuthToken } from '$lib/auth-token-store';
+	import { setAuthToken } from '$lib/auth-token-store';
 	import { buildLoginUrl } from '$lib/utils/returnTo';
 	import PullToRefresh from '$lib/components/PullToRefresh.svelte';
 	import {
@@ -39,11 +39,6 @@
 	onMount(async () => {
 		theme.initialize();
 		pwa.initialize();
-
-		// Re-hydrate the auth token from IndexedDB before any authenticated
-		// API call fires. iOS PWA cold starts purge localStorage, but
-		// IndexedDB survives, so this restores the X-Auth-Token fallback.
-		await hydrateAuthToken();
 
 		// Load server info (aiEnabled flag for chat nav link) in parallel.
 		loadServerInfo();
@@ -165,7 +160,7 @@
 
 {#if loading}
 	<div class="loading-screen">
-		<div class="spinner"></div>
+		<div class="spinner spinner-lg"></div>
 	</div>
 {:else if $page.url.pathname.startsWith('/share/')}
 	<slot />
@@ -277,14 +272,6 @@
 		background-color: var(--bg-primary);
 	}
 
-	.spinner {
-		width: 48px;
-		height: 48px;
-		border: 4px solid var(--border-color);
-		border-top-color: var(--accent-primary);
-		border-radius: 50%;
-		animation: spin 0.8s linear infinite;
-	}
 
 	.app-layout {
 		min-height: 100vh;

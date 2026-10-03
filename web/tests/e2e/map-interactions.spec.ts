@@ -1,4 +1,5 @@
 import { test, expect } from '../fixtures/auth-fixture';
+import { mockFetch } from '../helpers/mock-fetch';
 import { MapPage } from '../page-objects/MapPage';
 
 test.describe('Map Interactions', () => {
@@ -167,20 +168,10 @@ test.describe('Map Interactions', () => {
   });
 
   test('should handle empty devices list gracefully', async ({ authedPage }) => {
-    // Use addInitScript to intercept fetch at JS level (page.route doesn't reliably intercept SvelteKit fetches)
-    await authedPage.addInitScript(() => {
-      const origFetch = window.fetch;
-      window.fetch = async function (input: RequestInfo | URL, init?: RequestInit) {
-        const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-        if (url.includes('/api/devices') || url.includes('/api/positions')) {
-          return new Response('[]', {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' },
-          });
-        }
-        return origFetch.apply(globalThis, [input, init] as Parameters<typeof fetch>);
-      } as typeof fetch;
-    });
+    await mockFetch(authedPage, [
+      { match: '/api/devices', body: [] },
+      { match: '/api/positions', body: [] },
+    ]);
     await authedPage.goto('/map');
     await mapPage.waitForMapLoad();
 

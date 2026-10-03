@@ -8,35 +8,6 @@ export const INVALID_CREDENTIALS = {
   password: 'wrongpassword',
 };
 
-export const TEST_DEVICE = {
-  name: 'PW Test Device',
-  uniqueId: `pw-test-${Date.now()}`,
-  phone: '+1234567890',
-  model: 'TK103',
-  category: 'car',
-};
-
-export const TEST_GEOFENCE = {
-  name: 'PW Test Geofence',
-  geometry: {
-    type: 'Polygon' as const,
-    coordinates: [[
-      [11.5820, 48.1351],
-      [11.5920, 48.1351],
-      [11.5920, 48.1451],
-      [11.5820, 48.1451],
-      [11.5820, 48.1351],
-    ]],
-  },
-};
-
-export const TEST_NOTIFICATION = {
-  name: 'PW Test Notification',
-  eventTypes: ['geofenceEnter'],
-  webhookUrl: 'https://webhook.site/test-webhook',
-  template: '{"device": "{{device.name}}", "event": "{{event.type}}"}',
-};
-
 export const OIDC_ADMIN_CREDENTIALS = {
   username: 'admin@motus.local',
   password: 'admin',

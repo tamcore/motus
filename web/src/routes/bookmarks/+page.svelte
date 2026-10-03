@@ -7,7 +7,6 @@
 	import type { TrailBookmark, TrailBookmarkPayload } from '$lib/types/api';
 	import {
 		bookmarkDuration,
-		bookmarkErrorMessage,
 		bookmarkMapHref,
 		bookmarkRangeLabel,
 		filterBookmarks
@@ -38,7 +37,7 @@
 		try {
 			bookmarks = await api.getTrailBookmarks();
 		} catch (err: unknown) {
-			error = `Failed to load bookmarks: ${bookmarkErrorMessage(err, 'Unknown error')}`;
+			error = `Failed to load bookmarks: ${(err instanceof Error ? err.message : 'Unknown error')}`;
 		} finally {
 			loading = false;
 		}
@@ -69,7 +68,7 @@
 			await api.deleteTrailBookmark(bookmark.id);
 			bookmarks = bookmarks.filter((b) => b.id !== bookmark.id);
 		} catch (err: unknown) {
-			error = `Failed to delete bookmark: ${bookmarkErrorMessage(err, 'Unknown error')}`;
+			error = `Failed to delete bookmark: ${(err instanceof Error ? err.message : 'Unknown error')}`;
 		} finally {
 			deletingId = null;
 		}

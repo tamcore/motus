@@ -13,7 +13,14 @@ import { MAX_REPORTING_INTERVAL_SECONDS } from "./commands";
 
 describe("NOTIFICATION_COMMAND_TYPES", () => {
   it("offers the reporting interval first and never factory reset", () => {
-    expect(NOTIFICATION_COMMAND_TYPES[0]).toBe("positionPeriodic");
+    expect(NOTIFICATION_COMMAND_TYPES).toEqual([
+      "positionPeriodic",
+      "positionSingle",
+      "rebootDevice",
+      "sosNumber",
+      "setSpeedAlarm",
+      "custom",
+    ]);
     expect(NOTIFICATION_COMMAND_TYPES).not.toContain("factoryReset");
   });
 });

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { api, fetchNotifications } from '$lib/api/client';
-	import { currentUser } from '$lib/stores/auth';
+	import { currentUser, isAdmin } from '$lib/stores/auth';
 	import { refreshHandler } from '$lib/stores/refresh';
 	import Button from '$lib/components/Button.svelte';
 	import Input from '$lib/components/Input.svelte';
@@ -10,15 +10,14 @@
 	import AllDevicesToggle from '$lib/components/AllDevicesToggle.svelte';
 	import ReportingIntervalPicker from '$lib/components/ReportingIntervalPicker.svelte';
 	import {
-		notificationRules,
 		EVENT_TYPES,
 		CHANNELS,
 		TEMPLATE_VARIABLES,
 		DEFAULT_TEMPLATE
 	} from '$lib/stores/notifications';
-	import type { NotificationRule, NotificationLog } from '$lib/stores/notifications';
 	import type {
 		Geofence,
+		NotificationRule,
 		NotificationChannel,
 		NotificationConfig,
 		NotificationConfigWebhook
@@ -35,6 +34,7 @@
 		hasGeofenceEvent
 	} from '$lib/utils/notificationRules';
 
+	let notificationRules: NotificationRule[] = [];
 	let loading = true;
 	let error = '';
 	let showModal = false;
@@ -68,20 +68,11 @@
 	// Test notification state
 	let testingId: number | null = null;
 
-	// Delivery logs state
-	let showLogsModal = false;
-	let logsRule: NotificationRule | null = null;
-	let logs: NotificationLog[] = [];
-	let logsLoading = false;
 
 	onMount(async () => {
 		await Promise.all([loadRules(), loadGeofences()]);
 		$refreshHandler = refresh;
 	});
-
-	function isAdminUser(): boolean {
-		return ($currentUser as Record<string, unknown> | null)?.administrator === true;
-	}
 
 	async function refresh() {
 		await Promise.all([loadRules(), loadGeofences()]);
@@ -89,10 +80,10 @@
 
 	async function loadGeofences() {
 		try {
-			if (isAdminUser()) {
+			if ($isAdmin) {
 				// Full lookup regardless of the "All users" toggle; the owner is
 				// shown only for other users' geofences.
-				const myName = (($currentUser as Record<string, unknown> | null)?.name as string) || '';
+				const myName = $currentUser?.name || '';
 				geofences = (await api.getAllGeofences()).map((g) =>
 					g.ownerName && g.ownerName === myName ? { ...g, ownerName: undefined } : g
 				);
@@ -112,8 +103,8 @@
 		loading = true;
 		error = '';
 		try {
-			const rules = await fetchNotifications(isAdminUser());
-			notificationRules.set(rules);
+			const rules = await fetchNotifications();
+			notificationRules = rules;
 		} catch (err: any) {
 			error = 'Failed to load notification rules';
 			console.error(err);
@@ -288,21 +279,6 @@
 		}
 	}
 
-	async function viewLogs(rule: NotificationRule) {
-		logsRule = rule;
-		logsLoading = true;
-		logs = [];
-		showLogsModal = true;
-
-		try {
-			logs = await api.getNotificationLogs(rule.id);
-		} catch (err: any) {
-			console.error('Failed to load logs:', err);
-		} finally {
-			logsLoading = false;
-		}
-	}
-
 	function addHeader() {
 		formHeaders = [...formHeaders, { key: '', value: '' }];
 	}
@@ -327,13 +303,6 @@
 		return 'No URL set';
 	}
 
-	function formatLogTime(dateStr: string): string {
-		try {
-			return new Date(dateStr).toLocaleString();
-		} catch {
-			return dateStr;
-		}
-	}
 </script>
 
 <svelte:head><title>Notifications - Motus</title></svelte:head>
@@ -367,7 +336,7 @@
 				<div class="spinner" aria-hidden="true"></div>
 				<p>Loading notification rules...</p>
 			</div>
-		{:else if $notificationRules.length === 0}
+		{:else if notificationRules.length === 0}
 			<div class="empty-state">
 				<svg viewBox="0 0 24 24" width="64" height="64" fill="none" stroke="var(--text-tertiary)" stroke-width="1">
 					<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
@@ -379,7 +348,7 @@
 			</div>
 		{:else}
 			<div class="rules-list">
-				{#each $notificationRules as rule (rule.id)}
+				{#each notificationRules as rule (rule.id)}
 					<div class="rule-card" class:disabled={!rule.enabled} class:other-user={rule.ownerName}>
 						<div class="rule-header">
 							<div class="rule-info">
@@ -417,7 +386,7 @@
 							{#if rule.updatedAt}
 								<div class="rule-detail">
 									<span class="detail-label">Last updated:</span>
-									<span class="detail-value">{formatLogTime(rule.updatedAt)}</span>
+									<span class="detail-value">{new Date(rule.updatedAt).toLocaleString()}</span>
 								</div>
 							{/if}
 						</div>
@@ -430,7 +399,7 @@
 									on:click={() => testRule(rule)}
 								>Test</Button>
 							{/if}
-							<Button size="sm" variant="secondary" on:click={() => viewLogs(rule)}>Logs</Button>
+							<a class="logs-link" href="/notifications/history?rule={rule.id}">Logs</a>
 							<Button size="sm" variant="secondary" on:click={() => openEdit(rule)}>Edit</Button>
 							<Button size="sm" variant="danger" on:click={() => deleteRule(rule.id)}>Delete</Button>
 						</div>
@@ -625,52 +594,6 @@
 	</svelte:fragment>
 </Modal>
 
-<!-- Delivery Logs Modal -->
-<Modal
-	open={showLogsModal}
-	title={logsRule ? `Delivery Logs: ${logsRule.name}` : 'Delivery Logs'}
-	on:close={() => (showLogsModal = false)}
->
-	{#if logsLoading}
-		<div class="logs-loading">
-			<div class="spinner" aria-hidden="true"></div>
-			<p>Loading delivery logs...</p>
-		</div>
-	{:else if logs.length === 0}
-		<div class="logs-empty">
-			<p>No delivery logs yet for this rule.</p>
-		</div>
-	{:else}
-		<div class="logs-list">
-			{#each logs as log (log.id)}
-				<div class="log-entry" class:log-success={log.status === 'sent'} class:log-failure={log.status === 'failed'}>
-					<div class="log-header">
-						<StatusIndicator status={log.status === 'sent' ? 'online' : log.status === 'queued' ? 'idle' : 'offline'} />
-						<span class="log-status">{log.status}</span>
-						<span class="log-time">{formatLogTime(log.createdAt)}</span>
-					</div>
-					{#if log.responseCode}
-						<div class="log-detail">
-							<span class="detail-label">Response code:</span>
-							<span class="detail-value">{log.responseCode}</span>
-						</div>
-					{/if}
-					{#if log.error}
-						<div class="log-detail log-error-text">
-							<span class="detail-label">Error:</span>
-							<span class="detail-value">{log.error}</span>
-						</div>
-					{/if}
-				</div>
-			{/each}
-		</div>
-	{/if}
-
-	<svelte:fragment slot="footer">
-		<Button variant="secondary" on:click={() => (showLogsModal = false)}>Close</Button>
-	</svelte:fragment>
-</Modal>
-
 <style>
 	.notifications-page {
 		padding: var(--space-6) 0;
@@ -700,6 +623,17 @@
 		background-color: var(--bg-secondary);
 		transition: all var(--transition-fast);
 	}
+	.logs-link {
+		padding: var(--space-1) var(--space-3);
+		color: var(--text-primary);
+		text-decoration: none;
+		font-size: var(--text-sm);
+		font-weight: var(--font-medium);
+		border: 1px solid var(--border-color);
+		border-radius: var(--radius-md);
+		background-color: var(--bg-secondary);
+	}
+	.logs-link:hover,
 	.history-link:hover {
 		color: var(--accent-primary);
 		border-color: var(--accent-primary);
@@ -724,8 +658,7 @@
 		padding: var(--space-16) var(--space-4);
 		gap: var(--space-4);
 	}
-	.loading-state p,
-	.logs-loading p {
+	.loading-state p {
 		color: var(--text-secondary);
 	}
 	/* Empty */
@@ -1043,58 +976,6 @@
 		color: var(--text-inverse);
 	}
 
-	/* Logs modal */
-	.logs-loading {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		padding: var(--space-8);
-		gap: var(--space-3);
-	}
-	.logs-empty {
-		text-align: center;
-		padding: var(--space-8);
-		color: var(--text-secondary);
-	}
-	.logs-list {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-3);
-		max-height: 400px;
-		overflow-y: auto;
-	}
-	.log-entry {
-		padding: var(--space-3);
-		background-color: var(--bg-secondary);
-		border-radius: var(--radius-md);
-		border-left: 3px solid var(--border-color);
-	}
-	.log-entry.log-success {
-		border-left-color: var(--status-online);
-	}
-	.log-entry.log-failure {
-		border-left-color: var(--error);
-	}
-	.log-header {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-		margin-bottom: var(--space-2);
-	}
-	.log-status {
-		font-size: var(--text-sm);
-		font-weight: var(--font-medium);
-		color: var(--text-primary);
-		text-transform: capitalize;
-	}
-	.log-time {
-		font-size: var(--text-xs);
-		color: var(--text-secondary);
-		margin-left: auto;
-	}
-	.log-error-text .detail-value {
-		color: var(--error);
-	}
 
 	.rule-card.other-user {
 		border-left: 3px solid var(--color-warning, #f59e0b);

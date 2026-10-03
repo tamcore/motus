@@ -14,6 +14,7 @@ vi.mock("$lib/api/client", () => ({
 }));
 vi.mock("$lib/stores/auth", () => ({
   currentUser: writable({ id: 1, email: "admin@motus.local", administrator: true }),
+  isAdmin: writable(true),
 }));
 vi.mock("$lib/stores/refresh", () => ({ refreshHandler: writable(null) }));
 vi.mock("$lib/stores/theme", () => ({ theme: writable("light") }));
@@ -26,13 +27,13 @@ vi.mock("$lib/composables/useLeaflet", () => {
       cleanup: vi.fn(),
       getMap: () => map,
       getLeaflet: () => L,
-      getTileLayer: () => null,
     }),
   };
 });
-vi.mock("$lib/utils/leaflet-heat", () => ({
-  loadHeatLayer: vi.fn().mockResolvedValue(() => ({ addTo: () => ({}) })),
-}));
+vi.mock("leaflet.heat", () => {
+  (window as unknown as { L: Record<string, unknown> }).L.heatLayer = () => ({ addTo: () => ({}) });
+  return {};
+});
 
 import { settings } from "$lib/stores/settings";
 import HeatmapPage from "../routes/heatmap/+page.svelte";

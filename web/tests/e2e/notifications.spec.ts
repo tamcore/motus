@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { test, expect } from '../fixtures/auth-fixture';
 import { NotificationsPage } from '../page-objects/NotificationsPage';
+import { mockFetch } from '../helpers/mock-fetch';
 
 test.describe('Notifications Page', () => {
   let notifPage: NotificationsPage;
@@ -95,11 +96,12 @@ test.describe('Notifications Page', () => {
     await expect(notifPage.modal).toHaveCount(0);
   });
 
-  test('should close modal on Escape key', async ({ authedPage }) => {
+  test('should close modal on Escape key and restore focus', async ({ authedPage }) => {
     await notifPage.createButton.click();
     await expect(notifPage.modal).toBeVisible();
     await authedPage.keyboard.press('Escape');
     await expect(notifPage.modal).toHaveCount(0);
+    await expect(notifPage.createButton).toBeFocused();
   });
 
   test('should create notification rule', async ({ authedPage }) => {
@@ -351,3 +353,37 @@ test.describe('Notification geofence filter and command actions', () => {
   });
 });
 
+test.describe('Delivery logs', () => {
+  const rule = (id: number, name: string) => ({
+    id, userId: 1, name, eventTypes: ['deviceOnline'], channel: 'webhook',
+    config: { channel: 'webhook', webhookUrl: 'https://example.com/hook' },
+    template: '', enabled: true, geofenceIds: [],
+    createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z',
+  });
+  const log = (id: number, ruleId: number) => ({
+    id, ruleId, status: 'sent', responseCode: 200, createdAt: `2026-01-0${id}T10:00:00Z`,
+  });
+
+  test('rule Logs link opens the history filtered to that rule', async ({ authedPage }) => {
+    const rules = [rule(1, 'PW Rule One'), rule(2, 'PW Rule Two')];
+    await mockFetch(authedPage, [
+      { path: '/api/notifications', body: rules },
+      { path: '/api/admin/notifications', body: rules },
+      { path: '/api/notifications/1/logs', body: [log(1, 1)] },
+      { path: '/api/notifications/2/logs', body: [log(2, 2), log(3, 2)] },
+    ]);
+
+    await authedPage.goto('/notifications');
+    const card = authedPage.locator('.rule-card', { hasText: 'PW Rule Two' });
+    await card.locator('a:has-text("Logs")').click();
+
+    await expect(authedPage).toHaveURL(/\/notifications\/history\?rule=2/);
+    await expect(authedPage.locator('#rule-filter')).toHaveValue('2');
+    const rows = authedPage.locator('table.history-table tbody tr');
+    await expect(rows).toHaveCount(2);
+    await expect(rows.first()).toContainText('PW Rule Two');
+
+    await authedPage.selectOption('#rule-filter', 'all');
+    await expect(rows).toHaveCount(3);
+  });
+});

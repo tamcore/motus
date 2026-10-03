@@ -5,7 +5,6 @@
 	import { api, fetchDevices, fetchPositions } from '$lib/api/client';
 	import { wsManager } from '$lib/stores/websocket';
 	import { settings } from '$lib/stores/settings';
-	import { currentUser } from '$lib/stores/auth';
 	import { refreshHandler } from '$lib/stores/refresh';
 	import { useLeaflet } from '$lib/composables/useLeaflet';
 	import { getOverlayById } from '$lib/utils/map-overlays';
@@ -164,10 +163,9 @@
 		}
 
 		try {
-			const isAdmin = ($currentUser as Record<string, unknown> | null)?.administrator === true;
 			const [devs, pos] = await Promise.all([
-				fetchDevices(isAdmin),
-				fetchPositions(isAdmin)
+				fetchDevices(),
+				fetchPositions()
 			]);
 			void loadGeofences();
 			devices = devs;
@@ -650,11 +648,10 @@
 	}
 
 	async function reloadDevices() {
-		const isAdmin = ($currentUser as Record<string, unknown> | null)?.administrator === true;
 		try {
 			const [newDevices, newPositions] = await Promise.all([
-				fetchDevices(isAdmin),
-				fetchPositions(isAdmin)
+				fetchDevices(),
+				fetchPositions()
 			]);
 			devices = newDevices;
 

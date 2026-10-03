@@ -14,6 +14,7 @@ vi.mock("$lib/api/client", () => ({
 }));
 vi.mock("$lib/stores/auth", () => ({
   currentUser: writable({ id: 1, email: "admin@motus.local", administrator: true }),
+  isAdmin: writable(true),
 }));
 vi.mock("$lib/stores/refresh", () => ({ refreshHandler: writable(null) }));
 vi.mock("$lib/stores/theme", () => ({ theme: writable("light") }));

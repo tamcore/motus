@@ -41,7 +41,7 @@ import type {
 } from "$lib/types/api";
 import type { Trip } from "$lib/utils/trips";
 import type { Stop } from "$lib/utils/stops";
-import { currentUser } from "$lib/stores/auth";
+import { currentUser, isAdmin } from "$lib/stores/auth";
 import * as svelteStore from "svelte/store";
 import { getAuthHeaders, setCsrfToken } from "./headers";
 
@@ -635,33 +635,30 @@ export const api = {
  * everyone else gets only their own.
  */
 async function fetchScoped<T extends object>(
-  isAdmin: boolean,
   all: () => Promise<T[]>,
   own: () => Promise<T[]>,
 ): Promise<T[]> {
   const { getSettings } = await import("$lib/stores/settings");
-  if (isAdmin && getSettings().showAllDevices) {
+  if (svelteStore.get(isAdmin) && getSettings().showAllDevices) {
     return stripOwnOwnerName(await all());
   }
   return own();
 }
 
-export const fetchDevices = (isAdmin: boolean) =>
-  fetchScoped<Device>(isAdmin, api.getAllDevices, api.getDevices);
-export const fetchPositions = (isAdmin: boolean) =>
-  fetchScoped<Position>(isAdmin, () => api.getAllPositions(), () => api.getPositions());
-export const fetchGeofences = (isAdmin: boolean) =>
-  fetchScoped<Geofence>(isAdmin, api.getAllGeofences, api.getGeofences);
-export const fetchCalendars = (isAdmin: boolean) =>
-  fetchScoped<Calendar>(isAdmin, api.getAllCalendars, api.getCalendars);
-export const fetchNotifications = (isAdmin: boolean) =>
-  fetchScoped<NotificationRule>(isAdmin, api.getAllNotifications, api.getNotifications);
+export const fetchDevices = () =>
+  fetchScoped<Device>(api.getAllDevices, api.getDevices);
+export const fetchPositions = () =>
+  fetchScoped<Position>(() => api.getAllPositions(), () => api.getPositions());
+export const fetchGeofences = () =>
+  fetchScoped<Geofence>(api.getAllGeofences, api.getGeofences);
+export const fetchCalendars = () =>
+  fetchScoped<Calendar>(api.getAllCalendars, api.getCalendars);
+export const fetchNotifications = () =>
+  fetchScoped<NotificationRule>(api.getAllNotifications, api.getNotifications);
 
 /** Clear ownerName on items that belong to the current user so they don't get highlighted. */
 function stripOwnOwnerName<T extends object>(items: T[]): T[] {
-  const { get } = svelteStore;
-  const user = get(currentUser) as Record<string, unknown> | null;
-  const myName = (user?.name as string) || "";
+  const myName = svelteStore.get(currentUser)?.name || "";
   if (!myName) return items;
   return items.map((item) =>
     "ownerName" in item && item.ownerName === myName ? { ...item, ownerName: undefined } : item

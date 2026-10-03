@@ -3,7 +3,6 @@
 	import { onMount, onDestroy, tick } from 'svelte';
 	import { page } from '$app/stores';
 	import { api, fetchDevices } from '$lib/api/client';
-	import { currentUser } from '$lib/stores/auth';
 	import { refreshHandler } from '$lib/stores/refresh';
 	import { useLeaflet } from '$lib/composables/useLeaflet';
 	import { theme } from '$lib/stores/theme';
@@ -158,12 +157,7 @@
 			zoomControl: true,
 		});
 
-		try {
-			const isAdmin = ($currentUser as Record<string, unknown> | null)?.administrator === true;
-			devices = (await fetchDevices(isAdmin)) as unknown as Device[];
-		} catch (e) {
-			console.error('Failed to load devices:', e);
-		}
+		await reloadDevices();
 
 		// If query params provided, auto-load
 		if (qDeviceId && qFrom && qTo) {
@@ -187,11 +181,10 @@
 	});
 
 	async function reloadDevices() {
-		const isAdmin = ($currentUser as Record<string, unknown> | null)?.administrator === true;
 		try {
-			devices = (await fetchDevices(isAdmin)) as unknown as Device[];
-		} catch {
-			console.error('Failed to reload devices');
+			devices = await fetchDevices();
+		} catch (e) {
+			console.error('Failed to load devices:', e);
 		}
 	}
 

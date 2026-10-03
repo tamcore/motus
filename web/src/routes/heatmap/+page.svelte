@@ -2,7 +2,6 @@
 	import { resolveDatePreset, type DatePreset } from '$lib/utils/date-range';
 	import { onMount, onDestroy } from 'svelte';
 	import { api, fetchDevices } from '$lib/api/client';
-	import { currentUser } from '$lib/stores/auth';
 	import { refreshHandler } from '$lib/stores/refresh';
 	import { theme } from '$lib/stores/theme';
 	import { useLeaflet } from '$lib/composables/useLeaflet';
@@ -111,8 +110,7 @@
 
 	async function loadDevices() {
 		try {
-			const isAdmin = ($currentUser as Record<string, unknown> | null)?.administrator === true;
-			devices = await fetchDevices(isAdmin);
+			devices = await fetchDevices();
 		} catch (err) {
 			console.error('Failed to load devices:', err);
 		}

@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { RELATIVE_DATE_PRESETS, resolveDatePreset, type DatePreset } from '$lib/utils/date-range';
+	import type { Device } from '$lib/types/api';
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
 	import { page } from '$app/stores';
 	import { api, fetchDevices } from '$lib/api/client';
-	import { currentUser } from '$lib/stores/auth';
 	import { refreshHandler } from '$lib/stores/refresh';
 	import { exportTripsToCSV } from '$lib/utils/trips';
 	import { exportStopsToCSV } from '$lib/utils/stops';
@@ -22,7 +22,6 @@
 	let chartCanvas: HTMLCanvasElement;
 	let chartInstance: Chart | null = null;
 
-	interface Device { id: number; name: string; uniqueId: string; status: string; }
 
 	const PAGE_SIZE_OPTIONS = [5, 10, 25, 50, 100];
 	const DEFAULT_PAGE_SIZE = 10;
@@ -217,10 +216,8 @@
 			columnConfigLoaded = true;
 		}
 
+		await reloadDevices();
 		try {
-			const isAdmin = ($currentUser as Record<string, unknown> | null)?.administrator === true;
-			devices = (await fetchDevices(isAdmin)) as Device[];
-
 			// Pre-select device from query param (?device=ID)
 			const deviceParam = $page.url.searchParams.get('device');
 			if (deviceParam && devices.some((d) => String(d.id) === deviceParam)) {
@@ -232,7 +229,7 @@
 				await fetchReports();
 			}
 		} catch (error) {
-			console.error('Failed to load devices:', error);
+			console.error('Failed to load reports:', error);
 		} finally {
 			loading = false;
 		}
@@ -246,11 +243,10 @@
 	});
 
 	async function reloadDevices() {
-		const isAdmin = ($currentUser as Record<string, unknown> | null)?.administrator === true;
 		try {
-			devices = (await fetchDevices(isAdmin)) as Device[];
-		} catch {
-			console.error('Failed to reload devices');
+			devices = await fetchDevices();
+		} catch (error) {
+			console.error('Failed to load devices:', error);
 		}
 	}
 </script>

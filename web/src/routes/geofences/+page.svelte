@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { api, fetchGeofences, fetchCalendars } from '$lib/api/client';
-	import { currentUser } from '$lib/stores/auth';
 	import { refreshHandler } from '$lib/stores/refresh';
 	import { useUserLocation, userLocationLayers } from '$lib/composables/useUserLocation';
 	import { useLeaflet } from '$lib/composables/useLeaflet';
@@ -116,8 +115,7 @@
 	 */
 	async function loadCalendars() {
 		try {
-			const isAdmin = ($currentUser as Record<string, unknown> | null)?.administrator === true;
-			calendars = await fetchCalendars(isAdmin);
+			calendars = await fetchCalendars();
 		} catch {
 			calendars = [];
 		}
@@ -129,8 +127,7 @@
 	 */
 	async function loadGeofences() {
 		try {
-			const isAdmin = ($currentUser as Record<string, unknown> | null)?.administrator === true;
-			const data: any[] = await fetchGeofences(isAdmin);
+			const data: any[] = await fetchGeofences();
 			geofences = data.map((gf) => {
 				const layer = addGeofenceToMap(gf);
 				return { ...gf, layer };

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { currentUser } from '$lib/stores/auth';
+	import { isAdmin } from '$lib/stores/auth';
 	import { refreshHandler } from '$lib/stores/refresh';
 	import { api } from '$lib/api/client';
 	import { formatDate } from '$lib/utils/formatting';
@@ -100,12 +100,11 @@
 	// Detail expansion
 	let expandedId: number | null = null;
 
-	$: isAdmin = ($currentUser as Record<string, unknown> | null)?.administrator === true;
 	$: totalPages = Math.ceil(total / PAGE_SIZE);
 	$: offset = currentPage * PAGE_SIZE;
 
 	onMount(() => {
-		if (!isAdmin) {
+		if (!$isAdmin) {
 			goto('/');
 			return;
 		}

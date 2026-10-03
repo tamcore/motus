@@ -1844,6 +1844,71 @@ func decodeDeleteShareParams(args [1]string, argsEscaped bool, r *http.Request) 
 	return params, nil
 }
 
+// DeleteTrailBookmarkParams is parameters of deleteTrailBookmark operation.
+type DeleteTrailBookmarkParams struct {
+	ID int64
+}
+
+func unpackDeleteTrailBookmarkParams(packed middleware.Parameters) (params DeleteTrailBookmarkParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(int64)
+	}
+	return params
+}
+
+func decodeDeleteTrailBookmarkParams(args [1]string, argsEscaped bool, r *http.Request) (params DeleteTrailBookmarkParams, _ error) {
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToInt64(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // GetCommandTypesParams is parameters of getCommandTypes operation.
 type GetCommandTypesParams struct {
 	DeviceId OptInt64 `json:",omitempty,omitzero"`
@@ -3060,6 +3125,71 @@ func decodeListSharesParams(args [1]string, argsEscaped bool, r *http.Request) (
 	return params, nil
 }
 
+// ListTrailBookmarksParams is parameters of listTrailBookmarks operation.
+type ListTrailBookmarksParams struct {
+	// Only return bookmarks of this device.
+	DeviceId OptInt64 `json:",omitempty,omitzero"`
+}
+
+func unpackListTrailBookmarksParams(packed middleware.Parameters) (params ListTrailBookmarksParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "deviceId",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.DeviceId = v.(OptInt64)
+		}
+	}
+	return params
+}
+
+func decodeListTrailBookmarksParams(args [0]string, argsEscaped bool, r *http.Request) (params ListTrailBookmarksParams, _ error) {
+	q := uri.NewQueryDecoder(r.URL.Query())
+	// Decode query: deviceId.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "deviceId",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotDeviceIdVal int64
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToInt64(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotDeviceIdVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.DeviceId.SetTo(paramsDotDeviceIdVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "deviceId",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // NotificationLogsParams is parameters of notificationLogs operation.
 type NotificationLogsParams struct {
 	ID int64
@@ -3972,6 +4102,71 @@ func unpackUpdateNotificationParams(packed middleware.Parameters) (params Update
 }
 
 func decodeUpdateNotificationParams(args [1]string, argsEscaped bool, r *http.Request) (params UpdateNotificationParams, _ error) {
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToInt64(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// UpdateTrailBookmarkParams is parameters of updateTrailBookmark operation.
+type UpdateTrailBookmarkParams struct {
+	ID int64
+}
+
+func unpackUpdateTrailBookmarkParams(packed middleware.Parameters) (params UpdateTrailBookmarkParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(int64)
+	}
+	return params
+}
+
+func decodeUpdateTrailBookmarkParams(args [1]string, argsEscaped bool, r *http.Request) (params UpdateTrailBookmarkParams, _ error) {
 	// Decode path: id.
 	if err := func() error {
 		param := args[0]

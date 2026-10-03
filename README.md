@@ -10,6 +10,7 @@ A production-ready GPS tracking system with real-time updates, geofencing, notif
 - **Geofencing** — Draw polygons/rectangles/circles on a map, real-time enter/exit detection via PostGIS
 - **Notifications** — Webhook delivery with template variables, event types: geofence, online/offline, overspeed, motion, idle
 - **Reports** — Trip detection, route playback with animation, heatmaps, distance charts, CSV/GPX export
+- **Trail Bookmarks** — Save a device trail time range as a named bookmark (e.g. a hike) with an optional description, and reopen it on the map or from the Bookmarks page
 - **Security** — Session cookies + Bearer tokens, RBAC (admin/user/readonly), CSRF protection, audit logging
 - **UI** — Dark/light themes, mobile responsive, metric/imperial units, timezone preferences
 - **AI Assistant** — Natural-language control of geofences, calendars, notifications, and device queries via any OpenAI-compatible API (opt-in, requires API key). See [docs/ai-assistant.md](docs/ai-assistant.md).
@@ -104,7 +105,7 @@ motus version                                    # Print version
 
 See [docs/import.md](docs/import.md) and [docs/replay.md](docs/replay.md) for tool documentation.
 
-See [docs/ai-assistant.md](docs/ai-assistant.md) and [docs/ai-mcp-tools.md](docs/ai-mcp-tools.md) for the AI assistant feature and its 16 MCP tools.
+See [docs/ai-assistant.md](docs/ai-assistant.md) and [docs/ai-mcp-tools.md](docs/ai-mcp-tools.md) for the AI assistant feature and its 17 MCP tools.
 
 ## License
 

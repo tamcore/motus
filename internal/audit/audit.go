@@ -59,6 +59,11 @@ const (
 	ActionCalendarUpdate = "calendar.update"
 	ActionCalendarDelete = "calendar.delete"
 
+	// Trail bookmark CRUD actions.
+	ActionTrailBookmarkCreate = "trail_bookmark.create"
+	ActionTrailBookmarkUpdate = "trail_bookmark.update"
+	ActionTrailBookmarkDelete = "trail_bookmark.delete"
+
 	// Notification rule CRUD actions.
 	ActionNotifCreate = "notification.create"
 	ActionNotifUpdate = "notification.update"
@@ -86,15 +91,16 @@ const (
 
 // Standard resource types.
 const (
-	ResourceUser         = "user"
-	ResourceDevice       = "device"
-	ResourceGeofence     = "geofence"
-	ResourceCalendar     = "calendar"
-	ResourceNotification = "notification"
-	ResourceSession      = "session"
-	ResourceApiKey       = "apikey"
-	ResourceShare        = "share"
-	ResourceCommand      = "command"
+	ResourceUser          = "user"
+	ResourceDevice        = "device"
+	ResourceGeofence      = "geofence"
+	ResourceCalendar      = "calendar"
+	ResourceTrailBookmark = "trail_bookmark"
+	ResourceNotification  = "notification"
+	ResourceSession       = "session"
+	ResourceApiKey        = "apikey"
+	ResourceShare         = "share"
+	ResourceCommand       = "command"
 )
 
 // Entry represents a single audit log entry.

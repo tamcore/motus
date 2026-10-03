@@ -109,6 +109,10 @@ type CreateShareRes interface {
 	createShareRes()
 }
 
+type CreateTrailBookmarkRes interface {
+	createTrailBookmarkRes()
+}
+
 type DeleteApiKeyRes interface {
 	deleteApiKeyRes()
 }
@@ -139,6 +143,10 @@ type DeleteSessionRes interface {
 
 type DeleteShareRes interface {
 	deleteShareRes()
+}
+
+type DeleteTrailBookmarkRes interface {
+	deleteTrailBookmarkRes()
 }
 
 type EndSudoRes interface {
@@ -229,6 +237,10 @@ type ListSharesRes interface {
 	listSharesRes()
 }
 
+type ListTrailBookmarksRes interface {
+	listTrailBookmarksRes()
+}
+
 type LoginReq interface {
 	loginReq()
 }
@@ -303,4 +315,8 @@ type UpdateNotificationRes interface {
 
 type UpdateProfileRes interface {
 	updateProfileRes()
+}
+
+type UpdateTrailBookmarkRes interface {
+	updateTrailBookmarkRes()
 }

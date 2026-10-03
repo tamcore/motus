@@ -932,6 +932,14 @@ func (s ListSharesOKApplicationJSON) Validate() error {
 	return nil
 }
 
+func (s ListTrailBookmarksOKApplicationJSON) Validate() error {
+	alias := ([]TrailBookmark)(s)
+	if alias == nil {
+		return errors.New("nil is invalid value")
+	}
+	return nil
+}
+
 func (s *LoginApplicationJSON) Validate() error {
 	alias := (*LoginRequest)(s)
 	if err := alias.Validate(); err != nil {

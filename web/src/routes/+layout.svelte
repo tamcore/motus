@@ -197,6 +197,9 @@
 					<a href="/heatmap" class="nav-link" class:active={$page.url.pathname === '/heatmap'}>
 						Heatmap
 					</a>
+					<a href="/bookmarks" class="nav-link" class:active={$page.url.pathname === '/bookmarks'}>
+						Bookmarks
+					</a>
 					<a href="/reports" class="nav-link" class:active={$page.url.pathname.startsWith('/reports')}>
 						Reports
 					</a>

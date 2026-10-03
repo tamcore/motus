@@ -17,20 +17,21 @@ import (
 
 // HandlerConfig holds all dependencies for the unified Handler.
 type HandlerConfig struct {
-	Users         repository.UserRepo
-	Sessions      repository.SessionRepo
-	Devices       repository.DeviceRepo
-	Positions     repository.PositionRepo
-	Commands      repository.CommandRepo
-	Geofences     repository.GeofenceRepo
-	Events        repository.EventRepo
-	Notifications repository.NotificationRepo
-	Shares        repository.DeviceShareRepo
-	ApiKeys       repository.ApiKeyRepo
-	Calendars     repository.CalendarRepo
-	Stats         repository.StatisticsRepo
-	OIDCStateRepo repository.OIDCStateRepo
-	Passkeys      repository.PasskeyRepo
+	Users          repository.UserRepo
+	Sessions       repository.SessionRepo
+	Devices        repository.DeviceRepo
+	Positions      repository.PositionRepo
+	Commands       repository.CommandRepo
+	Geofences      repository.GeofenceRepo
+	Events         repository.EventRepo
+	Notifications  repository.NotificationRepo
+	Shares         repository.DeviceShareRepo
+	ApiKeys        repository.ApiKeyRepo
+	Calendars      repository.CalendarRepo
+	TrailBookmarks repository.TrailBookmarkRepo
+	Stats          repository.StatisticsRepo
+	OIDCStateRepo  repository.OIDCStateRepo
+	Passkeys       repository.PasskeyRepo
 
 	// WebAuthn is the passkey ceremony engine. Nil when passkeys are disabled
 	// or misconfigured; handlers then respond 501.

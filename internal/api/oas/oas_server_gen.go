@@ -171,6 +171,12 @@ type Handler interface {
 	//
 	// POST /api/devices/{id}/share
 	CreateShare(ctx context.Context, req OptCreateShareRequest, params CreateShareParams) (CreateShareRes, error)
+	// CreateTrailBookmark implements createTrailBookmark operation.
+	//
+	// Save a device trail time range as a bookmark.
+	//
+	// POST /api/trail-bookmarks
+	CreateTrailBookmark(ctx context.Context, req *TrailBookmarkInput) (CreateTrailBookmarkRes, error)
 	// DeleteApiKey implements deleteApiKey operation.
 	//
 	// Delete an API key.
@@ -219,6 +225,13 @@ type Handler interface {
 	//
 	// DELETE /api/shares/{id}
 	DeleteShare(ctx context.Context, params DeleteShareParams) (DeleteShareRes, error)
+	// DeleteTrailBookmark implements deleteTrailBookmark operation.
+	//
+	// Allowed for the bookmark's owner and for administrators. Device access is not required, so owners
+	// can remove bookmarks of devices they lost access to. Inaccessible bookmarks answer 404.
+	//
+	// DELETE /api/trail-bookmarks/{id}
+	DeleteTrailBookmark(ctx context.Context, params DeleteTrailBookmarkParams) (DeleteTrailBookmarkRes, error)
 	// EndSudo implements endSudo operation.
 	//
 	// End sudo/impersonation session.
@@ -374,6 +387,13 @@ type Handler interface {
 	//
 	// GET /api/devices/{id}/shares
 	ListShares(ctx context.Context, params ListSharesParams) (ListSharesRes, error)
+	// ListTrailBookmarks implements listTrailBookmarks operation.
+	//
+	// Returns the caller's own bookmarks (also for administrators), newest range first. Bookmarks of
+	// devices the caller can no longer access are omitted.
+	//
+	// GET /api/trail-bookmarks
+	ListTrailBookmarks(ctx context.Context, params ListTrailBookmarksParams) (ListTrailBookmarksRes, error)
 	// Login implements login operation.
 	//
 	// Login with email + password.
@@ -494,6 +514,13 @@ type Handler interface {
 	//
 	// PUT /api/profile
 	UpdateProfile(ctx context.Context, req *UpdateProfileRequest) (UpdateProfileRes, error)
+	// UpdateTrailBookmark implements updateTrailBookmark operation.
+	//
+	// Allowed for the bookmark's owner and for administrators. The caller also needs access to the
+	// bookmarked device (and to the new device when it changes). Inaccessible bookmarks answer 404.
+	//
+	// PUT /api/trail-bookmarks/{id}
+	UpdateTrailBookmark(ctx context.Context, req *TrailBookmarkInput, params UpdateTrailBookmarkParams) (UpdateTrailBookmarkRes, error)
 	// NewError creates *UnexpectedErrorStatusCode from error returned by handler.
 	//
 	// Used for common default response.

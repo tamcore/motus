@@ -136,6 +136,7 @@ func Run() {
 	notificationService := services.NewNotificationService(notificationRepo, deviceRepo, geofenceRepo, positionRepo)
 
 	calendarRepo := repository.NewCalendarRepository(pool)
+	trailBookmarkRepo := repository.NewTrailBookmarkRepository(pool)
 
 	// OIDC state repository.
 	oidcStateRepo := repository.NewOIDCStateRepository(pool)
@@ -249,6 +250,7 @@ func Run() {
 		Shares:              shareRepo,
 		ApiKeys:             apiKeyRepo,
 		Calendars:           calendarRepo,
+		TrailBookmarks:      trailBookmarkRepo,
 		Stats:               statsRepo,
 		OIDCStateRepo:       oidcStateRepo,
 		Passkeys:            passkeyRepo,
@@ -316,6 +318,7 @@ func Run() {
 			Calendars:       calendarRepo,
 			CalendarService: calendarService,
 			Notifications:   notificationRepo,
+			TrailBookmarks:  trailBookmarkRepo,
 			AuditLogger:     auditLogger,
 			ForwardGeocoder: forwardGeocoder,
 		})

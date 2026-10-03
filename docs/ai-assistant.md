@@ -19,7 +19,7 @@ reloads.
 ```
 Browser /chat ──POST {message}──► /api/chat ──► Service.Stream ──► OpenAI-compatible API
                                       │              │
-                                      │              ├──► MCP tool dispatch (16 tools)
+                                      │              ├──► MCP tool dispatch (17 tools)
                                       │              │        │
                                       │              │        └──► repositories, geocoder, services
                                       │              │

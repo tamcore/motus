@@ -257,6 +257,15 @@ func (UnimplementedHandler) CreateShare(ctx context.Context, req OptCreateShareR
 	return r, ht.ErrNotImplemented
 }
 
+// CreateTrailBookmark implements createTrailBookmark operation.
+//
+// Save a device trail time range as a bookmark.
+//
+// POST /api/trail-bookmarks
+func (UnimplementedHandler) CreateTrailBookmark(ctx context.Context, req *TrailBookmarkInput) (r CreateTrailBookmarkRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // DeleteApiKey implements deleteApiKey operation.
 //
 // Delete an API key.
@@ -326,6 +335,16 @@ func (UnimplementedHandler) DeleteSession(ctx context.Context, params DeleteSess
 //
 // DELETE /api/shares/{id}
 func (UnimplementedHandler) DeleteShare(ctx context.Context, params DeleteShareParams) (r DeleteShareRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// DeleteTrailBookmark implements deleteTrailBookmark operation.
+//
+// Allowed for the bookmark's owner and for administrators. Device access is not required, so owners
+// can remove bookmarks of devices they lost access to. Inaccessible bookmarks answer 404.
+//
+// DELETE /api/trail-bookmarks/{id}
+func (UnimplementedHandler) DeleteTrailBookmark(ctx context.Context, params DeleteTrailBookmarkParams) (r DeleteTrailBookmarkRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -559,6 +578,16 @@ func (UnimplementedHandler) ListShares(ctx context.Context, params ListSharesPar
 	return r, ht.ErrNotImplemented
 }
 
+// ListTrailBookmarks implements listTrailBookmarks operation.
+//
+// Returns the caller's own bookmarks (also for administrators), newest range first. Bookmarks of
+// devices the caller can no longer access are omitted.
+//
+// GET /api/trail-bookmarks
+func (UnimplementedHandler) ListTrailBookmarks(ctx context.Context, params ListTrailBookmarksParams) (r ListTrailBookmarksRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // Login implements login operation.
 //
 // Login with email + password.
@@ -733,6 +762,16 @@ func (UnimplementedHandler) UpdateNotification(ctx context.Context, req *Notific
 //
 // PUT /api/profile
 func (UnimplementedHandler) UpdateProfile(ctx context.Context, req *UpdateProfileRequest) (r UpdateProfileRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// UpdateTrailBookmark implements updateTrailBookmark operation.
+//
+// Allowed for the bookmark's owner and for administrators. The caller also needs access to the
+// bookmarked device (and to the new device when it changes). Inaccessible bookmarks answer 404.
+//
+// PUT /api/trail-bookmarks/{id}
+func (UnimplementedHandler) UpdateTrailBookmark(ctx context.Context, req *TrailBookmarkInput, params UpdateTrailBookmarkParams) (r UpdateTrailBookmarkRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

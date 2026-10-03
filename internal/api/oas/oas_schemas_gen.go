@@ -2858,6 +2858,18 @@ type CreateShareUnauthorized Error
 
 func (*CreateShareUnauthorized) createShareRes() {}
 
+type CreateTrailBookmarkBadRequest Error
+
+func (*CreateTrailBookmarkBadRequest) createTrailBookmarkRes() {}
+
+type CreateTrailBookmarkNotFound Error
+
+func (*CreateTrailBookmarkNotFound) createTrailBookmarkRes() {}
+
+type CreateTrailBookmarkUnauthorized Error
+
+func (*CreateTrailBookmarkUnauthorized) createTrailBookmarkRes() {}
+
 type DeleteApiKeyForbidden Error
 
 func (*DeleteApiKeyForbidden) deleteApiKeyRes() {}
@@ -2985,6 +2997,19 @@ func (*DeleteShareNotFound) deleteShareRes() {}
 type DeleteShareUnauthorized Error
 
 func (*DeleteShareUnauthorized) deleteShareRes() {}
+
+// DeleteTrailBookmarkNoContent is response for DeleteTrailBookmark operation.
+type DeleteTrailBookmarkNoContent struct{}
+
+func (*DeleteTrailBookmarkNoContent) deleteTrailBookmarkRes() {}
+
+type DeleteTrailBookmarkNotFound Error
+
+func (*DeleteTrailBookmarkNotFound) deleteTrailBookmarkRes() {}
+
+type DeleteTrailBookmarkUnauthorized Error
+
+func (*DeleteTrailBookmarkUnauthorized) deleteTrailBookmarkRes() {}
 
 // Ref: #/components/schemas/Device
 type Device struct {
@@ -3443,26 +3468,27 @@ func (s *Error) SetError(val string) {
 	s.Error = val
 }
 
-func (*Error) endSudoRes()           {}
-func (*Error) generateTokenRes()     {}
-func (*Error) getPositionsRes()      {}
-func (*Error) getSessionRes()        {}
-func (*Error) getSharedDeviceRes()   {}
-func (*Error) getSudoStatusRes()     {}
-func (*Error) listApiKeysRes()       {}
-func (*Error) listCalendarsRes()     {}
-func (*Error) listCommandsRes()      {}
-func (*Error) listDevicesRes()       {}
-func (*Error) listEventsRes()        {}
-func (*Error) listGeofencesRes()     {}
-func (*Error) listNotificationsRes() {}
-func (*Error) listPasskeysRes()      {}
-func (*Error) listSessionsRes()      {}
-func (*Error) logoutAllRes()         {}
-func (*Error) logoutRes()            {}
-func (*Error) oidcCallbackRes()      {}
-func (*Error) passkeyLoginBeginRes() {}
-func (*Error) reportEventsRes()      {}
+func (*Error) endSudoRes()            {}
+func (*Error) generateTokenRes()      {}
+func (*Error) getPositionsRes()       {}
+func (*Error) getSessionRes()         {}
+func (*Error) getSharedDeviceRes()    {}
+func (*Error) getSudoStatusRes()      {}
+func (*Error) listApiKeysRes()        {}
+func (*Error) listCalendarsRes()      {}
+func (*Error) listCommandsRes()       {}
+func (*Error) listDevicesRes()        {}
+func (*Error) listEventsRes()         {}
+func (*Error) listGeofencesRes()      {}
+func (*Error) listNotificationsRes()  {}
+func (*Error) listPasskeysRes()       {}
+func (*Error) listSessionsRes()       {}
+func (*Error) listTrailBookmarksRes() {}
+func (*Error) logoutAllRes()          {}
+func (*Error) logoutRes()             {}
+func (*Error) oidcCallbackRes()       {}
+func (*Error) passkeyLoginBeginRes()  {}
+func (*Error) reportEventsRes()       {}
 
 // Ref: #/components/schemas/Event
 type Event struct {
@@ -4361,6 +4387,10 @@ func (*ListSharesOKApplicationJSON) listSharesRes() {}
 type ListSharesUnauthorized Error
 
 func (*ListSharesUnauthorized) listSharesRes() {}
+
+type ListTrailBookmarksOKApplicationJSON []TrailBookmark
+
+func (*ListTrailBookmarksOKApplicationJSON) listTrailBookmarksRes() {}
 
 type LoginApplicationJSON LoginRequest
 
@@ -7113,6 +7143,188 @@ func (s *TokenResponse) SetToken(val string) {
 
 func (*TokenResponse) generateTokenRes() {}
 
+// A named, saved time range of a device's trail (e.g. a hike). A bookmark belongs to the user who
+// created it; administrators may also update or delete other users' bookmarks by ID.
+// Ref: #/components/schemas/TrailBookmark
+type TrailBookmark struct {
+	ID          int64     `json:"id"`
+	UserId      OptInt64  `json:"userId"`
+	DeviceId    int64     `json:"deviceId"`
+	DeviceName  OptString `json:"deviceName"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	From        time.Time `json:"from"`
+	To          time.Time `json:"to"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
+}
+
+// GetID returns the value of ID.
+func (s *TrailBookmark) GetID() int64 {
+	return s.ID
+}
+
+// GetUserId returns the value of UserId.
+func (s *TrailBookmark) GetUserId() OptInt64 {
+	return s.UserId
+}
+
+// GetDeviceId returns the value of DeviceId.
+func (s *TrailBookmark) GetDeviceId() int64 {
+	return s.DeviceId
+}
+
+// GetDeviceName returns the value of DeviceName.
+func (s *TrailBookmark) GetDeviceName() OptString {
+	return s.DeviceName
+}
+
+// GetName returns the value of Name.
+func (s *TrailBookmark) GetName() string {
+	return s.Name
+}
+
+// GetDescription returns the value of Description.
+func (s *TrailBookmark) GetDescription() string {
+	return s.Description
+}
+
+// GetFrom returns the value of From.
+func (s *TrailBookmark) GetFrom() time.Time {
+	return s.From
+}
+
+// GetTo returns the value of To.
+func (s *TrailBookmark) GetTo() time.Time {
+	return s.To
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *TrailBookmark) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *TrailBookmark) GetUpdatedAt() time.Time {
+	return s.UpdatedAt
+}
+
+// SetID sets the value of ID.
+func (s *TrailBookmark) SetID(val int64) {
+	s.ID = val
+}
+
+// SetUserId sets the value of UserId.
+func (s *TrailBookmark) SetUserId(val OptInt64) {
+	s.UserId = val
+}
+
+// SetDeviceId sets the value of DeviceId.
+func (s *TrailBookmark) SetDeviceId(val int64) {
+	s.DeviceId = val
+}
+
+// SetDeviceName sets the value of DeviceName.
+func (s *TrailBookmark) SetDeviceName(val OptString) {
+	s.DeviceName = val
+}
+
+// SetName sets the value of Name.
+func (s *TrailBookmark) SetName(val string) {
+	s.Name = val
+}
+
+// SetDescription sets the value of Description.
+func (s *TrailBookmark) SetDescription(val string) {
+	s.Description = val
+}
+
+// SetFrom sets the value of From.
+func (s *TrailBookmark) SetFrom(val time.Time) {
+	s.From = val
+}
+
+// SetTo sets the value of To.
+func (s *TrailBookmark) SetTo(val time.Time) {
+	s.To = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *TrailBookmark) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *TrailBookmark) SetUpdatedAt(val time.Time) {
+	s.UpdatedAt = val
+}
+
+func (*TrailBookmark) createTrailBookmarkRes() {}
+func (*TrailBookmark) updateTrailBookmarkRes() {}
+
+// Ref: #/components/schemas/TrailBookmarkInput
+type TrailBookmarkInput struct {
+	DeviceId int64 `json:"deviceId"`
+	// Display name (required, at most 200 characters, i.e. Unicode code points; no < or >).
+	Name string `json:"name"`
+	// Optional free-text description (at most 2000 characters, i.e. Unicode code points; no < or >).
+	Description OptString `json:"description"`
+	// Start of the trail range.
+	From time.Time `json:"from"`
+	// End of the trail range (must be after from).
+	To time.Time `json:"to"`
+}
+
+// GetDeviceId returns the value of DeviceId.
+func (s *TrailBookmarkInput) GetDeviceId() int64 {
+	return s.DeviceId
+}
+
+// GetName returns the value of Name.
+func (s *TrailBookmarkInput) GetName() string {
+	return s.Name
+}
+
+// GetDescription returns the value of Description.
+func (s *TrailBookmarkInput) GetDescription() OptString {
+	return s.Description
+}
+
+// GetFrom returns the value of From.
+func (s *TrailBookmarkInput) GetFrom() time.Time {
+	return s.From
+}
+
+// GetTo returns the value of To.
+func (s *TrailBookmarkInput) GetTo() time.Time {
+	return s.To
+}
+
+// SetDeviceId sets the value of DeviceId.
+func (s *TrailBookmarkInput) SetDeviceId(val int64) {
+	s.DeviceId = val
+}
+
+// SetName sets the value of Name.
+func (s *TrailBookmarkInput) SetName(val string) {
+	s.Name = val
+}
+
+// SetDescription sets the value of Description.
+func (s *TrailBookmarkInput) SetDescription(val OptString) {
+	s.Description = val
+}
+
+// SetFrom sets the value of From.
+func (s *TrailBookmarkInput) SetFrom(val time.Time) {
+	s.From = val
+}
+
+// SetTo sets the value of To.
+func (s *TrailBookmarkInput) SetTo(val time.Time) {
+	s.To = val
+}
+
 // UnexpectedErrorStatusCode wraps Error with StatusCode.
 type UnexpectedErrorStatusCode struct {
 	StatusCode int
@@ -7255,6 +7467,18 @@ func (s *UpdateProfileRequest) SetCurrentPassword(val OptString) {
 type UpdateProfileUnauthorized Error
 
 func (*UpdateProfileUnauthorized) updateProfileRes() {}
+
+type UpdateTrailBookmarkBadRequest Error
+
+func (*UpdateTrailBookmarkBadRequest) updateTrailBookmarkRes() {}
+
+type UpdateTrailBookmarkNotFound Error
+
+func (*UpdateTrailBookmarkNotFound) updateTrailBookmarkRes() {}
+
+type UpdateTrailBookmarkUnauthorized Error
+
+func (*UpdateTrailBookmarkUnauthorized) updateTrailBookmarkRes() {}
 
 // Ref: #/components/schemas/User
 type User struct {

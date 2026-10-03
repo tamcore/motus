@@ -590,6 +590,57 @@ func TestReset_CleansPasskeys(t *testing.T) {
 	assertRowCount(t, pool, "SELECT COUNT(*) FROM passkey_credentials WHERE user_id = $1", 1, realUserID)
 }
 
+func TestReset_CleansTrailBookmarks(t *testing.T) {
+	pool := setupPool(t)
+	ctx := context.Background()
+
+	if _, err := demo.Reset(ctx, pool, demo.DefaultAccounts, demo.DefaultDeviceIMEIs); err != nil {
+		t.Fatalf("first Reset() failed: %v", err)
+	}
+
+	var demoUserID int64
+	if err := pool.QueryRow(ctx, "SELECT id FROM users WHERE email = 'demo@motus.local'").Scan(&demoUserID); err != nil {
+		t.Fatalf("failed to get demo user ID: %v", err)
+	}
+
+	// A non-demo user with a non-demo device whose bookmark must survive.
+	var realUserID, realDeviceID int64
+	if err := pool.QueryRow(ctx, `
+		INSERT INTO users (email, password_hash, name, role)
+		VALUES ('real-bm@example.com', 'hash', 'Real User', 'user')
+		RETURNING id
+	`).Scan(&realUserID); err != nil {
+		t.Fatalf("failed to create non-demo user: %v", err)
+	}
+	if err := pool.QueryRow(ctx, `
+		INSERT INTO devices (unique_id, name, status) VALUES ('real-bm-dev', 'Real Device', 'offline')
+		RETURNING id
+	`).Scan(&realDeviceID); err != nil {
+		t.Fatalf("failed to create non-demo device: %v", err)
+	}
+
+	// Demo user bookmarks a non-demo device (would survive device cleanup),
+	// the real user bookmarks the same device.
+	_, err := pool.Exec(ctx, `
+		INSERT INTO trail_bookmarks (user_id, device_id, name, from_time, to_time) VALUES
+			($1, $3, 'Demo Hike', NOW() - INTERVAL '2 hours', NOW()),
+			($2, $3, 'Real Hike', NOW() - INTERVAL '2 hours', NOW())
+	`, demoUserID, realUserID, realDeviceID)
+	if err != nil {
+		t.Fatalf("failed to insert bookmarks: %v", err)
+	}
+
+	result, err := demo.Reset(ctx, pool, demo.DefaultAccounts, demo.DefaultDeviceIMEIs)
+	if err != nil {
+		t.Fatalf("second Reset() failed: %v", err)
+	}
+	if result.TrailBookmarksDeleted != 1 {
+		t.Errorf("TrailBookmarksDeleted = %d, want 1", result.TrailBookmarksDeleted)
+	}
+	assertRowCount(t, pool, "SELECT COUNT(*) FROM trail_bookmarks WHERE user_id = $1", 0, demoUserID)
+	assertRowCount(t, pool, "SELECT COUNT(*) FROM trail_bookmarks WHERE user_id = $1", 1, realUserID)
+}
+
 // assertRowCount verifies a COUNT(*) query returns the expected value.
 func assertRowCount(t *testing.T, pool *pgxpool.Pool, query string, want int, args ...any) {
 	t.Helper()

@@ -130,6 +130,14 @@ For webhook channel: provide webhook_url (must be http/https; private IPs are bl
 		mcp.WithString("id", mcp.Required(), mcp.Description("Rule ID.")),
 	), withDeps(deps, handleDeleteNotificationRule))
 
+	// ---- trail bookmarks ---------------------------------------------------------
+
+	s.AddTool(mcp.NewTool("list_trail_bookmarks",
+		mcp.WithDescription("Lists the user's saved trail bookmarks (named device time ranges such as hikes), newest first. Each has from/to (RFC3339) that can be passed to get_distance_traveled or list_events. Read-only."),
+		mcp.WithString("device_id", mcp.Description("Limit to a single device ID.")),
+		mcp.WithString("device_name", mcp.Description("Limit to a device by name (alternative to device_id).")),
+	), withDeps(deps, handleListTrailBookmarks))
+
 	// ---- events ------------------------------------------------------------------
 
 	s.AddTool(mcp.NewTool("list_events",
@@ -941,6 +949,54 @@ func buildNotificationConfig(req mcp.CallToolRequest, channel string) (map[strin
 		return nil, fmt.Errorf("unsupported channel %q", channel)
 	}
 	return cfg, nil
+}
+
+func handleListTrailBookmarks(ctx context.Context, req mcp.CallToolRequest, deps Deps) (*mcp.CallToolResult, error) {
+	user, err := requireUser(ctx)
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	if deps.TrailBookmarks == nil {
+		return mcp.NewToolResultError("trail bookmarks not available"), nil
+	}
+
+	var deviceID *int64
+	id, err := resolveDeviceID(ctx, req, user, deps)
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	if id != 0 {
+		deviceID = &id
+	}
+
+	// ListForUser only returns the caller's own bookmarks of accessible devices.
+	bookmarks, err := deps.TrailBookmarks.ListForUser(ctx, user, deviceID)
+	if err != nil {
+		return mcp.NewToolResultError("failed to list trail bookmarks: " + err.Error()), nil
+	}
+
+	type entry struct {
+		ID          int64  `json:"id"`
+		Name        string `json:"name"`
+		Description string `json:"description,omitempty"`
+		DeviceID    int64  `json:"deviceId"`
+		DeviceName  string `json:"deviceName,omitempty"`
+		From        string `json:"from"`
+		To          string `json:"to"`
+	}
+	out := make([]entry, 0, len(bookmarks))
+	for _, b := range bookmarks {
+		out = append(out, entry{
+			ID:          b.ID,
+			Name:        b.Name,
+			Description: b.Description,
+			DeviceID:    b.DeviceID,
+			DeviceName:  b.DeviceName,
+			From:        b.From.UTC().Format(time.RFC3339Nano),
+			To:          b.To.UTC().Format(time.RFC3339Nano),
+		})
+	}
+	return jsonResult(out), nil
 }
 
 // ---- helpers ----------------------------------------------------------------

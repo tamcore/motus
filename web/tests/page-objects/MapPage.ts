@@ -117,8 +117,72 @@ export class MapPage {
     return this.page.locator('.trail-status');
   }
 
+  get saveBookmarkButton() {
+    return this.page.locator('.detail-actions button:has-text("Save as bookmark")');
+  }
+
+  get bookmarkList() {
+    return this.page.locator('.trail-bookmarks');
+  }
+
+  get bookmarkItems() {
+    return this.page.locator('.trail-bookmark-item');
+  }
+
+  bookmarkOpenButton(name: string) {
+    return this.page.getByRole('button', { name: `Show bookmark ${name}` });
+  }
+
+  bookmarkEditButton(name: string) {
+    return this.page.getByRole('button', { name: `Edit bookmark ${name}`, exact: true });
+  }
+
+  bookmarkDeleteButton(name: string) {
+    return this.page.getByRole('button', { name: `Delete bookmark ${name}`, exact: true });
+  }
+
+  get bookmarkDialog() {
+    return this.page.locator('.modal[role="dialog"]');
+  }
+
+  get bookmarkName() {
+    return this.page.locator('#bookmark-name');
+  }
+
+  get bookmarkDescription() {
+    return this.page.locator('#bookmark-description');
+  }
+
+  get bookmarkFromDate() {
+    return this.page.locator('#bookmark-from-date');
+  }
+
+  get bookmarkFromTime() {
+    return this.page.locator('#bookmark-from-time');
+  }
+
+  get bookmarkToDate() {
+    return this.page.locator('#bookmark-to-date');
+  }
+
+  get bookmarkToTime() {
+    return this.page.locator('#bookmark-to-time');
+  }
+
+  get bookmarkSubmit() {
+    return this.bookmarkDialog.locator('button[type="submit"]');
+  }
+
+  get bookmarkError() {
+    return this.page.locator('.bookmark-error');
+  }
+
   async searchDevices(query: string) {
     await this.searchInput.fill(query);
+  }
+
+  deviceItem(name: string) {
+    return this.deviceItems.filter({ hasText: name });
   }
 
   async clickDevice(index: number) {

@@ -28,6 +28,8 @@ import type {
   Session,
   SudoStatusResponse,
   TokenResponse,
+  TrailBookmark,
+  TrailBookmarkPayload,
   UpdateCalendarPayload,
   UpdateDevicePayload,
   UpdateGeofencePayload,
@@ -603,6 +605,36 @@ export const api = {
   /** Check if a calendar is currently active. */
   checkCalendar: (id: number) =>
     request<CalendarCheckResponse>(`/calendars/${id}/check`),
+
+  // ---------------------------------------------------------------------------
+  // Trail bookmarks
+  // ---------------------------------------------------------------------------
+
+  /** List the current user's trail bookmarks, optionally for one device. */
+  getTrailBookmarks: (deviceId?: number) =>
+    request<TrailBookmark[]>(
+      deviceId != null
+        ? `/trail-bookmarks?${new URLSearchParams({ deviceId: String(deviceId) })}`
+        : "/trail-bookmarks",
+    ),
+
+  /** Save a trail range as a bookmark. */
+  createTrailBookmark: (payload: TrailBookmarkPayload) =>
+    request<TrailBookmark>("/trail-bookmarks", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  /** Replace a trail bookmark's device, name, description and range. */
+  updateTrailBookmark: (id: number, payload: TrailBookmarkPayload) =>
+    request<TrailBookmark>(`/trail-bookmarks/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+
+  /** Delete a trail bookmark. */
+  deleteTrailBookmark: (id: number) =>
+    request<void>(`/trail-bookmarks/${id}`, { method: "DELETE" }),
 };
 
 /**

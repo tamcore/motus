@@ -68,6 +68,7 @@ var operationRolesBearerAuth = map[string][]string{
 	CreateGeofenceOperation:         []string{},
 	CreateNotificationOperation:     []string{},
 	CreateShareOperation:            []string{},
+	CreateTrailBookmarkOperation:    []string{},
 	DeleteApiKeyOperation:           []string{},
 	DeleteCalendarOperation:         []string{},
 	DeleteDeviceOperation:           []string{},
@@ -76,6 +77,7 @@ var operationRolesBearerAuth = map[string][]string{
 	DeletePasskeyOperation:          []string{},
 	DeleteSessionOperation:          []string{},
 	DeleteShareOperation:            []string{},
+	DeleteTrailBookmarkOperation:    []string{},
 	EndSudoOperation:                []string{},
 	GenerateTokenOperation:          []string{},
 	GetCommandTypesOperation:        []string{},
@@ -96,6 +98,7 @@ var operationRolesBearerAuth = map[string][]string{
 	ListPasskeysOperation:           []string{},
 	ListSessionsOperation:           []string{},
 	ListSharesOperation:             []string{},
+	ListTrailBookmarksOperation:     []string{},
 	LogoutOperation:                 []string{},
 	LogoutAllOperation:              []string{},
 	NotificationLogsOperation:       []string{},
@@ -110,6 +113,7 @@ var operationRolesBearerAuth = map[string][]string{
 	UpdateGeofenceOperation:         []string{},
 	UpdateNotificationOperation:     []string{},
 	UpdateProfileOperation:          []string{},
+	UpdateTrailBookmarkOperation:    []string{},
 }
 
 // GetRolesForBearerAuth returns the required roles for the given operation.
@@ -162,6 +166,7 @@ var operationRolesCookieAuth = map[string][]string{
 	CreateGeofenceOperation:         []string{},
 	CreateNotificationOperation:     []string{},
 	CreateShareOperation:            []string{},
+	CreateTrailBookmarkOperation:    []string{},
 	DeleteApiKeyOperation:           []string{},
 	DeleteCalendarOperation:         []string{},
 	DeleteDeviceOperation:           []string{},
@@ -170,6 +175,7 @@ var operationRolesCookieAuth = map[string][]string{
 	DeletePasskeyOperation:          []string{},
 	DeleteSessionOperation:          []string{},
 	DeleteShareOperation:            []string{},
+	DeleteTrailBookmarkOperation:    []string{},
 	EndSudoOperation:                []string{},
 	GenerateTokenOperation:          []string{},
 	GetCommandTypesOperation:        []string{},
@@ -190,6 +196,7 @@ var operationRolesCookieAuth = map[string][]string{
 	ListPasskeysOperation:           []string{},
 	ListSessionsOperation:           []string{},
 	ListSharesOperation:             []string{},
+	ListTrailBookmarksOperation:     []string{},
 	LogoutOperation:                 []string{},
 	LogoutAllOperation:              []string{},
 	NotificationLogsOperation:       []string{},
@@ -204,6 +211,7 @@ var operationRolesCookieAuth = map[string][]string{
 	UpdateGeofenceOperation:         []string{},
 	UpdateNotificationOperation:     []string{},
 	UpdateProfileOperation:          []string{},
+	UpdateTrailBookmarkOperation:    []string{},
 }
 
 // GetRolesForCookieAuth returns the required roles for the given operation.
@@ -256,6 +264,7 @@ var operationRolesXAuthToken = map[string][]string{
 	CreateGeofenceOperation:         []string{},
 	CreateNotificationOperation:     []string{},
 	CreateShareOperation:            []string{},
+	CreateTrailBookmarkOperation:    []string{},
 	DeleteApiKeyOperation:           []string{},
 	DeleteCalendarOperation:         []string{},
 	DeleteDeviceOperation:           []string{},
@@ -264,6 +273,7 @@ var operationRolesXAuthToken = map[string][]string{
 	DeletePasskeyOperation:          []string{},
 	DeleteSessionOperation:          []string{},
 	DeleteShareOperation:            []string{},
+	DeleteTrailBookmarkOperation:    []string{},
 	EndSudoOperation:                []string{},
 	GenerateTokenOperation:          []string{},
 	GetCommandTypesOperation:        []string{},
@@ -284,6 +294,7 @@ var operationRolesXAuthToken = map[string][]string{
 	ListPasskeysOperation:           []string{},
 	ListSessionsOperation:           []string{},
 	ListSharesOperation:             []string{},
+	ListTrailBookmarksOperation:     []string{},
 	LogoutOperation:                 []string{},
 	LogoutAllOperation:              []string{},
 	NotificationLogsOperation:       []string{},
@@ -298,6 +309,7 @@ var operationRolesXAuthToken = map[string][]string{
 	UpdateGeofenceOperation:         []string{},
 	UpdateNotificationOperation:     []string{},
 	UpdateProfileOperation:          []string{},
+	UpdateTrailBookmarkOperation:    []string{},
 }
 
 // GetRolesForXAuthToken returns the required roles for the given operation.

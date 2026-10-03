@@ -188,6 +188,7 @@ func CleanTables(t *testing.T, pool *pgxpool.Pool) {
 	// Single TRUNCATE CASCADE is faster than per-table truncates.
 	_, err := pool.Exec(ctx, `TRUNCATE TABLE
 		audit_log,
+		trail_bookmarks,
 		notification_log,
 		notification_rules,
 		events,

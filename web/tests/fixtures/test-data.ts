@@ -51,6 +51,7 @@ export const NAV_LINKS = [
   { label: 'Dashboard', path: '/' },
   { label: 'Devices', path: '/devices' },
   { label: 'Map', path: '/map' },
+  { label: 'Bookmarks', path: '/bookmarks' },
   { label: 'Reports', path: '/reports' },
   { label: 'Geofences', path: '/geofences' },
   { label: 'Notifications', path: '/notifications' },

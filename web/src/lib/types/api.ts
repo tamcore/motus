@@ -194,6 +194,35 @@ export interface CalendarCheckResponse {
 }
 
 // ---------------------------------------------------------------------------
+// Trail bookmark
+// ---------------------------------------------------------------------------
+
+/** A named, saved time range of a device's trail (e.g. a hike). */
+export interface TrailBookmark {
+  id: number;
+  userId?: number;
+  deviceId: number;
+  deviceName?: string;
+  name: string;
+  description: string;
+  /** ISO 8601 start of the range. */
+  from: string;
+  /** ISO 8601 end of the range. */
+  to: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Payload for creating or (fully) updating a trail bookmark. */
+export interface TrailBookmarkPayload {
+  deviceId: number;
+  name: string;
+  description: string;
+  from: string;
+  to: string;
+}
+
+// ---------------------------------------------------------------------------
 // Geofence
 // ---------------------------------------------------------------------------
 

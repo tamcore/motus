@@ -1,6 +1,6 @@
 # MCP Tool Reference
 
-The AI assistant exposes 16 tools to the language model via the
+The AI assistant exposes 17 tools to the language model via the
 Model Context Protocol (MCP). Each tool maps to a handler in
 `internal/ai/mcp/tools.go` and is automatically converted to an
 OpenAI function schema at startup (`internal/ai/chat/service.go`).
@@ -459,11 +459,56 @@ Supported event type values: `geofenceEnter`, `geofenceExit`,
 
 ---
 
+## Trail bookmarks
+
+#### `list_trail_bookmarks`
+
+> Lists the user's saved trail bookmarks (named device time ranges such as
+> hikes), newest range first.
+
+**Access:** read
+**Handler:** `handleListTrailBookmarks` (`internal/ai/mcp/tools.go:954`)
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `device_id` | string (int) | no | Restrict to one device |
+| `device_name` | string | no | Restrict to one device by name |
+
+Only the caller's own bookmarks are returned (also for admins), and only
+for devices the caller can still access.
+
+**Returns:**
+```json
+[
+  {
+    "id": 3,
+    "name": "Zugspitze",
+    "description": "Via Höllental",
+    "deviceId": 42,
+    "deviceName": "Backpack",
+    "from": "2026-06-06T06:00:00Z",
+    "to": "2026-06-06T14:30:59.999Z"
+  }
+]
+```
+
+`from` / `to` are RFC3339 with fractional seconds (`time.RFC3339Nano`), so
+they can be passed unchanged to `get_distance_traveled` or `list_events`
+without cutting off the end of the bookmarked range. `description` and
+`deviceName` are omitted when empty.
+
+**Typical trigger:**
+> "How far did I walk on my Zugspitze hike?"
+
+---
+
 ## Tool count verification
 
 ```bash
 grep -c 'mcp.NewTool(' internal/ai/mcp/tools.go
-# Expected: 16
+# Expected: 17
 ```
 
 When adding a new tool, update this document in the matching domain section

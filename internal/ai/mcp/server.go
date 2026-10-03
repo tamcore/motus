@@ -21,6 +21,7 @@ type Deps struct {
 	Calendars       repository.CalendarRepo
 	CalendarService *services.CalendarService
 	Notifications   repository.NotificationRepo
+	TrailBookmarks  repository.TrailBookmarkRepo
 	AuditLogger     *audit.Logger
 	ForwardGeocoder geocoding.ForwardGeocoder
 }

@@ -10,7 +10,7 @@
 	import { useLeaflet } from '$lib/composables/useLeaflet';
 	import { getOverlayById } from '$lib/utils/map-overlays';
 	import { buildPopupElement, type PopupRow } from '$lib/utils/popup';
-	import type { Device, Position } from '$lib/types/api';
+	import type { Device, Position, TrailBookmark, TrailBookmarkPayload } from '$lib/types/api';
 	import {
 		positionToRoutePosition,
 		toRoutePositions,
@@ -26,11 +26,15 @@
 	import { trailRange } from '$lib/stores/trailRange';
 	import {
 		isLiveRange,
+		normalizeTrailRange,
 		resolveTrailRange,
 		trailRangeFromSearchParams,
 		trailRangeToSearchParams,
 		type TrailRange
 	} from '$lib/utils/trail-range';
+	import TrailBookmarkList from '$lib/components/TrailBookmarkList.svelte';
+	import TrailBookmarkModal from '$lib/components/TrailBookmarkModal.svelte';
+	import { bookmarkErrorMessage, bookmarkToTrailRange } from '$lib/utils/trail-bookmarks';
 
 	const leafletMap = useLeaflet();
 	const userLocation = useUserLocation();
@@ -63,6 +67,16 @@
 	// Max points per trail request. The server samples long ranges down to
 	// this, so 30 days / all time stay responsive.
 	const TRAIL_POINT_LIMIT = 5000;
+
+	// Trail bookmarks of the selected device.
+	let deviceBookmarks: TrailBookmark[] = [];
+	let bookmarksLoading = false;
+	let bookmarksError = '';
+	let bookmarksDeviceId: number | null = null;
+	let bookmarkRequestId = 0;
+	let bookmarkModalOpen = false;
+	let editingBookmark: TrailBookmark | null = null;
+
 	let loading = true;
 	let wsConnected = false;
 
@@ -96,6 +110,8 @@
 			d.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
 			d.uniqueId.toLowerCase().includes(searchQuery.toLowerCase())
 	);
+
+	$: if (selectedDeviceId !== bookmarksDeviceId) void loadDeviceBookmarks(selectedDeviceId);
 
 	// React to user position changes
 	$: if (userLocation.position) {
@@ -480,15 +496,103 @@
 		trailLayer?.clearLayers();
 	}
 
+	/** An explicit selection in the range selector: applied and saved. */
 	function handleTrailRangeChange(range: TrailRange) {
-		trailRange.set(range);
-		activeTrailRange = $trailRange;
+		applyTrailRange(range, { save: true });
+	}
+
+	/**
+	 * Applies a range to the current view: URL (with the selected device, so
+	 * the link reopens this trail) and trail reload. `save` also makes it the
+	 * user's saved default range; bookmarks (like URL ranges) apply to the
+	 * view only.
+	 */
+	function applyTrailRange(range: TrailRange, { save }: { save: boolean }) {
+		if (save) {
+			trailRange.set(range);
+			activeTrailRange = $trailRange;
+		} else {
+			activeTrailRange = normalizeTrailRange(range) ?? activeTrailRange;
+		}
 		// Reflect the range in the URL so the view can be shared/bookmarked.
 		const url = new URL($page.url);
-		url.search = trailRangeToSearchParams(activeTrailRange, url.searchParams).toString();
+		const params = new URLSearchParams(url.searchParams);
+		if (selectedDeviceId != null) params.set('device', String(selectedDeviceId));
+		url.search = trailRangeToSearchParams(activeTrailRange, params).toString();
 		replaceState(url, $page.state);
+		// Drop the previous range's trail so a failed request cannot leave
+		// unrelated coordinates on the map.
+		trailPositions = [];
+		trailLayer?.clearLayers();
 		// Picking a range means "show me this trail" for the selected device.
 		void loadTrail();
+	}
+
+	async function loadDeviceBookmarks(deviceId: number | null) {
+		const deviceChanged = deviceId !== bookmarksDeviceId;
+		bookmarksDeviceId = deviceId;
+		const requestId = ++bookmarkRequestId;
+		bookmarksError = '';
+		if (deviceId == null) {
+			deviceBookmarks = [];
+			bookmarksLoading = false;
+			return;
+		}
+		// Another device's bookmarks must not stay visible (and clickable)
+		// while this device's list loads; a same-device refresh keeps them.
+		if (deviceChanged) deviceBookmarks = [];
+		bookmarksLoading = true;
+		try {
+			const list = await api.getTrailBookmarks(deviceId);
+			if (requestId !== bookmarkRequestId) return;
+			deviceBookmarks = list;
+		} catch {
+			if (requestId !== bookmarkRequestId) return;
+			deviceBookmarks = [];
+			bookmarksError = 'Failed to load bookmarks';
+		} finally {
+			if (requestId === bookmarkRequestId) bookmarksLoading = false;
+		}
+	}
+
+	/** Shows the bookmarked range of the selected device (view only). */
+	function openBookmark(bookmark: TrailBookmark) {
+		applyTrailRange(bookmarkToTrailRange(bookmark), { save: false });
+	}
+
+	function openSaveBookmark() {
+		editingBookmark = null;
+		bookmarkModalOpen = true;
+	}
+
+	function openEditBookmark(bookmark: TrailBookmark) {
+		editingBookmark = bookmark;
+		bookmarkModalOpen = true;
+	}
+
+	function closeBookmarkModal() {
+		bookmarkModalOpen = false;
+		editingBookmark = null;
+	}
+
+	async function saveBookmark(payload: TrailBookmarkPayload) {
+		if (editingBookmark) {
+			await api.updateTrailBookmark(editingBookmark.id, payload);
+		} else {
+			await api.createTrailBookmark(payload);
+		}
+		closeBookmarkModal();
+		await loadDeviceBookmarks(selectedDeviceId);
+	}
+
+	async function deleteBookmark(bookmark: TrailBookmark) {
+		if (!confirm(`Delete bookmark "${bookmark.name}"?`)) return;
+		try {
+			await api.deleteTrailBookmark(bookmark.id);
+			await loadDeviceBookmarks(selectedDeviceId);
+		} catch (err: unknown) {
+			bookmarksError = bookmarkErrorMessage(err, 'Failed to delete bookmark');
+		}
 	}
 
 	function drawTrail() {
@@ -801,6 +905,13 @@
 								Show Trail
 							</Button>
 						{/if}
+						<Button
+							variant="secondary"
+							size="sm"
+							on:click={openSaveBookmark}
+						>
+							Save as bookmark
+						</Button>
 					</div>
 					{#if showTrail}
 						<p class="trail-status" role="status">
@@ -815,6 +926,15 @@
 							{/if}
 						</p>
 					{/if}
+					<TrailBookmarkList
+						bookmarks={deviceBookmarks}
+						activeRange={activeTrailRange}
+						loading={bookmarksLoading}
+						error={bookmarksError}
+						onOpen={openBookmark}
+						onEdit={openEditBookmark}
+						onDelete={deleteBookmark}
+					/>
 				</div>
 			{/if}
 		{/if}
@@ -863,6 +983,15 @@
 		{/if}
 	</div>
 </div>
+
+<TrailBookmarkModal
+	bind:open={bookmarkModalOpen}
+	bookmark={editingBookmark}
+	deviceId={selectedDeviceId}
+	range={activeTrailRange}
+	onSave={saveBookmark}
+	onClose={closeBookmarkModal}
+/>
 
 <style>
 	.map-page {
@@ -997,6 +1126,9 @@
 		border-top: 1px solid var(--border-color);
 		padding: var(--space-4);
 		background-color: var(--bg-primary);
+		/* Range selector + bookmarks can get tall: scroll instead of clipping. */
+		max-height: 65%;
+		overflow-y: auto;
 	}
 
 	.detail-title {
@@ -1031,6 +1163,7 @@
 
 	.detail-actions {
 		display: flex;
+		flex-wrap: wrap;
 		gap: var(--space-2);
 		margin-top: var(--space-2);
 	}

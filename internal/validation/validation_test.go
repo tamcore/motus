@@ -178,3 +178,32 @@ func TestValidateDescription(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateText_CountsCharacters(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		max     int
+		wantErr bool
+	}{
+		{"ascii at max", strings.Repeat("a", 5), 5, false},
+		{"ascii over max", strings.Repeat("a", 6), 5, true},
+		// 5 characters but 10 bytes: counted as characters, not bytes.
+		{"multibyte at max", strings.Repeat("ö", 5), 5, false},
+		{"multibyte over max", strings.Repeat("ö", 6), 5, true},
+		// Astral-plane characters are one code point each (two UTF-16 units).
+		{"emoji at max", strings.Repeat("🥾", 5), 5, false},
+		{"empty", "", 5, false},
+		{"angle bracket", "a<b", 5, true},
+		{"control char", "a\x01b", 5, true},
+		{"newline and tab allowed", "a\n\tb", 5, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateText(tt.input, tt.max)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateText(%q, %d) error = %v, wantErr %v", tt.input, tt.max, err, tt.wantErr)
+			}
+		})
+	}
+}

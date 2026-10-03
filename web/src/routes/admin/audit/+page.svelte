@@ -54,6 +54,10 @@
 		{ value: 'calendar.create', label: 'Calendar Created' },
 		{ value: 'calendar.update', label: 'Calendar Updated' },
 		{ value: 'calendar.delete', label: 'Calendar Deleted' },
+		// Trail bookmarks
+		{ value: 'trail_bookmark.create', label: 'Trail Bookmark Created' },
+		{ value: 'trail_bookmark.update', label: 'Trail Bookmark Updated' },
+		{ value: 'trail_bookmark.delete', label: 'Trail Bookmark Deleted' },
 		// Notifications
 		{ value: 'notification.create', label: 'Notification Rule Created' },
 		{ value: 'notification.update', label: 'Notification Rule Updated' },
@@ -75,6 +79,7 @@
 		{ value: 'device', label: 'Device' },
 		{ value: 'geofence', label: 'Geofence' },
 		{ value: 'calendar', label: 'Calendar' },
+		{ value: 'trail_bookmark', label: 'Trail Bookmark' },
 		{ value: 'notification', label: 'Notification' },
 		{ value: 'apikey', label: 'API Key' },
 		{ value: 'share', label: 'Share' },

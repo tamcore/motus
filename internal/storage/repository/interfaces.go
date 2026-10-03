@@ -182,6 +182,21 @@ type CalendarRepo interface {
 	AssociateUser(ctx context.Context, userID, calendarID int64) error
 }
 
+// TrailBookmarkRepo defines the operations on the trail_bookmarks table.
+// A bookmark belongs to the user who created it; callers check ownership
+// (or admin role) with GetByID.
+type TrailBookmarkRepo interface {
+	Create(ctx context.Context, b *model.TrailBookmark) error
+	// GetByID returns an error wrapping ErrTrailBookmarkNotFound for unknown IDs.
+	GetByID(ctx context.Context, id int64) (*model.TrailBookmark, error)
+	// ListForUser returns the user's own bookmarks (newest range first),
+	// omitting bookmarks of devices the user can no longer access. A non-nil
+	// deviceID restricts the result to that device.
+	ListForUser(ctx context.Context, user *model.User, deviceID *int64) ([]*model.TrailBookmark, error)
+	Update(ctx context.Context, b *model.TrailBookmark) error
+	Delete(ctx context.Context, id int64) error
+}
+
 // StatisticsRepo defines the operations for platform and user statistics.
 type StatisticsRepo interface {
 	GetPlatformStats(ctx context.Context) (*PlatformStats, error)
@@ -190,18 +205,19 @@ type StatisticsRepo interface {
 
 // Compile-time assertions: ensure concrete types satisfy their interfaces.
 var (
-	_ DeviceRepo       = (*DeviceRepository)(nil)
-	_ UserRepo         = (*UserRepository)(nil)
-	_ SessionRepo      = (*SessionRepository)(nil)
-	_ PositionRepo     = (*PositionRepository)(nil)
-	_ GeofenceRepo     = (*GeofenceRepository)(nil)
-	_ EventRepo        = (*EventRepository)(nil)
-	_ CommandRepo      = (*CommandRepository)(nil)
-	_ NotificationRepo = (*NotificationRepository)(nil)
-	_ DeviceShareRepo  = (*DeviceShareRepository)(nil)
-	_ ApiKeyRepo       = (*ApiKeyRepository)(nil)
-	_ StatisticsRepo   = (*StatisticsRepository)(nil)
-	_ CalendarRepo     = (*CalendarRepository)(nil)
-	_ OIDCStateRepo    = (*OIDCStateRepository)(nil)
-	_ PasskeyRepo      = (*PasskeyRepository)(nil)
+	_ DeviceRepo        = (*DeviceRepository)(nil)
+	_ UserRepo          = (*UserRepository)(nil)
+	_ SessionRepo       = (*SessionRepository)(nil)
+	_ PositionRepo      = (*PositionRepository)(nil)
+	_ GeofenceRepo      = (*GeofenceRepository)(nil)
+	_ EventRepo         = (*EventRepository)(nil)
+	_ CommandRepo       = (*CommandRepository)(nil)
+	_ NotificationRepo  = (*NotificationRepository)(nil)
+	_ DeviceShareRepo   = (*DeviceShareRepository)(nil)
+	_ ApiKeyRepo        = (*ApiKeyRepository)(nil)
+	_ StatisticsRepo    = (*StatisticsRepository)(nil)
+	_ CalendarRepo      = (*CalendarRepository)(nil)
+	_ TrailBookmarkRepo = (*TrailBookmarkRepository)(nil)
+	_ OIDCStateRepo     = (*OIDCStateRepository)(nil)
+	_ PasskeyRepo       = (*PasskeyRepository)(nil)
 )

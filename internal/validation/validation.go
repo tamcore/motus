@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"unicode/utf8"
 )
 
 // maxEmailLength is the maximum allowed email address length (RFC 5321).
@@ -99,6 +100,15 @@ func ValidateDescription(desc string) error {
 		return errors.New("description exceeds maximum length")
 	}
 	return validateTextChars(desc)
+}
+
+// ValidateText checks that s has at most maxChars characters (Unicode code
+// points, not bytes) and contains no HTML-injectable or control characters.
+func ValidateText(s string, maxChars int) error {
+	if utf8.RuneCountInString(s) > maxChars {
+		return fmt.Errorf("exceeds maximum length of %d characters", maxChars)
+	}
+	return validateTextChars(s)
 }
 
 // validateTextChars rejects angle brackets and control characters other than

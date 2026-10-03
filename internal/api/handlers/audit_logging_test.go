@@ -360,6 +360,7 @@ func TestAuditConstants_Comprehensive(t *testing.T) {
 		audit.ActionDeviceAssign, audit.ActionDeviceUnassign,
 		audit.ActionGeofenceCreate, audit.ActionGeofenceUpdate, audit.ActionGeofenceDelete,
 		audit.ActionCalendarCreate, audit.ActionCalendarUpdate, audit.ActionCalendarDelete,
+		audit.ActionTrailBookmarkCreate, audit.ActionTrailBookmarkUpdate, audit.ActionTrailBookmarkDelete,
 		audit.ActionNotifCreate, audit.ActionNotifUpdate, audit.ActionNotifDelete,
 		audit.ActionApiKeyCreate, audit.ActionApiKeyDelete,
 		audit.ActionShareCreate, audit.ActionShareDelete,
@@ -374,7 +375,7 @@ func TestAuditConstants_Comprehensive(t *testing.T) {
 	resources := []string{
 		audit.ResourceUser, audit.ResourceDevice, audit.ResourceGeofence,
 		audit.ResourceCalendar, audit.ResourceNotification, audit.ResourceSession,
-		audit.ResourceApiKey, audit.ResourceShare,
+		audit.ResourceApiKey, audit.ResourceShare, audit.ResourceTrailBookmark,
 	}
 	for _, r := range resources {
 		if r == "" {

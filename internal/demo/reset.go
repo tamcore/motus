@@ -45,6 +45,7 @@ type ResetResult struct {
 	ApiKeysDeleted           int
 	ApiKeysCreated           int
 	PasskeysDeleted          int
+	TrailBookmarksDeleted    int
 }
 
 // Reset performs a comprehensive demo environment reset. It:
@@ -77,7 +78,7 @@ func Reset(ctx context.Context, pool *pgxpool.Pool, accounts []DemoAccount, devi
 		byDevice = `SELECT id FROM devices WHERE unique_id = ANY($1)`
 		byUser   = `SELECT id FROM users WHERE email = ANY($1)`
 	)
-	// Passkeys are deleted explicitly: demo users are upserted, so ON DELETE CASCADE never fires.
+	// Passkeys and trail bookmarks are deleted explicitly: demo users are upserted, so ON DELETE CASCADE never fires.
 	deletes := []struct {
 		what  string
 		query string
@@ -93,6 +94,7 @@ func Reset(ctx context.Context, pool *pgxpool.Pool, accounts []DemoAccount, devi
 		{"audit logs", `DELETE FROM audit_log WHERE user_id IN (` + byUser + `)`, []any{demoEmails}, &result.AuditLogsDeleted},
 		{"api keys", `DELETE FROM api_keys WHERE user_id IN (` + byUser + `)`, []any{demoEmails}, &result.ApiKeysDeleted},
 		{"passkey credentials", `DELETE FROM passkey_credentials WHERE user_id IN (` + byUser + `)`, []any{demoEmails}, &result.PasskeysDeleted},
+		{"trail bookmarks", `DELETE FROM trail_bookmarks WHERE user_id IN (` + byUser + `)`, []any{demoEmails}, &result.TrailBookmarksDeleted},
 		{"notification rules", `DELETE FROM notification_rules WHERE user_id IN (` + byUser + `) AND name LIKE $2`, []any{demoEmails, DemoNotificationPrefix + "%"}, &result.NotificationRulesDeleted},
 		{"user-device associations", `DELETE FROM user_devices WHERE device_id IN (` + byDevice + `)`, []any{deviceIMEIs}, nil},
 		{"devices", `DELETE FROM devices WHERE unique_id = ANY($1)`, []any{deviceIMEIs}, &result.DevicesDeleted},
@@ -226,6 +228,7 @@ func LogResult(result *ResetResult) {
 		{"auditLogs", result.AuditLogsDeleted},
 		{"apiKeys", result.ApiKeysDeleted},
 		{"passkeys", result.PasskeysDeleted},
+		{"trailBookmarks", result.TrailBookmarksDeleted},
 		{"rulesDeleted", result.NotificationRulesDeleted},
 		{"devicesDeleted", result.DevicesDeleted},
 		{"geofencesDeleted", result.GeofencesDeleted},

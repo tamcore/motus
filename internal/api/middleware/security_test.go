@@ -85,7 +85,8 @@ func TestSecurityHeaders_PermissionsPolicyPresent(t *testing.T) {
 		t.Fatal("expected Permissions-Policy header")
 	}
 
-	features := []string{"camera=()", "microphone=()", "geolocation=()", "payment=()"}
+	// camera (QR scanner) and geolocation (locate me) are used by the app itself.
+	features := []string{"camera=(self)", "microphone=()", "geolocation=(self)", "payment=()"}
 	for _, f := range features {
 		if !strings.Contains(pp, f) {
 			t.Errorf("Permissions-Policy missing %q; full: %s", f, pp)

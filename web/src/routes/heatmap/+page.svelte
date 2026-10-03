@@ -132,7 +132,7 @@
 				break;
 			case 'custom':
 				from = customFrom
-					? new Date(customFrom)
+					? new Date(customFrom + 'T00:00:00')
 					: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 				return {
 					from,

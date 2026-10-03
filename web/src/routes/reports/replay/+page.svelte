@@ -202,7 +202,7 @@
 		const to = now.toISOString();
 		if (datePreset === 'custom') {
 			return {
-				from: customFrom ? new Date(customFrom).toISOString() : to,
+				from: customFrom ? new Date(customFrom + 'T00:00:00').toISOString() : to,
 				to: customTo ? new Date(customTo + 'T23:59:59').toISOString() : to,
 			};
 		}

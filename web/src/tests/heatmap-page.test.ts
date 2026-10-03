@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
 import { writable } from "svelte/store";
 
@@ -64,5 +64,36 @@ describe("heatmap page", () => {
 
     await waitFor(() => expect(screen.getByText("1 points")).toBeInTheDocument());
     expect(mocks.getPositionPoints).toHaveBeenCalledWith(expect.objectContaining({ deviceId: 7 }));
+  });
+
+  describe("custom range", () => {
+    const origTZ = process.env.TZ;
+    beforeEach(() => {
+      // A zone east of UTC, so UTC midnight and local midnight differ.
+      process.env.TZ = "Europe/Berlin";
+    });
+    afterEach(() => {
+      process.env.TZ = origTZ;
+    });
+
+    it("queries from local midnight of the start day to the end of the end day", async () => {
+      mocks.fetchDevices.mockResolvedValue([{ id: 7, name: "Car", uniqueId: "7", status: "online" }]);
+      render(HeatmapPage);
+      await waitFor(() => expect(mocks.getPositionPoints).toHaveBeenCalled());
+      mocks.getPositionPoints.mockClear();
+
+      await fireEvent.change(screen.getByLabelText("Date Range"), { target: { value: "custom" } });
+      await fireEvent.input(screen.getByLabelText("From"), { target: { value: "2026-01-13" } });
+      await fireEvent.input(screen.getByLabelText("To"), { target: { value: "2026-01-15" } });
+      await fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+
+      await waitFor(() => expect(mocks.getPositionPoints).toHaveBeenCalled());
+      expect(mocks.getPositionPoints).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          from: "2026-01-12T23:00:00.000Z",
+          to: "2026-01-15T22:59:59.000Z",
+        }),
+      );
+    });
   });
 });

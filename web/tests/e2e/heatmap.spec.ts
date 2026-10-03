@@ -1,8 +1,29 @@
+import type { Page } from '@playwright/test';
 import { test, expect } from '../fixtures/auth-fixture';
 
-test.describe('Heatmap', () => {
-  test('loads compact points instead of full positions', async ({ authedPage }) => {
-    await authedPage.addInitScript(() => {
+const HEAT_DEVICE = { id: 4242, name: 'Heat Device', uniqueId: 'heat-1', status: 'online' };
+const HEAT_POINTS = [
+  { lat: 49.79, lon: 9.95, speed: 10, fixTime: '2026-10-01T10:00:00Z' },
+  { lat: 49.8, lon: 9.96, speed: 20, fixTime: '2026-10-01T11:00:00Z' },
+];
+
+interface HeatmapMocks {
+  /** Response for /api/devices. */
+  devices?: unknown[];
+  /** Response for /api/admin/devices (only mocked when set). */
+  adminDevices?: unknown[];
+  /** Response for /api/positions/*. */
+  points?: unknown[];
+}
+
+/**
+ * Mocks the heatmap's API calls via a window.fetch monkeypatch (page.route()
+ * does not reliably intercept SvelteKit client fetches) and records the
+ * requested position URLs in window.__positionRequests.
+ */
+async function mockHeatmapApi(page: Page, mocks: HeatmapMocks = {}) {
+  await page.addInitScript(
+    ({ devices, adminDevices, points }) => {
       const w = window as unknown as { __positionRequests: string[] };
       w.__positionRequests = [];
       const origFetch = window.fetch;
@@ -10,26 +31,39 @@ test.describe('Heatmap', () => {
         new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
       window.fetch = async function (input: RequestInfo | URL, init?: RequestInit) {
         const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+        if (adminDevices && url.includes('/api/admin/devices')) {
+          return json(adminDevices);
+        }
         if (url.includes('/api/devices')) {
-          return json([{ id: 4242, name: 'Heat Device', uniqueId: 'heat-1', status: 'online' }]);
+          return json(devices);
         }
         if (url.includes('/api/positions')) {
           w.__positionRequests.push(url);
-          return json([
-            { lat: 49.79, lon: 9.95, speed: 10, fixTime: '2026-10-01T10:00:00Z' },
-            { lat: 49.8, lon: 9.96, speed: 20, fixTime: '2026-10-01T11:00:00Z' },
-          ]);
+          return json(points);
         }
         return origFetch.apply(globalThis, [input, init] as Parameters<typeof fetch>);
       } as typeof fetch;
-    });
+    },
+    {
+      devices: mocks.devices ?? [HEAT_DEVICE],
+      adminDevices: mocks.adminDevices,
+      points: mocks.points ?? HEAT_POINTS,
+    },
+  );
+}
+
+function positionRequests(page: Page): Promise<string[]> {
+  return page.evaluate(() => (window as unknown as { __positionRequests: string[] }).__positionRequests);
+}
+
+test.describe('Heatmap', () => {
+  test('loads compact points instead of full positions', async ({ authedPage }) => {
+    await mockHeatmapApi(authedPage);
 
     await authedPage.goto('/heatmap');
 
     await expect(authedPage.locator('.data-count')).toHaveText('2 points');
-    const requests = await authedPage.evaluate(
-      () => (window as unknown as { __positionRequests: string[] }).__positionRequests,
-    );
+    const requests = await positionRequests(authedPage);
     expect(requests.length).toBeGreaterThan(0);
     for (const url of requests) {
       const parsed = new URL(url, 'http://x');
@@ -40,24 +74,7 @@ test.describe('Heatmap', () => {
   });
 
   test('renders heat points, also after navigating away and back', async ({ authedPage }) => {
-    await authedPage.addInitScript(() => {
-      const origFetch = window.fetch;
-      const json = (body: unknown) =>
-        new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
-      window.fetch = async function (input: RequestInfo | URL, init?: RequestInit) {
-        const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-        if (url.includes('/api/devices')) {
-          return json([{ id: 4242, name: 'Heat Device', uniqueId: 'heat-1', status: 'online' }]);
-        }
-        if (url.includes('/api/positions/points')) {
-          return json([
-            { lat: 49.79, lon: 9.95, speed: 10, fixTime: '2026-10-01T10:00:00Z' },
-            { lat: 49.8, lon: 9.96, speed: 20, fixTime: '2026-10-01T11:00:00Z' },
-          ]);
-        }
-        return origFetch.apply(globalThis, [input, init] as Parameters<typeof fetch>);
-      } as typeof fetch;
-    });
+    await mockHeatmapApi(authedPage);
 
     // Number of painted (non-transparent) pixels on the heat layer canvas.
     const paintedPixels = () =>
@@ -85,28 +102,11 @@ test.describe('Heatmap', () => {
   });
 
   test('reloads the heatmap when an admin toggles All users', async ({ authedPage }) => {
-    await authedPage.addInitScript(() => {
-      localStorage.removeItem('motus_settings');
-      const origFetch = window.fetch;
-      const json = (body: unknown) =>
-        new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
-      window.fetch = async function (input: RequestInfo | URL, init?: RequestInit) {
-        const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-        // The admin owns no devices; other users' devices only appear with "All users".
-        if (url.includes('/api/admin/devices')) {
-          return json([{ id: 4242, name: 'Other User Device', uniqueId: 'heat-1', status: 'online' }]);
-        }
-        if (url.includes('/api/devices')) {
-          return json([]);
-        }
-        if (url.includes('/api/positions/points')) {
-          return json([
-            { lat: 49.79, lon: 9.95, speed: 10, fixTime: '2026-10-01T10:00:00Z' },
-            { lat: 49.8, lon: 9.96, speed: 20, fixTime: '2026-10-01T11:00:00Z' },
-          ]);
-        }
-        return origFetch.apply(globalThis, [input, init] as Parameters<typeof fetch>);
-      } as typeof fetch;
+    await authedPage.addInitScript(() => localStorage.removeItem('motus_settings'));
+    // The admin owns no devices; other users' devices only appear with "All users".
+    await mockHeatmapApi(authedPage, {
+      devices: [],
+      adminDevices: [{ id: 4242, name: 'Other User Device', uniqueId: 'heat-1', status: 'online' }],
     });
 
     await authedPage.goto('/heatmap');
@@ -117,5 +117,33 @@ test.describe('Heatmap', () => {
 
     await expect(authedPage.locator('.data-count')).toHaveText('2 points');
     await expect(authedPage.locator('canvas.leaflet-heatmap-layer')).toBeAttached();
+  });
+});
+
+test.describe('Heatmap custom range', () => {
+  // A zone east of UTC, so UTC midnight and local midnight differ.
+  test.use({ timezoneId: 'Europe/Berlin' });
+
+  test('queries from local midnight of the start day to the end of the end day', async ({ authedPage }) => {
+    await mockHeatmapApi(authedPage, { points: [] });
+
+    await authedPage.goto('/heatmap');
+    await authedPage.locator('#date-range').selectOption('custom');
+
+    // Native date inputs are filled with yyyy-mm-dd regardless of the locale display format.
+    await authedPage.locator('#date-from').fill('2026-01-13');
+    await authedPage.locator('#date-to').fill('2026-01-15');
+
+    await authedPage.evaluate(() => {
+      (window as unknown as { __positionRequests: string[] }).__positionRequests = [];
+    });
+    await authedPage.locator('.custom-range').getByRole('button', { name: 'Apply' }).click();
+
+    await expect.poll(async () => (await positionRequests(authedPage)).length).toBeGreaterThan(0);
+    const requests = await positionRequests(authedPage);
+    const parsed = new URL(requests[requests.length - 1], 'http://x');
+    // Local (Europe/Berlin, UTC+1 in January) start of 13 Jan / end of 15 Jan.
+    expect(parsed.searchParams.get('from')).toBe('2026-01-12T23:00:00.000Z');
+    expect(parsed.searchParams.get('to')).toBe('2026-01-15T22:59:59.000Z');
   });
 });

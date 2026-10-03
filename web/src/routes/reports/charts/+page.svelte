@@ -104,7 +104,7 @@
 				return { from: new Date('2020-01-01').toISOString(), to: now.toISOString() };
 			case 'custom':
 				return {
-					from: customFrom ? new Date(customFrom).toISOString() : now.toISOString(),
+					from: customFrom ? new Date(customFrom + 'T00:00:00').toISOString() : now.toISOString(),
 					to: customTo ? new Date(customTo + 'T23:59:59').toISOString() : now.toISOString(),
 				};
 			default:

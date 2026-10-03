@@ -274,7 +274,7 @@ func TestMotion_ThresholdBoundary(t *testing.T) {
 	_ = posRepo.Create(ctx, pos1)
 
 	// Current position: exactly at threshold (should trigger).
-	exactSpeed := MotionThreshold
+	exactSpeed := model.MotionThreshold
 	pos2 := &model.Position{
 		DeviceID:  device.ID,
 		Latitude:  52.53,

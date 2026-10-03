@@ -11,7 +11,6 @@ import (
 	"github.com/tamcore/motus/internal/geocoding"
 	"github.com/tamcore/motus/internal/metrics"
 	"github.com/tamcore/motus/internal/model"
-	"github.com/tamcore/motus/internal/services"
 	"github.com/tamcore/motus/internal/storage/repository"
 	"github.com/tamcore/motus/internal/websocket"
 )
@@ -187,7 +186,7 @@ func (h *PositionHandler) address(pos *model.Position) *string {
 // HandlePosition stores a position and broadcasts it via WebSocket.
 func (h *PositionHandler) HandlePosition(ctx context.Context, pos *model.Position) error {
 	// Determine motion state from position speed.
-	isMoving := pos.Speed != nil && *pos.Speed >= services.MotionThreshold
+	isMoving := pos.Speed != nil && *pos.Speed >= model.MotionThreshold
 
 	// Set the Traccar-compatible "motion" attribute on the position BEFORE
 	// storing it so the attribute is persisted in the database. Home Assistant

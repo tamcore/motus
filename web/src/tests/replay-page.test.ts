@@ -124,12 +124,11 @@ describe("reports/replay page", () => {
   });
 
   describe("date picker", () => {
-    const origTZ = process.env.TZ;
     beforeEach(() => {
-      process.env.TZ = "Europe/Berlin";
+      vi.stubEnv("TZ", "Europe/Berlin");
     });
     afterEach(() => {
-      process.env.TZ = origTZ;
+      vi.unstubAllEnvs();
     });
 
     it("shows the trip's local date, not the UTC date", async () => {

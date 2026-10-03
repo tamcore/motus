@@ -30,9 +30,10 @@ vi.mock("$lib/composables/useLeaflet", () => {
     }),
   };
 });
-vi.mock("$lib/utils/leaflet-heat", () => ({
-  loadHeatLayer: vi.fn().mockResolvedValue(() => ({ addTo: () => ({}) })),
-}));
+vi.mock("leaflet.heat", () => {
+  (window as unknown as { L: Record<string, unknown> }).L.heatLayer = () => ({ addTo: () => ({}) });
+  return {};
+});
 
 import { settings } from "$lib/stores/settings";
 import HeatmapPage from "../routes/heatmap/+page.svelte";

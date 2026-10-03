@@ -8,7 +8,6 @@
 	import { useLeaflet } from '$lib/composables/useLeaflet';
 	import type { Device, PositionPoint } from '$lib/types/api';
 	import { pointStats } from '$lib/utils/point-stats';
-	import { loadHeatLayer, type HeatLayerFactory } from '$lib/utils/leaflet-heat';
 	import Button from '$lib/components/Button.svelte';
 	import AllDevicesToggle from '$lib/components/AllDevicesToggle.svelte';
 	import type { HeatLayer, HeatMapOptions } from 'leaflet';
@@ -19,7 +18,7 @@
 	const leafletMap = useLeaflet();
 
 	let mapContainer: HTMLDivElement;
-	let heatLayer: HeatLayerFactory | null = null;
+	let heatLayer: typeof import('leaflet').heatLayer | null = null;
 	let heatLayerInstance: HeatLayer | null = null;
 
 	// Data
@@ -85,8 +84,13 @@
 		});
 
 		try {
+			// leaflet.heat extends the global L once; keep that object across revisits.
+			const w = window as unknown as { L?: typeof import('leaflet') };
 			const L = leafletMap.getLeaflet();
-			if (L) heatLayer = await loadHeatLayer(L);
+			w.L ??= (L as any)?.default ?? L ?? undefined;
+			await import('leaflet.heat');
+			heatLayer = w.L?.heatLayer ?? null;
+			if (!heatLayer) throw new Error('leaflet.heat did not register L.heatLayer');
 		} catch (err) {
 			console.error('Failed to load heatmap layer:', err);
 			layerError = 'Failed to load the heatmap layer. Please reload the page.';

@@ -24,8 +24,7 @@ import (
 // Geocoder converts latitude/longitude coordinates into a human-readable address.
 type Geocoder interface {
 	// ReverseGeocode returns an address string for the given coordinates.
-	// On failure, implementations should return a coordinate-based fallback
-	// string rather than an error, to avoid blocking position processing.
+	// On failure it returns "" and an error; callers pick a fallback.
 	ReverseGeocode(ctx context.Context, lat, lon float64) (string, error)
 }
 
@@ -103,23 +102,19 @@ func NewNominatimGeocoder(cfg NominatimConfig) *NominatimGeocoder {
 }
 
 // ReverseGeocode queries the Nominatim API for the address at the given coordinates.
-// It respects the configured rate limit and timeout. On any error, it returns a
-// coordinate-based fallback string rather than propagating the error, so callers
-// always get a usable address string.
+// It respects the configured rate limit and timeout. An empty display name
+// yields the coordinate fallback string.
 func (g *NominatimGeocoder) ReverseGeocode(ctx context.Context, lat, lon float64) (string, error) {
-	fallback := fmt.Sprintf("%.5f, %.5f", lat, lon)
-
-	// Wait for rate limiter. If context is cancelled, return fallback.
 	if err := g.limiter.Wait(ctx); err != nil {
 		g.logger.Debug("geocoding rate limit wait cancelled",
 			slog.Float64("lat", lat),
 			slog.Float64("lon", lon),
 			slog.Any("error", err),
 		)
-		return fallback, fmt.Errorf("rate limit wait: %w", err)
+		return "", fmt.Errorf("rate limit wait: %w", err)
 	}
 
-	addr, err := g.reverseGeocode(ctx, lat, lon, fallback)
+	addr, err := g.reverseGeocode(ctx, lat, lon)
 	result := "ok"
 	if err != nil {
 		result = "error"
@@ -128,44 +123,16 @@ func (g *NominatimGeocoder) ReverseGeocode(ctx context.Context, lat, lon float64
 	return addr, err
 }
 
-func (g *NominatimGeocoder) reverseGeocode(ctx context.Context, lat, lon float64, fallback string) (string, error) {
+func (g *NominatimGeocoder) reverseGeocode(ctx context.Context, lat, lon float64) (string, error) {
 	reqURL := fmt.Sprintf("%s?lat=%.6f&lon=%.6f&format=json&zoom=18&addressdetails=0", g.url, lat, lon)
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
-	if err != nil {
-		return fallback, fmt.Errorf("create request: %w", err)
-	}
-	req.Header.Set("User-Agent", g.userAgent)
-	req.Header.Set("Accept", "application/json")
-
-	resp, err := g.client.Do(req)
-	if err != nil {
+	var result nominatimResponse
+	if err := g.getJSON(ctx, reqURL, &result); err != nil {
 		g.logger.Warn("geocoding request failed",
 			slog.Float64("lat", lat),
 			slog.Float64("lon", lon),
 			slog.Any("error", err),
 		)
-		return fallback, fmt.Errorf("http request: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode != http.StatusOK {
-		g.logger.Warn("geocoding returned non-200 status",
-			slog.Float64("lat", lat),
-			slog.Float64("lon", lon),
-			slog.Int("status", resp.StatusCode),
-		)
-		return fallback, fmt.Errorf("http status %d", resp.StatusCode)
-	}
-
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 64*1024)) // 64KB max
-	if err != nil {
-		return fallback, fmt.Errorf("read response: %w", err)
-	}
-
-	var result nominatimResponse
-	if err := json.Unmarshal(body, &result); err != nil {
-		return fallback, fmt.Errorf("unmarshal response: %w", err)
+		return "", err
 	}
 
 	if result.Error != "" {
@@ -174,13 +141,12 @@ func (g *NominatimGeocoder) reverseGeocode(ctx context.Context, lat, lon float64
 			slog.Float64("lon", lon),
 			slog.String("error", result.Error),
 		)
-		return fallback, fmt.Errorf("nominatim error: %s", result.Error)
+		return "", fmt.Errorf("nominatim error: %s", result.Error)
 	}
 
 	if result.DisplayName == "" {
-		return fallback, nil
+		return coordinateFallback(lat, lon), nil
 	}
-
 	return result.DisplayName, nil
 }
 
@@ -196,35 +162,13 @@ func (g *NominatimGeocoder) ForwardGeocode(ctx context.Context, query string) (l
 	reqURL := fmt.Sprintf("%s/search?q=%s&format=jsonv2&limit=1",
 		searchBase, url.QueryEscape(query))
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
-	if err != nil {
-		return 0, 0, "", fmt.Errorf("create request: %w", err)
-	}
-	req.Header.Set("User-Agent", g.userAgent)
-	req.Header.Set("Accept", "application/json")
-
-	resp, err := g.client.Do(req)
-	if err != nil {
-		return 0, 0, "", fmt.Errorf("http request: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode != http.StatusOK {
-		return 0, 0, "", fmt.Errorf("http status %d", resp.StatusCode)
-	}
-
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
-	if err != nil {
-		return 0, 0, "", fmt.Errorf("read response: %w", err)
-	}
-
 	var results []struct {
 		Lat         string `json:"lat"`
 		Lon         string `json:"lon"`
 		DisplayName string `json:"display_name"`
 	}
-	if err := json.Unmarshal(body, &results); err != nil {
-		return 0, 0, "", fmt.Errorf("unmarshal response: %w", err)
+	if err := g.getJSON(ctx, reqURL, &results); err != nil {
+		return 0, 0, "", err
 	}
 	if len(results) == 0 {
 		return 0, 0, "", fmt.Errorf("no results for %q", query)
@@ -239,6 +183,35 @@ func (g *NominatimGeocoder) ForwardGeocode(ctx context.Context, query string) (l
 		return 0, 0, "", fmt.Errorf("parse lon: %w", err)
 	}
 	return latF, lonF, results[0].DisplayName, nil
+}
+
+// getJSON GETs reqURL and decodes the JSON body (at most 64 KiB) into v.
+func (g *NominatimGeocoder) getJSON(ctx context.Context, reqURL string, v any) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("User-Agent", g.userAgent)
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := g.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("http request: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("http status %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
+	if err != nil {
+		return fmt.Errorf("read response: %w", err)
+	}
+	if err := json.Unmarshal(body, v); err != nil {
+		return fmt.Errorf("unmarshal response: %w", err)
+	}
+	return nil
 }
 
 // coordinateFallback returns a human-readable coordinate string for use when

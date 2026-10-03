@@ -134,18 +134,12 @@ func (cg *CachedGeocoder) lookup(ctx context.Context, lat, lon float64) (string,
 			slog.Float64("lon", lon),
 			slog.Any("error", err),
 		)
-		// Return the fallback (which ReverseGeocode already provides) but
-		// do NOT cache it so subsequent requests will retry.
+		// Do NOT cache the fallback so subsequent requests will retry.
 		return coordinateFallback(lat, lon), false
 	}
 
 	cg.cache.Set(lat, lon, addr)
 	return addr, true
-}
-
-// Cache returns the underlying cache for inspection or cleanup.
-func (cg *CachedGeocoder) Cache() *Cache {
-	return cg.cache
 }
 
 // StartCleanup starts a background goroutine that periodically removes expired

@@ -3,80 +3,17 @@ package pubsub_test
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"os"
-	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/alicebob/miniredis/v2"
 	"github.com/tamcore/motus/internal/pubsub"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
-)
-
-var (
-	redisURL       string
-	redisContainer testcontainers.Container
-	redisOnce      sync.Once
-	redisInitErr   error
 )
 
 func setupRedis(t *testing.T) string {
 	t.Helper()
-	if testing.Short() {
-		t.Skip("skipping integration test (requires Docker/Redis) in short mode")
-	}
-	redisOnce.Do(func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer cancel()
-
-		req := testcontainers.ContainerRequest{
-			Image:        "redis:7-alpine",
-			ExposedPorts: []string{"6379/tcp"},
-			WaitingFor:   wait.ForLog("Ready to accept connections").WithStartupTimeout(30 * time.Second),
-		}
-
-		var err error
-		redisContainer, err = testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-			ContainerRequest: req,
-			Started:          true,
-		})
-		if err != nil {
-			redisInitErr = fmt.Errorf("start redis container: %w", err)
-			return
-		}
-
-		host, err := redisContainer.Host(ctx)
-		if err != nil {
-			redisInitErr = fmt.Errorf("get redis host: %w", err)
-			return
-		}
-		port, err := redisContainer.MappedPort(ctx, "6379")
-		if err != nil {
-			redisInitErr = fmt.Errorf("get redis port: %w", err)
-			return
-		}
-
-		redisURL = fmt.Sprintf("redis://%s:%s", host, port.Port())
-	})
-
-	if redisInitErr != nil {
-		t.Fatalf("redis setup failed: %v", redisInitErr)
-	}
-	return redisURL
-}
-
-func cleanupRedis() {
-	if redisContainer != nil {
-		_ = redisContainer.Terminate(context.Background())
-	}
-}
-
-func TestMain(m *testing.M) {
-	code := m.Run()
-	cleanupRedis()
-	os.Exit(code)
+	return "redis://" + miniredis.RunT(t).Addr()
 }
 
 func newRedisPubSub(t *testing.T, url, channel string) (*pubsub.RedisPubSub, error) {

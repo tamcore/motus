@@ -2,6 +2,7 @@ import type { ChartDataset } from "chart.js";
 import type { Position } from "$lib/types/api";
 import { haversineDistance } from "$lib/utils/trips";
 import { downloadCSV } from "$lib/utils/download";
+import { dateValue } from "$lib/utils/date-range";
 
 /**
  * Metric definitions for device analytics charts.
@@ -274,6 +275,6 @@ export function exportChartDataToCSV(
   downloadCSV(
     headers,
     rows,
-    `motus-charts-${deviceName}-${new Date().toISOString().slice(0, 10)}.csv`,
+    `motus-charts-${deviceName}-${dateValue(new Date())}.csv`,
   );
 }

@@ -1,4 +1,5 @@
 import { downloadCSV } from "./download";
+import { dateValue } from "./date-range";
 
 export interface Trip {
   id: string;
@@ -49,5 +50,5 @@ export function exportTripsToCSV(trips: Trip[]): void {
     trip.maxSpeed.toFixed(1),
   ]);
 
-  downloadCSV(headers, rows, `motus-trips-${new Date().toISOString().slice(0, 10)}.csv`);
+  downloadCSV(headers, rows, `motus-trips-${dateValue(new Date())}.csv`);
 }

@@ -523,7 +523,7 @@ func handleCreateCalendar(ctx context.Context, req mcp.CallToolRequest, deps Dep
 		return mcp.NewToolResultError("invalid calendar spec: " + err.Error()), nil
 	}
 
-	c, err := deps.CalendarService.CreateForUser(ctx, user, services.CreateCalendarInput{
+	c, err := deps.CalendarService.CreateForUser(ctx, user, services.CalendarInput{
 		Name: name,
 		Data: ical,
 	})

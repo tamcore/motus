@@ -116,6 +116,26 @@ func TestGeofence_StorageErrorIsGeneric(t *testing.T) {
 	}
 }
 
+func TestDeleteGeofence_Errors(t *testing.T) {
+	hasAccess := true
+	h := newGeofenceTestHandler(&auditMockGeofenceRepo{
+		userHasAccessFn: func(context.Context, *model.User, int64) bool { return hasAccess },
+		deleteFn: func(context.Context, int64) error {
+			return errors.New("pq: connection to secret-db-host refused")
+		},
+	})
+
+	res, _ := h.DeleteGeofence(geofenceTestUserCtx(1), oas.DeleteGeofenceParams{ID: 3})
+	if f, ok := res.(*oas.DeleteGeofenceForbidden); !ok || f.Error != "failed to delete geofence" {
+		t.Errorf("storage error: got %#v", res)
+	}
+	hasAccess = false
+	res, _ = h.DeleteGeofence(geofenceTestUserCtx(1), oas.DeleteGeofenceParams{ID: 3})
+	if f, ok := res.(*oas.DeleteGeofenceForbidden); !ok || f.Error != "access denied" {
+		t.Errorf("no access: got %#v", res)
+	}
+}
+
 func TestCreateGeofence_MissingName(t *testing.T) {
 	h := newGeofenceTestHandler(&auditMockGeofenceRepo{})
 

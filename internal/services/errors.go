@@ -10,9 +10,17 @@ import (
 // internals and must not be exposed.
 var ErrInvalid = errors.New("invalid request")
 
+// ErrAccessDenied and ErrNotFound are returned wrapped in an ErrInvalid error.
+var (
+	ErrAccessDenied = errors.New("access denied")
+	ErrNotFound     = errors.New("not found")
+)
+
 type invalidError struct{ error }
 
 func (invalidError) Is(target error) bool { return target == ErrInvalid }
+
+func (e invalidError) Unwrap() error { return e.error }
 
 // PublicMessage returns err's message when it matches ErrInvalid; otherwise
 // it logs err and returns fallback.

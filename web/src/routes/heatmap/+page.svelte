@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ALL_TIME_START } from '$lib/utils/date-range';
+	import { resolveDatePreset, type DatePreset } from '$lib/utils/date-range';
 	import { onMount, onDestroy } from 'svelte';
 	import { api, fetchDevices } from '$lib/api/client';
 	import { currentUser } from '$lib/stores/auth';
@@ -32,7 +32,7 @@
 
 	// Filters
 	let selectedDeviceId = '';
-	let dateRange = 'last7d';
+	let dateRange: DatePreset = 'week';
 	let customFrom = '';
 	let customTo = '';
 
@@ -114,47 +114,13 @@
 		}
 	}
 
-	function getDateRange(): { from: Date; to: Date } {
-		const to = new Date();
-		let from: Date;
-
-		switch (dateRange) {
-			case 'last24h':
-				from = new Date(Date.now() - 24 * 60 * 60 * 1000);
-				break;
-			case 'last7d':
-				from = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-				break;
-			case 'last30d':
-				from = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-				break;
-			case 'all':
-				from = new Date(ALL_TIME_START);
-				break;
-			case 'custom':
-				from = customFrom
-					? new Date(customFrom + 'T00:00:00')
-					: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-				return {
-					from,
-					to: customTo ? new Date(customTo + 'T23:59:59') : to
-				};
-			default:
-				from = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-		}
-
-		return { from, to };
-	}
-
 	async function loadHeatmap() {
 		loading = true;
 		loadingCount = 0;
 		error = '';
 
 		try {
-			const { from, to } = getDateRange();
-			const fromISO = from.toISOString();
-			const toISO = to.toISOString();
+			const { from: fromISO, to: toISO } = resolveDatePreset(dateRange, customFrom, customTo);
 
 			// The heatmap renders at most HEATMAP_MAX_POINTS, so let the server
 			// sample the range instead of downloading every position.
@@ -378,9 +344,9 @@
 				on:change={handleDateRangeChange}
 				class="select"
 			>
-				<option value="last24h">Last 24 Hours</option>
-				<option value="last7d">Last 7 Days</option>
-				<option value="last30d">Last 30 Days</option>
+				<option value="day">Last 24 Hours</option>
+				<option value="week">Last 7 Days</option>
+				<option value="month">Last 30 Days</option>
 				<option value="all">All Time</option>
 				<option value="custom">Custom Range</option>
 			</select>

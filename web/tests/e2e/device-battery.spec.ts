@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import { test, expect } from '../fixtures/auth-fixture';
+import { mockFetch } from '../helpers/mock-fetch';
 import { DevicesPage } from '../page-objects/DevicesPage';
 import { DashboardPage } from '../page-objects/DashboardPage';
 import { MapPage } from '../page-objects/MapPage';
@@ -13,25 +14,13 @@ const MOCK_DEVICES = [
 ];
 
 /** Serve MOCK_DEVICES for the device list endpoints (user and admin scope). */
-async function mockDevices(page: Page) {
-  // page.route() does not reliably intercept SvelteKit fetches; patch fetch instead.
-  await page.addInitScript((devices) => {
-    const origFetch = window.fetch;
-    window.fetch = async function (input: RequestInfo | URL, init?: RequestInit) {
-      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-      const path = new URL(url, window.location.origin).pathname;
-      if (path === '/api/devices' || path === '/api/admin/devices') {
-        return new Response(JSON.stringify(devices), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-      if (path === '/api/positions' || path === '/api/admin/positions') {
-        return new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } });
-      }
-      return origFetch.apply(globalThis, [input, init] as Parameters<typeof fetch>);
-    } as typeof fetch;
-  }, MOCK_DEVICES);
+function mockDevices(page: Page) {
+  return mockFetch(page, [
+    { path: '/api/devices', body: MOCK_DEVICES },
+    { path: '/api/admin/devices', body: MOCK_DEVICES },
+    { path: '/api/positions', body: [] },
+    { path: '/api/admin/positions', body: [] },
+  ]);
 }
 
 test.describe('Device battery level', () => {

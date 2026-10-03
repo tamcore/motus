@@ -73,9 +73,6 @@ export class MapPage {
     return this.page.locator('.leaflet-tile');
   }
 
-  get trailButton() {
-    return this.page.locator('button:has-text("Show Trail")');
-  }
 
   get hideTrailButton() {
     return this.page.locator('button:has-text("Hide Trail")');
@@ -85,9 +82,6 @@ export class MapPage {
     return this.page.locator('select.trail-range-select');
   }
 
-  get trailCustomRange() {
-    return this.page.locator('.trail-custom-range');
-  }
 
   get trailFromDate() {
     return this.page.locator('#trail-from-date');
@@ -109,9 +103,6 @@ export class MapPage {
     return this.page.locator('button.trail-apply');
   }
 
-  get trailRangeError() {
-    return this.page.locator('.trail-range-error');
-  }
 
   get trailStatus() {
     return this.page.locator('.trail-status');

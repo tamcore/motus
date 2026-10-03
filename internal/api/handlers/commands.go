@@ -17,6 +17,29 @@ func isValidCommandType(t string) bool {
 	return slices.Contains(model.SupportedCommandTypes(), t)
 }
 
+// validateCommandAttrs checks the attributes each command type requires.
+func validateCommandAttrs(cmdType string, attrs map[string]any) error {
+	switch cmdType {
+	case model.CommandPositionPeriodic:
+		if _, ok := attrs["frequency"].(int); !ok {
+			return errors.New("positionPeriodic requires a frequency attribute")
+		}
+	case model.CommandSosNumber:
+		if p, _ := attrs["phoneNumber"].(string); p == "" {
+			return errors.New("sosNumber requires a phoneNumber attribute")
+		}
+	case model.CommandSetSpeedAlarm:
+		if s, ok := attrs["speed"].(float64); !ok || s < 0 {
+			return errors.New("setSpeedAlarm requires a speed attribute >= 0")
+		}
+	case model.CommandCustom:
+		if t, _ := attrs["text"].(string); t == "" {
+			return errors.New("custom commands require a non-empty 'text' attribute")
+		}
+	}
+	return nil
+}
+
 // --- ogen Handler methods ---
 
 // oasCommandInputToModel converts an oas.CommandInput to a model.Command.
@@ -123,13 +146,8 @@ func (h *Handler) SendCommand(ctx context.Context, req *oas.SendCommandRequest) 
 	}
 
 	attrs := oasCommandAttrsToModel(req.Attributes)
-
-	// Custom commands require a non-empty "text" attribute.
-	if req.Type == model.CommandCustom {
-		text, _ := attrs["text"].(string)
-		if text == "" {
-			return &oas.SendCommandBadRequest{Error: "custom commands require a non-empty 'text' attribute"}, nil
-		}
+	if err := validateCommandAttrs(req.Type, attrs); err != nil {
+		return &oas.SendCommandBadRequest{Error: err.Error()}, nil
 	}
 	if !h.cfg.Devices.UserHasAccess(ctx, user, req.DeviceId) {
 		return &oas.SendCommandBadRequest{Error: "access denied"}, nil

@@ -2,11 +2,11 @@ package middleware
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"strings"
 
 	gorillacsrf "github.com/gorilla/csrf"
+	"github.com/tamcore/motus/internal/api"
 )
 
 // CSRFConfig holds configuration for CSRF protection.
@@ -101,23 +101,15 @@ func CSRF(cfg CSRFConfig) func(http.Handler) http.Handler {
 // isBearerTokenRequest returns true if the request carries a non-empty
 // Authorization: Bearer token.
 func isBearerTokenRequest(r *http.Request) bool {
-	auth := r.Header.Get("Authorization")
-	if !strings.HasPrefix(auth, "Bearer ") {
-		return false
-	}
-	token := strings.TrimPrefix(auth, "Bearer ")
-	return token != ""
+	token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+	return ok && token != ""
 }
 
 // csrfErrorHandler writes a JSON 403 response for CSRF validation failures.
 func csrfErrorHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusForbidden)
-	reason := gorillacsrf.FailureReason(r)
 	msg := "CSRF token validation failed"
-	if reason != nil {
-		msg = "CSRF token validation failed: " + reason.Error()
+	if reason := gorillacsrf.FailureReason(r); reason != nil {
+		msg += ": " + reason.Error()
 	}
-	resp, _ := json.Marshal(map[string]string{"error": msg})
-	_, _ = w.Write(resp)
+	api.RespondError(w, http.StatusForbidden, msg)
 }

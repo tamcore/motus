@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/tamcore/motus/internal/ticker"
 )
 
 // validPartitionNameRE matches the canonical partition name format: positions_yYYYYmMM.
@@ -78,19 +79,8 @@ func (m *Manager) Start(ctx context.Context) {
 		}
 	}
 	run()
-
-	ticker := time.NewTicker(m.checkInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			m.logger.Info("partition manager stopped")
-			return
-		case <-ticker.C:
-			run()
-		}
-	}
+	ticker.Every(ctx, m.checkInterval, run)
+	m.logger.Info("partition manager stopped")
 }
 
 // RunOnce performs a single maintenance cycle.

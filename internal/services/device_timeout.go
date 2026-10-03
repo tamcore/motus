@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/tamcore/motus/internal/storage/repository"
+	"github.com/tamcore/motus/internal/ticker"
 	"github.com/tamcore/motus/internal/websocket"
 )
 
@@ -40,25 +41,16 @@ func NewDeviceTimeoutService(
 // Start begins monitoring devices for timeouts. It blocks until the
 // context is cancelled.
 func (s *DeviceTimeoutService) Start(ctx context.Context) {
-	ticker := time.NewTicker(s.interval)
-	defer ticker.Stop()
-
 	s.logger.Info("device timeout service started",
 		slog.String("timeout", s.timeout.String()),
 		slog.String("checkInterval", s.interval.String()),
 	)
-
-	for {
-		select {
-		case <-ctx.Done():
-			s.logger.Info("device timeout service stopped")
-			return
-		case <-ticker.C:
-			if err := s.checkTimeouts(ctx); err != nil {
-				s.logger.Error("error checking device timeouts", slog.Any("error", err))
-			}
+	ticker.Every(ctx, s.interval, func() {
+		if err := s.checkTimeouts(ctx); err != nil {
+			s.logger.Error("error checking device timeouts", slog.Any("error", err))
 		}
-	}
+	})
+	s.logger.Info("device timeout service stopped")
 }
 
 func (s *DeviceTimeoutService) checkTimeouts(ctx context.Context) error {

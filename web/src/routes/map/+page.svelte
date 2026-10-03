@@ -9,7 +9,7 @@
 	import { useLeaflet } from '$lib/composables/useLeaflet';
 	import { getOverlayById } from '$lib/utils/map-overlays';
 	import { buildPopupElement, type PopupRow } from '$lib/utils/popup';
-	import type { Device, Position, TrailBookmark, TrailBookmarkPayload } from '$lib/types/api';
+	import type { Device, DeviceStatus, Position, TrailBookmark, TrailBookmarkPayload } from '$lib/types/api';
 	import {
 		positionToRoutePosition,
 		toRoutePositions,
@@ -252,16 +252,11 @@
 	});
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	function createMarkerIcon(status: string): any {
+	function createMarkerIcon(status: DeviceStatus): any {
 		const L = leafletMap.getLeaflet();
 		if (!L) return null;
 
-		const color =
-			status === 'online'
-				? 'var(--map-marker-online)'
-				: status === 'moving'
-					? '#00d4ff'
-					: '#ff4444';
+		const color = { online: 'var(--map-marker-online)', offline: '#ff4444', unknown: 'var(--text-tertiary)' }[status];
 
 		return L.divIcon({
 			className: 'custom-marker',

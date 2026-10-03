@@ -92,8 +92,6 @@
 		switch (status) {
 			case 'online': return 'var(--status-online)';
 			case 'offline': return 'var(--status-offline)';
-			case 'idle': return 'var(--status-idle)';
-			case 'moving': return 'var(--status-moving)';
 			default: return 'var(--text-secondary)';
 		}
 	}

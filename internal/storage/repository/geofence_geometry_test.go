@@ -15,6 +15,7 @@ func TestGeometryError(t *testing.T) {
 	}{
 		{"wkt parse error", &pgconn.PgError{Code: "XX000", Message: "parse error - invalid geometry"}, true},
 		{"unknown geojson type", &pgconn.PgError{Code: "XX000", Message: "unknown GeoJSON type"}, true},
+		{"invalid geojson (postgis 3.4 wording)", &pgconn.PgError{Code: "XX000", Message: "invalid GeoJson representation"}, true},
 		{"too few points", &pgconn.PgError{Code: "XX000", Message: "geometry requires more points"}, true},
 		{"internal fault stays generic", &pgconn.PgError{Code: "XX000", Message: "cache lookup failed for type 12345"}, false},
 		{"other sqlstate stays generic", &pgconn.PgError{Code: "23505", Message: "parse error - duplicate"}, false},

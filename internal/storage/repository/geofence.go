@@ -31,17 +31,18 @@ var ErrInvalidGeometry = errors.New("invalid geometry")
 // pgInternalError is the SQLSTATE PostGIS raises for unparsable geometry input.
 const pgInternalError = "XX000"
 
-// geometryParsePrefixes are PostGIS messages for invalid client geometry.
-// XX000 is Postgres' catch-all internal error, so the code alone is not enough.
+// geometryParsePrefixes are lower-cased PostGIS messages for invalid client
+// geometry. XX000 is Postgres' catch-all internal error, so the code alone is
+// not enough.
 var geometryParsePrefixes = []string{
-	"parse error", "unknown GeoJSON type", "Invalid GeoJSON", "geometry requires more points",
+	"parse error", "unknown geojson type", "invalid geojson", "geometry requires more points",
 }
 
 // geometryError maps a PostGIS parse failure to ErrInvalidGeometry and wraps
 // any other error with op.
 func geometryError(op string, err error) error {
 	if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok && pgErr.Code == pgInternalError &&
-		slices.ContainsFunc(geometryParsePrefixes, func(p string) bool { return strings.HasPrefix(pgErr.Message, p) }) {
+		slices.ContainsFunc(geometryParsePrefixes, func(p string) bool { return strings.HasPrefix(strings.ToLower(pgErr.Message), p) }) {
 		return fmt.Errorf("%w: %s", ErrInvalidGeometry, pgErr.Message)
 	}
 	return fmt.Errorf("%s: %w", op, err)

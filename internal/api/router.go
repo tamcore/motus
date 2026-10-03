@@ -81,11 +81,16 @@ var passkeyLoginPaths = map[string]bool{
 	"/api/session/passkey/login/finish": true,
 }
 
+// isLoginRequest reports whether r is a pre-auth login request.
+func isLoginRequest(r *http.Request) bool {
+	return r.Method == http.MethodPost && (r.URL.Path == "/api/session" || passkeyLoginPaths[r.URL.Path])
+}
+
 // exemptLoginFromCSRF marks POST /api/session as CSRF-exempt so the login
 // endpoint can be reached before the client holds a CSRF token.
 func exemptLoginFromCSRF(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPost && (r.URL.Path == "/api/session" || passkeyLoginPaths[r.URL.Path]) {
+		if isLoginRequest(r) {
 			r = csrf.UnsafeSkipCheck(r)
 		}
 		next.ServeHTTP(w, r)
@@ -214,7 +219,7 @@ func NewRouter(h oas.Handler, sec oas.SecurityHandler, hub *websocket.Hub, opts 
 		apiHandler = func(inner http.Handler) http.Handler {
 			limited := loginRL(inner)
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if r.Method == http.MethodPost && (r.URL.Path == "/api/session" || passkeyLoginPaths[r.URL.Path]) {
+				if isLoginRequest(r) {
 					limited.ServeHTTP(w, r)
 					return
 				}

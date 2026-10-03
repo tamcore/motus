@@ -122,15 +122,10 @@ func (r *PasskeyRepository) DeleteAllByUser(ctx context.Context, userID int64) e
 	return nil
 }
 
-// rowScanner is satisfied by both pgx.Row and pgx.Rows.
-type rowScanner interface {
-	Scan(dest ...any) error
-}
-
 // scanPasskey scans a single passkey row. sign_count is stored as BIGINT and
 // read back through an int64 before narrowing to the uint32 the WebAuthn library
 // expects.
-func scanPasskey(row rowScanner) (*model.PasskeyCredential, error) {
+func scanPasskey(row pgx.Row) (*model.PasskeyCredential, error) {
 	c := &model.PasskeyCredential{}
 	var signCount int64
 	if err := row.Scan(

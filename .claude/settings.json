@@ -12,11 +12,18 @@
         "source": "github",
         "repo": "JetBrains/go-modern-guidelines"
       }
+    },
+    "ponytail": {
+      "source": {
+        "source": "github",
+        "repo": "DietrichGebert/ponytail"
+      }
     }
   },
   "enabledPlugins": {
     "frontend-design@claude-plugins-official": true,
     "modern-go-guidelines@goland-claude-marketplace": true,
-    "playwright@claude-plugins-official": true
+    "playwright@claude-plugins-official": true,
+    "ponytail@ponytail": true
   }
 }

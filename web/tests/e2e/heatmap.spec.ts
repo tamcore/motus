@@ -83,4 +83,39 @@ test.describe('Heatmap', () => {
     await expect(authedPage.locator('.data-count')).toHaveText('2 points');
     await expect.poll(paintedPixels).toBeGreaterThan(0);
   });
+
+  test('reloads the heatmap when an admin toggles All users', async ({ authedPage }) => {
+    await authedPage.addInitScript(() => {
+      localStorage.removeItem('motus_settings');
+      const origFetch = window.fetch;
+      const json = (body: unknown) =>
+        new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      window.fetch = async function (input: RequestInfo | URL, init?: RequestInit) {
+        const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+        // The admin owns no devices; other users' devices only appear with "All users".
+        if (url.includes('/api/admin/devices')) {
+          return json([{ id: 4242, name: 'Other User Device', uniqueId: 'heat-1', status: 'online' }]);
+        }
+        if (url.includes('/api/devices')) {
+          return json([]);
+        }
+        if (url.includes('/api/positions/points')) {
+          return json([
+            { lat: 49.79, lon: 9.95, speed: 10, fixTime: '2026-10-01T10:00:00Z' },
+            { lat: 49.8, lon: 9.96, speed: 20, fixTime: '2026-10-01T11:00:00Z' },
+          ]);
+        }
+        return origFetch.apply(globalThis, [input, init] as Parameters<typeof fetch>);
+      } as typeof fetch;
+    });
+
+    await authedPage.goto('/heatmap');
+    await expect(authedPage.locator('.empty-message')).toBeVisible();
+    await expect(authedPage.locator('.data-count')).toHaveText('0 points');
+
+    await authedPage.locator('.admin-toggle input[type="checkbox"]').check();
+
+    await expect(authedPage.locator('.data-count')).toHaveText('2 points');
+    await expect(authedPage.locator('canvas.leaflet-heatmap-layer')).toBeAttached();
+  });
 });

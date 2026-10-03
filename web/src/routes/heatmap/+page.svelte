@@ -316,6 +316,16 @@
 		loadHeatmap();
 	}
 
+	// The admin "All users" toggle changes which devices are in scope, so the
+	// heatmap must be reloaded too, not just the device list.
+	async function handleScopeChange() {
+		await loadDevices();
+		if (selectedDeviceId && !devices.some((d) => String(d.id) === selectedDeviceId)) {
+			selectedDeviceId = '';
+		}
+		await loadHeatmap();
+	}
+
 	function applyCustomRange() {
 		if (customFrom) {
 			loadHeatmap();
@@ -397,7 +407,7 @@
 
 		<!-- Device Filter -->
 		<div class="control-group">
-			<label for="device-filter">Device <AllDevicesToggle on:change={loadDevices} /></label>
+			<label for="device-filter">Device <AllDevicesToggle on:change={handleScopeChange} /></label>
 			<select
 				id="device-filter"
 				bind:value={selectedDeviceId}

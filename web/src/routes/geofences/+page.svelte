@@ -3,7 +3,8 @@
 	import { api, fetchGeofences, fetchCalendars } from '$lib/api/client';
 	import { currentUser } from '$lib/stores/auth';
 	import { refreshHandler } from '$lib/stores/refresh';
-	import { useUserLocation } from '$lib/composables/useUserLocation';
+	import { useUserLocation, userLocationLayers } from '$lib/composables/useUserLocation';
+	import { useLeaflet } from '$lib/composables/useLeaflet';
 	import { buildPopupElement, type PopupRow } from '$lib/utils/popup';
 	import {
 		GEOFENCE_STYLE,
@@ -51,11 +52,9 @@
 	let shapeEditLayer: any = null;
 
 	// User location
+	const leafletMap = useLeaflet();
 	const userLocation = useUserLocation();
-	let userAccuracyCircle: any = null;
-	let userDotMarker: any = null;
-	let userHeadingMarker: any = null;
-	let firstUserFix = false;
+	const userLayers = userLocationLayers(() => L, () => map);
 
 	// Default center (Germany) - used as last resort
 	const DEFAULT_CENTER: [number, number] = [51.1657, 10.4515];
@@ -200,133 +199,32 @@
 
 	// React to user position changes
 	$: if (userLocation.position) {
-		updateUserLocationLayers();
+		userLayers.updatePosition(userLocation.position);
 	}
 
 	// React to heading changes
 	$: if (userLocation.heading !== null || userLocation.position) {
-		updateUserHeadingLayer();
-	}
-
-	function updateUserLocationLayers() {
-		if (!L || !map || !userLocation.position) return;
-		const pos = userLocation.position;
-		const latlng: [number, number] = [pos.lat, pos.lng];
-
-		if (userAccuracyCircle) {
-			userAccuracyCircle.setLatLng(latlng);
-			userAccuracyCircle.setRadius(pos.accuracy);
-		} else {
-			userAccuracyCircle = L.circle(latlng, {
-				radius: pos.accuracy,
-				color: '#4285F4',
-				fillColor: '#4285F4',
-				fillOpacity: 0.1,
-				weight: 1,
-				interactive: false,
-			}).addTo(map);
-		}
-
-		const dotHtml = `
-			<div class="user-location-dot">
-				<div class="user-location-dot-inner"></div>
-			</div>`;
-
-		if (userDotMarker) {
-			userDotMarker.setLatLng(latlng);
-		} else {
-			userDotMarker = L.marker(latlng, {
-				icon: L.divIcon({
-					className: 'user-location-marker',
-					html: dotHtml,
-					iconSize: [16, 16],
-					iconAnchor: [8, 8],
-				}),
-				interactive: false,
-				zIndexOffset: 1000,
-			}).addTo(map);
-		}
-
-		if (!firstUserFix) {
-			firstUserFix = true;
-			map.setView(latlng, Math.max(map.getZoom(), 15));
-		}
-	}
-
-	function updateUserHeadingLayer() {
-		if (!L || !map || !userLocation.position) return;
-		const pos = userLocation.position;
-		const heading = userLocation.heading;
-		const latlng: [number, number] = [pos.lat, pos.lng];
-
-		if (userHeadingMarker) {
-			map.removeLayer(userHeadingMarker);
-			userHeadingMarker = null;
-		}
-
-		if (heading === null || !userLocation.active) return;
-
-		const coneHtml = `
-			<svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"
-				style="transform: rotate(${heading}deg); transform-origin: 20px 20px;">
-				<path d="M20 0 L26 20 L20 16 L14 20 Z" fill="#4285F4" fill-opacity="0.5"/>
-			</svg>`;
-
-		userHeadingMarker = L.marker(latlng, {
-			icon: L.divIcon({
-				className: 'user-heading-marker',
-				html: coneHtml,
-				iconSize: [40, 40],
-				iconAnchor: [20, 20],
-			}),
-			interactive: false,
-			zIndexOffset: 999,
-		}).addTo(map);
-	}
-
-	function removeUserLocationLayers() {
-		if (!map) return;
-		if (userAccuracyCircle) { map.removeLayer(userAccuracyCircle); userAccuracyCircle = null; }
-		if (userDotMarker) { map.removeLayer(userDotMarker); userDotMarker = null; }
-		if (userHeadingMarker) { map.removeLayer(userHeadingMarker); userHeadingMarker = null; }
+		userLayers.updateHeading(userLocation.position, userLocation.heading, userLocation.active);
 	}
 
 	async function toggleLocateMe() {
 		if (userLocation.active) {
 			userLocation.stop();
-			firstUserFix = false;
-			removeUserLocationLayers();
+			userLayers.remove();
 		} else {
 			await userLocation.start();
 		}
 	}
 
 	onMount(async () => {
-		// Import Leaflet and leaflet-draw
-		const leafletModule = await import('leaflet');
-		L = leafletModule.default || leafletModule;
-		await import('leaflet/dist/leaflet.css');
+		await leafletMap.initialize(mapContainer, await getInitialCenter());
+		map = leafletMap.getMap();
 
-		// Import leaflet-draw - this extends the L object
+		// leaflet-draw extends the global L object, not the import wrapper.
 		await import('leaflet-draw');
 		await import('leaflet-draw/dist/leaflet.draw.css');
-
-		const initialView = await getInitialCenter();
-		const center = initialView.center;
-		const zoom = initialView.zoom;
-
-		map = L.map(mapContainer, {
-			center,
-			zoom,
-			zoomControl: false
-		});
-
-		L.control.zoom({ position: 'topright' }).addTo(map);
-
-		L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-			attribution: '&copy; OpenStreetMap contributors',
-			maxZoom: 19
-		}).addTo(map);
+		const leafletModule: any = leafletMap.getLeaflet();
+		L = leafletModule.default || leafletModule;
 
 		drawnItems = new L.FeatureGroup().addTo(map);
 
@@ -362,7 +260,7 @@
 	onDestroy(() => {
 		$refreshHandler = null;
 		userLocation.stop();
-		if (map) map.remove();
+		leafletMap.cleanup();
 	});
 
 	/**

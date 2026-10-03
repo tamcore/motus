@@ -2,7 +2,7 @@
 	import { page } from '$app/stores';
 	import { onMount, onDestroy } from 'svelte';
 	import { useLeaflet } from '$lib/composables/useLeaflet';
-	import { useUserLocation } from '$lib/composables/useUserLocation';
+	import { useUserLocation, userLocationLayers } from '$lib/composables/useUserLocation';
 	import { buildPopupElement } from '$lib/utils/popup';
 	import type { Device } from '$lib/types/api';
 
@@ -27,15 +27,8 @@
 
 	const leafletMap = useLeaflet();
 	const userLocation = useUserLocation();
+	const userLayers = userLocationLayers(() => leafletMap.getLeaflet(), () => leafletMap.getMap(), false);
 
-	// User location layers
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	let userAccuracyCircle: any = null;
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	let userDotMarker: any = null;
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	let userHeadingMarker: any = null;
-	let firstUserFix = false;
 
 	// State
 	let token = '';
@@ -421,7 +414,6 @@
 		await leafletMap.initialize(mapContainer, {
 			center: [51.505, -0.09],
 			zoom: 13,
-			tileAttribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
 		});
 
 		const L = leafletMap.getLeaflet()!;
@@ -440,109 +432,18 @@
 
 	// React to user position changes
 	$: if (userLocation.position) {
-		updateUserLocationLayers();
+		userLayers.updatePosition(userLocation.position);
 	}
 
 	// React to heading changes
 	$: if (userLocation.heading !== null || userLocation.position) {
-		updateUserHeadingLayer();
-	}
-
-	function updateUserLocationLayers() {
-		const L = leafletMap.getLeaflet();
-		const map = leafletMap.getMap();
-		const pos = userLocation.position;
-		if (!L || !map || !pos) return;
-
-		const latlng: [number, number] = [pos.lat, pos.lng];
-
-		if (userAccuracyCircle) {
-			userAccuracyCircle.setLatLng(latlng);
-			userAccuracyCircle.setRadius(pos.accuracy);
-		} else {
-			userAccuracyCircle = L.circle(latlng, {
-				radius: pos.accuracy,
-				color: '#4285F4',
-				fillColor: '#4285F4',
-				fillOpacity: 0.1,
-				weight: 1,
-				interactive: false,
-			}).addTo(map);
-		}
-
-		const dotHtml = `
-			<div class="user-location-dot">
-				<div class="user-location-dot-inner"></div>
-			</div>`;
-
-		if (userDotMarker) {
-			userDotMarker.setLatLng(latlng);
-		} else {
-			userDotMarker = L.marker(latlng, {
-				icon: L.divIcon({
-					className: 'user-location-marker',
-					html: dotHtml,
-					iconSize: [16, 16],
-					iconAnchor: [8, 8],
-				}),
-				interactive: false,
-				zIndexOffset: 1000,
-			}).addTo(map);
-		}
-
-		if (!firstUserFix) {
-			firstUserFix = true;
-			// Don't pan — let the user compare their position to the tracked device
-		}
-	}
-
-	function updateUserHeadingLayer() {
-		const L = leafletMap.getLeaflet();
-		const map = leafletMap.getMap();
-		const pos = userLocation.position;
-		const heading = userLocation.heading;
-		if (!L || !map || !pos) return;
-
-		const latlng: [number, number] = [pos.lat, pos.lng];
-
-		if (userHeadingMarker) {
-			map.removeLayer(userHeadingMarker);
-			userHeadingMarker = null;
-		}
-
-		if (heading === null || !userLocation.active) return;
-
-		const coneHtml = `
-			<svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"
-				style="transform: rotate(${heading}deg); transform-origin: 20px 20px;">
-				<path d="M20 0 L26 20 L20 16 L14 20 Z" fill="#4285F4" fill-opacity="0.5"/>
-			</svg>`;
-
-		userHeadingMarker = L.marker(latlng, {
-			icon: L.divIcon({
-				className: 'user-heading-marker',
-				html: coneHtml,
-				iconSize: [40, 40],
-				iconAnchor: [20, 20],
-			}),
-			interactive: false,
-			zIndexOffset: 999,
-		}).addTo(map);
-	}
-
-	function removeUserLocationLayers() {
-		const map = leafletMap.getMap();
-		if (!map) return;
-		if (userAccuracyCircle) { map.removeLayer(userAccuracyCircle); userAccuracyCircle = null; }
-		if (userDotMarker) { map.removeLayer(userDotMarker); userDotMarker = null; }
-		if (userHeadingMarker) { map.removeLayer(userHeadingMarker); userHeadingMarker = null; }
+		userLayers.updateHeading(userLocation.position, userLocation.heading, userLocation.active);
 	}
 
 	async function toggleLocateMe() {
 		if (userLocation.active) {
 			userLocation.stop();
-			firstUserFix = false;
-			removeUserLocationLayers();
+			userLayers.remove();
 		} else {
 			await userLocation.start();
 		}

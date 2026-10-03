@@ -444,11 +444,18 @@ test.describe('Geofence drawing and creation', () => {
     const c = await mapCenter(page);
 
     await page.click('.leaflet-draw-draw-polygon');
-    await page.mouse.click(c.x - 80, c.y - 60);
-    await page.mouse.click(c.x + 80, c.y - 60);
-    await page.mouse.click(c.x, c.y + 70);
+    // leaflet-draw ignores new vertices for 50 ms after each one, so pause
+    // between clicks like a user would.
+    const vertex = async (x: number, y: number) => {
+      await page.mouse.move(x, y, { steps: 5 });
+      await page.mouse.click(x, y);
+      await page.waitForTimeout(150);
+    };
+    await vertex(c.x - 80, c.y - 60);
+    await vertex(c.x + 80, c.y - 60);
+    await vertex(c.x, c.y + 70);
     // Clicking the first vertex closes the polygon.
-    await page.mouse.click(c.x - 80, c.y - 60);
+    await vertex(c.x - 80, c.y - 60);
 
     await saveAndExpect(page, `${prefix} Polygon`);
     await ctx.close();

@@ -548,7 +548,7 @@ func parseCellNumber(s string) (int, error) {
 	if containsHexLetter(s) {
 		base = 16
 	}
-	n, err := strconv.ParseInt(s, base, 64)
+	n, err := strconv.ParseInt(s, base, 0)
 	return int(n), err
 }
 

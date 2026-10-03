@@ -4,7 +4,7 @@
 	import { refreshHandler } from '$lib/stores/refresh';
 	import { formatDate } from '$lib/utils/formatting';
 	import { EVENT_TYPES } from '$lib/stores/notifications';
-	import type { NotificationRule, NotificationLog } from '$lib/stores/notifications';
+	import type { NotificationRule, NotificationLog } from '$lib/types/api';
 	import Button from '$lib/components/Button.svelte';
 	import StatusIndicator from '$lib/components/StatusIndicator.svelte';
 

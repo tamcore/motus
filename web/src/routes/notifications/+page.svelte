@@ -10,15 +10,15 @@
 	import AllDevicesToggle from '$lib/components/AllDevicesToggle.svelte';
 	import ReportingIntervalPicker from '$lib/components/ReportingIntervalPicker.svelte';
 	import {
-		notificationRules,
 		EVENT_TYPES,
 		CHANNELS,
 		TEMPLATE_VARIABLES,
 		DEFAULT_TEMPLATE
 	} from '$lib/stores/notifications';
-	import type { NotificationRule, NotificationLog } from '$lib/stores/notifications';
 	import type {
 		Geofence,
+		NotificationLog,
+		NotificationRule,
 		NotificationChannel,
 		NotificationConfig,
 		NotificationConfigWebhook
@@ -35,6 +35,7 @@
 		hasGeofenceEvent
 	} from '$lib/utils/notificationRules';
 
+	let notificationRules: NotificationRule[] = [];
 	let loading = true;
 	let error = '';
 	let showModal = false;
@@ -109,7 +110,7 @@
 		error = '';
 		try {
 			const rules = await fetchNotifications();
-			notificationRules.set(rules);
+			notificationRules = rules;
 		} catch (err: any) {
 			error = 'Failed to load notification rules';
 			console.error(err);
@@ -363,7 +364,7 @@
 				<div class="spinner" aria-hidden="true"></div>
 				<p>Loading notification rules...</p>
 			</div>
-		{:else if $notificationRules.length === 0}
+		{:else if notificationRules.length === 0}
 			<div class="empty-state">
 				<svg viewBox="0 0 24 24" width="64" height="64" fill="none" stroke="var(--text-tertiary)" stroke-width="1">
 					<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
@@ -375,7 +376,7 @@
 			</div>
 		{:else}
 			<div class="rules-list">
-				{#each $notificationRules as rule (rule.id)}
+				{#each notificationRules as rule (rule.id)}
 					<div class="rule-card" class:disabled={!rule.enabled} class:other-user={rule.ownerName}>
 						<div class="rule-header">
 							<div class="rule-info">

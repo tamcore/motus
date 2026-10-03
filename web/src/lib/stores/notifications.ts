@@ -1,19 +1,3 @@
-import { writable, derived } from "svelte/store";
-import type { NotificationRule } from "$lib/types/api";
-
-export type { NotificationRule };
-
-export interface NotificationLog {
-  id: number;
-  ruleId: number;
-  eventId?: number;
-  status: string;
-  sentAt?: string;
-  error?: string;
-  responseCode?: number;
-  createdAt: string;
-}
-
 export const EVENT_TYPES = [
   { value: "geofenceEnter", label: "Geofence Enter" },
   { value: "geofenceExit", label: "Geofence Exit" },
@@ -45,9 +29,3 @@ export const TEMPLATE_VARIABLES = [
 
 export const DEFAULT_TEMPLATE =
   '{"device": "{{device.name}}", "event": "{{event.type}}"}';
-
-export const notificationRules = writable<NotificationRule[]>([]);
-export const enabledRuleCount = derived(
-  notificationRules,
-  ($rules) => $rules.filter((r) => r.enabled).length,
-);

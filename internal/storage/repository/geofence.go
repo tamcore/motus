@@ -99,19 +99,6 @@ func (r *GeofenceRepository) GetByUser(ctx context.Context, userID int64) ([]*mo
 	return pgx.CollectRows(rows, rowToGeofence)
 }
 
-// GetAll retrieves all geofences, ordered by name.
-func (r *GeofenceRepository) GetAll(ctx context.Context) ([]*model.Geofence, error) {
-	rows, err := r.pool.Query(ctx, `
-		SELECT id, name, description, ST_AsText(geometry), ST_AsGeoJSON(geometry), attributes, calendar_id, created_at, updated_at
-		FROM geofences
-		ORDER BY name
-	`)
-	if err != nil {
-		return nil, fmt.Errorf("get all geofences: %w", err)
-	}
-	return pgx.CollectRows(rows, rowToGeofence)
-}
-
 // GetAllWithOwners retrieves all geofences with owner names from user_geofences join.
 func (r *GeofenceRepository) GetAllWithOwners(ctx context.Context) ([]*model.Geofence, error) {
 	rows, err := r.pool.Query(ctx, `

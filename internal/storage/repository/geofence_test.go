@@ -121,26 +121,6 @@ func TestGeofenceRepository_GetByUser(t *testing.T) {
 	}
 }
 
-func TestGeofenceRepository_GetAll(t *testing.T) {
-	pool := testutil.SetupTestDB(t)
-	testutil.CleanTables(t, pool)
-	geoRepo := repository.NewGeofenceRepository(pool)
-	ctx := context.Background()
-
-	g1 := &model.Geofence{Name: "All Fence 1", Geometry: berlinPolygonGeoJSON}
-	g2 := &model.Geofence{Name: "All Fence 2", Geometry: berlinPolygonGeoJSON}
-	_ = geoRepo.Create(ctx, g1)
-	_ = geoRepo.Create(ctx, g2)
-
-	all, err := geoRepo.GetAll(ctx)
-	if err != nil {
-		t.Fatalf("GetAll failed: %v", err)
-	}
-	if len(all) != 2 {
-		t.Errorf("expected 2 geofences, got %d", len(all))
-	}
-}
-
 func TestGeofenceRepository_Update(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)

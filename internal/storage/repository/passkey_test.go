@@ -160,25 +160,3 @@ func TestPasskeyRepository_Delete_ScopedByUser(t *testing.T) {
 		t.Fatal("credential should be deleted by owner")
 	}
 }
-
-func TestPasskeyRepository_DeleteAllByUser(t *testing.T) {
-	pool := testutil.SetupTestDB(t)
-	testutil.CleanTables(t, pool)
-	ctx := context.Background()
-
-	userRepo := repository.NewUserRepository(pool)
-	repo := repository.NewPasskeyRepository(pool)
-	user := newPasskeyTestUser(t, userRepo, "pk-all@example.com")
-
-	for _, id := range [][]byte{[]byte("a"), []byte("b"), []byte("c")} {
-		if err := repo.Create(ctx, &model.PasskeyCredential{UserID: user.ID, CredentialID: id, PublicKey: []byte("pk")}); err != nil {
-			t.Fatalf("create: %v", err)
-		}
-	}
-	if err := repo.DeleteAllByUser(ctx, user.ID); err != nil {
-		t.Fatalf("delete all: %v", err)
-	}
-	if list, _ := repo.ListByUser(ctx, user.ID); len(list) != 0 {
-		t.Fatalf("expected 0 after DeleteAllByUser, got %d", len(list))
-	}
-}

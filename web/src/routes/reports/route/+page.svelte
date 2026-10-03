@@ -8,6 +8,7 @@
 	import { downloadGPX } from '$lib/utils/gpx';
 	import type { Position } from '$lib/utils/trips';
 	import { toRoutePositions } from '$lib/utils/route-points';
+	import { normalizeTimeParam } from '$lib/utils/report-links';
 	import RoutePlayback from '$lib/components/RoutePlayback.svelte';
 
 	const leafletMap = useLeaflet();
@@ -28,8 +29,8 @@
 
 	// Parse query params: ?deviceId=X&from=Y&to=Z
 	$: deviceId = $page.url.searchParams.get('deviceId');
-	$: from = $page.url.searchParams.get('from');
-	$: to = $page.url.searchParams.get('to');
+	$: from = normalizeTimeParam($page.url.searchParams.get('from'));
+	$: to = normalizeTimeParam($page.url.searchParams.get('to'));
 
 	onMount(async () => {
 		// Initialize map via composable

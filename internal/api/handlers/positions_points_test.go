@@ -3,6 +3,9 @@ package handlers_test
 import (
 	"context"
 	"math"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
@@ -18,12 +21,57 @@ type pointsPositionRepo struct {
 	repository.PositionRepo
 	points   []model.PositionPoint
 	deviceID int64
+	from, to time.Time
 	limit    int
 }
 
-func (m *pointsPositionRepo) PointsByDeviceAndTimeRange(_ context.Context, deviceID int64, _, _ time.Time, limit int) ([]model.PositionPoint, error) {
-	m.deviceID, m.limit = deviceID, limit
+func (m *pointsPositionRepo) PointsByDeviceAndTimeRange(_ context.Context, deviceID int64, from, to time.Time, limit int) ([]model.PositionPoint, error) {
+	m.deviceID, m.from, m.to, m.limit = deviceID, from, to, limit
 	return m.points, nil
+}
+
+// pointsUserSecurity authenticates every request as the points test user.
+type pointsUserSecurity struct{ allowAllSecurity }
+
+func (pointsUserSecurity) HandleBearerAuth(ctx context.Context, _ oas.OperationName, _ oas.BearerAuth) (context.Context, error) {
+	return api.ContextWithUser(ctx, &model.User{ID: 7, Email: "points@example.com"}), nil
+}
+
+// The route and replay views pass trip times, which carry the server's UTC
+// offset (e.g. "+02:00"), as from/to. Percent-encoded they are accepted; a raw
+// "+" in the query string decodes to a space and is rejected.
+func TestGetPositionPoints_OffsetTimesOverHTTP(t *testing.T) {
+	repo := &pointsPositionRepo{points: []model.PositionPoint{}}
+	srv, err := oas.NewServer(newPointsHandler(repo, true), pointsUserSecurity{})
+	if err != nil {
+		t.Fatalf("new server: %v", err)
+	}
+	get := func(rawQuery string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodGet, "/api/positions/points?"+rawQuery, nil)
+		req.Header.Set("Authorization", "Bearer x")
+		rec := httptest.NewRecorder()
+		srv.ServeHTTP(rec, req)
+		return rec
+	}
+
+	encoded := url.Values{
+		"deviceId": {"3"},
+		"from":     {"2026-10-03T07:48:24+02:00"},
+		"to":       {"2026-10-03T08:17:34.000Z"},
+	}.Encode()
+	if rec := get(encoded); rec.Code != http.StatusOK {
+		t.Fatalf("encoded offset: status %d: %s", rec.Code, rec.Body.String())
+	}
+	if want := time.Date(2026, 10, 3, 5, 48, 24, 0, time.UTC); !repo.from.Equal(want) {
+		t.Errorf("from = %v, want %v", repo.from, want)
+	}
+	if want := time.Date(2026, 10, 3, 8, 17, 34, 0, time.UTC); !repo.to.Equal(want) {
+		t.Errorf("to = %v, want %v", repo.to, want)
+	}
+
+	if rec := get("deviceId=3&from=2026-10-03T07:48:24+02:00"); rec.Code != http.StatusBadRequest {
+		t.Errorf("raw '+' offset: status %d, want 400", rec.Code)
+	}
 }
 
 func newPointsHandler(repo *pointsPositionRepo, hasAccess bool) *handlers.Handler {

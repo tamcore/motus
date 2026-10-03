@@ -7,6 +7,7 @@
 	import { refreshHandler } from '$lib/stores/refresh';
 	import { exportTripsToCSV } from '$lib/utils/trips';
 	import { exportStopsToCSV } from '$lib/utils/stops';
+	import { tripLink } from '$lib/utils/report-links';
 	import { formatDate, formatDuration, formatDistance, formatSpeed } from '$lib/utils/formatting';
 	import type { Trip } from '$lib/utils/trips';
 	import type { Stop } from '$lib/utils/stops';
@@ -437,8 +438,8 @@
 								{#if columnConfig.avgSpeed}<td>{formatSpeed(getTripAvgSpeed(trip))}</td>{/if}
 								{#if columnConfig.maxSpeed}<td>{formatSpeed(trip.maxSpeed)}</td>{/if}
 								<td>
-									<a href="/reports/route?deviceId={trip.deviceId}&from={trip.startTime}&to={trip.endTime}" class="view-link">Route</a>
-									<a href="/reports/replay?deviceId={trip.deviceId}&from={trip.startTime}&to={trip.endTime}" class="view-link replay-link">Replay</a>
+									<a href={tripLink('/reports/route', trip)} class="view-link">Route</a>
+									<a href={tripLink('/reports/replay', trip)} class="view-link replay-link">Replay</a>
 									{#if isTripOngoing(trip)}
 										<a href="/map?device={trip.deviceId}" class="view-link live-link">Live</a>
 									{/if}

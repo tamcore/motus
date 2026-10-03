@@ -8,6 +8,7 @@
 	import { theme } from '$lib/stores/theme';
 	import { haversineDistance } from '$lib/utils/trips';
 	import { toRoutePositions, type RoutePosition as Position } from '$lib/utils/route-points';
+	import { normalizeTimeParam } from '$lib/utils/report-links';
 	import { formatDate, formatDuration, formatSpeed, formatDistance } from '$lib/utils/formatting';
 	import type { Device } from '$lib/types/api';
 	import { Chart, registerables } from 'chart.js';
@@ -142,8 +143,8 @@
 
 	// Parse initial query params
 	$: qDeviceId = $page.url.searchParams.get('deviceId');
-	$: qFrom = $page.url.searchParams.get('from');
-	$: qTo = $page.url.searchParams.get('to');
+	$: qFrom = normalizeTimeParam($page.url.searchParams.get('from'));
+	$: qTo = normalizeTimeParam($page.url.searchParams.get('to'));
 
 	// ---------------------------------------------------------------------------
 	// Lifecycle

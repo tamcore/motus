@@ -328,7 +328,7 @@ func (r *PositionRepository) streamUserRange(ctx context.Context, userID int64, 
 		steps = append(steps, stride)
 	}
 	return r.stream(ctx, fn, `SELECT `+positionColumns+` FROM (
-			SELECT `+qualifiedPositionColumns+`, row_number() OVER (PARTITION BY p.device_id ORDER BY p.timestamp) - 1 AS rn
+			SELECT `+qualifiedPositionColumns+`, row_number() OVER (PARTITION BY p.device_id ORDER BY p.timestamp DESC) - 1 AS rn
 			`+userRangeFilter+` AND p.device_id = ANY($4)
 		 ) w
 		 JOIN unnest($4::bigint[], $5::bigint[]) AS s(device_id, stride) USING (device_id)
@@ -351,13 +351,17 @@ func (r *PositionRepository) countByDevice(ctx context.Context, userID int64, fr
 		}
 		counts[id] = n
 	}
-	return counts, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("count by device: %w", err)
+	}
+	return counts, nil
 }
 
 // deviceStrides splits limit fairly across devices: devices with fewer rows
-// than their share keep all of them, the rest is shared among busier devices.
-// It returns each device's sampling stride (keep rows where rn%stride == 0) and
-// whether any row is dropped. Devices left without budget are omitted.
+// than their share keep all of them, the rest is shared among busier devices;
+// every device gets at least one row while budget remains. It returns each
+// device's sampling stride (keep rows where rn%stride == 0) and whether any row
+// is dropped. Devices left without budget are omitted.
 func deviceStrides(counts map[int64]int64, limit int) (map[int64]int64, bool) {
 	ids := slices.SortedFunc(maps.Keys(counts), func(a, b int64) int {
 		return cmp.Or(cmp.Compare(counts[a], counts[b]), cmp.Compare(a, b))
@@ -367,8 +371,11 @@ func deviceStrides(counts map[int64]int64, limit int) (map[int64]int64, bool) {
 	sampled := false
 	for i, id := range ids {
 		count := counts[id]
-		take := min(count, remaining/int64(len(ids)-i))
-		if take == 0 {
+		if count <= 0 {
+			continue
+		}
+		take := min(count, max(remaining/int64(len(ids)-i), min(1, remaining)))
+		if take <= 0 {
 			sampled = true
 			continue
 		}

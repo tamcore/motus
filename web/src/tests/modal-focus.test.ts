@@ -1,61 +1,64 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, fireEvent } from '@testing-library/svelte';
 import { tick } from 'svelte';
 import ModalFocusHost from './helpers/ModalFocusHost.svelte';
 
-async function openModal(container: HTMLElement): Promise<void> {
-	const trigger = container.querySelector<HTMLButtonElement>('#outside-trigger')!;
-	trigger.focus();
-	await fireEvent.click(trigger);
+async function openModal(container: HTMLElement): Promise<HTMLDialogElement> {
+	await fireEvent.click(container.querySelector<HTMLButtonElement>('#outside-trigger')!);
 	await tick();
+	return document.querySelector<HTMLDialogElement>('dialog')!;
 }
 
-function dialog(): HTMLElement {
-	const el = document.querySelector<HTMLElement>('[role="dialog"]');
-	expect(el).not.toBeNull();
-	return el!;
-}
+const closes = (container: HTMLElement) => container.querySelector('#closes')!.textContent;
 
-describe('Modal focus management', () => {
-	it('moves focus into the dialog when opened', async () => {
+// Focus trap, Escape and focus restore come from the native modal dialog;
+// these tests check that Modal drives it.
+describe('Modal', () => {
+	afterEach(() => vi.restoreAllMocks());
+
+	it('opens as a native modal dialog', async () => {
+		const showModal = vi.spyOn(HTMLDialogElement.prototype, 'showModal');
 		const { container } = render(ModalFocusHost);
-		await openModal(container);
-
-		expect(dialog().contains(document.activeElement)).toBe(true);
+		const dialog = await openModal(container);
+		expect(showModal).toHaveBeenCalledOnce();
+		expect(dialog.open).toBe(true);
+		expect(dialog.querySelector('#modal-title')?.textContent).toBe('Test Modal');
 	});
 
-	it('wraps Tab from the last focusable element to the first', async () => {
+	it('closes when the dialog closes natively (Escape)', async () => {
 		const { container } = render(ModalFocusHost);
-		await openModal(container);
-
-		const footerBtn = document.querySelector<HTMLButtonElement>('#footer-btn')!;
-		footerBtn.focus();
-		await fireEvent.keyDown(dialog(), { key: 'Tab' });
-
-		const closeBtn = document.querySelector<HTMLButtonElement>('.close-button')!;
-		expect(document.activeElement).toBe(closeBtn);
-	});
-
-	it('wraps Shift+Tab from the first focusable element to the last', async () => {
-		const { container } = render(ModalFocusHost);
-		await openModal(container);
-
-		const closeBtn = document.querySelector<HTMLButtonElement>('.close-button')!;
-		closeBtn.focus();
-		await fireEvent.keyDown(dialog(), { key: 'Tab', shiftKey: true });
-
-		const footerBtn = document.querySelector<HTMLButtonElement>('#footer-btn')!;
-		expect(document.activeElement).toBe(footerBtn);
-	});
-
-	it('restores focus to the previously focused element on close', async () => {
-		const { container } = render(ModalFocusHost);
-		await openModal(container);
-
-		await fireEvent.keyDown(window, { key: 'Escape' });
+		const dialog = await openModal(container);
+		dialog.close();
 		await tick();
+		expect(document.querySelector('dialog')).toBeNull();
+		expect(closes(container)).toBe('1');
+	});
 
-		const trigger = container.querySelector<HTMLButtonElement>('#outside-trigger')!;
-		expect(document.activeElement).toBe(trigger);
+	it('closes on a backdrop click but not on a click inside', async () => {
+		const { container } = render(ModalFocusHost);
+		const dialog = await openModal(container);
+		await fireEvent.click(dialog.querySelector('#first-btn')!);
+		expect(document.querySelector('dialog')).not.toBeNull();
+		await fireEvent.click(dialog);
+		await tick();
+		expect(document.querySelector('dialog')).toBeNull();
+		expect(closes(container)).toBe('1');
+	});
+
+	it('closes the native dialog when the parent closes it, without a close event', async () => {
+		const connectedOnClose: boolean[] = [];
+		const nativeClose = HTMLDialogElement.prototype.close;
+		vi.spyOn(HTMLDialogElement.prototype, 'close').mockImplementation(function (this: HTMLDialogElement) {
+			connectedOnClose.push(this.isConnected);
+			nativeClose.call(this);
+		});
+		const { container } = render(ModalFocusHost);
+		const dialog = await openModal(container);
+		await fireEvent.click(dialog.querySelector('#parent-close')!);
+		await tick();
+		// Still in the DOM, so the browser can restore focus.
+		expect(connectedOnClose).toEqual([true]);
+		expect(document.querySelector('dialog')).toBeNull();
+		expect(closes(container)).toBe('0');
 	});
 });

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { api, APIError } from '$lib/api/client';
+	import { api } from '$lib/api/client';
 	import type { PasskeyCredentialInfo } from '$lib/types/api';
 	import { formatDate } from '$lib/utils/formatting';
 	import {
@@ -53,15 +53,10 @@
 		try {
 			passkeys = await api.listPasskeys();
 		} catch (e: unknown) {
-			listError = `Failed to load passkeys: ${errorMessage(e)}`;
+			listError = `Failed to load passkeys: ${e instanceof Error ? e.message : 'Please try again.'}`;
 		} finally {
 			loading = false;
 		}
-	}
-
-	function errorMessage(e: unknown): string {
-		if (e instanceof APIError || e instanceof Error) return e.message;
-		return 'Please try again.';
 	}
 
 	// ---------------------------------------------------------------------------
@@ -98,7 +93,7 @@
 			if (isPasskeyCancellation(e)) {
 				return;
 			}
-			createError = errorMessage(e);
+			createError = e instanceof Error ? e.message : 'Please try again.';
 		} finally {
 			creating = false;
 		}

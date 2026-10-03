@@ -1,4 +1,5 @@
 import { getAuthHeaders, setCsrfToken } from "./headers";
+import { request } from "./client";
 import type { ChatEvent, ChatMessage } from "$lib/types/api";
 
 const API_BASE = "/api";
@@ -56,21 +57,15 @@ export async function* streamChat(
 }
 
 export async function fetchHistory(): Promise<ChatMessage[]> {
-  const authHeaders = await getAuthHeaders("GET");
-  const response = await fetch(`${API_BASE}/chat/history`, {
-    credentials: "include",
-    headers: authHeaders,
-  });
-  if (!response.ok) return [];
-  const data = await response.json();
-  return (data.messages as ChatMessage[]) ?? [];
+  try {
+    const data = await request<{ messages?: ChatMessage[] }>("/chat/history");
+    return data.messages ?? [];
+  } catch (err) {
+    console.error("Failed to load chat history:", err);
+    return [];
+  }
 }
 
-export async function clearHistory(): Promise<void> {
-  const authHeaders = await getAuthHeaders("DELETE");
-  await fetch(`${API_BASE}/chat/history`, {
-    method: "DELETE",
-    credentials: "include",
-    headers: authHeaders,
-  });
+export function clearHistory(): Promise<void> {
+  return request<void>("/chat/history", { method: "DELETE" });
 }

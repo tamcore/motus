@@ -35,7 +35,7 @@
 	} from '$lib/utils/trail-range';
 	import TrailBookmarkList from '$lib/components/TrailBookmarkList.svelte';
 	import TrailBookmarkModal from '$lib/components/TrailBookmarkModal.svelte';
-	import { bookmarkErrorMessage, bookmarkToTrailRange } from '$lib/utils/trail-bookmarks';
+	import { bookmarkToTrailRange } from '$lib/utils/trail-bookmarks';
 
 	const leafletMap = useLeaflet();
 	const userLocation = useUserLocation();
@@ -490,7 +490,7 @@
 			await api.deleteTrailBookmark(bookmark.id);
 			await loadDeviceBookmarks(selectedDeviceId);
 		} catch (err: unknown) {
-			bookmarksError = bookmarkErrorMessage(err, 'Failed to delete bookmark');
+			bookmarksError = (err instanceof Error ? err.message : 'Failed to delete bookmark');
 		}
 	}
 

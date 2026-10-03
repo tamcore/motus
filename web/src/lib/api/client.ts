@@ -43,7 +43,7 @@ import type { Trip } from "$lib/utils/trips";
 import type { Stop } from "$lib/utils/stops";
 import { currentUser } from "$lib/stores/auth";
 import * as svelteStore from "svelte/store";
-import { getCsrfToken, getAuthHeaders, setCsrfToken } from "./headers";
+import { getAuthHeaders, setCsrfToken } from "./headers";
 
 const API_BASE = "/api";
 const KNOTS_TO_KMH = 1.852;
@@ -57,14 +57,26 @@ export class APIError extends Error {
   }
 }
 
-async function request<T>(
+/** The `error` field of a JSON error body, else the raw body. */
+function errorMessage(body: string, status: number): string {
+  try {
+    const parsed = JSON.parse(body) as { error?: unknown } | null;
+    if (typeof parsed?.error === "string" && parsed.error !== "") return parsed.error;
+  } catch {
+    // Plain-text body.
+  }
+  return body || `Request failed (${status})`;
+}
+
+export async function request<T>(
   endpoint: string,
   options: RequestInit = {},
 ): Promise<T> {
   const method = (options.method || "GET").toUpperCase();
   const authHeaders = await getAuthHeaders(method);
   const headers: HeadersInit = {
-    "Content-Type": "application/json",
+    // The browser sets the multipart boundary for FormData bodies.
+    ...(options.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
     ...authHeaders,
     ...options.headers,
   };
@@ -81,7 +93,7 @@ async function request<T>(
   }
 
   if (!response.ok) {
-    throw new APIError(response.status, await response.text());
+    throw new APIError(response.status, errorMessage(await response.text(), response.status));
   }
 
   if (
@@ -224,33 +236,13 @@ export const api = {
     request<void>(`/devices/${id}`, { method: "DELETE" }),
 
   /** Import a GPX track file into a device's position history. */
-  importGPX: async (
-    deviceId: number,
-    file: File,
-  ): Promise<{ imported: number; skipped: number }> => {
-    const formData = new FormData();
-    formData.append("file", file);
-
-    const headers: Record<string, string> = {};
-    const csrfTokenValue = getCsrfToken();
-    if (csrfTokenValue) {
-      headers["X-CSRF-Token"] = csrfTokenValue;
-    }
-
-    const response = await fetch(`${API_BASE}/devices/${deviceId}/gpx`, {
+  importGPX: (deviceId: number, file: File) => {
+    const body = new FormData();
+    body.append("file", file);
+    return request<{ imported: number; skipped: number }>(`/devices/${deviceId}/gpx`, {
       method: "POST",
-      body: formData,
-      credentials: "include",
-      headers,
+      body,
     });
-
-    const token = response.headers.get("X-CSRF-Token");
-    if (token) setCsrfToken(token);
-
-    if (!response.ok) {
-      throw new APIError(response.status, await response.text());
-    }
-    return response.json();
   },
 
   // ---------------------------------------------------------------------------

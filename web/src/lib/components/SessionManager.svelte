@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { api, APIError } from '$lib/api/client';
+	import { api } from '$lib/api/client';
 	import type { Session } from '$lib/types/api';
 	import { formatDate } from '$lib/utils/formatting';
 	import Button from '$lib/components/Button.svelte';
@@ -38,13 +38,7 @@
 		try {
 			sessions = await api.getSessions();
 		} catch (e: unknown) {
-			if (e instanceof APIError) {
-				listError = `Failed to load sessions: ${e.message}`;
-			} else if (e instanceof Error) {
-				listError = `Failed to load sessions: ${e.message}`;
-			} else {
-				listError = 'Failed to load sessions. Please try again.';
-			}
+			listError = e instanceof Error ? `Failed to load sessions: ${e.message}` : 'Failed to load sessions. Please try again.';
 		} finally {
 			loading = false;
 		}

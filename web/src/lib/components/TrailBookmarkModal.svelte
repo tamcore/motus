@@ -6,7 +6,6 @@
 	import {
 		BOOKMARK_DESCRIPTION_MAX,
 		BOOKMARK_NAME_MAX,
-		bookmarkErrorMessage,
 		bookmarkOriginalFromRange,
 		buildBookmarkPayload,
 		charCount,
@@ -87,7 +86,7 @@
 		try {
 			await onSave(result.payload);
 		} catch (err: unknown) {
-			error = bookmarkErrorMessage(err, 'Failed to save bookmark');
+			error = (err instanceof Error ? err.message : 'Failed to save bookmark');
 		} finally {
 			saving = false;
 		}

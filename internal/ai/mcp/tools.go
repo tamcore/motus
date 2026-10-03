@@ -900,18 +900,6 @@ func handleListEvents(ctx context.Context, req mcp.CallToolRequest, deps Deps) (
 
 // ---- notification helpers ---------------------------------------------------
 
-var mcpValidEventTypes = map[string]bool{
-	"geofenceEnter": true, "geofenceExit": true,
-	"deviceOnline": true, "deviceOffline": true,
-	"motion": true, "deviceIdle": true,
-	"ignitionOn": true, "ignitionOff": true,
-	"alarm": true, "tripCompleted": true,
-}
-
-var mcpValidChannels = map[string]bool{
-	"webhook": true,
-}
-
 func splitTrim(s string) []string {
 	parts := strings.Split(s, ",")
 	out := make([]string, 0, len(parts))
@@ -925,7 +913,7 @@ func splitTrim(s string) []string {
 
 func validateEventTypes(types []string) error {
 	for _, t := range types {
-		if !mcpValidEventTypes[t] {
+		if !model.IsNotificationEventType(t) {
 			return fmt.Errorf("unsupported event type %q", t)
 		}
 	}
@@ -933,7 +921,7 @@ func validateEventTypes(types []string) error {
 }
 
 func validateChannel(ch string) error {
-	if !mcpValidChannels[ch] {
+	if ch != model.NotificationChannelWebhook {
 		return fmt.Errorf("unsupported channel %q (supported: webhook)", ch)
 	}
 	return nil

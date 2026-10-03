@@ -14,20 +14,6 @@ import (
 	"github.com/tamcore/motus/internal/services"
 )
 
-// validEventTypes lists the event types the notification system supports.
-var validEventTypes = map[string]bool{
-	"geofenceEnter": true,
-	"geofenceExit":  true,
-	"deviceOnline":  true,
-	"deviceOffline": true,
-	"motion":        true,
-	"deviceIdle":    true,
-	"ignitionOn":    true,
-	"ignitionOff":   true,
-	"alarm":         true,
-	"tripCompleted": true,
-}
-
 // validChannels lists the notification delivery channels.
 var validChannels = map[string]bool{
 	model.NotificationChannelWebhook: true,
@@ -48,7 +34,7 @@ func notificationRuleFromInput(req *oas.NotificationRuleInput, requireTemplate b
 		return nil, "at least one event type is required"
 	}
 	for _, et := range req.EventTypes {
-		if !validEventTypes[et] {
+		if !model.IsNotificationEventType(et) {
 			return nil, fmt.Sprintf("invalid event type: %s", et)
 		}
 	}

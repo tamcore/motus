@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"encoding/json"
 	"fmt"
 	"maps"
 	"math"
@@ -13,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/tamcore/motus/internal/api"
 	"golang.org/x/time/rate"
 )
 
@@ -103,10 +103,8 @@ func clientIP(remoteAddr string) string {
 
 // rateLimitResponse writes a JSON 429 response matching the project's error format.
 func rateLimitResponse(w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Retry-After", "60")
-	w.WriteHeader(http.StatusTooManyRequests)
-	_ = json.NewEncoder(w).Encode(map[string]string{"error": "rate limit exceeded"})
+	api.RespondError(w, http.StatusTooManyRequests, "rate limit exceeded")
 }
 
 // RateLimit returns middleware that applies a token bucket per client IP and
@@ -147,14 +145,4 @@ func RateLimit(cfg RateLimitConfig) func(http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 		})
 	}
-}
-
-// LoginRateLimit returns middleware with the default login rate limit (5 req/min).
-func LoginRateLimit() func(http.Handler) http.Handler {
-	return RateLimit(DefaultLoginRateLimit())
-}
-
-// APIRateLimit returns middleware with the default API rate limit (100 req/min).
-func APIRateLimit() func(http.Handler) http.Handler {
-	return RateLimit(DefaultAPIRateLimit())
 }

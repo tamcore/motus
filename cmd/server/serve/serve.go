@@ -400,7 +400,7 @@ func Run() {
 	// Idle detection service.
 	idleService := services.NewIdleService(deviceRepo, positionRepo, eventRepo, hub, notificationService, svcLogger)
 	if cachedGeocoder != nil {
-		idleService.SetGeocoder(cachedGeocoder, positionRepo)
+		idleService.SetGeocoder(cachedGeocoder)
 	}
 
 	// Mileage tracking service.

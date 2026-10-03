@@ -28,11 +28,6 @@ type AddressGeocoder interface {
 	Lookup(ctx context.Context, lat, lon float64) string
 }
 
-// AddressUpdater persists a geocoded address on a stored position.
-type AddressUpdater interface {
-	UpdateAddress(ctx context.Context, positionID int64, address string) error
-}
-
 // IdleService detects devices that have been stationary for longer than
 // the idle threshold and creates deviceIdle events. It runs as a background
 // service, polling at a configured interval.
@@ -42,7 +37,6 @@ type IdleService struct {
 	positionRepo   repository.PositionRepo
 	mileageService *MileageService
 	geocoder       AddressGeocoder
-	addressUpdater AddressUpdater
 }
 
 // NewIdleService creates a new idle detection service.
@@ -64,9 +58,8 @@ func NewIdleService(
 // SetGeocoder configures reverse geocoding for idle positions. When set, the
 // service will geocode the stop location and persist the address in the
 // position's address field in the database.
-func (s *IdleService) SetGeocoder(geocoder AddressGeocoder, updater AddressUpdater) {
+func (s *IdleService) SetGeocoder(geocoder AddressGeocoder) {
 	s.geocoder = geocoder
-	s.addressUpdater = updater
 }
 
 // SetMileageService configures the mileage tracker so the idle service can
@@ -164,9 +157,9 @@ func (s *IdleService) CheckIdle(ctx context.Context) error {
 		// Geocode the stop location and store the address on the position.
 		// This only runs for a new idle event (not on subsequent checks), so
 		// the geocoder rate limit is respected.
-		if s.geocoder != nil && s.addressUpdater != nil && position.Address == nil {
+		if s.geocoder != nil && position.Address == nil {
 			addr := s.geocoder.Lookup(ctx, position.Latitude, position.Longitude)
-			if err := s.addressUpdater.UpdateAddress(ctx, position.ID, addr); err != nil {
+			if err := s.positionRepo.UpdateAddress(ctx, position.ID, addr); err != nil {
 				s.logger.Error("failed to store geocoded address",
 					slog.Int64("positionID", position.ID),
 					slog.Any("error", err),

@@ -6,7 +6,6 @@
 	import Button from '$lib/components/Button.svelte';
 	import Input from '$lib/components/Input.svelte';
 	import Modal from '$lib/components/Modal.svelte';
-	import StatusIndicator from '$lib/components/StatusIndicator.svelte';
 	import AllDevicesToggle from '$lib/components/AllDevicesToggle.svelte';
 	import ReportingIntervalPicker from '$lib/components/ReportingIntervalPicker.svelte';
 	import {
@@ -609,7 +608,8 @@
 		align-items: center;
 		gap: var(--space-3);
 	}
-	.history-link {
+	.history-link,
+	.logs-link {
 		display: inline-flex;
 		align-items: center;
 		gap: var(--space-2);
@@ -625,13 +625,6 @@
 	}
 	.logs-link {
 		padding: var(--space-1) var(--space-3);
-		color: var(--text-primary);
-		text-decoration: none;
-		font-size: var(--text-sm);
-		font-weight: var(--font-medium);
-		border: 1px solid var(--border-color);
-		border-radius: var(--radius-md);
-		background-color: var(--bg-secondary);
 	}
 	.logs-link:hover,
 	.history-link:hover {

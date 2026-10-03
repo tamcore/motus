@@ -35,12 +35,11 @@
 	import TrailBookmarkList from '$lib/components/TrailBookmarkList.svelte';
 	import TrailBookmarkModal from '$lib/components/TrailBookmarkModal.svelte';
 	import { bookmarkToTrailRange } from '$lib/utils/trail-bookmarks';
+	import { GEOFENCE_STYLE } from '$lib/utils/geofence-draw';
 
 	const leafletMap = useLeaflet();
 	const userLocation = useUserLocation();
 	const userLayers = userLocationLayers(() => leafletMap.getLeaflet(), () => leafletMap.getMap());
-
-	const GEOFENCE_STYLE = { color: '#00d4ff', weight: 2, fillOpacity: 0.15 };
 
 	let mapContainer: HTMLDivElement;
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -726,7 +725,7 @@
 										<StatusIndicator status={device.status} />
 									</span>
 								</div>
-								{#if device.status === 'online' || device.status === 'moving'}
+								{#if device.status === 'online'}
 									{#if pos}
 										<span class="device-meta">
 											{pos.speed != null ? formatSpeed(pos.speed) : 'N/A'}

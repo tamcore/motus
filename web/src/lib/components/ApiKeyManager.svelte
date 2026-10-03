@@ -3,6 +3,7 @@
 	import { api } from '$lib/api/client';
 	import type { ApiKey } from '$lib/types/api';
 	import { formatDate } from '$lib/utils/formatting';
+	import { dateValue } from '$lib/utils/date-range';
 	import Button from '$lib/components/Button.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import Input from '$lib/components/Input.svelte';
@@ -228,7 +229,7 @@
 	function getMinDate(): string {
 		const tomorrow = new Date();
 		tomorrow.setDate(tomorrow.getDate() + 1);
-		return tomorrow.toISOString().split('T')[0];
+		return dateValue(tomorrow);
 	}
 </script>
 

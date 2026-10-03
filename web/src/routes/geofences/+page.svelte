@@ -2,6 +2,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { api, fetchGeofences, fetchCalendars } from '$lib/api/client';
 	import { refreshHandler } from '$lib/stores/refresh';
+	import { getSettings } from '$lib/stores/settings';
 	import { useUserLocation, userLocationLayers } from '$lib/composables/useUserLocation';
 	import { useLeaflet } from '$lib/composables/useLeaflet';
 	import { buildPopupElement, type PopupRow } from '$lib/utils/popup';
@@ -144,19 +145,9 @@
 
 	async function getInitialCenter(): Promise<{ center: [number, number]; zoom: number }> {
 		// Priority 1: User's explicitly configured default location from settings
-		try {
-			const savedSettings = localStorage.getItem('motus_settings');
-			if (savedSettings) {
-				const s = JSON.parse(savedSettings);
-				if (s.mapLocationSet && s.defaultMapLat != null && s.defaultMapLng != null) {
-					return {
-						center: [s.defaultMapLat, s.defaultMapLng],
-						zoom: s.defaultMapZoom || DEFAULT_ZOOM
-					};
-				}
-			}
-		} catch {
-			// Corrupted settings, continue to next method
+		const s = getSettings();
+		if (s.mapLocationSet) {
+			return { center: [s.defaultMapLat, s.defaultMapLng], zoom: s.defaultMapZoom || DEFAULT_ZOOM };
 		}
 
 		// Priority 2: Center on device positions if available

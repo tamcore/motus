@@ -341,7 +341,7 @@ make lint                     # All linters
 |--------|-------------|
 | `build` | Build motus binary |
 | `generate` | Regenerate `internal/api/oas/` from `docs/openapi.yaml` (ogen) |
-| `lint` | Run all linters (go vet, golangci-lint, frontend check) |
+| `lint` | Run all linters (golangci-lint, frontend check) |
 | `test` | Run all tests (includes lint) |
 | `dev-deploy-k8s` | Build dev image, push, deploy to K8s |
 | `dev-reset-database` | Reset database (delete all data) |

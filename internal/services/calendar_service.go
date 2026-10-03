@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/tamcore/motus/internal/audit"
@@ -29,16 +30,26 @@ type CreateCalendarInput struct {
 	Data string // valid iCalendar (RFC 5545) text
 }
 
-// CreateForUser validates, persists, and audits a new calendar for user.
-func (s *CalendarService) CreateForUser(ctx context.Context, user *model.User, in CreateCalendarInput) (*model.Calendar, error) {
+func validateCalendarInput(in CreateCalendarInput) error {
 	if in.Name == "" {
-		return nil, fmt.Errorf("name is required")
+		return errors.New("name is required")
 	}
 	if err := validation.ValidateDisplayName(in.Name); err != nil {
-		return nil, err
+		return err
+	}
+	if in.Data == "" {
+		return errors.New("data is required")
 	}
 	if err := calendar.Validate(in.Data); err != nil {
-		return nil, fmt.Errorf("invalid calendar data: %w", err)
+		return fmt.Errorf("invalid iCalendar data: %w", err)
+	}
+	return nil
+}
+
+// CreateForUser validates, persists, and audits a new calendar for user.
+func (s *CalendarService) CreateForUser(ctx context.Context, user *model.User, in CreateCalendarInput) (*model.Calendar, error) {
+	if err := invalid(validateCalendarInput(in)); err != nil {
+		return nil, err
 	}
 
 	c := &model.Calendar{
@@ -47,10 +58,7 @@ func (s *CalendarService) CreateForUser(ctx context.Context, user *model.User, i
 		Data:   in.Data,
 	}
 	if err := s.repo.Create(ctx, c); err != nil {
-		return nil, fmt.Errorf("create calendar: %w", err)
-	}
-	if err := s.repo.AssociateUser(ctx, user.ID, c.ID); err != nil {
-		return nil, fmt.Errorf("associate user: %w", err)
+		return nil, err
 	}
 
 	s.auditLogger.Log(ctx, &user.ID,

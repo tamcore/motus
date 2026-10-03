@@ -222,7 +222,6 @@ type auditMockCalendarRepo struct {
 	updateFn        func(ctx context.Context, c *model.Calendar) error
 	deleteFn        func(ctx context.Context, id int64) error
 	userHasAccessFn func(ctx context.Context, user *model.User, calendarID int64) bool
-	associateUserFn func(ctx context.Context, userID, calendarID int64) error
 }
 
 var _ repository.CalendarRepo = (*auditMockCalendarRepo)(nil)
@@ -263,12 +262,6 @@ func (m *auditMockCalendarRepo) UserHasAccess(ctx context.Context, user *model.U
 		return m.userHasAccessFn(ctx, user, calendarID)
 	}
 	return false
-}
-func (m *auditMockCalendarRepo) AssociateUser(ctx context.Context, userID, calendarID int64) error {
-	if m.associateUserFn != nil {
-		return m.associateUserFn(ctx, userID, calendarID)
-	}
-	return nil
 }
 func (m *auditMockCalendarRepo) GetAll(_ context.Context) ([]*model.Calendar, error) {
 	return nil, nil

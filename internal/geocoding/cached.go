@@ -135,7 +135,7 @@ func (cg *CachedGeocoder) lookup(ctx context.Context, lat, lon float64) (string,
 			slog.Any("error", err),
 		)
 		// Do NOT cache the fallback so subsequent requests will retry.
-		return coordinateFallback(lat, lon), false
+		return CoordinateFallback(lat, lon), false
 	}
 
 	cg.cache.Set(lat, lon, addr)

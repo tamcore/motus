@@ -9,6 +9,7 @@ import (
 	"github.com/tamcore/motus/internal/audit"
 	"github.com/tamcore/motus/internal/calendar"
 	"github.com/tamcore/motus/internal/model"
+	"github.com/tamcore/motus/internal/services"
 	"github.com/tamcore/motus/internal/validation"
 )
 
@@ -40,31 +41,13 @@ func (h *Handler) CreateCalendar(ctx context.Context, req *oas.CalendarInput) (o
 	if user == nil {
 		return &oas.CreateCalendarUnauthorized{Error: "unauthorized"}, nil
 	}
-	if req.Name == "" {
-		return &oas.CreateCalendarBadRequest{Error: "name is required"}, nil
+	cal, err := h.cfg.CalendarService.CreateForUser(ctx, user, services.CreateCalendarInput{
+		Name: req.Name,
+		Data: req.Data,
+	})
+	if err != nil {
+		return &oas.CreateCalendarBadRequest{Error: services.PublicMessage(err, "failed to create calendar")}, nil
 	}
-	if err := validation.ValidateDisplayName(req.Name); err != nil {
-		return &oas.CreateCalendarBadRequest{Error: err.Error()}, nil
-	}
-	if req.Data == "" {
-		return &oas.CreateCalendarBadRequest{Error: "data is required"}, nil
-	}
-	if err := calendar.Validate(req.Data); err != nil {
-		return &oas.CreateCalendarBadRequest{Error: "invalid iCalendar data: " + err.Error()}, nil
-	}
-
-	cal := &model.Calendar{
-		UserID: user.ID,
-		Name:   req.Name,
-		Data:   req.Data,
-	}
-	if err := h.cfg.Calendars.Create(ctx, cal); err != nil {
-		return &oas.CreateCalendarBadRequest{Error: "failed to create calendar"}, nil
-	}
-
-	h.cfg.AuditLogger.Log(ctx, &user.ID,
-		audit.ActionCalendarCreate, audit.ResourceCalendar, &cal.ID,
-		map[string]any{"name": cal.Name}, "", "")
 	out := calendarToOAS(cal)
 	return &out, nil
 }

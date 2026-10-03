@@ -38,10 +38,6 @@ const maxPasswordLength = 128
 // - domain with at least one dot (TLD)
 var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9.!#$%&'*+/=?^_{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$`)
 
-// dangerousNameChars contains characters not allowed in names to prevent
-// injection attacks (XSS, template injection, SQL smuggling).
-const dangerousNameChars = "<>`\x00"
-
 // deviceIDRegex allows alphanumeric characters, hyphens, underscores, and dots.
 var deviceIDRegex = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
 
@@ -68,55 +64,40 @@ func ValidateEmail(email string) error {
 // It rejects empty strings, excessively long strings, whitespace-only strings,
 // and strings containing characters that could enable injection attacks.
 func ValidateName(name string) error {
-	if name == "" {
-		return fmt.Errorf("name is required")
-	}
-	if len(name) > maxNameLength {
-		return fmt.Errorf("name must be at most %d characters", maxNameLength)
-	}
 	if strings.TrimSpace(name) == "" {
-		return fmt.Errorf("name must not be blank")
+		return errors.New("name is required")
 	}
-	if strings.ContainsAny(name, dangerousNameChars) {
-		return fmt.Errorf("name contains invalid characters")
-	}
-	return nil
+	return validateText("name", name, maxNameLength)
 }
 
 // ValidateDisplayName checks that a display name (geofence name, calendar
-// name, etc.) is within length limits (in characters) and contains no HTML-injectable or
-// control characters. An empty string is accepted.
+// name, etc.) is within length limits and contains no forbidden characters.
+// An empty string is accepted.
 func ValidateDisplayName(name string) error {
-	return ValidateText(name, maxDisplayNameLength)
+	return validateText("name", name, maxDisplayNameLength)
 }
 
 // ValidateDescription checks that a description is within length limits and
-// contains no HTML-injectable or control characters.
+// contains no forbidden characters.
 func ValidateDescription(desc string) error {
-	return ValidateText(desc, maxDescriptionLength)
+	return validateText("description", desc, maxDescriptionLength)
 }
 
-// ValidateText checks that s has at most maxChars characters (Unicode code
-// points, not bytes) and contains no HTML-injectable or control characters.
-func ValidateText(s string, maxChars int) error {
+// validateText checks that s has at most maxChars characters (Unicode code
+// points, not bytes) and no angle brackets or control characters other than
+// newline and tab. Errors name the field.
+func validateText(field, s string, maxChars int) error {
 	if utf8.RuneCountInString(s) > maxChars {
-		return fmt.Errorf("exceeds maximum length of %d characters", maxChars)
+		return fmt.Errorf("%s exceeds maximum length of %d characters", field, maxChars)
 	}
-	return validateTextChars(s)
-}
-
-// validateTextChars rejects angle brackets and control characters other than
-// newline and horizontal tab.
-func validateTextChars(s string) error {
-	if strings.ContainsAny(s, "<>") {
-		return errors.New("value contains invalid characters")
-	}
-	for _, r := range s {
-		if r < 0x20 && r != '\n' && r != '\t' {
-			return errors.New("value contains invalid characters")
-		}
+	if strings.ContainsAny(s, "<>") || strings.ContainsFunc(s, isForbiddenControl) {
+		return fmt.Errorf("%s contains invalid characters", field)
 	}
 	return nil
+}
+
+func isForbiddenControl(r rune) bool {
+	return r < 0x20 && r != '\n' && r != '\t'
 }
 
 // ValidateDeviceUniqueID checks that the given string is a valid device

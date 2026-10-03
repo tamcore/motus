@@ -166,15 +166,13 @@ func (h *Handler) SendCommand(ctx context.Context, req *oas.SendCommandRequest) 
 		return &oas.SendCommandBadRequest{Error: "failed to create command"}, nil
 	}
 
-	if h.cfg.AuditLogger != nil {
-		details := map[string]any{
-			"commandType":   cmd.Type,
-			"commandStatus": cmd.Status,
-			"deviceName":    device.Name,
-		}
-		h.cfg.AuditLogger.Log(ctx, &user.ID,
-			audit.ActionCommandSend, audit.ResourceCommand, &cmd.ID, details, "", "")
+	details := map[string]any{
+		"commandType":   cmd.Type,
+		"commandStatus": cmd.Status,
+		"deviceName":    device.Name,
 	}
+	h.cfg.AuditLogger.Log(ctx, &user.ID,
+		audit.ActionCommandSend, audit.ResourceCommand, &cmd.ID, details, "", "")
 
 	out := commandToOAS(cmd)
 	return &out, nil

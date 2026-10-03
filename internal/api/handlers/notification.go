@@ -217,12 +217,10 @@ func (h *Handler) CreateNotification(ctx context.Context, req *oas.NotificationR
 		return &oas.CreateNotificationBadRequest{Error: "failed to create notification rule"}, nil
 	}
 
-	if h.cfg.AuditLogger != nil {
-		h.cfg.AuditLogger.Log(ctx, &user.ID,
-			audit.ActionNotifCreate, audit.ResourceNotification, &rule.ID,
-			map[string]any{"name": rule.Name, "eventTypes": rule.EventTypes, "channel": rule.Channel},
-			"", "")
-	}
+	h.cfg.AuditLogger.Log(ctx, &user.ID,
+		audit.ActionNotifCreate, audit.ResourceNotification, &rule.ID,
+		map[string]any{"name": rule.Name, "eventTypes": rule.EventTypes, "channel": rule.Channel},
+		"", "")
 	out := notificationRuleToOAS(rule)
 	return &out, nil
 }
@@ -255,12 +253,10 @@ func (h *Handler) UpdateNotification(ctx context.Context, req *oas.NotificationR
 		return &oas.UpdateNotificationBadRequest{Error: "failed to update notification rule"}, nil
 	}
 
-	if h.cfg.AuditLogger != nil {
-		h.cfg.AuditLogger.Log(ctx, &user.ID,
-			audit.ActionNotifUpdate, audit.ResourceNotification, &params.ID,
-			map[string]any{"name": rule.Name, "eventTypes": rule.EventTypes, "channel": rule.Channel},
-			"", "")
-	}
+	h.cfg.AuditLogger.Log(ctx, &user.ID,
+		audit.ActionNotifUpdate, audit.ResourceNotification, &params.ID,
+		map[string]any{"name": rule.Name, "eventTypes": rule.EventTypes, "channel": rule.Channel},
+		"", "")
 	out := notificationRuleToOAS(rule)
 	return &out, nil
 }
@@ -281,12 +277,9 @@ func (h *Handler) DeleteNotification(ctx context.Context, params oas.DeleteNotif
 	if err := h.cfg.Notifications.Delete(ctx, params.ID); err != nil {
 		return &oas.DeleteNotificationForbidden{Error: "failed to delete notification rule"}, nil
 	}
-	if h.cfg.AuditLogger != nil {
-		id := params.ID
-		h.cfg.AuditLogger.Log(ctx, &user.ID,
-			audit.ActionNotifDelete, audit.ResourceNotification, &id,
-			nil, "", "")
-	}
+	h.cfg.AuditLogger.Log(ctx, &user.ID,
+		audit.ActionNotifDelete, audit.ResourceNotification, &params.ID,
+		nil, "", "")
 	return &oas.DeleteNotificationNoContent{}, nil
 }
 

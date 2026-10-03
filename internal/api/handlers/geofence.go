@@ -146,12 +146,9 @@ func (h *Handler) DeleteGeofence(ctx context.Context, params oas.DeleteGeofenceP
 	if err := h.cfg.Geofences.Delete(ctx, params.ID); err != nil {
 		return &oas.DeleteGeofenceForbidden{Error: "failed to delete geofence"}, nil
 	}
-	if h.cfg.AuditLogger != nil {
-		id := params.ID
-		h.cfg.AuditLogger.Log(ctx, &user.ID,
-			audit.ActionGeofenceDelete, audit.ResourceGeofence, &id,
-			nil, "", "")
-	}
+	h.cfg.AuditLogger.Log(ctx, &user.ID,
+		audit.ActionGeofenceDelete, audit.ResourceGeofence, &params.ID,
+		nil, "", "")
 	return &oas.DeleteGeofenceNoContent{}, nil
 }
 

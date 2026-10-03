@@ -86,7 +86,7 @@ func (h *Handler) UpdateProfile(ctx context.Context, req *oas.UpdateProfileReque
 		changes["sessionsRevoked"] = true
 	}
 
-	if h.cfg.AuditLogger != nil && len(changes) > 0 {
+	if len(changes) > 0 {
 		h.cfg.AuditLogger.Log(ctx, &existing.ID, audit.ActionUserUpdate, audit.ResourceUser, &existing.ID, changes, "", "")
 	}
 

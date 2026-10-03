@@ -252,39 +252,29 @@ func newDeviceUpdateCmd() *cobra.Command {
 
 // filterDevices returns devices matching the given field=value filter.
 func filterDevices(devices []model.Device, filter string) []model.Device {
-	parts := strings.SplitN(filter, "=", 2)
-	if len(parts) != 2 {
+	field, value, ok := strings.Cut(filter, "=")
+	if !ok {
 		fatalFn("invalid filter format (expected field=value)", slog.String("filter", filter))
 		return nil
 	}
-	field, value := strings.ToLower(parts[0]), strings.ToLower(parts[1])
+	field, value = strings.ToLower(field), strings.ToLower(value)
 
-	var result []model.Device
-	for _, d := range devices {
-		switch field {
-		case "status":
-			if strings.ToLower(d.Status) == value {
-				result = append(result, d)
-			}
-		case "protocol":
-			if strings.ToLower(d.Protocol) == value {
-				result = append(result, d)
-			}
-		case "name":
-			if strings.Contains(strings.ToLower(d.Name), value) {
-				result = append(result, d)
-			}
-		case "unique-id", "uniqueid":
-			if strings.Contains(strings.ToLower(d.UniqueID), value) {
-				result = append(result, d)
-			}
-		default:
-			fatalFn("unknown filter field (supported: status, protocol, name, unique-id)",
-				slog.String("field", field))
-			return nil
-		}
+	var keep func(model.Device) bool
+	switch field {
+	case "status":
+		keep = func(d model.Device) bool { return strings.ToLower(d.Status) == value }
+	case "protocol":
+		keep = func(d model.Device) bool { return strings.ToLower(d.Protocol) == value }
+	case "name":
+		keep = func(d model.Device) bool { return strings.Contains(strings.ToLower(d.Name), value) }
+	case "unique-id", "uniqueid":
+		keep = func(d model.Device) bool { return strings.Contains(strings.ToLower(d.UniqueID), value) }
+	default:
+		fatalFn("unknown filter field (supported: status, protocol, name, unique-id)",
+			slog.String("field", field))
+		return nil
 	}
-	return result
+	return slices.DeleteFunc(slices.Clone(devices), func(d model.Device) bool { return !keep(d) })
 }
 
 // sortDevices sorts devices in-place by the given field.

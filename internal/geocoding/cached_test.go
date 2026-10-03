@@ -20,7 +20,7 @@ type mockGeocoder struct {
 func (m *mockGeocoder) ReverseGeocode(_ context.Context, lat, lon float64) (string, error) {
 	m.calls.Add(1)
 	if m.err != nil {
-		return coordinateFallback(lat, lon), m.err
+		return CoordinateFallback(lat, lon), m.err
 	}
 	return m.response, nil
 }

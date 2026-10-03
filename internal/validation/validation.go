@@ -84,22 +84,16 @@ func ValidateName(name string) error {
 }
 
 // ValidateDisplayName checks that a display name (geofence name, calendar
-// name, etc.) is within length limits and contains no HTML-injectable or
+// name, etc.) is within length limits (in characters) and contains no HTML-injectable or
 // control characters. An empty string is accepted.
 func ValidateDisplayName(name string) error {
-	if len(name) > maxDisplayNameLength {
-		return errors.New("name exceeds maximum length")
-	}
-	return validateTextChars(name)
+	return ValidateText(name, maxDisplayNameLength)
 }
 
 // ValidateDescription checks that a description is within length limits and
 // contains no HTML-injectable or control characters.
 func ValidateDescription(desc string) error {
-	if len(desc) > maxDescriptionLength {
-		return errors.New("description exceeds maximum length")
-	}
-	return validateTextChars(desc)
+	return ValidateText(desc, maxDescriptionLength)
 }
 
 // ValidateText checks that s has at most maxChars characters (Unicode code

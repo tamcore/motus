@@ -46,7 +46,7 @@ func (h *Handler) CreateCalendar(ctx context.Context, req *oas.CalendarInput) (o
 		Data: req.Data,
 	})
 	if err != nil {
-		return &oas.CreateCalendarBadRequest{Error: err.Error()}, nil
+		return &oas.CreateCalendarBadRequest{Error: services.PublicMessage(err, "failed to create calendar")}, nil
 	}
 	out := calendarToOAS(cal)
 	return &out, nil

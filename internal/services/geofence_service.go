@@ -28,11 +28,11 @@ type UpdateGeofenceInput struct {
 // emits an audit entry on success.
 func (s *GeofenceService) UpdateForUser(ctx context.Context, user *model.User, geofenceID int64, in UpdateGeofenceInput) (*model.Geofence, error) {
 	if !s.repo.UserHasAccess(ctx, user, geofenceID) {
-		return nil, invalid(errors.New("access denied"))
+		return nil, invalid(ErrAccessDenied)
 	}
 	existing, err := s.repo.GetByID(ctx, geofenceID)
 	if err != nil || existing == nil {
-		return nil, invalid(errors.New("geofence not found"))
+		return nil, invalid(fmt.Errorf("geofence %w", ErrNotFound))
 	}
 
 	updated := *existing
@@ -64,7 +64,7 @@ func (s *GeofenceService) UpdateForUser(ctx context.Context, user *model.User, g
 	}
 
 	if err := s.repo.Update(ctx, &updated); err != nil {
-		return nil, fmt.Errorf("update geofence: %w", err)
+		return nil, storageError("update geofence", err)
 	}
 	s.auditLogger.Log(ctx, &user.ID,
 		audit.ActionGeofenceUpdate, audit.ResourceGeofence, &updated.ID,
@@ -72,10 +72,19 @@ func (s *GeofenceService) UpdateForUser(ctx context.Context, user *model.User, g
 	return &updated, nil
 }
 
+// storageError marks geometry rejected by PostGIS as client-safe and adds op
+// context to any other storage error.
+func storageError(op string, err error) error {
+	if errors.Is(err, repository.ErrInvalidGeometry) {
+		return invalid(err)
+	}
+	return fmt.Errorf("%s: %w", op, err)
+}
+
 // DeleteForUser deletes a geofence owned by user and emits an audit entry.
 func (s *GeofenceService) DeleteForUser(ctx context.Context, user *model.User, geofenceID int64) error {
 	if !s.repo.UserHasAccess(ctx, user, geofenceID) {
-		return invalid(errors.New("access denied"))
+		return invalid(ErrAccessDenied)
 	}
 	if err := s.repo.Delete(ctx, geofenceID); err != nil {
 		return fmt.Errorf("delete geofence: %w", err)
@@ -141,7 +150,7 @@ func (s *GeofenceService) CreateForUser(ctx context.Context, user *model.User, i
 	}
 
 	if err := s.repo.Create(ctx, g); err != nil {
-		return nil, fmt.Errorf("create geofence: %w", err)
+		return nil, storageError("create geofence", err)
 	}
 	if err := s.repo.AssociateUser(ctx, user.ID, g.ID); err != nil {
 		return nil, fmt.Errorf("associate user: %w", err)

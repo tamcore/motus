@@ -131,23 +131,8 @@ func notificationCommandConfigToModel(c oas.NotificationConfigCommand) (map[stri
 			c.Attributes.Value.Type, c.CommandType)
 	}
 	attrs := oasCommandAttrsToModel(c.Attributes)
-	switch c.CommandType {
-	case model.CommandPositionPeriodic:
-		if _, ok := attrs["frequency"].(int); !ok {
-			return nil, fmt.Errorf("positionPeriodic requires a frequency attribute")
-		}
-	case model.CommandSosNumber:
-		if p, _ := attrs["phoneNumber"].(string); p == "" {
-			return nil, fmt.Errorf("sosNumber requires a phoneNumber attribute")
-		}
-	case model.CommandSetSpeedAlarm:
-		if s, ok := attrs["speed"].(float64); !ok || s < 0 {
-			return nil, fmt.Errorf("setSpeedAlarm requires a speed attribute >= 0")
-		}
-	case model.CommandCustom:
-		if t, _ := attrs["text"].(string); t == "" {
-			return nil, fmt.Errorf("custom commands require a non-empty 'text' attribute")
-		}
+	if err := validateCommandAttrs(c.CommandType, attrs); err != nil {
+		return nil, err
 	}
 	cfg := map[string]any{"commandType": c.CommandType}
 	if len(attrs) > 0 {
@@ -328,7 +313,7 @@ func oasNotificationConfigToModel(config oas.NotificationRuleConfig) (map[string
 		}
 		return cfg, nil
 	}
-	return nil, fmt.Errorf("unsupported notification channel config")
+	return nil, errors.New("unsupported notification channel config")
 }
 
 // AdminListNotifications returns all notification rules in the system (admin only).

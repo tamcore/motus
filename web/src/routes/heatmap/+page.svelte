@@ -7,9 +7,10 @@
 	import { useLeaflet } from '$lib/composables/useLeaflet';
 	import type { Device, PositionPoint } from '$lib/types/api';
 	import { pointStats } from '$lib/utils/point-stats';
+	import { loadHeatLayer, type HeatLayerFactory } from '$lib/utils/leaflet-heat';
 	import Button from '$lib/components/Button.svelte';
 	import AllDevicesToggle from '$lib/components/AllDevicesToggle.svelte';
-	import type { HeatMapOptions } from 'leaflet';
+	import type { HeatLayer, HeatMapOptions } from 'leaflet';
 
 	// Points the heat layer renders; the server samples each device's range to this.
 	const HEATMAP_MAX_POINTS = 10000;
@@ -17,8 +18,8 @@
 	const leafletMap = useLeaflet();
 
 	let mapContainer: HTMLDivElement;
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	let heatLayerInstance: any = null;
+	let heatLayer: HeatLayerFactory | null = null;
+	let heatLayerInstance: HeatLayer | null = null;
 
 	// Data
 	let devices: Device[] = [];
@@ -26,6 +27,7 @@
 	let loading = false;
 	let loadingCount = 0;
 	let error = '';
+	let layerError = '';
 
 	// Filters
 	let selectedDeviceId = '';
@@ -81,15 +83,13 @@
 			zoom: 12,
 		});
 
-		// leaflet.heat is a legacy browser plugin that extends the global `L` object.
-		// Since Leaflet is imported as an ES module (no global `L`), we must set
-		// window.L before importing the plugin so it can find Leaflet's namespace.
-		const L = leafletMap.getLeaflet();
-		if (L) {
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			(window as any).L = L;
+		try {
+			const L = leafletMap.getLeaflet();
+			if (L) heatLayer = await loadHeatLayer(L);
+		} catch (err) {
+			console.error('Failed to load heatmap layer:', err);
+			layerError = 'Failed to load the heatmap layer. Please reload the page.';
 		}
-		await import('leaflet.heat');
 
 		mapReady = true;
 
@@ -225,7 +225,7 @@
 			heatLayerInstance = null;
 		}
 
-		if (!showHeatmap || positions.length === 0 || !L || !map) {
+		if (!showHeatmap || positions.length === 0 || !L || !map || !heatLayer) {
 			return;
 		}
 
@@ -251,12 +251,7 @@
 			gradient
 		};
 
-		// leaflet.heat adds heatLayer to the global window.L, not to the
-		// ES module namespace returned by getLeaflet(), so read it from there.
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const globalL = (window as any).L;
-		if (!globalL?.heatLayer) return;
-		heatLayerInstance = globalL.heatLayer(heatData, options).addTo(map);
+		heatLayerInstance = heatLayer(heatData, options).addTo(map);
 	}
 
 	function toggleHeatmap() {
@@ -549,6 +544,9 @@
 		<!-- Error Message -->
 		{#if error}
 			<div class="error-message">{error}</div>
+		{/if}
+		{#if layerError}
+			<div class="error-message">{layerError}</div>
 		{/if}
 
 		<!-- Empty State -->

@@ -315,7 +315,7 @@ test.describe('Geofence delete confirmation', () => {
     await ctx.close();
   });
 
-  test('delete button opens a confirmation; cancel keeps the geofence', async ({ browser }) => {
+  test('delete button asks for confirmation; dismissing keeps the geofence', async ({ browser }) => {
     const ctx = await browser.newContext({ storageState: '.auth/user.json' });
     const page = await ctx.newPage();
     const geofencesPage = new GeofencesPage(page);
@@ -323,14 +323,14 @@ test.describe('Geofence delete confirmation', () => {
 
     const item = page.locator('.fence-item', { hasText: fenceName });
     await expect(item).toBeVisible();
+    let message = '';
+    page.once('dialog', (d) => {
+      message = d.message();
+      void d.dismiss();
+    });
     await item.locator('.fence-delete').click();
 
-    const dialog = page.locator('[role="dialog"]', { hasText: 'Delete Geofence' });
-    await expect(dialog).toBeVisible();
-    await expect(dialog).toContainText(fenceName);
-
-    await dialog.locator('button:has-text("Cancel")').click();
-    await expect(dialog).not.toBeVisible();
+    await expect.poll(() => message).toContain(fenceName);
     await expect(item).toBeVisible();
 
     const res = await page.request.get(`/api/geofences/${fenceId}`);
@@ -346,13 +346,9 @@ test.describe('Geofence delete confirmation', () => {
 
     const item = page.locator('.fence-item', { hasText: fenceName });
     await expect(item).toBeVisible();
+    page.on('dialog', (d) => d.accept());
     await item.locator('.fence-delete').click();
 
-    const dialog = page.locator('[role="dialog"]', { hasText: 'Delete Geofence' });
-    await expect(dialog).toBeVisible();
-    await dialog.locator('button:has-text("Delete")').last().click();
-
-    await expect(dialog).not.toBeVisible();
     await expect(item).toHaveCount(0);
 
     const res = await page.request.get(`/api/geofences/${fenceId}`);

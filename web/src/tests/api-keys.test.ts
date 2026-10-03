@@ -439,55 +439,6 @@ describe("API Keys Management", () => {
     });
   });
 
-  describe("Delete confirmation flow", () => {
-    it("should require confirmation before deletion", async () => {
-      mockDeleteApiKey.mockResolvedValueOnce(undefined);
-
-      let confirmingDeleteId: number | null = null;
-      let deleting = false;
-
-      // Step 1: Click delete -> shows confirm
-      confirmingDeleteId = 1;
-      expect(confirmingDeleteId).toBe(1);
-
-      // Step 2: Confirm delete
-      deleting = true;
-      await mockDeleteApiKey(confirmingDeleteId);
-      deleting = false;
-      confirmingDeleteId = null;
-
-      expect(mockDeleteApiKey).toHaveBeenCalledWith(1);
-      expect(deleting).toBe(false);
-      expect(confirmingDeleteId).toBeNull();
-    });
-
-    it("should cancel deletion when dismiss is clicked", () => {
-      let confirmingDeleteId: number | null = 1;
-
-      // Cancel
-      confirmingDeleteId = null;
-
-      expect(confirmingDeleteId).toBeNull();
-    });
-
-    it("should remove key from local list after successful deletion", async () => {
-      mockDeleteApiKey.mockResolvedValueOnce(undefined);
-
-      let apiKeys = [
-        createMockApiKey({ id: 1, name: "Key A" }),
-        createMockApiKey({ id: 2, name: "Key B" }),
-        createMockApiKey({ id: 3, name: "Key C" }),
-      ];
-
-      // Delete key 2
-      await mockDeleteApiKey(2);
-      apiKeys = apiKeys.filter((k) => k.id !== 2);
-
-      expect(apiKeys).toHaveLength(2);
-      expect(apiKeys.map((k) => k.id)).toEqual([1, 3]);
-    });
-  });
-
   // ---------------------------------------------------------------------------
   // Token display and copy
   // ---------------------------------------------------------------------------

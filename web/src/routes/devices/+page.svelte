@@ -23,7 +23,6 @@
 	let devices: Device[] = [];
 	let searchQuery = '';
 	let showModal = false;
-	let showDeleteConfirm = false;
 	let showShareModal = false;
 	let sharingDevice: Device | null = null;
 	let editingDevice: Device | null = null;
@@ -219,11 +218,6 @@
 		showModal = true;
 	}
 
-	function openDeleteConfirm(device: Device) {
-		editingDevice = device;
-		showDeleteConfirm = true;
-	}
-
 	function openGPXImport(device: Device) {
 		gpxTargetDeviceId = device.id;
 		gpxFileInput.click();
@@ -294,19 +288,13 @@
 		}
 	}
 
-	async function handleDelete() {
-		if (!editingDevice) return;
-
-		saving = true;
+	async function deleteDevice(device: Device) {
+		if (!confirm(`Delete "${device.name}"? This action cannot be undone.`)) return;
 		try {
-			await api.deleteDevice(editingDevice.id);
-			showDeleteConfirm = false;
-			editingDevice = null;
+			await api.deleteDevice(device.id);
 			await loadDevices();
-		} catch {
-			console.error('Failed to delete device');
-		} finally {
-			saving = false;
+		} catch (err) {
+			console.error('Failed to delete device:', err);
 		}
 	}
 
@@ -415,7 +403,7 @@
 											<Button variant="secondary" size="sm" on:click={() => openEditModal(device)}>Edit</Button>
 											<Button variant="secondary" size="sm" on:click={() => openCommandModal(device)}>Commands</Button>
 											<Button variant="secondary" size="sm" loading={gpxImportingIds.has(device.id)} on:click={() => openGPXImport(device)}>Import GPX</Button>
-											<Button variant="danger" size="sm" on:click={() => openDeleteConfirm(device)}>Delete</Button>
+											<Button variant="danger" size="sm" on:click={() => deleteDevice(device)}>Delete</Button>
 										</div>
 										{#if gpxToast && gpxToast.deviceId === device.id}
 											<div class="gpx-toast" class:gpx-toast-ok={gpxToast.ok} class:gpx-toast-err={!gpxToast.ok}>
@@ -622,7 +610,7 @@
 											</Button>
 										</div>
 										<div on:click|stopPropagation on:keydown|stopPropagation role="presentation">
-											<Button variant="danger" size="sm" on:click={() => openDeleteConfirm(device)}>
+											<Button variant="danger" size="sm" on:click={() => deleteDevice(device)}>
 												<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 													<polyline points="3 6 5 6 21 6"></polyline>
 													<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -707,21 +695,6 @@
 		on:close={() => { showShareModal = false; sharingDevice = null; }}
 	/>
 {/if}
-
-<!-- Delete Confirmation -->
-<Modal bind:open={showDeleteConfirm} title="Delete Device">
-	<p class="delete-message">
-		Are you sure you want to delete <strong>{editingDevice?.name}</strong>?
-		This action cannot be undone.
-	</p>
-
-	<svelte:fragment slot="footer">
-		<div class="modal-actions">
-			<Button variant="secondary" on:click={() => (showDeleteConfirm = false)}>Cancel</Button>
-			<Button variant="danger" loading={saving} on:click={handleDelete}>Delete</Button>
-		</div>
-	</svelte:fragment>
-</Modal>
 
 <!-- Command Modal -->
 {#if commandDevice}
@@ -1190,14 +1163,7 @@
 		gap: var(--space-3);
 	}
 
-	.delete-message {
-		color: var(--text-secondary);
-		line-height: 1.6;
-	}
 
-	.delete-message strong {
-		color: var(--text-primary);
-	}
 
 	/* ---- GPX import toast ---- */
 	.gpx-toast {

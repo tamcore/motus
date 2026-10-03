@@ -79,7 +79,8 @@ export function isLiveRange(range: TrailRange, now: Date = new Date()): boolean 
 }
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
-const dateValue = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+/** Local `yyyy-mm-dd` of a date, as used by native date inputs. */
+export const dateValue = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 const timeValue = (d: Date) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;

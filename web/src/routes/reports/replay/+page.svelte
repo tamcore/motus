@@ -10,6 +10,7 @@
 	import { haversineDistance } from '$lib/utils/trips';
 	import { toRoutePositions, type RoutePosition as Position } from '$lib/utils/route-points';
 	import { normalizeTimeParam } from '$lib/utils/report-links';
+	import { dateValue } from '$lib/utils/trail-range';
 	import { formatDate, formatDuration, formatSpeed, formatDistance } from '$lib/utils/formatting';
 	import type { Device } from '$lib/types/api';
 	import { Chart, registerables } from 'chart.js';
@@ -168,9 +169,8 @@
 		if (qDeviceId && qFrom && qTo) {
 			selectedDeviceId = qDeviceId;
 			datePreset = 'custom';
-			// Extract date-only for the custom inputs
-			customFrom = qFrom.slice(0, 10);
-			customTo = qTo.slice(0, 10);
+			customFrom = dateValue(new Date(qFrom));
+			customTo = dateValue(new Date(qTo));
 			await loadPositions(Number(qDeviceId), qFrom, qTo);
 		}
 

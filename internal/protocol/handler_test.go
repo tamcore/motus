@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/tamcore/motus/internal/model"
+	"github.com/tamcore/motus/internal/services"
 	"github.com/tamcore/motus/internal/storage/repository"
 	"github.com/tamcore/motus/internal/storage/repository/testutil"
 	"github.com/tamcore/motus/internal/websocket"
@@ -224,7 +225,7 @@ func TestPositionHandler_HandlePosition_ExactThreshold(t *testing.T) {
 	handler := NewPositionHandler(posRepo, deviceRepo, hub, nil)
 
 	// Speed exactly at threshold (5.0): should be classified as moving.
-	speed := motionSpeedThreshold
+	speed := services.MotionThreshold
 	pos := &model.Position{
 		DeviceID:  device.ID,
 		Latitude:  52.52,

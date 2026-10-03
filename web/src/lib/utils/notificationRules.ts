@@ -1,4 +1,5 @@
 import type { NotificationConfigCommand } from "$lib/types/api";
+import { EVENT_TYPES } from "$lib/stores/notifications";
 import {
   commandAttributesPayload,
   COMMAND_TYPE_LABELS,
@@ -10,14 +11,9 @@ import {
  * Command types a notification rule may send automatically, in display
  * order. factoryReset is rejected by the API for automated rules.
  */
-export const NOTIFICATION_COMMAND_TYPES: readonly string[] = [
-  "positionPeriodic",
-  "positionSingle",
-  "rebootDevice",
-  "sosNumber",
-  "setSpeedAlarm",
-  "custom",
-];
+export const NOTIFICATION_COMMAND_TYPES: readonly string[] = Object.keys(COMMAND_TYPE_LABELS).filter(
+  (t) => t !== "factoryReset",
+);
 
 /** Raw form inputs of the command parameters. */
 export interface CommandFormValues {
@@ -89,10 +85,7 @@ export function buildCommandConfig(
   return { config };
 }
 
-const RECONNECT_EVENTS: Readonly<Record<string, string>> = {
-  deviceOnline: "Device Online",
-  deviceOffline: "Device Offline",
-};
+const RECONNECT_EVENTS = EVENT_TYPES.filter((e) => e.value === "deviceOnline" || e.value === "deviceOffline");
 
 /**
  * A reboot (or a custom command, which may reboot the device) sent on
@@ -102,10 +95,10 @@ const RECONNECT_EVENTS: Readonly<Record<string, string>> = {
  */
 export function commandEventConflict(commandType: string, eventTypes: string[]): string | null {
   if (commandType !== "rebootDevice" && commandType !== "custom") return null;
-  const event = eventTypes.find((et) => et in RECONNECT_EVENTS);
+  const event = RECONNECT_EVENTS.find((e) => eventTypes.includes(e.value));
   if (!event) return null;
   const label = COMMAND_TYPE_LABELS[commandType] ?? commandType;
-  return `${label} cannot be triggered by ${RECONNECT_EVENTS[event]}: the device would reconnect and trigger the rule again without end.`;
+  return `${label} cannot be triggered by ${event.label}: the device would reconnect and trigger the rule again without end.`;
 }
 
 /** Restores the command form inputs from a stored config. */

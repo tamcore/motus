@@ -2,7 +2,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { slide } from 'svelte/transition';
 	import { goto } from '$app/navigation';
-	import { currentUser } from '$lib/stores/auth';
+	import { currentUser, isAdmin } from '$lib/stores/auth';
 	import { refreshHandler } from '$lib/stores/refresh';
 	import { api } from '$lib/api/client';
 	import { formatDate } from '$lib/utils/formatting';
@@ -53,8 +53,7 @@
 	let loadingDevices = false;
 	let savingDevices = false;
 
-	$: isAdmin = ($currentUser as Record<string, unknown> | null)?.administrator === true;
-	$: currentUserId = ($currentUser as Record<string, unknown> | null)?.id as number | undefined;
+	$: currentUserId = $currentUser?.id;
 
 	$: roleCounts = users.reduce(
 		(acc, u) => {
@@ -65,7 +64,7 @@
 	);
 
 	onMount(() => {
-		if (!isAdmin) {
+		if (!$isAdmin) {
 			goto('/');
 			return;
 		}

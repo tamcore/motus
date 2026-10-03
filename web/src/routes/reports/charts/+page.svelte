@@ -4,7 +4,6 @@
 	import { browser } from '$app/environment';
 	import { page } from '$app/stores';
 	import { api, fetchDevices } from '$lib/api/client';
-	import { currentUser } from '$lib/stores/auth';
 	import { refreshHandler } from '$lib/stores/refresh';
 	import { theme } from '$lib/stores/theme';
 	import { formatDate } from '$lib/utils/formatting';
@@ -226,21 +225,13 @@
 	// ---------------------------------------------------------------------------
 
 	onMount(async () => {
-		try {
-			const isAdmin = ($currentUser as Record<string, unknown> | null)?.administrator === true;
-			devices = await fetchDevices(isAdmin);
-
-			// Pre-select device from query param (?device=ID)
-			const deviceParam = $page.url.searchParams.get('device');
-			if (deviceParam && devices.some((d) => String(d.id) === deviceParam)) {
-				selectedDeviceId = deviceParam;
-			}
-		} catch (err) {
-			console.error('Failed to load devices:', err);
-			errorMsg = 'Failed to load devices.';
-		} finally {
-			loading = false;
+		await reloadDevices();
+		// Pre-select device from query param (?device=ID)
+		const deviceParam = $page.url.searchParams.get('device');
+		if (deviceParam && devices.some((d) => String(d.id) === deviceParam)) {
+			selectedDeviceId = deviceParam;
 		}
+		loading = false;
 		$refreshHandler = reloadDevices;
 	});
 
@@ -254,11 +245,11 @@
 	});
 
 	async function reloadDevices() {
-		const isAdmin = ($currentUser as Record<string, unknown> | null)?.administrator === true;
 		try {
-			devices = await fetchDevices(isAdmin);
-		} catch {
-			console.error('Failed to reload devices');
+			devices = await fetchDevices();
+		} catch (err) {
+			console.error('Failed to load devices:', err);
+			errorMsg = 'Failed to load devices.';
 		}
 	}
 

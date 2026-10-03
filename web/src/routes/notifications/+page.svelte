@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { api, fetchNotifications } from '$lib/api/client';
-	import { currentUser } from '$lib/stores/auth';
+	import { currentUser, isAdmin } from '$lib/stores/auth';
 	import { refreshHandler } from '$lib/stores/refresh';
 	import Button from '$lib/components/Button.svelte';
 	import Input from '$lib/components/Input.svelte';
@@ -79,20 +79,16 @@
 		$refreshHandler = refresh;
 	});
 
-	function isAdminUser(): boolean {
-		return ($currentUser as Record<string, unknown> | null)?.administrator === true;
-	}
-
 	async function refresh() {
 		await Promise.all([loadRules(), loadGeofences()]);
 	}
 
 	async function loadGeofences() {
 		try {
-			if (isAdminUser()) {
+			if ($isAdmin) {
 				// Full lookup regardless of the "All users" toggle; the owner is
 				// shown only for other users' geofences.
-				const myName = (($currentUser as Record<string, unknown> | null)?.name as string) || '';
+				const myName = $currentUser?.name || '';
 				geofences = (await api.getAllGeofences()).map((g) =>
 					g.ownerName && g.ownerName === myName ? { ...g, ownerName: undefined } : g
 				);
@@ -112,7 +108,7 @@
 		loading = true;
 		error = '';
 		try {
-			const rules = await fetchNotifications(isAdminUser());
+			const rules = await fetchNotifications();
 			notificationRules.set(rules);
 		} catch (err: any) {
 			error = 'Failed to load notification rules';

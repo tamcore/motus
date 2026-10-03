@@ -2,25 +2,15 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { api, fetchDevices } from '$lib/api/client';
 	import { getSettings } from '$lib/stores/settings';
-	import { currentUser } from '$lib/stores/auth';
+	import { isAdmin } from '$lib/stores/auth';
 	import { refreshHandler } from '$lib/stores/refresh';
-	import type { Position } from '$lib/types/api';
+	import type { Device, Position } from '$lib/types/api';
 	import Skeleton from '$lib/components/Skeleton.svelte';
 	import StatusIndicator from '$lib/components/StatusIndicator.svelte';
 	import BatteryIndicator from '$lib/components/BatteryIndicator.svelte';
 	import AllDevicesToggle from '$lib/components/AllDevicesToggle.svelte';
 	import { formatRelative, formatSpeed, getCardinalDirection, formatCoordinates } from '$lib/utils/formatting';
 
-	interface Device {
-		id: number;
-		name: string;
-		uniqueId: string;
-		status: string;
-		protocol?: string;
-		lastUpdate?: string;
-		ownerName?: string;
-		batteryLevel?: number | null;
-	}
 
 	let loading = true;
 	let loadError = '';
@@ -48,12 +38,11 @@
 	}
 
 	async function loadDashboard() {
-		const isAdmin = ($currentUser as Record<string, unknown> | null)?.administrator === true;
-		const showAll = isAdmin && getSettings().showAllDevices;
+		const showAll = $isAdmin && getSettings().showAllDevices;
 		const todayStart = new Date();
 		todayStart.setHours(0, 0, 0, 0);
 		const [deviceList, latestPositions, todayCount] = await Promise.all([
-			fetchDevices(isAdmin) as Promise<Device[]>,
+			fetchDevices(),
 			(showAll ? api.getAllPositions() : api.getPositions()).catch(
 				() => [] as Position[]
 			) as Promise<Position[]>,
@@ -104,9 +93,8 @@
 	}
 
 	async function reloadDevices() {
-		const isAdmin = ($currentUser as Record<string, unknown> | null)?.administrator === true;
 		try {
-			devices = (await fetchDevices(isAdmin)) as Device[];
+			devices = await fetchDevices();
 		} catch {
 			console.error('Failed to reload devices');
 		}

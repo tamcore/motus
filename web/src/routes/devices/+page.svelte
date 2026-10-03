@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import type { Device } from '$lib/types/api';
 	import { slide } from 'svelte/transition';
 	import { api, fetchDevices } from '$lib/api/client';
-	import { currentUser } from '$lib/stores/auth';
 	import { refreshHandler } from '$lib/stores/refresh';
 	import { mileageToDisplay, mileageFromDisplay, formatMileage, formatRelative } from '$lib/utils/formatting';
 	import { commandIntervalLabel, commandSentMessage, COMMAND_TYPE_LABELS } from '$lib/utils/commands';
@@ -18,21 +18,6 @@
 	import BatteryIndicator from '$lib/components/BatteryIndicator.svelte';
 	import Skeleton from '$lib/components/Skeleton.svelte';
 
-	interface Device {
-		id: number;
-		name: string;
-		uniqueId: string;
-		status: string;
-		phone?: string;
-		model?: string;
-		category?: string;
-		protocol?: string;
-		disabled?: boolean;
-		lastUpdate?: string;
-		ownerName?: string;
-		mileage?: number | null;
-		batteryLevel?: number | null;
-	}
 
 	let loading = true;
 	let devices: Device[] = [];
@@ -183,8 +168,7 @@
 	async function loadDevices() {
 		loading = true;
 		try {
-			const isAdmin = ($currentUser as Record<string, unknown> | null)?.administrator === true;
-			devices = (await fetchDevices(isAdmin)) as Device[];
+			devices = await fetchDevices();
 		} catch {
 			console.error('Failed to load devices');
 		} finally {

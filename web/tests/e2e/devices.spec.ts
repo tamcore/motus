@@ -151,13 +151,37 @@ test.describe('Devices Page', () => {
     // Command with parameters: "Set Reporting Interval" (positionPeriodic).
     // The device is offline, so the command is queued as pending.
     await devicesPage.modal.locator('#cmd-type').selectOption('positionPeriodic');
-    await devicesPage.modal.locator('input[name="frequency"]').fill('60');
+    // Quick-select presets plus a custom seconds input; 1 min is the default.
+    const presets = devicesPage.modal.locator('button.interval-preset');
+    await expect(presets).toHaveText(['5 sec', '20 sec', '1 min', '5 min', '10 min', 'Custom']);
+    await expect(presets.filter({ hasText: /^1 min$/ })).toHaveAttribute('aria-pressed', 'true');
+    await expect(devicesPage.modal.locator('input[name="frequency"]')).toHaveCount(0);
+
+    // Preset: 10 min. The confirmation only says the interval was requested
+    // and queued; the history row shows the requested interval.
+    await presets.filter({ hasText: /^10 min$/ }).click();
     await sendButton.click();
-    await expect(history.filter({ hasText: 'Set Reporting Interval' })).toHaveCount(1, { timeout: 15000 });
+    const sentInfo = devicesPage.modal.locator('.cmd-sent-info');
+    await expect(sentInfo).toContainText('Reporting interval of 600 s (10 min) requested', { timeout: 15000 });
+    await expect(sentInfo).toContainText('queued');
+    const intervalRows = history.filter({ hasText: 'Set Reporting Interval' });
+    await expect(intervalRows).toHaveCount(1, { timeout: 15000 });
+    await expect(intervalRows.first().locator('.cmd-history-interval')).toHaveText('Interval: 600 s (10 min)');
     await expect(devicesPage.modal.locator('.form-error')).toHaveCount(0);
 
-    // Command without parameters: "Reboot Device".
+    // Custom interval.
+    await presets.filter({ hasText: 'Custom' }).click();
+    await devicesPage.modal.locator('input[name="frequency"]').fill('45');
+    await sendButton.click();
+    await expect(sentInfo).toContainText('Reporting interval of 45 s requested', { timeout: 15000 });
+    await expect(intervalRows).toHaveCount(2, { timeout: 15000 });
+    await expect(history.locator('.cmd-history-interval', { hasText: 'Interval: 45 s' })).toHaveCount(1);
+    await expect(devicesPage.modal.locator('.form-error')).toHaveCount(0);
+
+    // Command without parameters: "Reboot Device". Changing the command type
+    // clears the previous confirmation.
     await devicesPage.modal.locator('#cmd-type').selectOption('rebootDevice');
+    await expect(sentInfo).toHaveCount(0);
     await sendButton.click();
     await expect(history.filter({ hasText: 'Reboot Device' })).toHaveCount(1, { timeout: 15000 });
     await expect(devicesPage.modal.locator('.form-error')).toHaveCount(0);

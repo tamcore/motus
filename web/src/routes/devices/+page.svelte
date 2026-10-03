@@ -5,11 +5,12 @@
 	import { currentUser } from '$lib/stores/auth';
 	import { refreshHandler } from '$lib/stores/refresh';
 	import { mileageToDisplay, mileageFromDisplay, formatMileage, formatRelative } from '$lib/utils/formatting';
-	import { commandAttributesPayload, COMMAND_TYPE_LABELS } from '$lib/utils/commands';
+	import { commandAttributesPayload, commandIntervalLabel, commandSentMessage, COMMAND_TYPE_LABELS } from '$lib/utils/commands';
 	import { settings } from '$lib/stores/settings';
 	import AllDevicesToggle from '$lib/components/AllDevicesToggle.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import Input from '$lib/components/Input.svelte';
+	import ReportingIntervalPicker from '$lib/components/ReportingIntervalPicker.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import ShareModal from '$lib/components/ShareModal.svelte';
 	import StatusIndicator from '$lib/components/StatusIndicator.svelte';
@@ -58,6 +59,7 @@
 	let commandSosNumber = '';
 	let commandSending = false;
 	let commandError = '';
+	let commandSentInfo = '';
 	let commandHistory: import('$lib/types/api').Command[] = [];
 	let commandResult: { msg: string; ok: boolean } | null = null;
 	let commandResultTimer: ReturnType<typeof setTimeout> | null = null;
@@ -74,6 +76,7 @@
 		commandSosNumber = '';
 		commandSpeed = '';
 		commandError = '';
+		commandSentInfo = '';
 		commandResult = null;
 		commandOptions = [];
 		showCommandModal = true;
@@ -98,6 +101,7 @@
 	async function handleSendCommand() {
 		if (!commandDevice || !commandType) return;
 		commandError = '';
+		commandSentInfo = '';
 		commandSending = true;
 
 		const attributes: Record<string, unknown> = {};
@@ -134,11 +138,12 @@
 		}
 
 		try {
-			await api.sendCommand({
+			const sent = await api.sendCommand({
 				deviceId: commandDevice.id,
 				type: commandType,
 				attributes: commandAttributesPayload(commandType, attributes)
 			});
+			commandSentInfo = commandSentMessage(commandType, attributes, sent.status);
 
 			// Poll for result up to 5s
 			let resultFound = false;
@@ -760,7 +765,7 @@
 		{:else}
 			<div class="form-group">
 				<label class="form-label" for="cmd-type">Command Type</label>
-				<select id="cmd-type" class="cmd-select" bind:value={commandType} disabled={commandTypesLoading}>
+				<select id="cmd-type" class="cmd-select" bind:value={commandType} on:change={() => (commandSentInfo = '')} disabled={commandTypesLoading}>
 					{#each commandOptions as type}
 						<option value={type}>{COMMAND_TYPE_LABELS[type] ?? type}</option>
 					{/each}
@@ -770,7 +775,7 @@
 
 		{#if commandType === 'positionPeriodic'}
 			<div class="form-group">
-				<Input name="frequency" label="Interval (seconds)" placeholder="30" bind:value={commandFrequency} />
+				<ReportingIntervalPicker bind:value={commandFrequency} />
 			</div>
 		{:else if commandType === 'sosNumber'}
 			<div class="form-group">
@@ -790,6 +795,10 @@
 			<div class="form-error" role="alert">{commandError}</div>
 		{/if}
 
+		{#if commandSentInfo}
+			<div class="cmd-sent-info" role="status">{commandSentInfo}</div>
+		{/if}
+
 		{#if commandResult}
 			<div class="cmd-result" class:cmd-result-ok={commandResult.ok}>
 				<div class="cmd-result-header">
@@ -805,9 +814,11 @@
 				<h4 class="cmd-history-title">Recent Commands</h4>
 				<div class="cmd-history-list">
 					{#each commandHistory as cmd}
+						{@const interval = commandIntervalLabel(cmd)}
 						<div class="cmd-history-item">
 							<div class="cmd-history-meta">
 								<span class="cmd-history-type">{COMMAND_TYPE_LABELS[cmd.type] ?? cmd.type}</span>
+								{#if interval}<span class="cmd-history-interval">{interval}</span>{/if}
 								<span class="cmd-history-status cmd-status-{cmd.status}">{cmd.status}</span>
 								<span class="cmd-history-time">{new Date(cmd.createdAt).toLocaleString()}</span>
 							</div>
@@ -1284,6 +1295,15 @@
 		border-color: var(--accent-primary);
 	}
 
+	.cmd-sent-info {
+		padding: var(--space-2) var(--space-3);
+		border-radius: var(--radius-md);
+		border: 1px solid var(--border-color);
+		background-color: var(--bg-secondary);
+		color: var(--text-primary);
+		font-size: var(--text-sm);
+	}
+
 	.cmd-result {
 		border-radius: var(--radius-md);
 		border: 1px solid rgba(34, 197, 94, 0.3);
@@ -1386,6 +1406,10 @@
 	.cmd-status-executed {
 		background-color: rgba(34, 197, 94, 0.15);
 		color: #15803d;
+	}
+
+	.cmd-history-interval {
+		color: var(--text-secondary);
 	}
 
 	.cmd-history-time {

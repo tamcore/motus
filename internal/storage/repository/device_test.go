@@ -379,7 +379,7 @@ func TestDeviceRepository_MarkOnline(t *testing.T) {
 	if err := repository.NewPositionRepository(pool).Create(ctx, pos); err != nil {
 		t.Fatalf("Create position: %v", err)
 	}
-	got, err := deviceRepo.MarkOnline(ctx, device.ID, pos.ID, at)
+	got, err := deviceRepo.MarkOnline(ctx, device.ID, pos.ID, at, nil)
 	if err != nil {
 		t.Fatalf("MarkOnline: %v", err)
 	}
@@ -391,6 +391,72 @@ func TestDeviceRepository_MarkOnline(t *testing.T) {
 	}
 	if got.Name != "Renamed" {
 		t.Errorf("Name = %q, want concurrent rename kept", got.Name)
+	}
+}
+
+func TestDeviceRepository_MarkOnline_BatteryLevel(t *testing.T) {
+	pool := testutil.SetupTestDB(t)
+	testutil.CleanTables(t, pool)
+	deviceRepo := repository.NewDeviceRepository(pool)
+	posRepo := repository.NewPositionRepository(pool)
+	ctx := t.Context()
+
+	user := createTestUser(t, repository.NewUserRepository(pool))
+	device := &model.Device{UniqueID: "battery-level", Name: "Battery", Status: "unknown"}
+	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	at := time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
+	markOnline := func(battery *float64) *model.Device {
+		t.Helper()
+		pos := &model.Position{DeviceID: device.ID, Timestamp: at, Valid: true, Latitude: 52.5, Longitude: 13.4}
+		if err := posRepo.Create(ctx, pos); err != nil {
+			t.Fatalf("Create position: %v", err)
+		}
+		got, err := deviceRepo.MarkOnline(ctx, device.ID, pos.ID, at, battery)
+		if err != nil {
+			t.Fatalf("MarkOnline: %v", err)
+		}
+		return got
+	}
+
+	got := markOnline(new(42.0))
+	if got.BatteryLevel == nil || *got.BatteryLevel != 42 {
+		t.Fatalf("BatteryLevel = %v, want 42", got.BatteryLevel)
+	}
+
+	// A position without a battery reading keeps the last known level.
+	got = markOnline(nil)
+	if got.BatteryLevel == nil || *got.BatteryLevel != 42 {
+		t.Errorf("BatteryLevel after position without battery = %v, want 42 kept", got.BatteryLevel)
+	}
+
+	// A user edit (full Update) must not clobber the protocol-reported level.
+	got.Name = "Renamed"
+	got.BatteryLevel = nil
+	if err := deviceRepo.Update(ctx, got); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+
+	devices, err := deviceRepo.GetByUser(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("GetByUser: %v", err)
+	}
+	if len(devices) != 1 || devices[0].BatteryLevel == nil || *devices[0].BatteryLevel != 42 {
+		t.Errorf("GetByUser BatteryLevel = %+v, want 42", devices)
+	}
+	all, err := deviceRepo.GetAllWithOwners(ctx)
+	if err != nil {
+		t.Fatalf("GetAllWithOwners: %v", err)
+	}
+	if len(all) != 1 || all[0].BatteryLevel == nil || *all[0].BatteryLevel != 42 {
+		t.Errorf("GetAllWithOwners BatteryLevel = %+v, want 42", all)
+	}
+
+	got = markOnline(new(15.0))
+	if got.BatteryLevel == nil || *got.BatteryLevel != 15 {
+		t.Errorf("BatteryLevel = %v, want 15", got.BatteryLevel)
 	}
 }
 

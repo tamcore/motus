@@ -17,6 +17,7 @@
 		type RoutePosition
 	} from '$lib/utils/route-points';
 	import StatusIndicator from '$lib/components/StatusIndicator.svelte';
+	import BatteryIndicator from '$lib/components/BatteryIndicator.svelte';
 	import MapLayerControl from '$lib/components/MapLayerControl.svelte';
 	import AllDevicesToggle from '$lib/components/AllDevicesToggle.svelte';
 	import Button from '$lib/components/Button.svelte';
@@ -831,7 +832,10 @@
 									{#if device.ownerName}
 										<span class="owner-badge" title="Owned by {device.ownerName}">{device.ownerName}</span>
 									{/if}
-									<StatusIndicator status={getStatusType(device.status)} />
+									<span class="device-indicators">
+										<BatteryIndicator level={device.batteryLevel} />
+										<StatusIndicator status={getStatusType(device.status)} />
+									</span>
 								</div>
 								{#if device.status === 'online' || device.status === 'moving'}
 									{#if pos}
@@ -1104,6 +1108,12 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
+	}
+
+	.device-indicators {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-2);
 	}
 
 	.device-name {

@@ -26,7 +26,7 @@ func NewDeviceRepository(pool *pgxpool.Pool) *DeviceRepository {
 // deviceColumns is the list of columns selected for device queries.
 const deviceColumns = `id, unique_id, name, protocol, status, speed_limit, last_update,
 	position_id, group_id, phone, model, contact, category, disabled, mileage, pending_mileage,
-	ignition_on, last_ignition_time, attributes,
+	ignition_on, last_ignition_time, attributes, battery_level,
 	created_at, updated_at`
 
 // scanDevice scans a device row into a model.Device.
@@ -38,7 +38,7 @@ func scanDevice(scanner interface {
 		&d.ID, &d.UniqueID, &d.Name, &d.Protocol, &d.Status, &d.SpeedLimit, &d.LastUpdate,
 		&d.PositionID, &d.GroupID, &d.Phone, &d.Model, &d.Contact, &d.Category, &d.Disabled,
 		&d.Mileage, &d.PendingMileage,
-		&d.IgnitionOn, &d.LastIgnitionTime, &attrs,
+		&d.IgnitionOn, &d.LastIgnitionTime, &attrs, &d.BatteryLevel,
 		&d.CreatedAt, &d.UpdatedAt,
 	)
 	if err != nil {
@@ -104,7 +104,7 @@ func (r *DeviceRepository) GetByUser(ctx context.Context, userID int64) ([]*mode
 	rows, err := r.pool.Query(ctx,
 		`SELECT d.id, d.unique_id, d.name, d.protocol, d.status, d.speed_limit, d.last_update,
 			d.position_id, d.group_id, d.phone, d.model, d.contact, d.category, d.disabled,
-			d.mileage, d.pending_mileage, d.ignition_on, d.last_ignition_time, d.attributes,
+			d.mileage, d.pending_mileage, d.ignition_on, d.last_ignition_time, d.attributes, d.battery_level,
 			d.created_at, d.updated_at
 		 FROM devices d
 		 JOIN user_devices ud ON ud.device_id = d.id
@@ -154,7 +154,7 @@ func (r *DeviceRepository) GetAllWithOwners(ctx context.Context) ([]model.Device
 			&d.ID, &d.UniqueID, &d.Name, &d.Protocol, &d.Status, &d.SpeedLimit, &d.LastUpdate,
 			&d.PositionID, &d.GroupID, &d.Phone, &d.Model, &d.Contact, &d.Category, &d.Disabled,
 			&d.Mileage, &d.PendingMileage,
-			&d.IgnitionOn, &d.LastIgnitionTime, &attrs,
+			&d.IgnitionOn, &d.LastIgnitionTime, &attrs, &d.BatteryLevel,
 			&d.CreatedAt, &d.UpdatedAt,
 			&d.OwnerName,
 		)
@@ -284,14 +284,16 @@ func (r *DeviceRepository) SetIgnitionState(ctx context.Context, id int64, on bo
 }
 
 // MarkOnline records a new position on a device: status online, last_update,
-// position_id, and clears disabled. Only these columns are written, so
+// position_id, battery_level (when batteryLevel is non-nil; nil keeps the
+// last known level), and clears disabled. Only these columns are written, so
 // concurrent edits to other fields are kept. Returns the updated device.
-func (r *DeviceRepository) MarkOnline(ctx context.Context, id, positionID int64, at time.Time) (*model.Device, error) {
+func (r *DeviceRepository) MarkOnline(ctx context.Context, id, positionID int64, at time.Time, batteryLevel *float64) (*model.Device, error) {
 	d := &model.Device{}
 	err := scanDevice(r.pool.QueryRow(ctx,
-		`UPDATE devices SET status = 'online', last_update = $2, position_id = $3, disabled = false, updated_at = NOW()
+		`UPDATE devices SET status = 'online', last_update = $2, position_id = $3, disabled = false,
+			battery_level = COALESCE($4, battery_level), updated_at = NOW()
 		 WHERE id = $1
-		 RETURNING `+deviceColumns, id, at, positionID,
+		 RETURNING `+deviceColumns, id, at, positionID, batteryLevel,
 	), d)
 	if err != nil {
 		return nil, fmt.Errorf("mark device online: %w", err)

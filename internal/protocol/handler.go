@@ -219,7 +219,7 @@ func (h *PositionHandler) HandlePosition(ctx context.Context, pos *model.Positio
 	// binary_sensor.status only treats "online" as active; motion state is in
 	// position.attributes.motion. A first position also clears the disabled
 	// flag set on devices auto-excluded as "unknown".
-	device, err := h.devices.MarkOnline(ctx, pos.DeviceID, pos.ID, time.Now().UTC())
+	device, err := h.devices.MarkOnline(ctx, pos.DeviceID, pos.ID, time.Now().UTC(), model.BatteryLevel(pos.Attributes))
 	if err != nil {
 		h.log().Error("failed to update device status",
 			slog.Int64("deviceID", pos.DeviceID),

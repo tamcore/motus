@@ -108,6 +108,17 @@ components:
         expirationTime: { type: string, format: date-time, nullable: true }
         disabled: { type: boolean }
         mileage: { type: number, format: double, nullable: true }
+        batteryLevel:
+          type: number
+          format: double
+          nullable: true
+          readOnly: true
+          minimum: 0
+          maximum: 100
+          description: |
+            Last battery charge in percent (0-100) reported by the device
+            (position attribute batteryLevel; Watch and OsmAnd). Null when the
+            device never reported a battery percentage (e.g. H02).
         attributes:
           $ref: '#/components/schemas/Attributes'
         ownerName: { type: string }
@@ -125,7 +136,8 @@ components:
         Protocol-emitted position metadata. Known keys per protocol:
         - All: motion (bool)
         - H02: ignition (bool), flags (string), alarm (string), mcc/mnc/lac/cellId (int), iccid (string)
-        - Watch: satellites (int)
+        - Watch: satellites (int), batteryLevel (int, percent)
+        - OsmAnd: batteryLevel (number, percent)
         Open for forward compatibility with additional protocols.
       properties:
         motion:     { type: boolean }

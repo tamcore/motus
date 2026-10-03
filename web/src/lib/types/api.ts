@@ -81,6 +81,7 @@ export interface Device {
   category?: string | null;
   disabled: boolean;
   mileage?: number | null;
+  batteryLevel?: number | null;
   attributes?: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;

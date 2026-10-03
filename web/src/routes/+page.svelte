@@ -7,6 +7,7 @@
 	import type { Position } from '$lib/types/api';
 	import Skeleton from '$lib/components/Skeleton.svelte';
 	import StatusIndicator from '$lib/components/StatusIndicator.svelte';
+	import BatteryIndicator from '$lib/components/BatteryIndicator.svelte';
 	import AllDevicesToggle from '$lib/components/AllDevicesToggle.svelte';
 	import { formatRelative, formatSpeed, getCardinalDirection, formatCoordinates } from '$lib/utils/formatting';
 
@@ -18,6 +19,7 @@
 		protocol?: string;
 		lastUpdate?: string;
 		ownerName?: string;
+		batteryLevel?: number | null;
 	}
 
 	let loading = true;
@@ -263,6 +265,7 @@
 							{#if device.protocol}
 								<span class="device-protocol">{device.protocol}</span>
 							{/if}
+							<BatteryIndicator level={device.batteryLevel} />
 						</div>
 						{#if pos}
 							<div class="position-info">
@@ -456,6 +459,7 @@
 
 	.device-meta {
 		display: flex;
+		align-items: center;
 		gap: var(--space-3);
 		font-size: var(--text-sm);
 		color: var(--text-secondary);

@@ -197,6 +197,7 @@ func deviceToOAS(d *model.Device) oas.Device {
 		ExpirationTime: ptrToOptTime(d.ExpirationTime),
 		Disabled:       d.Disabled,
 		Mileage:        ptrToOptFloat64(d.Mileage),
+		BatteryLevel:   ptrToOptFloat64(d.BatteryLevel),
 		Attributes:     oas.Attributes(attrsToRaw(d.Attributes)),
 		OwnerName:      optStr(d.OwnerName),
 		CreatedAt:      d.CreatedAt,

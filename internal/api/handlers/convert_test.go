@@ -125,6 +125,14 @@ func TestDeviceToOAS(t *testing.T) {
 	if got.Attributes["color"] == nil {
 		t.Error("Attributes[color] should be set")
 	}
+	if !got.BatteryLevel.Set || !got.BatteryLevel.Null {
+		t.Errorf("BatteryLevel = %+v, want null when unknown", got.BatteryLevel)
+	}
+
+	d.BatteryLevel = new(18.0)
+	if got := deviceToOAS(d); !got.BatteryLevel.Set || got.BatteryLevel.Null || got.BatteryLevel.Value != 18 {
+		t.Errorf("BatteryLevel = %+v, want 18", got.BatteryLevel)
+	}
 }
 
 func TestUserToOAS(t *testing.T) {

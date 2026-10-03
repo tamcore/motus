@@ -9675,6 +9675,12 @@ func (s *Device) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.BatteryLevel.Set {
+			e.FieldStart("batteryLevel")
+			s.BatteryLevel.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("attributes")
 		s.Attributes.Encode(e)
 	}
@@ -9694,7 +9700,7 @@ func (s *Device) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfDevice = [21]string{
+var jsonFieldsNameOfDevice = [22]string{
 	0:  "id",
 	1:  "uniqueId",
 	2:  "name",
@@ -9712,10 +9718,11 @@ var jsonFieldsNameOfDevice = [21]string{
 	14: "expirationTime",
 	15: "disabled",
 	16: "mileage",
-	17: "attributes",
-	18: "ownerName",
-	19: "createdAt",
-	20: "updatedAt",
+	17: "batteryLevel",
+	18: "attributes",
+	19: "ownerName",
+	20: "createdAt",
+	21: "updatedAt",
 }
 
 // Decode decodes Device from json.
@@ -9907,8 +9914,18 @@ func (s *Device) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"mileage\"")
 			}
+		case "batteryLevel":
+			if err := func() error {
+				s.BatteryLevel.Reset()
+				if err := s.BatteryLevel.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"batteryLevel\"")
+			}
 		case "attributes":
-			requiredBitSet[2] |= 1 << 1
+			requiredBitSet[2] |= 1 << 2
 			if err := func() error {
 				if err := s.Attributes.Decode(d); err != nil {
 					return err
@@ -9928,7 +9945,7 @@ func (s *Device) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"ownerName\"")
 			}
 		case "createdAt":
-			requiredBitSet[2] |= 1 << 3
+			requiredBitSet[2] |= 1 << 4
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.CreatedAt = v
@@ -9940,7 +9957,7 @@ func (s *Device) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"createdAt\"")
 			}
 		case "updatedAt":
-			requiredBitSet[2] |= 1 << 4
+			requiredBitSet[2] |= 1 << 5
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.UpdatedAt = v
@@ -9963,7 +9980,7 @@ func (s *Device) Decode(d *jx.Decoder) error {
 	for i, mask := range [3]uint8{
 		0b00010111,
 		0b10000000,
-		0b00011010,
+		0b00110100,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

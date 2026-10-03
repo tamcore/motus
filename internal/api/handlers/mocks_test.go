@@ -358,6 +358,6 @@ func (m *mockDeviceRepo) UpdateProtocol(_ context.Context, _ int64, _ string) er
 	return nil
 }
 
-func (m *mockDeviceRepo) MarkOnline(_ context.Context, _, _ int64, _ time.Time) (*model.Device, error) {
+func (m *mockDeviceRepo) MarkOnline(_ context.Context, _, _ int64, _ time.Time, _ *float64) (*model.Device, error) {
 	return nil, nil
 }

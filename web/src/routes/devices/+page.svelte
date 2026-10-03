@@ -14,6 +14,7 @@
 	import Modal from '$lib/components/Modal.svelte';
 	import ShareModal from '$lib/components/ShareModal.svelte';
 	import StatusIndicator from '$lib/components/StatusIndicator.svelte';
+	import BatteryIndicator from '$lib/components/BatteryIndicator.svelte';
 	import Skeleton from '$lib/components/Skeleton.svelte';
 
 	interface Device {
@@ -29,6 +30,7 @@
 		lastUpdate?: string;
 		ownerName?: string;
 		mileage?: number | null;
+		batteryLevel?: number | null;
 	}
 
 	let loading = true;
@@ -413,6 +415,7 @@
 								<th>Name</th>
 								<th>Identifier</th>
 								<th>Last Seen</th>
+								<th>Battery</th>
 								<th class="th-actions">Actions</th>
 							</tr>
 						</thead>
@@ -437,6 +440,9 @@
 										{:else}
 											<span class="text-muted">Never</span>
 										{/if}
+									</td>
+									<td class="td-battery">
+										<BatteryIndicator level={device.batteryLevel} placeholder />
 									</td>
 									<td class="td-actions">
 										<div class="table-actions">
@@ -501,6 +507,7 @@
 								</div>
 
 								<div class="summary-meta">
+									<BatteryIndicator level={device.batteryLevel} />
 									<span class="summary-last-seen">
 										{#if device.lastUpdate}
 											{formatRelative(new Date(device.lastUpdate))}
@@ -553,6 +560,12 @@
 												{:else}
 													Never
 												{/if}
+											</span>
+										</div>
+										<div class="detail-item">
+											<span class="detail-label">Battery</span>
+											<span class="detail-value">
+												<BatteryIndicator level={device.batteryLevel} placeholder />
 											</span>
 										</div>
 										<div class="detail-item">
@@ -995,6 +1008,10 @@
 		white-space: nowrap;
 	}
 
+	.td-battery {
+		white-space: nowrap;
+	}
+
 	.text-muted {
 		color: var(--text-tertiary);
 	}
@@ -1089,6 +1106,9 @@
 
 	.summary-meta {
 		flex-shrink: 0;
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
 		text-align: right;
 	}
 

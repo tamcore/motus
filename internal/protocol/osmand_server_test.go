@@ -58,12 +58,15 @@ func (r *osmandDeviceRepo) GetByID(_ context.Context, id int64) (*model.Device, 
 	return nil, fmt.Errorf("device %d not found", id)
 }
 
-func (r *osmandDeviceRepo) MarkOnline(_ context.Context, id, positionID int64, at time.Time) (*model.Device, error) {
+func (r *osmandDeviceRepo) MarkOnline(_ context.Context, id, positionID int64, at time.Time, battery *float64) (*model.Device, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for _, d := range r.devices {
 		if d.ID == id {
 			d.Status, d.LastUpdate, d.PositionID, d.Disabled = "online", &at, &positionID, false
+			if battery != nil {
+				d.BatteryLevel = battery
+			}
 			c := *d
 			return &c, nil
 		}
@@ -206,6 +209,38 @@ func TestOsmAndServer_QueryGET(t *testing.T) {
 	}
 	if d := env.devices.get("123456"); d.Status != "online" || d.LastUpdate == nil {
 		t.Errorf("device should be online: %+v", d)
+	}
+}
+
+func TestOsmAndServer_StoresBatteryLevelOnDevice(t *testing.T) {
+	env := newOsmAndTestEnv(t)
+
+	if rec := env.do(t, httptest.NewRequest(http.MethodGet,
+		"/?id=123456&timestamp=1504763810&lat=40.72&lon=-74.0&batt=87", nil)); rec.Code != http.StatusOK {
+		t.Fatalf("response: %d %q", rec.Code, rec.Body.String())
+	}
+	if d := env.devices.get("123456"); d.BatteryLevel == nil || *d.BatteryLevel != 87 {
+		t.Fatalf("device BatteryLevel = %v, want 87", d.BatteryLevel)
+	}
+
+	// JSON (Traccar Client / background-geolocation) reports level 0..1.
+	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(
+		`{"location":{"timestamp":"2021-07-21T08:06:34.444Z","coords":{"latitude":-6.1,"longitude":106.6},"battery":{"is_charging":false,"level":0.15}},"device_id":"123456"}`))
+	req.Header.Set("Content-Type", "application/json")
+	if rec := env.do(t, req); rec.Code != http.StatusOK {
+		t.Fatalf("response: %d %q", rec.Code, rec.Body.String())
+	}
+	if d := env.devices.get("123456"); d.BatteryLevel == nil || *d.BatteryLevel != 15 {
+		t.Fatalf("device BatteryLevel = %v, want 15", d.BatteryLevel)
+	}
+
+	// A report without battery keeps the last known level.
+	if rec := env.do(t, httptest.NewRequest(http.MethodGet,
+		"/?id=123456&timestamp=1504763820&lat=40.72&lon=-74.0", nil)); rec.Code != http.StatusOK {
+		t.Fatalf("response: %d %q", rec.Code, rec.Body.String())
+	}
+	if d := env.devices.get("123456"); d.BatteryLevel == nil || *d.BatteryLevel != 15 {
+		t.Errorf("device BatteryLevel = %v, want 15 kept", d.BatteryLevel)
 	}
 }
 

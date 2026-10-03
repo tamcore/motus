@@ -129,6 +129,7 @@ func (h *Handler) UpdateDevice(ctx context.Context, req *oas.DeviceInput, params
 			Disabled:       device.Disabled,
 			Mileage:        device.Mileage,
 			PendingMileage: device.PendingMileage,
+			BatteryLevel:   device.BatteryLevel,
 			Attributes:     device.Attributes,
 			CreatedAt:      device.CreatedAt,
 			UpdatedAt:      device.UpdatedAt,

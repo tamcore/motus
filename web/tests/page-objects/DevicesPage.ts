@@ -113,6 +113,11 @@ export class DevicesPage {
     if (data.protocol !== undefined) await this.formProtocolInput.selectOption(data.protocol);
   }
 
+  /** Battery cell of the desktop-table row for the named device. */
+  batteryCell(deviceName: string) {
+    return this.tableRows.filter({ hasText: deviceName }).locator('td.td-battery');
+  }
+
   getEditButton(rowIndex: number) {
     return this.tableRows.nth(rowIndex).locator('button:has-text("Edit")');
   }

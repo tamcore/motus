@@ -21,6 +21,7 @@ type Device struct {
 	ExpirationTime   *time.Time     `json:"expirationTime"`
 	Disabled         bool           `json:"disabled"`
 	Mileage          *float64       `json:"mileage"`
+	BatteryLevel     *float64       `json:"batteryLevel"`
 	PendingMileage   float64        `json:"-"`
 	IgnitionOn       bool           `json:"-"`
 	LastIgnitionTime *time.Time     `json:"-"`

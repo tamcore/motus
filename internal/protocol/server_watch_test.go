@@ -58,12 +58,15 @@ func (r *memDeviceRepo) GetByID(_ context.Context, id int64) (*model.Device, err
 	return nil, fmt.Errorf("device %d not found", id)
 }
 
-func (r *memDeviceRepo) MarkOnline(_ context.Context, id, positionID int64, at time.Time) (*model.Device, error) {
+func (r *memDeviceRepo) MarkOnline(_ context.Context, id, positionID int64, at time.Time, battery *float64) (*model.Device, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for _, d := range r.devices {
 		if d.ID == id {
 			d.Status, d.LastUpdate, d.PositionID, d.Disabled = "online", &at, &positionID, false
+			if battery != nil {
+				d.BatteryLevel = battery
+			}
 			c := *d
 			return &c, nil
 		}
@@ -305,6 +308,22 @@ func TestDecodeWatch_HeartbeatWithBattery(t *testing.T) {
 			t.Errorf("device should be online: %+v", d)
 		}
 	})
+}
+
+func TestWatch_HeartbeatBatteryStoredOnDevice(t *testing.T) {
+	env := newWatchTestEnv(t, "4700186508")
+	env.seedPosition(t, 48.1, 11.5)
+
+	pos, _, _, err := env.srv.decodeWatch(t.Context(), "[3G*4700186508*000B*LK,0,10,12]")
+	if err != nil || pos == nil {
+		t.Fatalf("decode: pos %v err %v", pos, err)
+	}
+	if err := env.srv.handler.HandlePosition(t.Context(), pos); err != nil {
+		t.Fatalf("HandlePosition: %v", err)
+	}
+	if d := env.devices.get("4700186508"); d.BatteryLevel == nil || *d.BatteryLevel != 12 {
+		t.Errorf("device BatteryLevel = %v, want 12", d.BatteryLevel)
+	}
 }
 
 func TestDecodeWatch_NoFixPositions(t *testing.T) {

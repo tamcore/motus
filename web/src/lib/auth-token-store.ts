@@ -7,9 +7,8 @@
  * token to IndexedDB so the next launch can re-hydrate localStorage even
  * when iOS purges it.
  *
- * The synchronous request helper still reads from localStorage. On startup
- * the layout calls hydrateAuthToken() which copies any IDB-stored token
- * back into localStorage before the first API call fires.
+ * getStoredAuthToken() reads localStorage first and falls back to (and
+ * re-hydrates from) IndexedDB, so every request can attach the token.
  */
 
 const DB_NAME = "motus_auth";
@@ -79,27 +78,9 @@ export async function setAuthToken(value: string | null): Promise<void> {
 }
 
 /**
- * Re-hydrate localStorage from IndexedDB if it's missing the auth token.
- * Call once during app startup before the first authenticated request so
- * the synchronous localStorage read in the API client picks up the value
- * iOS cleared on cold start.
- */
-export async function hydrateAuthToken(): Promise<void> {
-  if (typeof localStorage === "undefined") return;
-  if (localStorage.getItem(LS_KEY)) return;
-  const idbToken = await idbGet();
-  if (idbToken) {
-    localStorage.setItem(LS_KEY, idbToken);
-  }
-}
-
-/**
  * Returns the stored auth token, checking localStorage first and falling
  * back to IndexedDB. Used by the API client to ensure every request can
- * attach the X-Auth-Token header even before the layout's startup
- * hydration completes — the early API calls fired by route components on
- * mount race the layout's onMount hydrate, and would otherwise miss the
- * header.
+ * attach the X-Auth-Token header.
  */
 export async function getStoredAuthToken(): Promise<string | null> {
   if (typeof localStorage !== "undefined") {

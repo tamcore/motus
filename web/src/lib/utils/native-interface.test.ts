@@ -164,16 +164,16 @@ describe("native-interface", () => {
         postMessage: mockPostMessage,
       };
 
-      vi.spyOn(globalThis, "fetch").mockResolvedValue({
-        ok: true,
-        json: async () => ({ token: "generated-token" }),
-      } as Response);
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(
+        new Response(JSON.stringify({ token: "generated-token" }), { status: 200 }),
+      );
 
       await generateLoginToken();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith("/api/session/token", {
-        method: "POST",
-      });
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "/api/session/token",
+        expect.objectContaining({ method: "POST" }),
+      );
       expect(mockPostMessage).toHaveBeenCalledWith("login|generated-token");
     });
 
@@ -183,9 +183,7 @@ describe("native-interface", () => {
         postMessage: mockPostMessage,
       };
 
-      vi.spyOn(globalThis, "fetch").mockResolvedValue({
-        ok: false,
-      } as Response);
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("boom", { status: 500 }));
 
       // Should not throw.
       await generateLoginToken();
@@ -213,10 +211,9 @@ describe("native-interface", () => {
         postMessage: mockPostMessage,
       };
 
-      vi.spyOn(globalThis, "fetch").mockResolvedValue({
-        ok: true,
-        json: async () => ({ token: "" }),
-      } as Response);
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(
+        new Response(JSON.stringify({ token: "" }), { status: 200 }),
+      );
 
       await generateLoginToken();
       expect(mockPostMessage).not.toHaveBeenCalled();

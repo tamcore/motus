@@ -48,6 +48,11 @@ import { getAuthHeaders, setCsrfToken } from "./headers";
 const API_BASE = "/api";
 const KNOTS_TO_KMH = 1.852;
 
+/** Converts a position's speed from knots (Traccar API) to km/h (internal UI unit). */
+export function speedToKmh<T extends { speed?: number | null }>(pos: T): T {
+  return pos.speed != null ? { ...pos, speed: pos.speed * KNOTS_TO_KMH } : pos;
+}
+
 export class APIError extends Error {
   constructor(
     public status: number,
@@ -269,12 +274,7 @@ export const api = {
     if (params?.to) query.set("to", params.to);
     if (params?.limit) query.set("limit", String(params.limit));
 
-    // Normalize speed from knots (Traccar API) to km/h (internal UI unit).
-    return request<Position[]>(`/positions?${query}`).then((positions) =>
-      positions.map((pos) =>
-        pos.speed != null ? { ...pos, speed: pos.speed * KNOTS_TO_KMH } : pos,
-      ),
-    );
+    return request<Position[]>(`/positions?${query}`).then((positions) => positions.map(speedToKmh));
   },
 
   /** Server-side trips and stops in one pass; trip speeds are converted from knots to km/h. */
@@ -305,7 +305,7 @@ export const api = {
     });
     if (params.limit) query.set("limit", String(params.limit));
     return request<PositionPoint[]>(`/positions/points?${query}`).then((points) =>
-      points.map((p) => ({ ...p, speed: p.speed * KNOTS_TO_KMH })),
+      points.map(speedToKmh),
     );
   },
 
@@ -450,11 +450,7 @@ export const api = {
     if (params?.limit) query.set("limit", String(params.limit));
     const qs = query.toString();
     const path = qs ? `/admin/positions?${qs}` : "/admin/positions";
-    return request<Position[]>(path).then((positions) =>
-      positions.map((pos) =>
-        pos.speed != null ? { ...pos, speed: pos.speed * KNOTS_TO_KMH } : pos,
-      ),
-    );
+    return request<Position[]>(path).then((positions) => positions.map(speedToKmh));
   },
 
   /** Get devices assigned to a user (admin only). */

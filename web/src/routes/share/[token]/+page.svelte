@@ -5,6 +5,8 @@
 	import { useUserLocation, userLocationLayers } from '$lib/composables/useUserLocation';
 	import { buildPopupElement } from '$lib/utils/popup';
 	import type { Device } from '$lib/types/api';
+	import { formatSpeed, getCardinalDirection } from '$lib/utils/formatting';
+	import { speedToKmh } from '$lib/api/client';
 
 	const API_BASE = '/api';
 	const SHARE_UNIT_KEY = 'motus_share_units';
@@ -57,7 +59,7 @@
 
 	$: token = $page.params.token || '';
 	$: position = positions.length > 0 ? positions[0] : null;
-	$: formattedSpeed = formatSpeedWithUnits(position?.speed, units);
+	$: formattedSpeed = position?.speed == null ? '--' : formatSpeed(position.speed, units);
 	$: formattedCourse = position?.course != null ? `${Math.round(position.course)}` : '--';
 	$: courseDirection = position?.course != null ? getCardinalDirection(position.course) : '';
 	$: lastUpdateText = position ? formatTimeAgo(position.fixTime) : 'No data';
@@ -91,17 +93,8 @@
 		}
 	}
 
-	function formatSpeedWithUnits(speed: number | null | undefined, u: 'metric' | 'imperial'): string {
-		if (speed === null || speed === undefined) return '--';
-		if (u === 'imperial') {
-			const mph = speed * 0.621371;
-			return `${mph.toFixed(1)} mph`;
-		}
-		return `${speed.toFixed(1)} km/h`;
-	}
-
-	function formatSpeed(speed: number | null | undefined): string {
-		return formatSpeedWithUnits(speed, units);
+	function formatSpeedText(speed: number | null | undefined): string {
+		return speed == null ? '--' : formatSpeed(speed, units);
 	}
 
 	function formatTimeAgo(dateStr: string): string {
@@ -119,12 +112,6 @@
 		return d.toLocaleString();
 	}
 
-	function getCardinalDirection(degrees: number): string {
-		const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-		const idx = Math.round(degrees / 45) % 8;
-		return dirs[idx];
-	}
-
 	// --- API ---
 	async function fetchSharedDevice(): Promise<boolean> {
 		try {
@@ -139,10 +126,7 @@
 			}
 			const data = await response.json();
 			device = data.device;
-			// Normalize speed from knots (Traccar API) to km/h (internal UI unit).
-			positions = (data.positions || []).map((pos: SharedPosition) =>
-				pos.speed != null ? { ...pos, speed: pos.speed * 1.852 } : pos
-			);
+			positions = (data.positions || []).map((pos: SharedPosition) => speedToKmh(pos));
 
 			// Initialize trail from initial position
 			const latestPos = positions.length > 0 ? positions[0] : null;
@@ -244,17 +228,16 @@
 	function handleWebSocketMessage(data: any) {
 		if (data.positions && Array.isArray(data.positions)) {
 			for (const pos of data.positions) {
-				const newPos: SharedPosition = {
+				const newPos: SharedPosition = speedToKmh({
 					id: pos.id,
 					deviceId: pos.deviceId,
 					latitude: pos.latitude,
 					longitude: pos.longitude,
-					// Normalize speed from knots (Traccar API) to km/h (internal UI unit).
-				speed: pos.speed != null ? pos.speed * 1.852 : null,
+					speed: pos.speed ?? null,
 					course: pos.course ?? null,
 					fixTime: pos.fixTime || pos.timestamp || new Date().toISOString(),
 					attributes: pos.attributes
-				};
+				});
 
 				// Update positions array (most recent first)
 				positions = [newPos];
@@ -330,7 +313,7 @@
 
 	function getPopupContent(): HTMLElement | string {
 		if (!position || !device) return '';
-		const speed = formatSpeed(position.speed);
+		const speed = formatSpeedText(position.speed);
 		const course = position.course != null ? `${Math.round(position.course)}deg ${getCardinalDirection(position.course)}` : 'N/A';
 		const time = position.fixTime ? new Date(position.fixTime).toLocaleString() : 'Unknown';
 		return buildPopupElement([

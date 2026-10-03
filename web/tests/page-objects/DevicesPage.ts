@@ -84,10 +84,6 @@ export class DevicesPage {
     return this.page.locator('[role="dialog"] button:has-text("Save Changes")');
   }
 
-  get deleteConfirmButton() {
-    return this.page.locator('[role="dialog"] button:has-text("Delete")');
-  }
-
   async search(query: string) {
     await this.searchInput.fill(query);
   }

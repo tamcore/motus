@@ -75,21 +75,21 @@ func TestPtrToOptInt64(t *testing.T) {
 	}
 }
 
-func TestDerefTime(t *testing.T) {
-	if derefTime(nil) != (time.Time{}) {
+func TestDeref_Time(t *testing.T) {
+	if deref[time.Time](nil) != (time.Time{}) {
 		t.Error("nil should return zero time")
 	}
 	now := time.Now()
-	if derefTime(&now) != now {
+	if deref(&now) != now {
 		t.Error("should return pointed-to time")
 	}
 }
 
-func TestDerefFloat64(t *testing.T) {
-	if derefFloat64(nil) != 0 {
+func TestDeref_Float64(t *testing.T) {
+	if deref[float64](nil) != 0 {
 		t.Error("nil should return 0")
 	}
-	if derefFloat64(new(3.14)) != 3.14 {
+	if deref(new(3.14)) != 3.14 {
 		t.Error("should return pointed-to value")
 	}
 }

@@ -1,84 +1,22 @@
 package middleware_test
 
 import (
-	"context"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
-	"sync"
 	"testing"
 	"time"
 
+	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"
 	"github.com/tamcore/motus/internal/api/middleware"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
-)
-
-var (
-	redisRLURL       string
-	redisRLContainer testcontainers.Container
-	redisRLOnce      sync.Once
-	redisRLInitErr   error
 )
 
 func setupRedisForRateLimit(t *testing.T) *redis.Client {
 	t.Helper()
-	if testing.Short() {
-		t.Skip("skipping integration test (requires Docker/Redis) in short mode")
-	}
-
-	redisRLOnce.Do(func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer cancel()
-
-		req := testcontainers.ContainerRequest{
-			Image:        "redis:7-alpine",
-			ExposedPorts: []string{"6379/tcp"},
-			WaitingFor:   wait.ForLog("Ready to accept connections").WithStartupTimeout(30 * time.Second),
-		}
-
-		var err error
-		redisRLContainer, err = testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-			ContainerRequest: req,
-			Started:          true,
-		})
-		if err != nil {
-			redisRLInitErr = fmt.Errorf("start redis container: %w", err)
-			return
-		}
-
-		host, err := redisRLContainer.Host(ctx)
-		if err != nil {
-			redisRLInitErr = fmt.Errorf("get redis host: %w", err)
-			return
-		}
-		port, err := redisRLContainer.MappedPort(ctx, "6379")
-		if err != nil {
-			redisRLInitErr = fmt.Errorf("get redis port: %w", err)
-			return
-		}
-		redisRLURL = fmt.Sprintf("redis://%s:%s", host, port.Port())
-	})
-
-	if redisRLInitErr != nil {
-		t.Fatalf("redis setup failed: %v", redisRLInitErr)
-	}
-
-	opts, err := redis.ParseURL(redisRLURL)
-	if err != nil {
-		t.Fatalf("parse redis URL: %v", err)
-	}
-	client := redis.NewClient(opts)
+	client := redis.NewClient(&redis.Options{Addr: miniredis.RunT(t).Addr()})
 	t.Cleanup(func() { _ = client.Close() })
 	return client
-}
-
-func cleanupRedisRLContainer() {
-	if redisRLContainer != nil {
-		_ = redisRLContainer.Terminate(context.Background())
-	}
 }
 
 func redisOKHandler() http.Handler {
@@ -93,8 +31,6 @@ func TestRedisLoginRateLimit_BlocksAfterLimit(t *testing.T) {
 	cfg := middleware.RateLimitConfig{Max: 3, Period: time.Minute}
 	mw := middleware.NewRedisLoginRateLimit(client, cfg)
 	handler := mw(redisOKHandler())
-
-	_ = client.FlushDB(context.Background())
 
 	ip := "10.0.0.1"
 	for i := 1; i <= 3; i++ {
@@ -127,8 +63,6 @@ func TestRedisLoginRateLimit_DifferentIPsAreIndependent(t *testing.T) {
 	mw := middleware.NewRedisLoginRateLimit(client, cfg)
 	handler := mw(redisOKHandler())
 
-	_ = client.FlushDB(context.Background())
-
 	// Exhaust ip1.
 	for range 2 {
 		req := httptest.NewRequest(http.MethodPost, "/api/session", nil)
@@ -149,8 +83,6 @@ func TestRedisLoginRateLimit_DifferentIPsAreIndependent(t *testing.T) {
 
 func TestRedisLoginRateLimit_SpoofedXForwardedForSharesBucket(t *testing.T) {
 	client := setupRedisForRateLimit(t)
-	_ = client.FlushDB(context.Background())
-
 	trusted := []netip.Prefix{netip.MustParsePrefix("10.0.0.0/8")}
 	limiter := middleware.NewRedisLoginRateLimit(client, middleware.RateLimitConfig{Max: 1, Period: time.Minute})
 	handler := middleware.RealIP(trusted)(limiter(redisOKHandler()))

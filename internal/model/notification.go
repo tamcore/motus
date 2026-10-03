@@ -28,9 +28,24 @@ const (
 	EventTypeDeviceOffline = "deviceOffline"
 )
 
-// MaxReportingIntervalSeconds is the largest positionPeriodic frequency a
-// notification rule may send (one day).
-const MaxReportingIntervalSeconds = 86400
+// notificationEventTypes lists the event types notification rules support.
+var notificationEventTypes = map[string]bool{
+	EventTypeGeofenceEnter: true,
+	EventTypeGeofenceExit:  true,
+	EventTypeDeviceOnline:  true,
+	EventTypeDeviceOffline: true,
+	"motion":               true,
+	"deviceIdle":           true,
+	"ignitionOn":           true,
+	"ignitionOff":          true,
+	"alarm":                true,
+	"tripCompleted":        true,
+}
+
+// IsNotificationEventType reports whether notification rules support eventType.
+func IsNotificationEventType(eventType string) bool {
+	return notificationEventTypes[eventType]
+}
 
 // IsGeofenceEventType reports whether eventType is a geofence transition.
 func IsGeofenceEventType(eventType string) bool {

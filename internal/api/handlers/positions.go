@@ -79,13 +79,10 @@ func (h *Handler) GetPositions(ctx context.Context, params oas.GetPositionsParam
 		return &oas.Error{Error: "unauthorized"}, nil
 	}
 
-	deviceID, hasDevice := params.DeviceId.Get()
-	from, hasFrom := params.From.Get()
-	to, hasTo := params.To.Get()
 	limit := positionLimit(params.Limit.Or(0))
 
 	// No deviceId, no time range: latest position per user device.
-	if !hasDevice && !hasFrom && !hasTo {
+	if !params.DeviceId.Set && !params.From.Set && !params.To.Set {
 		positions, err := h.cfg.Positions.GetLatestByUser(ctx, user.ID)
 		if err != nil {
 			slog.Error("GetLatestByUser failed", slog.Int64("userID", user.ID), slog.Any("error", err))
@@ -98,43 +95,28 @@ func (h *Handler) GetPositions(ctx context.Context, params oas.GetPositionsParam
 		return &result, nil
 	}
 
-	// No deviceId, with time range: stream all user devices in window.
-	if !hasDevice {
-		if !hasFrom {
-			from = time.Now().Add(-24 * time.Hour)
-		}
-		if !hasTo {
-			to = time.Now()
-		}
-		queryCtx, cancel := context.WithTimeout(ctx, positionQueryTimeout)
-		defer cancel()
-		result, streamErr := collectPositions(func(fn func(*model.Position) error) error {
-			return h.cfg.Positions.StreamByUserAndTimeRange(queryCtx, user.ID, from, to, limit, fn)
-		})
-		if streamErr != nil {
-			slog.Error("StreamByUserAndTimeRange failed", slog.Any("error", streamErr))
-			return &oas.Error{Error: "failed to get positions"}, nil
-		}
-		return &result, nil
+	// Time range (default: last 24 h) for one device or all user devices.
+	now := time.Now()
+	from := params.From.Or(now.Add(-24 * time.Hour))
+	to := params.To.Or(now)
+	stream := func(ctx context.Context, fn func(*model.Position) error) error {
+		return h.cfg.Positions.StreamByUserAndTimeRange(ctx, user.ID, from, to, limit, fn)
 	}
-
-	// With deviceId: verify access, then stream time range.
-	if !h.cfg.Devices.UserHasAccess(ctx, user, deviceID) {
-		return &oas.Error{Error: "access denied"}, nil
-	}
-	if !hasFrom {
-		from = time.Now().Add(-24 * time.Hour)
-	}
-	if !hasTo {
-		to = time.Now()
+	if deviceID, ok := params.DeviceId.Get(); ok {
+		if !h.cfg.Devices.UserHasAccess(ctx, user, deviceID) {
+			return &oas.Error{Error: "access denied"}, nil
+		}
+		stream = func(ctx context.Context, fn func(*model.Position) error) error {
+			return h.cfg.Positions.StreamByDeviceAndTimeRange(ctx, deviceID, from, to, limit, fn)
+		}
 	}
 	queryCtx, cancel := context.WithTimeout(ctx, positionQueryTimeout)
 	defer cancel()
-	result, streamErr := collectPositions(func(fn func(*model.Position) error) error {
-		return h.cfg.Positions.StreamByDeviceAndTimeRange(queryCtx, deviceID, from, to, limit, fn)
+	result, err := collectPositions(func(fn func(*model.Position) error) error {
+		return stream(queryCtx, fn)
 	})
-	if streamErr != nil {
-		slog.Error("StreamByDeviceAndTimeRange failed", slog.Any("error", streamErr))
+	if err != nil {
+		slog.Error("stream positions failed", slog.Int64("userID", user.ID), slog.Any("error", err))
 		return &oas.Error{Error: "failed to get positions"}, nil
 	}
 	return &result, nil

@@ -1,9 +1,6 @@
 package model
 
-import (
-	"encoding/json"
-	"time"
-)
+import "time"
 
 // Session represents an authenticated user session.
 type Session struct {
@@ -32,42 +29,4 @@ func (s *Session) TruncatedID() string {
 		return s.ID[:12] + "…"
 	}
 	return s.ID
-}
-
-// sessionJSON is the JSON-safe representation of a Session. It replaces
-// the full session token with a truncated display ID.
-type sessionJSON struct {
-	ID                string     `json:"id"`
-	UserID            int64      `json:"userId"`
-	RememberMe        bool       `json:"rememberMe"`
-	OriginalUserID    *int64     `json:"originalUserId,omitempty"`
-	IsSudo            bool       `json:"isSudo,omitempty"`
-	ApiKeyID          *int64     `json:"apiKeyId,omitempty"`
-	CreatedAt         time.Time  `json:"createdAt"`
-	ExpiresAt         time.Time  `json:"expiresAt"`
-	ApiKeyName        *string    `json:"apiKeyName,omitempty"`
-	IsCurrent         bool       `json:"isCurrent,omitempty"`
-	LastSeenAt        *time.Time `json:"lastSeenAt,omitempty"`
-	LastSeenIP        *string    `json:"lastSeenIp,omitempty"`
-	LastSeenUserAgent *string    `json:"lastSeenUserAgent,omitempty"`
-}
-
-// MarshalJSON serialises the session with a truncated display ID instead
-// of the full session cookie token.
-func (s Session) MarshalJSON() ([]byte, error) {
-	return json.Marshal(sessionJSON{
-		ID:                s.TruncatedID(),
-		UserID:            s.UserID,
-		RememberMe:        s.RememberMe,
-		OriginalUserID:    s.OriginalUserID,
-		IsSudo:            s.IsSudo,
-		ApiKeyID:          s.ApiKeyID,
-		CreatedAt:         s.CreatedAt,
-		ExpiresAt:         s.ExpiresAt,
-		ApiKeyName:        s.ApiKeyName,
-		IsCurrent:         s.IsCurrent,
-		LastSeenAt:        s.LastSeenAt,
-		LastSeenIP:        s.LastSeenIP,
-		LastSeenUserAgent: s.LastSeenUserAgent,
-	})
 }

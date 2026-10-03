@@ -82,65 +82,39 @@ func ptrToOptTime(t *time.Time) oas.OptNilDateTime {
 	return oas.OptNilDateTime{Value: *t, Set: true}
 }
 
-// derefTime returns *t or the zero time.Time if t is nil.
-func derefTime(t *time.Time) time.Time {
-	if t == nil {
-		return time.Time{}
+// deref returns *p or the zero value if p is nil.
+func deref[T any](p *T) T {
+	if p == nil {
+		var zero T
+		return zero
 	}
-	return *t
-}
-
-// derefFloat64 returns *f or 0.0 if f is nil.
-func derefFloat64(f *float64) float64 {
-	if f == nil {
-		return 0
-	}
-	return *f
+	return *p
 }
 
 // attrBool extracts a bool value from an attribute map by key.
 func attrBool(attrs map[string]any, key string) oas.OptBool {
-	v, ok := attrs[key]
-	if !ok {
-		return oas.OptBool{}
-	}
-	b, ok := v.(bool)
-	if !ok {
-		return oas.OptBool{}
-	}
-	return oas.OptBool{Value: b, Set: true}
+	b, ok := attrs[key].(bool)
+	return oas.OptBool{Value: b, Set: ok}
 }
 
 // attrString extracts a string value from an attribute map by key.
 func attrString(attrs map[string]any, key string) oas.OptString {
-	v, ok := attrs[key]
-	if !ok {
-		return oas.OptString{}
-	}
-	s, ok := v.(string)
-	if !ok {
-		return oas.OptString{}
-	}
-	return oas.OptString{Value: s, Set: true}
+	s, ok := attrs[key].(string)
+	return oas.OptString{Value: s, Set: ok}
 }
 
 // attrInt extracts an integer value from an attribute map by key.
 // JSON numbers decode as float64, so both float64 and int are handled.
 func attrInt(attrs map[string]any, key string) oas.OptInt {
-	v, ok := attrs[key]
-	if !ok {
-		return oas.OptInt{}
-	}
-	switch n := v.(type) {
+	switch n := attrs[key].(type) {
 	case float64:
 		return oas.OptInt{Value: int(n), Set: true}
 	case int:
 		return oas.OptInt{Value: n, Set: true}
 	case int64:
 		return oas.OptInt{Value: int(n), Set: true}
-	default:
-		return oas.OptInt{}
 	}
+	return oas.OptInt{}
 }
 
 var positionKnownKeys = map[string]struct{}{
@@ -225,25 +199,21 @@ func userToOAS(u *model.User) oas.User {
 
 // positionToOAS converts a model.Position to oas.Position.
 func positionToOAS(p *model.Position) oas.Position {
-	var addr string
-	if p.Address != nil {
-		addr = *p.Address
-	}
 	return oas.Position{
 		ID:         p.ID,
 		DeviceId:   p.DeviceID,
 		Protocol:   optStr(p.Protocol),
-		ServerTime: derefTime(p.ServerTime),
-		DeviceTime: derefTime(p.DeviceTime),
+		ServerTime: deref(p.ServerTime),
+		DeviceTime: deref(p.DeviceTime),
 		FixTime:    p.Timestamp,
 		Outdated:   oas.OptBool{Value: p.Outdated, Set: true},
 		Valid:      p.Valid,
 		Latitude:   p.Latitude,
 		Longitude:  p.Longitude,
-		Altitude:   derefFloat64(p.Altitude),
-		Speed:      derefFloat64(p.Speed),
-		Course:     derefFloat64(p.Course),
-		Address:    optStr(addr),
+		Altitude:   deref(p.Altitude),
+		Speed:      deref(p.Speed),
+		Course:     deref(p.Course),
+		Address:    optStr(deref(p.Address)),
 		Accuracy:   p.Accuracy,
 		Attributes: positionAttrsToOAS(p.Attributes),
 	}
@@ -510,49 +480,16 @@ func deviceShareToOAS(s *model.DeviceShare) oas.DeviceShare {
 	}
 }
 
-// detailStr extracts a string value from an audit details map.
-func detailStr(details map[string]any, key string) string {
-	if details == nil {
-		return ""
-	}
-	v, _ := details[key].(string)
-	return v
-}
-
-// detailInt64 extracts an int64 value from an audit details map.
-// JSON numbers unmarshal as float64, so both numeric types are handled.
-func detailInt64(details map[string]any, key string) int64 {
-	if details == nil {
-		return 0
-	}
-	switch n := details[key].(type) {
-	case float64:
-		return int64(n)
-	case int64:
-		return n
-	case int:
-		return int64(n)
-	}
-	return 0
-}
-
 // detailStringSlice extracts a []string from an audit details map.
 // JSON arrays unmarshal as []interface{}, so each element is type-asserted.
 func detailStringSlice(details map[string]any, key string) []string {
-	if details == nil {
-		return nil
-	}
-	raw, ok := details[key]
-	if !ok {
-		return nil
-	}
-	if ss, ok := raw.([]string); ok {
-		return ss
-	}
-	if si, ok := raw.([]any); ok {
-		out := make([]string, 0, len(si))
-		for _, v := range si {
-			if s, ok := v.(string); ok {
+	switch v := details[key].(type) {
+	case []string:
+		return v
+	case []any:
+		out := make([]string, 0, len(v))
+		for _, e := range v {
+			if s, ok := e.(string); ok {
 				out = append(out, s)
 			}
 		}
@@ -561,181 +498,148 @@ func detailStringSlice(details map[string]any, key string) []string {
 	return nil
 }
 
+// auditMetaTypes holds the discriminator for actions whose payload schema is shared.
+var auditMetaTypes = map[string]oas.AuditMetadataType{
+	"session.logout":      oas.AuditMetadataSessionLogoutAuditMetadata,
+	"device.delete":       oas.AuditMetadataDeviceDeleteAuditMetadata,
+	"geofence.delete":     oas.AuditMetadataGeofenceDeleteAuditMetadata,
+	"calendar.delete":     oas.AuditMetadataCalendarDeleteAuditMetadata,
+	"notification.delete": oas.AuditMetadataNotificationDeleteAuditMetadata,
+	"user.delete":         oas.AuditMetadataUserDeleteAuditMetadata,
+	"device.online":       oas.AuditMetadataDeviceOnlineAuditMetadata,
+	"device.offline":      oas.AuditMetadataDeviceOfflineAuditMetadata,
+	"session.sudo":        oas.AuditMetadataSessionSudoAuditMetadata,
+	"session.sudo_end":    oas.AuditMetadataSessionSudoEndAuditMetadata,
+	"device.assign":       oas.AuditMetadataDeviceAssignAuditMetadata,
+	"device.unassign":     oas.AuditMetadataDeviceUnassignAuditMetadata,
+	"geofence.create":     oas.AuditMetadataGeofenceCreateAuditMetadata,
+	"geofence.update":     oas.AuditMetadataGeofenceUpdateAuditMetadata,
+	"calendar.create":     oas.AuditMetadataCalendarCreateAuditMetadata,
+	"calendar.update":     oas.AuditMetadataCalendarUpdateAuditMetadata,
+	"notification.create": oas.AuditMetadataNotificationCreateAuditMetadata,
+	"notification.update": oas.AuditMetadataNotificationUpdateAuditMetadata,
+	"notification.sent":   oas.AuditMetadataNotificationSentAuditMetadata,
+	"notification.failed": oas.AuditMetadataNotificationFailedAuditMetadata,
+	"share.create":        oas.AuditMetadataShareCreateAuditMetadata,
+	"share.delete":        oas.AuditMetadataShareDeleteAuditMetadata,
+}
+
 // buildAuditMetadata converts an action string + details map to a typed oas.OptAuditMetadata.
 // Returns an unset optional for unknown actions.
 func buildAuditMetadata(action string, details map[string]any) oas.OptAuditMetadata {
+	str := func(key string) string { return attrString(details, key).Value }
+	num := func(key string) int64 { return int64(attrInt(details, key).Value) }
+	t := auditMetaTypes[action]
 	var am oas.AuditMetadata
 	switch action {
-	// Empty variants (no payload beyond the action field).
-	case "session.logout":
-		am.SetAuditMetaEmpty(oas.AuditMetadataSessionLogoutAuditMetadata, oas.AuditMetaEmpty{Action: action})
-	case "device.delete":
-		am.SetAuditMetaEmpty(oas.AuditMetadataDeviceDeleteAuditMetadata, oas.AuditMetaEmpty{Action: action})
-	case "geofence.delete":
-		am.SetAuditMetaEmpty(oas.AuditMetadataGeofenceDeleteAuditMetadata, oas.AuditMetaEmpty{Action: action})
-	case "calendar.delete":
-		am.SetAuditMetaEmpty(oas.AuditMetadataCalendarDeleteAuditMetadata, oas.AuditMetaEmpty{Action: action})
-	case "notification.delete":
-		am.SetAuditMetaEmpty(oas.AuditMetadataNotificationDeleteAuditMetadata, oas.AuditMetaEmpty{Action: action})
-	case "user.delete":
-		am.SetAuditMetaEmpty(oas.AuditMetadataUserDeleteAuditMetadata, oas.AuditMetaEmpty{Action: action})
-	case "device.online":
-		am.SetAuditMetaEmpty(oas.AuditMetadataDeviceOnlineAuditMetadata, oas.AuditMetaEmpty{Action: action})
-	case "device.offline":
-		am.SetAuditMetaEmpty(oas.AuditMetadataDeviceOfflineAuditMetadata, oas.AuditMetaEmpty{Action: action})
+	case "session.logout", "device.delete", "geofence.delete", "calendar.delete",
+		"notification.delete", "user.delete", "device.online", "device.offline":
+		am.SetAuditMetaEmpty(t, oas.AuditMetaEmpty{Action: action})
 	case "session.login":
-		am.SetAuditMetaSessionLogin(oas.AuditMetaSessionLogin{Action: action, Email: detailStr(details, "email")})
+		am.SetAuditMetaSessionLogin(oas.AuditMetaSessionLogin{Action: action, Email: str("email")})
 	case "session.login_failed":
 		am.SetAuditMetaSessionLoginFailed(oas.AuditMetaSessionLoginFailed{
 			Action: action,
-			Email:  detailStr(details, "email"),
-			Reason: detailStr(details, "reason"),
+			Email:  str("email"),
+			Reason: str("reason"),
 		})
-	case "session.sudo":
-		am.SetAuditMetaSessionSudo(oas.AuditMetadataSessionSudoAuditMetadata, oas.AuditMetaSessionSudo{
+	case "session.sudo", "session.sudo_end":
+		am.SetAuditMetaSessionSudo(t, oas.AuditMetaSessionSudo{
 			Action:      action,
-			AdminEmail:  detailStr(details, "adminEmail"),
-			TargetEmail: detailStr(details, "targetEmail"),
-		})
-	case "session.sudo_end":
-		am.SetAuditMetaSessionSudo(oas.AuditMetadataSessionSudoEndAuditMetadata, oas.AuditMetaSessionSudo{
-			Action:      action,
-			AdminEmail:  detailStr(details, "adminEmail"),
-			TargetEmail: detailStr(details, "targetEmail"),
+			AdminEmail:  str("adminEmail"),
+			TargetEmail: str("targetEmail"),
 		})
 	case "session.revoke":
-		rev := oas.AuditMetaSessionRevoke{Action: action}
-		if s := detailStr(details, "scope"); s != "" {
-			rev.Scope = oas.OptString{Value: s, Set: true}
+		rev := oas.AuditMetaSessionRevoke{
+			Action:           action,
+			Scope:            optStr(str("scope")),
+			RevokedSessionId: optStr(str("revokedSessionId")),
 		}
-		if s := detailStr(details, "revokedSessionId"); s != "" {
-			rev.RevokedSessionId = oas.OptString{Value: s, Set: true}
-		}
-		if uid := detailInt64(details, "sessionOwnerUserId"); uid != 0 {
+		if uid := num("sessionOwnerUserId"); uid != 0 {
 			rev.SessionOwnerUserId = oas.OptInt64{Value: uid, Set: true}
 		}
 		am.SetAuditMetaSessionRevoke(rev)
 	case "user.create":
 		am.SetAuditMetaUserCreate(oas.AuditMetaUserCreate{
 			Action: action,
-			Email:  detailStr(details, "email"),
-			Role:   detailStr(details, "role"),
+			Email:  str("email"),
+			Role:   str("role"),
 		})
 	case "user.update":
-		upd := oas.AuditMetaUserUpdate{Action: action, Email: detailStr(details, "email")}
-		upd.OldEmail = attrString(details, "oldEmail")
-		upd.NewEmail = attrString(details, "newEmail")
-		upd.OldName = attrString(details, "oldName")
-		upd.NewName = attrString(details, "newName")
-		upd.OldRole = attrString(details, "oldRole")
-		upd.NewRole = attrString(details, "newRole")
-		upd.Disabled = attrBool(details, "disabled")
-		upd.Readonly = attrBool(details, "readonly")
-		am.SetAuditMetaUserUpdate(upd)
+		am.SetAuditMetaUserUpdate(oas.AuditMetaUserUpdate{
+			Action:   action,
+			Email:    str("email"),
+			OldEmail: attrString(details, "oldEmail"),
+			NewEmail: attrString(details, "newEmail"),
+			OldName:  attrString(details, "oldName"),
+			NewName:  attrString(details, "newName"),
+			OldRole:  attrString(details, "oldRole"),
+			NewRole:  attrString(details, "newRole"),
+			Disabled: attrBool(details, "disabled"),
+			Readonly: attrBool(details, "readonly"),
+		})
 	case "device.create":
 		am.SetAuditMetaDeviceCreate(oas.AuditMetaDeviceCreate{
 			Action:   action,
-			Name:     detailStr(details, "name"),
-			UniqueId: detailStr(details, "uniqueId"),
+			Name:     str("name"),
+			UniqueId: str("uniqueId"),
 		})
 	case "device.update":
-		am.SetAuditMetaDeviceUpdate(oas.AuditMetaDeviceUpdate{
-			Action: action,
-			Name:   detailStr(details, "name"),
-		})
-	case "device.assign":
-		userID := detailInt64(details, "userId")
+		am.SetAuditMetaDeviceUpdate(oas.AuditMetaDeviceUpdate{Action: action, Name: str("name")})
+	case "device.assign", "device.unassign":
+		userID := num("userId")
 		if userID == 0 {
-			userID = detailInt64(details, "targetUserId")
+			userID = num("targetUserId")
 		}
-		am.SetAuditMetaDeviceAssign(oas.AuditMetadataDeviceAssignAuditMetadata, oas.AuditMetaDeviceAssign{
-			Action: action, UserId: userID,
-		})
-	case "device.unassign":
-		userID := detailInt64(details, "userId")
-		if userID == 0 {
-			userID = detailInt64(details, "targetUserId")
-		}
-		am.SetAuditMetaDeviceAssign(oas.AuditMetadataDeviceUnassignAuditMetadata, oas.AuditMetaDeviceAssign{
-			Action: action, UserId: userID,
-		})
+		am.SetAuditMetaDeviceAssign(t, oas.AuditMetaDeviceAssign{Action: action, UserId: userID})
 	case "device.gpx_import":
 		am.SetAuditMetaDeviceGpxImport(oas.AuditMetaDeviceGpxImport{
 			Action:    action,
-			DeviceId:  detailInt64(details, "deviceId"),
-			Positions: int(detailInt64(details, "positions")),
+			DeviceId:  num("deviceId"),
+			Positions: int(num("positions")),
 		})
-	case "geofence.create":
-		am.SetAuditMetaNamedResource(oas.AuditMetadataGeofenceCreateAuditMetadata, oas.AuditMetaNamedResource{Action: action, Name: detailStr(details, "name")})
-	case "geofence.update":
-		am.SetAuditMetaNamedResource(oas.AuditMetadataGeofenceUpdateAuditMetadata, oas.AuditMetaNamedResource{Action: action, Name: detailStr(details, "name")})
-	case "calendar.create":
-		am.SetAuditMetaNamedResource(oas.AuditMetadataCalendarCreateAuditMetadata, oas.AuditMetaNamedResource{Action: action, Name: detailStr(details, "name")})
-	case "calendar.update":
-		am.SetAuditMetaNamedResource(oas.AuditMetadataCalendarUpdateAuditMetadata, oas.AuditMetaNamedResource{Action: action, Name: detailStr(details, "name")})
-	case "notification.create":
-		am.SetAuditMetaNotificationRule(oas.AuditMetadataNotificationCreateAuditMetadata, oas.AuditMetaNotificationRule{
+	case "geofence.create", "geofence.update", "calendar.create", "calendar.update":
+		am.SetAuditMetaNamedResource(t, oas.AuditMetaNamedResource{Action: action, Name: str("name")})
+	case "notification.create", "notification.update":
+		am.SetAuditMetaNotificationRule(t, oas.AuditMetaNotificationRule{
 			Action:     action,
-			Name:       detailStr(details, "name"),
+			Name:       str("name"),
 			EventTypes: detailStringSlice(details, "eventTypes"),
-			Channel:    detailStr(details, "channel"),
+			Channel:    str("channel"),
 		})
-	case "notification.update":
-		am.SetAuditMetaNotificationRule(oas.AuditMetadataNotificationUpdateAuditMetadata, oas.AuditMetaNotificationRule{
-			Action:     action,
-			Name:       detailStr(details, "name"),
-			EventTypes: detailStringSlice(details, "eventTypes"),
-			Channel:    detailStr(details, "channel"),
-		})
-	case "notification.sent":
+	case "notification.sent", "notification.failed":
 		d := oas.AuditMetaNotifDelivery{
-			Action:    action,
-			RuleName:  detailStr(details, "ruleName"),
-			EventType: detailStr(details, "eventType"),
-			Channel:   detailStr(details, "channel"),
-			DeviceId:  detailInt64(details, "deviceId"),
+			Action:       action,
+			RuleName:     str("ruleName"),
+			EventType:    str("eventType"),
+			Channel:      str("channel"),
+			DeviceId:     num("deviceId"),
+			ResponseCode: attrInt(details, "responseCode"),
 		}
-		if rc := attrInt(details, "responseCode"); rc.Set {
-			d.ResponseCode = oas.OptInt{Value: rc.Value, Set: true}
+		if action == "notification.failed" {
+			d.Error = optStr(str("error"))
 		}
-		am.SetAuditMetaNotifDelivery(oas.AuditMetadataNotificationSentAuditMetadata, d)
-	case "notification.failed":
-		d := oas.AuditMetaNotifDelivery{
-			Action:    action,
-			RuleName:  detailStr(details, "ruleName"),
-			EventType: detailStr(details, "eventType"),
-			Channel:   detailStr(details, "channel"),
-			DeviceId:  detailInt64(details, "deviceId"),
-		}
-		if rc := attrInt(details, "responseCode"); rc.Set {
-			d.ResponseCode = oas.OptInt{Value: rc.Value, Set: true}
-		}
-		if errStr := detailStr(details, "error"); errStr != "" {
-			d.Error = oas.OptString{Value: errStr, Set: true}
-		}
-		am.SetAuditMetaNotifDelivery(oas.AuditMetadataNotificationFailedAuditMetadata, d)
+		am.SetAuditMetaNotifDelivery(t, d)
 	case "apikey.create":
 		am.SetAuditMetaApiKeyCreate(oas.AuditMetaApiKeyCreate{
 			Action:      action,
-			Name:        detailStr(details, "name"),
-			Permissions: detailStr(details, "permissions"),
+			Name:        str("name"),
+			Permissions: str("permissions"),
 		})
 	case "apikey.delete":
 		am.SetAuditMetaApiKeyDelete(oas.AuditMetaApiKeyDelete{
 			Action:         action,
-			Name:           detailStr(details, "name"),
-			KeyOwnerUserId: detailInt64(details, "keyOwnerUserId"),
+			Name:           str("name"),
+			KeyOwnerUserId: num("keyOwnerUserId"),
 		})
-	case "share.create":
-		am.SetAuditMetaShare(oas.AuditMetadataShareCreateAuditMetadata, oas.AuditMetaShare{Action: action, DeviceId: detailInt64(details, "deviceId")})
-	case "share.delete":
-		am.SetAuditMetaShare(oas.AuditMetadataShareDeleteAuditMetadata, oas.AuditMetaShare{Action: action, DeviceId: detailInt64(details, "deviceId")})
+	case "share.create", "share.delete":
+		am.SetAuditMetaShare(t, oas.AuditMetaShare{Action: action, DeviceId: num("deviceId")})
 	case "command.send":
 		am.SetAuditMetaCommandSend(oas.AuditMetaCommandSend{
 			Action:        action,
-			CommandType:   detailStr(details, "commandType"),
-			CommandStatus: detailStr(details, "commandStatus"),
-			DeviceName:    detailStr(details, "deviceName"),
+			CommandType:   str("commandType"),
+			CommandStatus: str("commandStatus"),
+			DeviceName:    str("deviceName"),
 		})
 	default:
 		return oas.OptAuditMetadata{}
@@ -773,42 +677,4 @@ func auditEntryToOAS(e audit.Entry) oas.AuditEntry {
 		IpAddress:    ipAddress,
 		CreatedAt:    e.Timestamp,
 	}
-}
-
-// oasInputToDevice converts an oas.DeviceInput to a new model.Device.
-// Fields not set in the input are left as zero values.
-func oasInputToDevice(req *oas.DeviceInput) *model.Device {
-	d := &model.Device{
-		UniqueID: req.UniqueId,
-		Name:     req.Name,
-		Status:   "unknown",
-	}
-	if v, ok := req.Phone.Get(); ok {
-		d.Phone = &v
-	}
-	if v, ok := req.Model.Get(); ok {
-		d.Model = &v
-	}
-	if v, ok := req.Contact.Get(); ok {
-		d.Contact = &v
-	}
-	if v, ok := req.Category.Get(); ok {
-		d.Category = &v
-	}
-	if v, ok := req.Protocol.Get(); ok {
-		d.Protocol = v
-	}
-	if v, ok := req.CalendarId.Get(); ok {
-		d.CalendarID = &v
-	}
-	if v, ok := req.SpeedLimit.Get(); ok {
-		d.SpeedLimit = &v
-	}
-	if v, ok := req.Disabled.Get(); ok {
-		d.Disabled = v
-	}
-	if req.Attributes.Set {
-		d.Attributes = rawToAttrs(map[string]jx.Raw(req.Attributes.Value))
-	}
-	return d
 }

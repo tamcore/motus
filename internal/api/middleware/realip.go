@@ -57,10 +57,5 @@ func parseRemoteAddr(remoteAddr string) (netip.Addr, bool) {
 }
 
 func isTrusted(ip netip.Addr, trusted []netip.Prefix) bool {
-	for _, p := range trusted {
-		if p.Contains(ip) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(trusted, func(p netip.Prefix) bool { return p.Contains(ip) })
 }

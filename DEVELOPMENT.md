@@ -107,7 +107,7 @@ npx playwright test --ui
 | Target | Description |
 |--------|-------------|
 | `build` | Build motus binary |
-| `lint` | Run all linters (go vet, golangci-lint, frontend check) |
+| `lint` | Run all linters (golangci-lint, frontend check) |
 | `test` | Run all tests (includes lint) |
 | `dev-deploy-k8s` | Build dev image, push, deploy to K8s |
 | `dev-reset-database` | Reset database (delete all data) |

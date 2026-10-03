@@ -75,3 +75,17 @@ func TestRoleConstants(t *testing.T) {
 		t.Errorf("expected 'readonly', got %q", RoleReadonly)
 	}
 }
+
+func TestUser_CanManage(t *testing.T) {
+	user := &User{ID: 1, Role: RoleUser}
+	admin := &User{ID: 2, Role: RoleAdmin}
+	if !user.CanManage(1) {
+		t.Error("user should manage own resource")
+	}
+	if user.CanManage(3) {
+		t.Error("user should not manage another user's resource")
+	}
+	if !admin.CanManage(3) {
+		t.Error("admin should manage any resource")
+	}
+}

@@ -17,16 +17,6 @@ func isValidCommandType(t string) bool {
 	return slices.Contains(model.SupportedCommandTypes(), t)
 }
 
-// commandSubmitter returns the shared command send path over the handler's
-// repositories and protocol registries.
-func (h *Handler) commandSubmitter() *protocol.CommandSubmitter {
-	return &protocol.CommandSubmitter{
-		Commands: h.cfg.Commands,
-		Encoders: h.cfg.EncoderRegistry,
-		Registry: h.cfg.DeviceRegistry,
-	}
-}
-
 // --- ogen Handler methods ---
 
 // oasCommandInputToModel converts an oas.CommandInput to a model.Command.
@@ -151,7 +141,11 @@ func (h *Handler) SendCommand(ctx context.Context, req *oas.SendCommandRequest) 
 	}
 	// Validate, encode, persist as pending and deliver immediately when the
 	// device is connected — the same path notification command rules use.
-	submitter := h.commandSubmitter()
+	submitter := &protocol.CommandSubmitter{
+		Commands: h.cfg.Commands,
+		Encoders: h.cfg.EncoderRegistry,
+		Registry: h.cfg.DeviceRegistry,
+	}
 	cmd, err := submitter.Submit(ctx, device, req.Type, attrs)
 	switch {
 	case errors.Is(err, protocol.ErrCommandUnsupported):
@@ -166,15 +160,13 @@ func (h *Handler) SendCommand(ctx context.Context, req *oas.SendCommandRequest) 
 		return &oas.SendCommandBadRequest{Error: "failed to create command"}, nil
 	}
 
-	if h.cfg.AuditLogger != nil {
-		details := map[string]any{
-			"commandType":   cmd.Type,
-			"commandStatus": cmd.Status,
-			"deviceName":    device.Name,
-		}
-		h.cfg.AuditLogger.Log(ctx, &user.ID,
-			audit.ActionCommandSend, audit.ResourceCommand, &cmd.ID, details, "", "")
+	details := map[string]any{
+		"commandType":   cmd.Type,
+		"commandStatus": cmd.Status,
+		"deviceName":    device.Name,
 	}
+	h.cfg.AuditLogger.Log(ctx, &user.ID,
+		audit.ActionCommandSend, audit.ResourceCommand, &cmd.ID, details, "", "")
 
 	out := commandToOAS(cmd)
 	return &out, nil

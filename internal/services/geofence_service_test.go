@@ -2,6 +2,8 @@ package services
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"testing"
 
 	"github.com/tamcore/motus/internal/model"
@@ -42,6 +44,33 @@ func createTestDevice(t *testing.T, ctx context.Context, user *model.User) *mode
 		t.Fatalf("create device: %v", err)
 	}
 	return d
+}
+
+func TestGeofenceService_InvalidGeometryIsClientError(t *testing.T) {
+	svc, _, _, userRepo := setupGeofenceServiceCRUD(t)
+	ctx := context.Background()
+	user, g := createTestUserAndGeofence(t, ctx, svc, userRepo, "geo-badgeom@example.com")
+
+	for name, run := range map[string]func() error{
+		"create wkt": func() error {
+			_, err := svc.CreateForUser(ctx, user, CreateGeofenceInput{Name: "Bad", Area: "POLYGON((1 2, 3"})
+			return err
+		},
+		"create geojson": func() error {
+			_, err := svc.CreateForUser(ctx, user, CreateGeofenceInput{Name: "Bad", Geometry: `{"type":"Nope"}`})
+			return err
+		},
+		"update wkt": func() error {
+			bad := "POLYGON((1 2, 3"
+			_, err := svc.UpdateForUser(ctx, user, g.ID, UpdateGeofenceInput{Area: &bad})
+			return err
+		},
+	} {
+		err := run()
+		if !errors.Is(err, ErrInvalid) || !strings.HasPrefix(err.Error(), "invalid geometry") {
+			t.Errorf("%s: got %v, want client-safe invalid geometry error", name, err)
+		}
+	}
 }
 
 func TestGeofenceService_UpdateForUser_RenameName(t *testing.T) {

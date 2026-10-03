@@ -3,11 +3,13 @@ package repository
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/tamcore/motus/internal/model"
 )
@@ -20,6 +22,21 @@ type GeofenceRepository struct {
 // NewGeofenceRepository creates a new geofence repository.
 func NewGeofenceRepository(pool *pgxpool.Pool) *GeofenceRepository {
 	return &GeofenceRepository{pool: pool}
+}
+
+// ErrInvalidGeometry wraps PostGIS rejections of client-supplied WKT/GeoJSON.
+var ErrInvalidGeometry = errors.New("invalid geometry")
+
+// pgInternalError is the SQLSTATE PostGIS raises for unparsable geometry input.
+const pgInternalError = "XX000"
+
+// geometryError maps a PostGIS parse failure to ErrInvalidGeometry and wraps
+// any other error with op.
+func geometryError(op string, err error) error {
+	if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok && pgErr.Code == pgInternalError {
+		return fmt.Errorf("%w: %s", ErrInvalidGeometry, pgErr.Message)
+	}
+	return fmt.Errorf("%s: %w", op, err)
 }
 
 // isWKT returns true if the input looks like WKT (starts with a geometry type keyword).
@@ -62,7 +79,7 @@ func (r *GeofenceRepository) Create(ctx context.Context, g *model.Geofence) erro
 		g.Name, g.Description, geomInput, attrs, g.CalendarID,
 	).Scan(&g.ID, &g.Area, &g.Geometry, &g.CalendarID, &g.CreatedAt, &g.UpdatedAt)
 	if err != nil {
-		return fmt.Errorf("create geofence: %w", err)
+		return geometryError("create geofence", err)
 	}
 	return nil
 }
@@ -153,7 +170,7 @@ func (r *GeofenceRepository) Update(ctx context.Context, g *model.Geofence) erro
 		g.Name, g.Description, geomInput, attrs, g.CalendarID, g.ID,
 	)
 	if err != nil {
-		return fmt.Errorf("update geofence: %w", err)
+		return geometryError("update geofence", err)
 	}
 	return nil
 }

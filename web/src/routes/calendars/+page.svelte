@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { api, fetchCalendars } from '$lib/api/client';
-	import { currentUser } from '$lib/stores/auth';
 	import { refreshHandler } from '$lib/stores/refresh';
 	import Button from '$lib/components/Button.svelte';
 	import CalendarEditorModal from '$lib/components/CalendarEditorModal.svelte';
@@ -32,8 +31,7 @@
 		loading = true;
 		error = '';
 		try {
-			const isAdmin = ($currentUser as Record<string, unknown> | null)?.administrator === true;
-			calendars = await fetchCalendars(isAdmin);
+			calendars = await fetchCalendars();
 			// Check active status for each calendar via client-side approximation
 			const statuses: Record<number, { active: boolean; label: string }> = {};
 			for (const cal of calendars) {

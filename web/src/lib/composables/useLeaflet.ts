@@ -22,24 +22,13 @@ export interface UseLeafletOptions {
   zoom?: number;
   /** Whether to show the zoom control. Defaults to true (positioned topright). */
   zoomControl?: boolean;
-  /** Tile layer URL template. Defaults to OSM. */
-  tileUrl?: string;
-  /** Tile layer attribution. Defaults to OSM attribution. */
-  tileAttribution?: string;
-  /** Max zoom for the tile layer. Defaults to 19. */
-  maxZoom?: number;
 }
 
 const DEFAULT_CENTER: [number, number] = [51.1657, 10.4515];
 const DEFAULT_ZOOM = 6;
-const DEFAULT_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
-const DEFAULT_TILE_ATTRIBUTION = "&copy; OpenStreetMap contributors";
-
-// Leaflet marker icon assets bundled locally via Vite (fixes broken paths in
-// bundled environments without any runtime CDN dependency).
-export const LEAFLET_MARKER_ICON_URL = markerIconUrl;
-export const LEAFLET_MARKER_ICON_RETINA_URL = markerIconRetinaUrl;
-export const LEAFLET_MARKER_SHADOW_URL = markerShadowUrl;
+const TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+const TILE_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+const TILE_MAX_ZOOM = 19;
 
 export interface UseLeafletReturn {
   /** Initialize the map on the given container element. */
@@ -53,14 +42,11 @@ export interface UseLeafletReturn {
   getMap: () => L.Map | null;
   /** Get the Leaflet library module (null before initialize). */
   getLeaflet: () => typeof import("leaflet") | null;
-  /** Get the tile layer instance (null before initialize). */
-  getTileLayer: () => L.TileLayer | null;
 }
 
 export function useLeaflet(): UseLeafletReturn {
   let map: L.Map | null = null;
   let leaflet: typeof import("leaflet") | null = null;
-  let tileLayer: L.TileLayer | null = null;
 
   async function initialize(
     container: HTMLElement,
@@ -70,9 +56,6 @@ export function useLeaflet(): UseLeafletReturn {
       center = DEFAULT_CENTER,
       zoom = DEFAULT_ZOOM,
       zoomControl = true,
-      tileUrl = DEFAULT_TILE_URL,
-      tileAttribution = DEFAULT_TILE_ATTRIBUTION,
-      maxZoom = DEFAULT_TILE_MAX_ZOOM,
     } = options;
 
     // Dynamic import (SSR-safe)
@@ -94,9 +77,9 @@ export function useLeaflet(): UseLeafletReturn {
       L.control.zoom({ position: "topright" }).addTo(map);
     }
 
-    tileLayer = L.tileLayer(tileUrl, {
-      attribution: tileAttribution,
-      maxZoom,
+    L.tileLayer(TILE_URL, {
+      attribution: TILE_ATTRIBUTION,
+      maxZoom: TILE_MAX_ZOOM,
     }).addTo(map);
   }
 
@@ -106,7 +89,6 @@ export function useLeaflet(): UseLeafletReturn {
       map = null;
     }
     leaflet = null;
-    tileLayer = null;
   }
 
   function getMap(): L.Map | null {
@@ -117,18 +99,12 @@ export function useLeaflet(): UseLeafletReturn {
     return leaflet;
   }
 
-  function getTileLayer(): L.TileLayer | null {
-    return tileLayer;
-  }
-
-  return { initialize, cleanup, getMap, getLeaflet, getTileLayer };
+  return { initialize, cleanup, getMap, getLeaflet };
 }
 
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
-
-const DEFAULT_TILE_MAX_ZOOM = 19;
 
 /**
  * Fix Leaflet's default marker icon paths which break in bundled
@@ -141,8 +117,8 @@ function fixMarkerIcons(L: typeof import("leaflet")): void {
     delete proto._getIconUrl;
   }
   L.Icon.Default.mergeOptions({
-    iconRetinaUrl: LEAFLET_MARKER_ICON_RETINA_URL,
-    iconUrl: LEAFLET_MARKER_ICON_URL,
-    shadowUrl: LEAFLET_MARKER_SHADOW_URL,
+    iconRetinaUrl: markerIconRetinaUrl,
+    iconUrl: markerIconUrl,
+    shadowUrl: markerShadowUrl,
   });
 }

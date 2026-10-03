@@ -2,25 +2,15 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { api, fetchDevices } from '$lib/api/client';
 	import { getSettings } from '$lib/stores/settings';
-	import { currentUser } from '$lib/stores/auth';
+	import { isAdmin } from '$lib/stores/auth';
 	import { refreshHandler } from '$lib/stores/refresh';
-	import type { Position } from '$lib/types/api';
+	import type { Device, Position } from '$lib/types/api';
 	import Skeleton from '$lib/components/Skeleton.svelte';
 	import StatusIndicator from '$lib/components/StatusIndicator.svelte';
 	import BatteryIndicator from '$lib/components/BatteryIndicator.svelte';
 	import AllDevicesToggle from '$lib/components/AllDevicesToggle.svelte';
 	import { formatRelative, formatSpeed, getCardinalDirection, formatCoordinates } from '$lib/utils/formatting';
 
-	interface Device {
-		id: number;
-		name: string;
-		uniqueId: string;
-		status: string;
-		protocol?: string;
-		lastUpdate?: string;
-		ownerName?: string;
-		batteryLevel?: number | null;
-	}
 
 	let loading = true;
 	let loadError = '';
@@ -48,12 +38,11 @@
 	}
 
 	async function loadDashboard() {
-		const isAdmin = ($currentUser as Record<string, unknown> | null)?.administrator === true;
-		const showAll = isAdmin && getSettings().showAllDevices;
+		const showAll = $isAdmin && getSettings().showAllDevices;
 		const todayStart = new Date();
 		todayStart.setHours(0, 0, 0, 0);
 		const [deviceList, latestPositions, todayCount] = await Promise.all([
-			fetchDevices(isAdmin) as Promise<Device[]>,
+			fetchDevices(),
 			(showAll ? api.getAllPositions() : api.getPositions()).catch(
 				() => [] as Position[]
 			) as Promise<Position[]>,
@@ -91,12 +80,6 @@
 
 	onDestroy(() => { $refreshHandler = null; });
 
-	function getStatusType(status: string): 'online' | 'offline' | 'idle' | 'moving' {
-		if (status === 'online') return 'online';
-		if (status === 'idle') return 'idle';
-		if (status === 'moving') return 'moving';
-		return 'offline';
-	}
 
 	function setFilter(filter: 'all' | 'online' | 'offline') {
 		// Toggle off if clicking the same filter
@@ -104,9 +87,8 @@
 	}
 
 	async function reloadDevices() {
-		const isAdmin = ($currentUser as Record<string, unknown> | null)?.administrator === true;
 		try {
-			devices = (await fetchDevices(isAdmin)) as Device[];
+			devices = await fetchDevices();
 		} catch {
 			console.error('Failed to reload devices');
 		}
@@ -119,7 +101,7 @@
 
 <div class="dashboard">
 	<div class="container">
-		<h1 class="page-title">Dashboard</h1>
+		<h1 class="page-title mb-6">Dashboard</h1>
 
 		{#if loadError}
 			<div class="error-banner" role="alert">
@@ -258,7 +240,7 @@
 							{#if device.ownerName}
 								<span class="owner-badge" title="Owned by {device.ownerName}">{device.ownerName}</span>
 							{/if}
-							<StatusIndicator status={getStatusType(device.status)} />
+							<StatusIndicator status={device.status} />
 						</div>
 						<div class="device-meta">
 							<span class="device-id">{device.uniqueId}</span>
@@ -303,12 +285,6 @@
 		padding: var(--space-6) 0;
 	}
 
-	.page-title {
-		font-size: var(--text-3xl);
-		font-weight: var(--font-bold);
-		color: var(--text-primary);
-		margin-bottom: var(--space-6);
-	}
 
 	.error-actions {
 		display: flex;

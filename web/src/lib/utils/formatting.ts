@@ -1,5 +1,7 @@
 import { get } from "svelte/store";
-import { settings } from "$lib/stores/settings";
+import { settings, type UserSettings } from "$lib/stores/settings";
+
+const KM_TO_MI = 0.621371;
 
 /**
  * Format a date string or Date object according to user preferences.
@@ -55,13 +57,14 @@ export function formatRelative(date: Date): string {
  * Format speed according to user unit preference.
  * Input speed is always in km/h.
  */
-export function formatSpeed(kmh: number | undefined | null): string {
+export function formatSpeed(
+  kmh: number | undefined | null,
+  units: UserSettings["units"] = get(settings).units,
+): string {
   if (kmh === undefined || kmh === null) return "0 km/h";
 
-  const s = get(settings);
-
-  if (s.units === "imperial") {
-    const mph = kmh * 0.621371;
+  if (units === "imperial") {
+    const mph = kmh * KM_TO_MI;
     return `${mph.toFixed(1)} mph`;
   }
 
@@ -76,7 +79,7 @@ export function formatDistance(km: number): string {
   const s = get(settings);
 
   if (s.units === "imperial") {
-    const miles = km * 0.621371;
+    const miles = km * KM_TO_MI;
     return `${miles.toFixed(2)} mi`;
   }
 
@@ -93,7 +96,7 @@ export function formatMileage(km: number | undefined | null): string {
   const s = get(settings);
 
   if (s.units === "imperial") {
-    const miles = km * 0.621371;
+    const miles = km * KM_TO_MI;
     return `${Math.round(miles).toLocaleString()} mi`;
   }
 
@@ -105,7 +108,7 @@ export function formatMileage(km: number | undefined | null): string {
  */
 export function mileageToDisplay(km: number): number {
   const s = get(settings);
-  return s.units === "imperial" ? km * 0.621371 : km;
+  return s.units === "imperial" ? km * KM_TO_MI : km;
 }
 
 /**
@@ -113,7 +116,7 @@ export function mileageToDisplay(km: number): number {
  */
 export function mileageFromDisplay(value: number): number {
   const s = get(settings);
-  return s.units === "imperial" ? value / 0.621371 : value;
+  return s.units === "imperial" ? value / KM_TO_MI : value;
 }
 
 /**

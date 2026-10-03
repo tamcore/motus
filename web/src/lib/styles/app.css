@@ -47,6 +47,9 @@ body {
   margin: 0;
 }
 
+.mb-2 { margin-bottom: var(--space-2); }
+.mb-6 { margin-bottom: var(--space-6); }
+
 .empty-state {
   text-align: center;
   padding: var(--space-16) var(--space-4);
@@ -81,6 +84,12 @@ body {
   border-top-color: var(--accent-primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
+}
+
+.spinner-lg {
+  width: 48px;
+  height: 48px;
+  border-width: 4px;
 }
 
 @keyframes spin {

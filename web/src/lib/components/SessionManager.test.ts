@@ -227,54 +227,36 @@ describe("SessionManager", () => {
   });
 
   // ---------------------------------------------------------------------------
-  // 4. Revoke button triggers confirmation dialog
+  // 4. Revoke asks for confirmation (window.confirm)
   // ---------------------------------------------------------------------------
 
-  describe("Revoke confirmation flow", () => {
-    it("should set confirmingDeleteId when requesting delete", () => {
-      let confirmingDeleteId: string | null = null;
-      let deleteError = "";
-
-      // Simulate requestDelete(id)
-      const sessionId = "sess_target123";
-      confirmingDeleteId = sessionId;
-      deleteError = "";
-
-      expect(confirmingDeleteId).toBe(sessionId);
-      expect(deleteError).toBe("");
-    });
-
-    it("should clear confirmingDeleteId and error when cancelling", () => {
-      let confirmingDeleteId: string | null = "sess_abc123";
-      let deleteError = "previous error";
-
-      // Simulate cancelDelete()
-      confirmingDeleteId = null;
-      deleteError = "";
-
-      expect(confirmingDeleteId).toBeNull();
-      expect(deleteError).toBe("");
-    });
-
-    it("should show confirmation text with truncated session ID", () => {
-      const sessionId = "sess_abc123def456ghi789";
-      const truncated = truncateId(sessionId);
-
-      // The component renders:
-      // "Are you sure you want to revoke session <strong>{truncateId(confirmingDeleteId)}</strong>?"
-      expect(truncated).toBe("sess_abc123d\u2026");
-    });
-
-    it("should not trigger confirmation for current session", () => {
-      const sessions = [
+  describe("Revoke confirmation", () => {
+    async function renderWithOtherSession() {
+      mockGetSessions.mockResolvedValue([
         createMockSession({ id: "sess_current", isCurrent: true }),
-        createMockSession({ id: "sess_other", isCurrent: false }),
-      ];
+        createMockSession({ id: "sess_other" }),
+      ]);
+      const { render, screen, fireEvent } = await import("@testing-library/svelte");
+      const { default: SessionManager } = await import("./SessionManager.svelte");
+      render(SessionManager);
+      const button = await screen.findByRole("button", { name: "Revoke" });
+      return { button, fireEvent };
+    }
 
-      // Only non-current sessions have the Revoke button
-      const revokableSessions = sessions.filter((s) => !s.isCurrent);
-      expect(revokableSessions).toHaveLength(1);
-      expect(revokableSessions[0].id).toBe("sess_other");
+    it("does not revoke when the confirmation is declined", async () => {
+      vi.spyOn(window, "confirm").mockReturnValue(false);
+      const { button, fireEvent } = await renderWithOtherSession();
+      await fireEvent.click(button);
+      expect(window.confirm).toHaveBeenCalled();
+      expect(mockRevokeSession).not.toHaveBeenCalled();
+    });
+
+    it("revokes the session when confirmed", async () => {
+      vi.spyOn(window, "confirm").mockReturnValue(true);
+      mockRevokeSession.mockResolvedValue(undefined);
+      const { button, fireEvent } = await renderWithOtherSession();
+      await fireEvent.click(button);
+      expect(mockRevokeSession).toHaveBeenCalledWith("sess_other");
     });
   });
 

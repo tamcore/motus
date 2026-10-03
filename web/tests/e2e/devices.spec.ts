@@ -273,3 +273,39 @@ test.describe('Devices Page', () => {
     expect(filtered).toBeGreaterThanOrEqual(1);
   });
 });
+
+test.describe('Device deletion', () => {
+  test('asks for confirmation before deleting a device', async ({ authedPage }) => {
+    const name = `PW Delete ${Date.now()}`;
+    const csrf = (await authedPage.request.get('/api/session')).headers()['x-csrf-token'] ?? '';
+    const res = await authedPage.request.post('/api/devices', {
+      headers: { 'X-CSRF-Token': csrf },
+      data: { name, uniqueId: String(Date.now()) },
+    });
+    expect(res.status()).toBe(201);
+    const id = (await res.json()).id;
+
+    try {
+      const devicesPage = new DevicesPage(authedPage);
+      await devicesPage.goto();
+      await devicesPage.search(name);
+      const row = devicesPage.tableRows.filter({ hasText: name });
+      await expect(row).toHaveCount(1);
+
+      let message = '';
+      authedPage.once('dialog', (d) => {
+        message = d.message();
+        void d.dismiss();
+      });
+      await row.locator('button:has-text("Delete")').click();
+      await expect.poll(() => message).toContain(name);
+      await expect(row).toHaveCount(1);
+
+      authedPage.once('dialog', (d) => void d.accept());
+      await row.locator('button:has-text("Delete")').click();
+      await expect(row).toHaveCount(0);
+    } finally {
+      await authedPage.request.delete(`/api/devices/${id}`, { headers: { 'X-CSRF-Token': csrf } });
+    }
+  });
+});

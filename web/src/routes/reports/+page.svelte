@@ -1,10 +1,10 @@
 <script lang="ts">
-	import { ALL_TIME_START } from '$lib/utils/date-range';
+	import { RELATIVE_DATE_PRESETS, resolveDatePreset, type DatePreset } from '$lib/utils/date-range';
+	import type { Device } from '$lib/types/api';
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
 	import { page } from '$app/stores';
 	import { api, fetchDevices } from '$lib/api/client';
-	import { currentUser } from '$lib/stores/auth';
 	import { refreshHandler } from '$lib/stores/refresh';
 	import { exportTripsToCSV } from '$lib/utils/trips';
 	import { exportStopsToCSV } from '$lib/utils/stops';
@@ -22,7 +22,6 @@
 	let chartCanvas: HTMLCanvasElement;
 	let chartInstance: Chart | null = null;
 
-	interface Device { id: number; name: string; uniqueId: string; status: string; }
 
 	const PAGE_SIZE_OPTIONS = [5, 10, 25, 50, 100];
 	const DEFAULT_PAGE_SIZE = 10;
@@ -42,7 +41,7 @@
 	let stopObserver: IntersectionObserver | undefined;
 	let selectedDeviceId = '';
 	let activeTab: 'trips' | 'stops' | 'summary' = 'trips';
-	let datePreset: 'day' | 'week' | 'month' | 'all' | 'custom' = 'week';
+	let datePreset: DatePreset = 'week';
 	let customFrom = '';
 	let customTo = '';
 
@@ -123,23 +122,6 @@
 		});
 	}
 
-	function getDateRange(): { from: string; to: string } {
-		const now = new Date();
-		const to = now.toISOString();
-		if (datePreset === 'custom') {
-			return {
-				from: customFrom ? new Date(customFrom + 'T00:00:00').toISOString() : to,
-				to: customTo ? new Date(customTo + 'T23:59:59').toISOString() : to
-			};
-		}
-		if (datePreset === 'all') return { from: ALL_TIME_START.toISOString(), to };
-		const from = new Date(now);
-		if (datePreset === 'day') from.setDate(from.getDate() - 1);
-		else if (datePreset === 'week') from.setDate(from.getDate() - 7);
-		else if (datePreset === 'month') from.setDate(from.getDate() - 30);
-		return { from: from.toISOString(), to };
-	}
-
 	function makeScrollObserver(onIntersect: () => void): IntersectionObserver {
 		// Root is null (window viewport). PullToRefresh no longer creates its
 		// own scroll container (uses min-height instead of height: 100% +
@@ -187,7 +169,7 @@
 		fetchingTrips = true;
 		fetchingStops = true;
 		try {
-			const { from, to } = getDateRange();
+			const { from, to } = resolveDatePreset(datePreset, customFrom, customTo);
 			const deviceIds = selectedDeviceId
 				? [Number(selectedDeviceId)] : devices.map((d) => d.id);
 			const allTrips: Trip[] = [];
@@ -234,10 +216,8 @@
 			columnConfigLoaded = true;
 		}
 
+		await reloadDevices();
 		try {
-			const isAdmin = ($currentUser as Record<string, unknown> | null)?.administrator === true;
-			devices = (await fetchDevices(isAdmin)) as Device[];
-
 			// Pre-select device from query param (?device=ID)
 			const deviceParam = $page.url.searchParams.get('device');
 			if (deviceParam && devices.some((d) => String(d.id) === deviceParam)) {
@@ -249,7 +229,7 @@
 				await fetchReports();
 			}
 		} catch (error) {
-			console.error('Failed to load devices:', error);
+			console.error('Failed to load reports:', error);
 		} finally {
 			loading = false;
 		}
@@ -263,11 +243,10 @@
 	});
 
 	async function reloadDevices() {
-		const isAdmin = ($currentUser as Record<string, unknown> | null)?.administrator === true;
 		try {
-			devices = (await fetchDevices(isAdmin)) as Device[];
-		} catch {
-			console.error('Failed to reload devices');
+			devices = await fetchDevices();
+		} catch (error) {
+			console.error('Failed to load devices:', error);
 		}
 	}
 </script>
@@ -312,16 +291,10 @@
 			<div class="filter-group">
 				<span class="filter-label">Date Range</span>
 				<div class="preset-buttons">
-					<button class="preset-btn" class:active={datePreset === 'day'}
-						on:click={() => datePreset = 'day'}>Last 24h</button>
-					<button class="preset-btn" class:active={datePreset === 'week'}
-						on:click={() => datePreset = 'week'}>Last 7d</button>
-					<button class="preset-btn" class:active={datePreset === 'month'}
-						on:click={() => datePreset = 'month'}>Last 30d</button>
-					<button class="preset-btn" class:active={datePreset === 'all'}
-						on:click={() => datePreset = 'all'}>All time</button>
-					<button class="preset-btn" class:active={datePreset === 'custom'}
-						on:click={() => datePreset = 'custom'}>Custom</button>
+					{#each RELATIVE_DATE_PRESETS as p (p.value)}
+						<button class="preset-btn" class:active={datePreset === p.value}
+							on:click={() => (datePreset = p.value)}>{p.label}</button>
+					{/each}
 				</div>
 			</div>
 			{#if datePreset === 'custom'}
@@ -439,8 +412,7 @@
 								{#if columnConfig.avgSpeed}<td>{formatSpeed(getTripAvgSpeed(trip))}</td>{/if}
 								{#if columnConfig.maxSpeed}<td>{formatSpeed(trip.maxSpeed)}</td>{/if}
 								<td>
-									<a href={tripLink('/reports/route', trip)} class="view-link">Route</a>
-									<a href={tripLink('/reports/replay', trip)} class="view-link replay-link">Replay</a>
+									<a href={tripLink(trip)} class="view-link replay-link">Replay</a>
 									{#if isTripOngoing(trip)}
 										<a href="/map?device={trip.deviceId}" class="view-link live-link">Live</a>
 									{/if}
@@ -623,7 +595,6 @@
 	.trips-table tr:hover td { background-color: var(--bg-secondary); }
 	.view-link { color: var(--accent-primary); text-decoration: none; font-weight: var(--font-medium); }
 	.view-link:hover { text-decoration: underline; }
-	.replay-link { margin-left: var(--space-2); }
 	.stats-grid {
 		display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 		gap: var(--space-4);

@@ -1,13 +1,12 @@
-import type { Position } from './trips';
-import { getPositionTime } from './trips';
+import type { RoutePosition } from './route-points';
 import { downloadFile } from './download';
 
-export function generateGPX(positions: Position[], name: string): string {
+export function generateGPX(positions: RoutePosition[], name: string): string {
 	const trackPoints = positions
 		.map(
 			(p) =>
 				`      <trkpt lat="${p.latitude}" lon="${p.longitude}">
-        <time>${getPositionTime(p)}</time>
+        <time>${p.fixTime}</time>
         <speed>${p.speed ?? 0}</speed>
       </trkpt>`
 		)
@@ -24,7 +23,7 @@ ${trackPoints}
 </gpx>`;
 }
 
-export function downloadGPX(positions: Position[], filename: string): void {
+export function downloadGPX(positions: RoutePosition[], filename: string): void {
 	const gpx = generateGPX(positions, filename);
 	downloadFile(gpx, 'application/gpx+xml', `${filename}.gpx`);
 }

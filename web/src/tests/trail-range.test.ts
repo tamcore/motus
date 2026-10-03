@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { get } from "svelte/store";
 import {
-  ALL_TIME_START,
   DEFAULT_TRAIL_RANGE,
   TRAIL_PRESETS,
   customTrailRange,
@@ -11,6 +10,7 @@ import {
   trailRangeToSearchParams,
   type TrailRange,
 } from "$lib/utils/trail-range";
+import { ALL_TIME_START } from "$lib/utils/date-range";
 
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
@@ -95,7 +95,7 @@ describe("customTrailRange", () => {
     expect(customTrailRange("2026-09-01", "", "2026-09-02", "")).toEqual({
       preset: "custom",
       from: new Date(2026, 8, 1, 0, 0, 0).toISOString(),
-      to: new Date(2026, 8, 2, 23, 59, 59).toISOString(),
+      to: new Date(2026, 8, 2, 23, 59, 59, 999).toISOString(),
     });
   });
 
@@ -103,7 +103,7 @@ describe("customTrailRange", () => {
     expect(customTrailRange("2026-09-01", "06:30", "2026-09-02", "18:15")).toEqual({
       preset: "custom",
       from: new Date(2026, 8, 1, 6, 30, 0).toISOString(),
-      to: new Date(2026, 8, 2, 18, 15, 59).toISOString(),
+      to: new Date(2026, 8, 2, 18, 15, 59, 999).toISOString(),
     });
   });
 

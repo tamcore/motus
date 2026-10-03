@@ -17,14 +17,14 @@ export function commandAttributesPayload(
   return { ...values, type: commandType };
 }
 
-/** Display names of the command types, keyed by API command type. */
+/** Display names of the command types, keyed by API command type, in display order. */
 export const COMMAND_TYPE_LABELS: Readonly<Record<string, string>> = {
-  rebootDevice: "Reboot Device",
   positionPeriodic: "Set Reporting Interval",
   positionSingle: "Request Position",
+  rebootDevice: "Reboot Device",
   sosNumber: "Set SOS Number",
-  custom: "Custom (raw text)",
   setSpeedAlarm: "Set Speed Alarm",
+  custom: "Custom (raw text)",
   factoryReset: "Factory Reset",
 };
 
@@ -80,9 +80,7 @@ export function commandIntervalLabel(cmd: {
   attributes?: Record<string, unknown>;
 }): string | null {
   if (cmd.type !== "positionPeriodic") return null;
-  const raw = cmd.attributes?.frequency;
-  const seconds =
-    typeof raw === "number" ? raw : typeof raw === "string" && raw.trim() !== "" ? Number(raw) : NaN;
-  if (!Number.isFinite(seconds) || seconds <= 0) return null;
+  const seconds = cmd.attributes?.frequency;
+  if (typeof seconds !== "number" || !Number.isFinite(seconds) || seconds <= 0) return null;
   return `Interval: ${formatInterval(seconds)}`;
 }

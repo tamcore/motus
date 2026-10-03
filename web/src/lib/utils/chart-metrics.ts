@@ -1,3 +1,4 @@
+import type { ChartDataset } from "chart.js";
 import type { Position } from "$lib/types/api";
 import { haversineDistance } from "$lib/utils/trips";
 import { downloadCSV } from "$lib/utils/download";
@@ -8,6 +9,8 @@ import { downloadCSV } from "$lib/utils/download";
  * Each metric describes how to extract a value from a Position,
  * what unit it uses, and which Y-axis it should bind to.
  */
+
+type LineDataset = ChartDataset<"line", (number | null)[]>;
 
 export interface MetricDefinition {
   id: string;
@@ -110,7 +113,7 @@ export const METRICS: MetricDefinition[] = [
 /**
  * Look up a metric by its id.
  */
-export function getMetricById(id: string): MetricDefinition | undefined {
+function getMetricById(id: string): MetricDefinition | undefined {
   return METRICS.find((m) => m.id === id);
 }
 
@@ -118,7 +121,7 @@ export function getMetricById(id: string): MetricDefinition | undefined {
  * Check whether a metric has meaningful (non-null, non-zero) data in the given positions.
  * Returns false for unknown metric ids or empty positions.
  */
-export function hasMetricData(
+function hasMetricData(
   positions: Position[],
   metricId: string,
 ): boolean {
@@ -147,10 +150,10 @@ export function getAvailableMetrics(
 export function buildDatasets(
   positions: Position[],
   selectedMetricIds: string[],
-): { labels: string[]; datasets: ChartDataset[] } {
+): { labels: string[]; datasets: LineDataset[] } {
   const labels = positions.map((p) => p.fixTime);
 
-  const datasets: ChartDataset[] = [];
+  const datasets: LineDataset[] = [];
 
   for (const metricId of selectedMetricIds) {
     const metric = getMetricById(metricId);
@@ -177,18 +180,6 @@ export function buildDatasets(
   return { labels, datasets };
 }
 
-export interface ChartDataset {
-  label: string;
-  data: (number | null)[];
-  borderColor: string;
-  backgroundColor: string;
-  yAxisID: string;
-  tension: number;
-  pointRadius: number;
-  pointHoverRadius: number;
-  borderWidth: number;
-  fill: boolean;
-}
 
 /**
  * Build Chart.js scales config for selected metrics.

@@ -2,12 +2,10 @@
 	import Modal from './Modal.svelte';
 	import Button from './Button.svelte';
 	import type { TrailBookmark, TrailBookmarkPayload } from '$lib/types/api';
-	import type { TrailRange } from '$lib/utils/trail-range';
+	import { rangeToInputs, type TrailRange } from '$lib/utils/trail-range';
 	import {
 		BOOKMARK_DESCRIPTION_MAX,
 		BOOKMARK_NAME_MAX,
-		bookmarkErrorMessage,
-		bookmarkFormFromRange,
 		bookmarkOriginalFromRange,
 		buildBookmarkPayload,
 		charCount,
@@ -50,7 +48,7 @@
 				? bookmarkOriginalFromRange(range)
 				: null;
 		const fields = original
-			? bookmarkFormFromRange({ preset: 'custom', ...original })
+			? rangeToInputs({ preset: 'custom', ...original })
 			: { fromDate: '', fromTime: '', toDate: '', toTime: '' };
 		({ fromDate, fromTime, toDate, toTime } = fields);
 		error = '';
@@ -88,7 +86,7 @@
 		try {
 			await onSave(result.payload);
 		} catch (err: unknown) {
-			error = bookmarkErrorMessage(err, 'Failed to save bookmark');
+			error = (err instanceof Error ? err.message : 'Failed to save bookmark');
 		} finally {
 			saving = false;
 		}

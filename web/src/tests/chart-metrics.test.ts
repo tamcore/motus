@@ -23,13 +23,13 @@ Object.defineProperty(window, "matchMedia", {
 import type { Position } from "$lib/types/api";
 import {
   METRICS,
-  getMetricById,
-  hasMetricData,
   getAvailableMetrics,
   buildDatasets,
   buildScales,
   exportChartDataToCSV,
 } from "$lib/utils/chart-metrics";
+
+const getMetricById = (id: string) => METRICS.find((m) => m.id === id);
 
 // ---------------------------------------------------------------------------
 // Test data
@@ -134,28 +134,6 @@ describe("Chart Metrics", () => {
     it("each metric color should be a valid hex color", () => {
       for (const metric of METRICS) {
         expect(metric.color).toMatch(/^#[0-9a-fA-F]{6}$/);
-      }
-    });
-  });
-
-  describe("getMetricById", () => {
-    it("should return the correct metric for a valid id", () => {
-      const speed = getMetricById("speed");
-      expect(speed).toBeDefined();
-      expect(speed!.id).toBe("speed");
-      expect(speed!.unit).toBe("km/h");
-    });
-
-    it("should return undefined for an unknown id", () => {
-      const result = getMetricById("nonexistent");
-      expect(result).toBeUndefined();
-    });
-
-    it("should find all defined metrics by id", () => {
-      for (const metric of METRICS) {
-        const found = getMetricById(metric.id);
-        expect(found).toBeDefined();
-        expect(found!.id).toBe(metric.id);
       }
     });
   });
@@ -357,10 +335,10 @@ describe("Chart Metrics", () => {
     });
   });
 
-  describe("hasMetricData", () => {
+  describe("metric availability", () => {
     it("returns true when positions have non-null non-zero altitude", () => {
       const positions = makePositions(3); // altitude: 150, 160, 170
-      expect(hasMetricData(positions, "altitude")).toBe(true);
+      expect(getAvailableMetrics(positions).some((m) => m.id === "altitude")).toBe(true);
     });
 
     it("returns false when all altitudes are null", () => {
@@ -368,7 +346,7 @@ describe("Chart Metrics", () => {
         makePosition({ altitude: null }),
         makePosition({ altitude: null }),
       ];
-      expect(hasMetricData(positions, "altitude")).toBe(false);
+      expect(getAvailableMetrics(positions).some((m) => m.id === "altitude")).toBe(false);
     });
 
     it("returns false when all altitudes are zero", () => {
@@ -377,7 +355,7 @@ describe("Chart Metrics", () => {
         makePosition({ altitude: 0 }),
         makePosition({ altitude: 0 }),
       ];
-      expect(hasMetricData(positions, "altitude")).toBe(false);
+      expect(getAvailableMetrics(positions).some((m) => m.id === "altitude")).toBe(false);
     });
 
     it("returns true when at least one altitude is non-zero", () => {
@@ -386,7 +364,7 @@ describe("Chart Metrics", () => {
         makePosition({ altitude: 150 }),
         makePosition({ altitude: 0 }),
       ];
-      expect(hasMetricData(positions, "altitude")).toBe(true);
+      expect(getAvailableMetrics(positions).some((m) => m.id === "altitude")).toBe(true);
     });
 
     it("returns true for speed even when some are zero", () => {
@@ -394,21 +372,21 @@ describe("Chart Metrics", () => {
         makePosition({ speed: 0 }),
         makePosition({ speed: 60 }),
       ];
-      expect(hasMetricData(positions, "speed")).toBe(true);
+      expect(getAvailableMetrics(positions).some((m) => m.id === "speed")).toBe(true);
     });
 
     it("returns false for empty positions array", () => {
-      expect(hasMetricData([], "altitude")).toBe(false);
+      expect(getAvailableMetrics([]).some((m) => m.id === "altitude")).toBe(false);
     });
 
     it("returns false for unknown metric id", () => {
       const positions = makePositions(3);
-      expect(hasMetricData(positions, "nonexistent")).toBe(false);
+      expect(getAvailableMetrics(positions).some((m) => m.id === "nonexistent")).toBe(false);
     });
 
     it("returns true for latitude (always has data)", () => {
       const positions = makePositions(3);
-      expect(hasMetricData(positions, "latitude")).toBe(true);
+      expect(getAvailableMetrics(positions).some((m) => m.id === "latitude")).toBe(true);
     });
   });
 

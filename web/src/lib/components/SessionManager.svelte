@@ -1,10 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { api, APIError } from '$lib/api/client';
+	import { api } from '$lib/api/client';
 	import type { Session } from '$lib/types/api';
 	import { formatDate } from '$lib/utils/formatting';
 	import Button from '$lib/components/Button.svelte';
-	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 
 	// ---------------------------------------------------------------------------
 	// List state
@@ -13,15 +12,7 @@
 	let sessions: Session[] = [];
 	let listError = '';
 
-	// ---------------------------------------------------------------------------
-	// Delete confirmation state
-	// ---------------------------------------------------------------------------
-	let confirmingDeleteId: string | null = null;
-
-	// ---------------------------------------------------------------------------
-	// Revoke all state
-	// ---------------------------------------------------------------------------
-	let confirmingRevokeAll = false;
+	let actionError = '';
 
 	$: otherSessionCount = sessions.filter((s) => !s.isCurrent).length;
 
@@ -38,13 +29,7 @@
 		try {
 			sessions = await api.getSessions();
 		} catch (e: unknown) {
-			if (e instanceof APIError) {
-				listError = `Failed to load sessions: ${e.message}`;
-			} else if (e instanceof Error) {
-				listError = `Failed to load sessions: ${e.message}`;
-			} else {
-				listError = 'Failed to load sessions. Please try again.';
-			}
+			listError = e instanceof Error ? `Failed to load sessions: ${e.message}` : 'Failed to load sessions. Please try again.';
 		} finally {
 			loading = false;
 		}
@@ -53,19 +38,29 @@
 	// ---------------------------------------------------------------------------
 	// Delete
 	// ---------------------------------------------------------------------------
-	async function confirmDelete(id: string) {
-		await api.revokeSession(id);
-		sessions = sessions.filter((s) => s.id !== id);
-		confirmingDeleteId = null;
+	async function revokeSession(id: string) {
+		if (!confirm(`Revoke session ${truncateId(id)}? That session will be immediately logged out.`)) return;
+		actionError = '';
+		try {
+			await api.revokeSession(id);
+			sessions = sessions.filter((s) => s.id !== id);
+		} catch (e: unknown) {
+			actionError = e instanceof Error ? e.message : 'Failed to revoke session. Please try again.';
+		}
 	}
 
 	// ---------------------------------------------------------------------------
 	// Revoke all
 	// ---------------------------------------------------------------------------
-	async function confirmRevokeAll() {
-		await api.revokeAllOtherSessions();
-		await loadSessions();
-		confirmingRevokeAll = false;
+	async function revokeAll() {
+		if (!confirm('Revoke all other sessions? Every session except this one will be immediately logged out.')) return;
+		actionError = '';
+		try {
+			await api.revokeAllOtherSessions();
+			await loadSessions();
+		} catch (e: unknown) {
+			actionError = e instanceof Error ? e.message : 'Failed to revoke sessions. Please try again.';
+		}
 	}
 
 	// ---------------------------------------------------------------------------
@@ -91,7 +86,7 @@
 			</p>
 		</div>
 		{#if otherSessionCount > 0}
-			<Button variant="danger" size="sm" on:click={() => (confirmingRevokeAll = true)}>
+			<Button variant="danger" size="sm" on:click={revokeAll}>
 				Revoke all other sessions
 			</Button>
 		{/if}
@@ -156,7 +151,7 @@
 						{#if session.isCurrent}
 							<span class="current-hint">Use logout to end</span>
 						{:else}
-							<Button variant="danger" size="sm" on:click={() => (confirmingDeleteId = session.id)}>
+							<Button variant="danger" size="sm" on:click={() => revokeSession(session.id)}>
 								Revoke
 							</Button>
 						{/if}
@@ -166,33 +161,8 @@
 		</div>
 	{/if}
 
-	<!-- Revoke all confirmation -->
-	{#if confirmingRevokeAll}
-		<ConfirmDialog
-			confirmLabel="Revoke All Other Sessions"
-			busyLabel="Revoking..."
-			fallbackError="Failed to revoke sessions. Please try again."
-			onConfirm={confirmRevokeAll}
-			onCancel={() => (confirmingRevokeAll = false)}
-		>
-			Are you sure you want to revoke all other sessions? Every session except this one will be
-			immediately logged out.
-		</ConfirmDialog>
-	{/if}
-
-	<!-- Delete confirmation -->
-	{#if confirmingDeleteId !== null}
-		{@const id = confirmingDeleteId}
-		<ConfirmDialog
-			confirmLabel="Revoke Session"
-			busyLabel="Revoking..."
-			fallbackError="Failed to revoke session. Please try again."
-			onConfirm={() => confirmDelete(id)}
-			onCancel={() => (confirmingDeleteId = null)}
-		>
-			Are you sure you want to revoke session <strong>{truncateId(confirmingDeleteId)}</strong>?
-			That session will be immediately logged out.
-		</ConfirmDialog>
+	{#if actionError}
+		<div class="message error" role="alert">{actionError}</div>
 	{/if}
 </section>
 

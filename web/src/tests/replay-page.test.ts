@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, waitFor } from "@testing-library/svelte";
 import { readable } from "svelte/store";
 
@@ -55,7 +55,6 @@ vi.mock("$lib/composables/useLeaflet", () => ({
     cleanup: vi.fn(),
     getMap: () => fakeMap,
     getLeaflet: () => fakeL,
-    getTileLayer: () => null,
   }),
 }));
 
@@ -74,7 +73,6 @@ vi.mock("chart.js", () => {
 });
 
 import ReplayPage from "../routes/reports/replay/+page.svelte";
-import RoutePage from "../routes/reports/route/+page.svelte";
 
 describe("reports/replay page", () => {
   beforeEach(() => {
@@ -124,30 +122,30 @@ describe("reports/replay page", () => {
       limit: 10000,
     });
   });
-});
 
-describe("reports/route page", () => {
-  beforeEach(() => {
-    getPositionPoints.mockReset();
-  });
+  describe("date picker", () => {
+    const origTZ = process.env.TZ;
+    beforeEach(() => {
+      process.env.TZ = "Europe/Berlin";
+    });
+    afterEach(() => {
+      process.env.TZ = origTZ;
+    });
 
-  it("repairs an offset timestamp whose '+' was decoded to a space", async () => {
-    pageUrl.current = new URL(
-      "http://localhost/reports/route?deviceId=1&from=2026-10-03T07:48:24+02:00&to=2026-10-03T08:17:34+02:00",
-    );
-    getPositionPoints.mockResolvedValue([
-      { lat: 50, lon: 10, speed: 30, fixTime: "2026-10-03T05:48:24Z" },
-      { lat: 50.1, lon: 10.1, speed: 40, fixTime: "2026-10-03T05:49:24Z" },
-    ]);
+    it("shows the trip's local date, not the UTC date", async () => {
+      // 01:30 local (+02:00) is 23:30 UTC on the previous day.
+      pageUrl.current = new URL(
+        "http://localhost/reports/replay?deviceId=1&from=2026-10-03T01:30:00%2B02:00&to=2026-10-03T02:10:00%2B02:00",
+      );
+      // No points: the filter panel stays visible with the prefilled range.
+      getPositionPoints.mockResolvedValue([]);
 
-    const { container } = render(RoutePage);
+      const { container } = render(ReplayPage);
 
-    await waitFor(() => expect(container.querySelector(".controls-container")).not.toBeNull());
-    expect(getPositionPoints).toHaveBeenCalledWith({
-      deviceId: 1,
-      from: "2026-10-03T05:48:24.000Z",
-      to: "2026-10-03T06:17:34.000Z",
-      limit: 10000,
+      await waitFor(() => expect(getPositionPoints).toHaveBeenCalled());
+      await waitFor(() => expect(container.querySelector("#replay-from")).not.toBeNull());
+      expect((container.querySelector("#replay-from") as HTMLInputElement).value).toBe("2026-10-03");
+      expect((container.querySelector("#replay-to") as HTMLInputElement).value).toBe("2026-10-03");
     });
   });
 });

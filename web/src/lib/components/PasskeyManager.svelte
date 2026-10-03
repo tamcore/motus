@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { api, APIError } from '$lib/api/client';
+	import { api } from '$lib/api/client';
 	import type { PasskeyCredentialInfo } from '$lib/types/api';
 	import { formatDate } from '$lib/utils/formatting';
 	import {
@@ -9,7 +9,6 @@
 		isPasskeyCancellation,
 	} from '$lib/utils/webauthn';
 	import Button from '$lib/components/Button.svelte';
-	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import Input from '$lib/components/Input.svelte';
 
@@ -31,10 +30,7 @@
 	let creating = false;
 	let createError = '';
 
-	// ---------------------------------------------------------------------------
-	// Delete confirmation state
-	// ---------------------------------------------------------------------------
-	let confirmingDeleteId: number | null = null;
+	let actionError = '';
 
 	// ---------------------------------------------------------------------------
 	// Lifecycle
@@ -53,15 +49,10 @@
 		try {
 			passkeys = await api.listPasskeys();
 		} catch (e: unknown) {
-			listError = `Failed to load passkeys: ${errorMessage(e)}`;
+			listError = `Failed to load passkeys: ${e instanceof Error ? e.message : 'Please try again.'}`;
 		} finally {
 			loading = false;
 		}
-	}
-
-	function errorMessage(e: unknown): string {
-		if (e instanceof APIError || e instanceof Error) return e.message;
-		return 'Please try again.';
 	}
 
 	// ---------------------------------------------------------------------------
@@ -98,7 +89,7 @@
 			if (isPasskeyCancellation(e)) {
 				return;
 			}
-			createError = errorMessage(e);
+			createError = e instanceof Error ? e.message : 'Please try again.';
 		} finally {
 			creating = false;
 		}
@@ -107,10 +98,15 @@
 	// ---------------------------------------------------------------------------
 	// Delete
 	// ---------------------------------------------------------------------------
-	async function confirmDelete(id: number) {
-		await api.deletePasskey(id);
-		passkeys = passkeys.filter((p) => p.id !== id);
-		confirmingDeleteId = null;
+	async function removePasskey(passkey: PasskeyCredentialInfo) {
+		if (!confirm(`Remove "${passkey.name}"? You will no longer be able to sign in with this passkey.`)) return;
+		actionError = '';
+		try {
+			await api.deletePasskey(passkey.id);
+			passkeys = passkeys.filter((p) => p.id !== passkey.id);
+		} catch (e: unknown) {
+			actionError = e instanceof Error ? e.message : 'Please try again.';
+		}
 	}
 
 	// ---------------------------------------------------------------------------
@@ -121,9 +117,6 @@
 		return formatDate(lastUsedAt);
 	}
 
-	$: confirmingPasskeyName = confirmingDeleteId !== null
-		? passkeys.find((p) => p.id === confirmingDeleteId)?.name ?? 'this passkey'
-		: '';
 </script>
 
 {#if supported}
@@ -166,7 +159,7 @@
 							</div>
 						</div>
 						<div class="key-actions">
-							<Button variant="danger" size="sm" on:click={() => (confirmingDeleteId = passkey.id)}>
+							<Button variant="danger" size="sm" on:click={() => removePasskey(passkey)}>
 								Remove
 							</Button>
 						</div>
@@ -175,19 +168,8 @@
 			</div>
 		{/if}
 
-		<!-- Delete confirmation -->
-		{#if confirmingDeleteId !== null}
-			{@const id = confirmingDeleteId}
-			<ConfirmDialog
-				confirmLabel="Remove Passkey"
-				busyLabel="Removing..."
-				fallbackError="Please try again."
-				onConfirm={() => confirmDelete(id)}
-				onCancel={() => (confirmingDeleteId = null)}
-			>
-				Are you sure you want to remove <strong>{confirmingPasskeyName}</strong>?
-				You will no longer be able to sign in with this passkey.
-			</ConfirmDialog>
+		{#if actionError}
+			<div class="message error" role="alert">{actionError}</div>
 		{/if}
 	</section>
 

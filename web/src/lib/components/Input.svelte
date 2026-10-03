@@ -1,6 +1,7 @@
 <script lang="ts">
 	export let type: string = 'text';
-	export let value: string = '';
+	/** A number (or null when empty) for type="number", else a string. */
+	export let value: string | number | null = '';
 	export let placeholder: string = '';
 	export let label: string = '';
 	export let error: string = '';
@@ -17,75 +18,22 @@
 		</label>
 	{/if}
 
-	{#if type === 'password'}
-		<input
-			type="password"
-			id={name}
-			{name}
-			{placeholder}
-			{required}
-			{disabled}
-			class="input"
-			class:has-error={!!error}
-			bind:value
-			on:input
-			on:change
-			on:blur
-			aria-invalid={error ? 'true' : undefined}
-			aria-describedby={error ? `${name}-error` : undefined}
-		/>
-	{:else if type === 'email'}
-		<input
-			type="email"
-			id={name}
-			{name}
-			{placeholder}
-			{required}
-			{disabled}
-			class="input"
-			class:has-error={!!error}
-			bind:value
-			on:input
-			on:change
-			on:blur
-			aria-invalid={error ? 'true' : undefined}
-			aria-describedby={error ? `${name}-error` : undefined}
-		/>
-	{:else if type === 'search'}
-		<input
-			type="search"
-			id={name}
-			{name}
-			{placeholder}
-			{required}
-			{disabled}
-			class="input"
-			class:has-error={!!error}
-			bind:value
-			on:input
-			on:change
-			on:blur
-			aria-invalid={error ? 'true' : undefined}
-			aria-describedby={error ? `${name}-error` : undefined}
-		/>
-	{:else}
-		<input
-			type="text"
-			id={name}
-			{name}
-			{placeholder}
-			{required}
-			{disabled}
-			class="input"
-			class:has-error={!!error}
-			bind:value
-			on:input
-			on:change
-			on:blur
-			aria-invalid={error ? 'true' : undefined}
-			aria-describedby={error ? `${name}-error` : undefined}
-		/>
-	{/if}
+	<input
+		{type}
+		id={name}
+		{name}
+		{placeholder}
+		{required}
+		{disabled}
+		class="input"
+		class:has-error={!!error}
+		bind:value
+		on:input
+		on:change
+		on:blur
+		aria-invalid={error ? 'true' : undefined}
+		aria-describedby={error ? `${name}-error` : undefined}
+	/>
 
 	{#if error}
 		<span id="{name}-error" class="error-text" role="alert">{error}</span>

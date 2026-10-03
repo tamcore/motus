@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import type { Device } from '$lib/types/api';
 	import { slide } from 'svelte/transition';
 	import { api, fetchDevices } from '$lib/api/client';
-	import { currentUser } from '$lib/stores/auth';
 	import { refreshHandler } from '$lib/stores/refresh';
 	import { mileageToDisplay, mileageFromDisplay, formatMileage, formatRelative } from '$lib/utils/formatting';
-	import { commandAttributesPayload, commandIntervalLabel, commandSentMessage, COMMAND_TYPE_LABELS } from '$lib/utils/commands';
+	import { commandIntervalLabel, commandSentMessage, COMMAND_TYPE_LABELS } from '$lib/utils/commands';
+	import { buildCommandConfig } from '$lib/utils/notificationRules';
 	import { settings } from '$lib/stores/settings';
 	import AllDevicesToggle from '$lib/components/AllDevicesToggle.svelte';
 	import Button from '$lib/components/Button.svelte';
@@ -17,27 +18,11 @@
 	import BatteryIndicator from '$lib/components/BatteryIndicator.svelte';
 	import Skeleton from '$lib/components/Skeleton.svelte';
 
-	interface Device {
-		id: number;
-		name: string;
-		uniqueId: string;
-		status: string;
-		phone?: string;
-		model?: string;
-		category?: string;
-		protocol?: string;
-		disabled?: boolean;
-		lastUpdate?: string;
-		ownerName?: string;
-		mileage?: number | null;
-		batteryLevel?: number | null;
-	}
 
 	let loading = true;
 	let devices: Device[] = [];
 	let searchQuery = '';
 	let showModal = false;
-	let showDeleteConfirm = false;
 	let showShareModal = false;
 	let sharingDevice: Device | null = null;
 	let editingDevice: Device | null = null;
@@ -106,46 +91,25 @@
 		commandSentInfo = '';
 		commandSending = true;
 
-		const attributes: Record<string, unknown> = {};
-		if (commandType === 'positionPeriodic') {
-			const freq = parseInt(commandFrequency, 10);
-			if (!freq || freq <= 0) {
-				commandError = 'Interval must be a positive number';
-				commandSending = false;
-				return;
-			}
-			attributes.frequency = freq;
-		} else if (commandType === 'sosNumber') {
-			if (!commandSosNumber.trim()) {
-				commandError = 'SOS number is required';
-				commandSending = false;
-				return;
-			}
-			attributes.phoneNumber = commandSosNumber.trim();
-		} else if (commandType === 'setSpeedAlarm') {
-			const speed = parseInt(commandSpeed, 10);
-			if (isNaN(speed) || speed < 0) {
-				commandError = 'Speed must be 0 or a positive number';
-				commandSending = false;
-				return;
-			}
-			attributes.speed = speed;
-		} else if (commandType === 'custom') {
-			if (!commandText.trim()) {
-				commandError = 'Command text is required';
-				commandSending = false;
-				return;
-			}
-			attributes.text = commandText.trim();
+		const { config, error } = buildCommandConfig(commandType, {
+			frequency: commandFrequency,
+			phoneNumber: commandSosNumber,
+			speed: commandSpeed,
+			text: commandText
+		});
+		if (!config) {
+			commandError = error ?? 'Invalid command';
+			commandSending = false;
+			return;
 		}
 
 		try {
 			const sent = await api.sendCommand({
 				deviceId: commandDevice.id,
 				type: commandType,
-				attributes: commandAttributesPayload(commandType, attributes)
+				attributes: config.attributes
 			});
-			commandSentInfo = commandSentMessage(commandType, attributes, sent.status);
+			commandSentInfo = commandSentMessage(commandType, config.attributes ?? {}, sent.status);
 
 			// Poll for result up to 5s
 			let resultFound = false;
@@ -185,7 +149,7 @@
 	let formModel = '';
 	let formCategory = '';
 	let formProtocol = '';
-	let formMileage = '';
+	let formMileage: number | null = null;
 
 	$: filtered = devices.filter(
 		(d) =>
@@ -203,8 +167,7 @@
 	async function loadDevices() {
 		loading = true;
 		try {
-			const isAdmin = ($currentUser as Record<string, unknown> | null)?.administrator === true;
-			devices = (await fetchDevices(isAdmin)) as Device[];
+			devices = await fetchDevices();
 		} catch {
 			console.error('Failed to load devices');
 		} finally {
@@ -237,7 +200,7 @@
 		formModel = '';
 		formCategory = '';
 		formProtocol = '';
-		formMileage = '';
+		formMileage = null;
 		error = '';
 		showModal = true;
 	}
@@ -250,14 +213,9 @@
 		formModel = device.model || '';
 		formCategory = device.category || '';
 		formProtocol = device.protocol || '';
-		formMileage = device.mileage != null ? Math.round(mileageToDisplay(device.mileage)).toString() : '';
+		formMileage = device.mileage != null ? Math.round(mileageToDisplay(device.mileage)) : null;
 		error = '';
 		showModal = true;
-	}
-
-	function openDeleteConfirm(device: Device) {
-		editingDevice = device;
-		showDeleteConfirm = true;
 	}
 
 	function openGPXImport(device: Device) {
@@ -297,9 +255,7 @@
 		error = '';
 
 		try {
-			const mileageKm = formMileage.trim()
-				? mileageFromDisplay(parseFloat(formMileage.trim()))
-				: undefined;
+			const mileageKm = formMileage != null ? mileageFromDisplay(formMileage) : undefined;
 
 			if (mileageKm !== undefined && (isNaN(mileageKm) || mileageKm < 0)) {
 				error = 'Mileage must be a positive number';
@@ -332,28 +288,16 @@
 		}
 	}
 
-	async function handleDelete() {
-		if (!editingDevice) return;
-
-		saving = true;
+	async function deleteDevice(device: Device) {
+		if (!confirm(`Delete "${device.name}"? This action cannot be undone.`)) return;
 		try {
-			await api.deleteDevice(editingDevice.id);
-			showDeleteConfirm = false;
-			editingDevice = null;
+			await api.deleteDevice(device.id);
 			await loadDevices();
-		} catch {
-			console.error('Failed to delete device');
-		} finally {
-			saving = false;
+		} catch (err) {
+			console.error('Failed to delete device:', err);
 		}
 	}
 
-	function getStatusType(status: string): 'online' | 'offline' | 'idle' | 'moving' {
-		if (status === 'online') return 'online';
-		if (status === 'idle') return 'idle';
-		if (status === 'moving') return 'moving';
-		return 'offline';
-	}
 </script>
 
 <svelte:head>
@@ -423,7 +367,7 @@
 							{#each filtered as device (device.id)}
 								<tr class="table-row" class:other-user={device.ownerName}>
 									<td class="td-status">
-										<StatusIndicator status={getStatusType(device.status)} showLabel />
+										<StatusIndicator status={device.status} showLabel />
 									</td>
 									<td class="td-name">
 										<span class="device-name">{device.name}</span>
@@ -459,7 +403,7 @@
 											<Button variant="secondary" size="sm" on:click={() => openEditModal(device)}>Edit</Button>
 											<Button variant="secondary" size="sm" on:click={() => openCommandModal(device)}>Commands</Button>
 											<Button variant="secondary" size="sm" loading={gpxImportingIds.has(device.id)} on:click={() => openGPXImport(device)}>Import GPX</Button>
-											<Button variant="danger" size="sm" on:click={() => openDeleteConfirm(device)}>Delete</Button>
+											<Button variant="danger" size="sm" on:click={() => deleteDevice(device)}>Delete</Button>
 										</div>
 										{#if gpxToast && gpxToast.deviceId === device.id}
 											<div class="gpx-toast" class:gpx-toast-ok={gpxToast.ok} class:gpx-toast-err={!gpxToast.ok}>
@@ -497,7 +441,7 @@
 							>
 								<div class="summary-main">
 									<div class="summary-name-status">
-										<StatusIndicator status={getStatusType(device.status)} />
+										<StatusIndicator status={device.status} />
 										<span class="device-name">{device.name}</span>
 										{#if device.ownerName}
 											<span class="owner-badge" title="Owned by {device.ownerName}">{device.ownerName}</span>
@@ -549,7 +493,7 @@
 										<div class="detail-item">
 											<span class="detail-label">Status</span>
 											<span class="detail-value">
-												<StatusIndicator status={getStatusType(device.status)} showLabel />
+												<StatusIndicator status={device.status} showLabel />
 											</span>
 										</div>
 										<div class="detail-item">
@@ -666,7 +610,7 @@
 											</Button>
 										</div>
 										<div on:click|stopPropagation on:keydown|stopPropagation role="presentation">
-											<Button variant="danger" size="sm" on:click={() => openDeleteConfirm(device)}>
+											<Button variant="danger" size="sm" on:click={() => deleteDevice(device)}>
 												<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 													<polyline points="3 6 5 6 21 6"></polyline>
 													<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -751,21 +695,6 @@
 		on:close={() => { showShareModal = false; sharingDevice = null; }}
 	/>
 {/if}
-
-<!-- Delete Confirmation -->
-<Modal bind:open={showDeleteConfirm} title="Delete Device">
-	<p class="delete-message">
-		Are you sure you want to delete <strong>{editingDevice?.name}</strong>?
-		This action cannot be undone.
-	</p>
-
-	<svelte:fragment slot="footer">
-		<div class="modal-actions">
-			<Button variant="secondary" on:click={() => (showDeleteConfirm = false)}>Cancel</Button>
-			<Button variant="danger" loading={saving} on:click={handleDelete}>Delete</Button>
-		</div>
-	</svelte:fragment>
-</Modal>
 
 <!-- Command Modal -->
 {#if commandDevice}
@@ -866,11 +795,6 @@
 		margin-bottom: var(--space-6);
 	}
 
-	.page-title {
-		font-size: var(--text-3xl);
-		font-weight: var(--font-bold);
-		color: var(--text-primary);
-	}
 
 	.toolbar {
 		display: flex;
@@ -1239,14 +1163,7 @@
 		gap: var(--space-3);
 	}
 
-	.delete-message {
-		color: var(--text-secondary);
-		line-height: 1.6;
-	}
 
-	.delete-message strong {
-		color: var(--text-primary);
-	}
 
 	/* ---- GPX import toast ---- */
 	.gpx-toast {

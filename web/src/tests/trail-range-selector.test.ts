@@ -71,7 +71,7 @@ describe("TrailRangeSelector", () => {
     expect(onChange).toHaveBeenCalledWith({
       preset: "custom",
       from: new Date(2026, 8, 1, 0, 0, 0).toISOString(),
-      to: new Date(2026, 8, 2, 23, 59, 59).toISOString(),
+      to: new Date(2026, 8, 2, 23, 59, 59, 999).toISOString(),
     });
   });
 
@@ -93,7 +93,7 @@ describe("TrailRangeSelector", () => {
     expect(onChange).toHaveBeenCalledWith({
       preset: "custom",
       from: new Date(2026, 8, 1, 6, 30, 0).toISOString(),
-      to: new Date(2026, 8, 1, 18, 0, 59).toISOString(),
+      to: new Date(2026, 8, 1, 18, 0, 59, 999).toISOString(),
     });
   });
 

@@ -1,23 +1,5 @@
 import { downloadCSV } from "./download";
 
-export interface Position {
-  timestamp?: string;
-  fixTime?: string;
-  latitude: number;
-  longitude: number;
-  speed: number;
-  address?: string | null;
-  deviceId?: number;
-}
-
-/**
- * Get the time string from a position, handling both
- * `fixTime` (from API) and `timestamp` (legacy) fields.
- */
-export function getPositionTime(pos: Position): string {
-  return pos.fixTime || pos.timestamp || "";
-}
-
 export interface Trip {
   id: string;
   deviceId: number;

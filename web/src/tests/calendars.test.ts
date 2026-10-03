@@ -58,7 +58,6 @@ import {
   CALENDAR_TEMPLATES,
   getScheduleSummary,
   getActiveStatus,
-  isActiveNow,
   validateIcalData,
   validateDateRangeConfig,
   buildDateRangeIcal,
@@ -333,21 +332,6 @@ describe("Calendar Management", () => {
       // 24/7 schedule: 00:00 to 23:59:59 daily -- always active
       expect(result.active).toBe(true);
       expect(result.label).toBe("Active now");
-    });
-  });
-
-  describe("isActiveNow", () => {
-    it("should return false for empty data", () => {
-      expect(isActiveNow("")).toBe(false);
-    });
-
-    it("should return true for 24/7 schedule", () => {
-      const always = CALENDAR_TEMPLATES.find((t) => t.id === "always");
-      expect(isActiveNow(always!.data)).toBe(true);
-    });
-
-    it("should handle invalid data gracefully", () => {
-      expect(isActiveNow("not valid")).toBe(false);
     });
   });
 

@@ -423,7 +423,7 @@ func handleCreateGeofence(ctx context.Context, req mcp.CallToolRequest, deps Dep
 		CalendarID: calID,
 	})
 	if err != nil {
-		return mcp.NewToolResultError("failed to create geofence: " + err.Error()), nil
+		return mcp.NewToolResultError(services.PublicMessage(err, "failed to create geofence")), nil
 	}
 
 	return jsonResult(map[string]any{
@@ -528,7 +528,7 @@ func handleCreateCalendar(ctx context.Context, req mcp.CallToolRequest, deps Dep
 		Data: ical,
 	})
 	if err != nil {
-		return mcp.NewToolResultError("failed to create calendar: " + err.Error()), nil
+		return mcp.NewToolResultError(services.PublicMessage(err, "failed to create calendar")), nil
 	}
 	return jsonResult(map[string]any{"id": c.ID, "name": c.Name}), nil
 }
@@ -570,7 +570,7 @@ func handleUpdateGeofence(ctx context.Context, req mcp.CallToolRequest, deps Dep
 
 	g, err := deps.GeofenceService.UpdateForUser(ctx, user, geoID, in)
 	if err != nil {
-		return mcp.NewToolResultError("failed to update geofence: " + err.Error()), nil
+		return mcp.NewToolResultError(services.PublicMessage(err, "failed to update geofence")), nil
 	}
 	return jsonResult(map[string]any{
 		"id":         g.ID,
@@ -595,7 +595,7 @@ func handleDeleteGeofence(ctx context.Context, req mcp.CallToolRequest, deps Dep
 	}
 
 	if err := deps.GeofenceService.DeleteForUser(ctx, user, geoID); err != nil {
-		return mcp.NewToolResultError("failed to delete geofence: " + err.Error()), nil
+		return mcp.NewToolResultError(services.PublicMessage(err, "failed to delete geofence")), nil
 	}
 	return jsonResult(map[string]any{"deleted": geoID}), nil
 }
@@ -708,7 +708,7 @@ func handleUpdateNotificationRule(ctx context.Context, req mcp.CallToolRequest, 
 	if err != nil || existing == nil {
 		return mcp.NewToolResultError("rule not found"), nil
 	}
-	if existing.UserID != user.ID && !user.IsAdmin() {
+	if !user.CanManage(existing.UserID) {
 		return mcp.NewToolResultError("access denied"), nil
 	}
 
@@ -773,7 +773,7 @@ func handleDeleteNotificationRule(ctx context.Context, req mcp.CallToolRequest, 
 	if err != nil || existing == nil {
 		return mcp.NewToolResultError("rule not found"), nil
 	}
-	if existing.UserID != user.ID && !user.IsAdmin() {
+	if !user.CanManage(existing.UserID) {
 		return mcp.NewToolResultError("access denied"), nil
 	}
 

@@ -498,38 +498,12 @@ func detailStringSlice(details map[string]any, key string) []string {
 	return nil
 }
 
-// auditMetaTypes holds the discriminator for actions whose payload schema is shared.
-var auditMetaTypes = map[string]oas.AuditMetadataType{
-	"session.logout":      oas.AuditMetadataSessionLogoutAuditMetadata,
-	"device.delete":       oas.AuditMetadataDeviceDeleteAuditMetadata,
-	"geofence.delete":     oas.AuditMetadataGeofenceDeleteAuditMetadata,
-	"calendar.delete":     oas.AuditMetadataCalendarDeleteAuditMetadata,
-	"notification.delete": oas.AuditMetadataNotificationDeleteAuditMetadata,
-	"user.delete":         oas.AuditMetadataUserDeleteAuditMetadata,
-	"device.online":       oas.AuditMetadataDeviceOnlineAuditMetadata,
-	"device.offline":      oas.AuditMetadataDeviceOfflineAuditMetadata,
-	"session.sudo":        oas.AuditMetadataSessionSudoAuditMetadata,
-	"session.sudo_end":    oas.AuditMetadataSessionSudoEndAuditMetadata,
-	"device.assign":       oas.AuditMetadataDeviceAssignAuditMetadata,
-	"device.unassign":     oas.AuditMetadataDeviceUnassignAuditMetadata,
-	"geofence.create":     oas.AuditMetadataGeofenceCreateAuditMetadata,
-	"geofence.update":     oas.AuditMetadataGeofenceUpdateAuditMetadata,
-	"calendar.create":     oas.AuditMetadataCalendarCreateAuditMetadata,
-	"calendar.update":     oas.AuditMetadataCalendarUpdateAuditMetadata,
-	"notification.create": oas.AuditMetadataNotificationCreateAuditMetadata,
-	"notification.update": oas.AuditMetadataNotificationUpdateAuditMetadata,
-	"notification.sent":   oas.AuditMetadataNotificationSentAuditMetadata,
-	"notification.failed": oas.AuditMetadataNotificationFailedAuditMetadata,
-	"share.create":        oas.AuditMetadataShareCreateAuditMetadata,
-	"share.delete":        oas.AuditMetadataShareDeleteAuditMetadata,
-}
-
 // buildAuditMetadata converts an action string + details map to a typed oas.OptAuditMetadata.
 // Returns an unset optional for unknown actions.
 func buildAuditMetadata(action string, details map[string]any) oas.OptAuditMetadata {
 	str := func(key string) string { return attrString(details, key).Value }
 	num := func(key string) int64 { return int64(attrInt(details, key).Value) }
-	t := auditMetaTypes[action]
+	t := oas.AuditMetadataType(action)
 	var am oas.AuditMetadata
 	switch action {
 	case "session.logout", "device.delete", "geofence.delete", "calendar.delete",

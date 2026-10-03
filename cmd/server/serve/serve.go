@@ -144,8 +144,9 @@ func Run() {
 	// Audit logger.
 	auditLogger := audit.NewLogger(pool)
 
-	// Geofence service (shared by OAS handler and AI MCP tools).
+	// Geofence and calendar services (shared by OAS handler and AI MCP tools).
 	geofenceService := services.NewGeofenceService(geofenceRepo, auditLogger)
+	calendarService := services.NewCalendarService(calendarRepo, auditLogger)
 
 	// Device registry (used by protocol servers below).
 	deviceRegistry := protocol.NewDeviceRegistry()
@@ -269,6 +270,7 @@ func Run() {
 		WebAuthnCookieKey:   webAuthnCookieKey,
 		NotificationService: notificationService,
 		GeofenceService:     geofenceService,
+		CalendarService:     calendarService,
 		DeviceRegistry:      deviceRegistry,
 		EncoderRegistry:     encoderRegistry,
 		Hub:                 hub,
@@ -318,7 +320,6 @@ func Run() {
 	var chatHandler http.Handler
 	var chatHistoryHandler http.Handler
 	if cfg.AI.Enabled {
-		calendarService := services.NewCalendarService(calendarRepo, auditLogger)
 		mcpSrv := aiMCP.NewServer(aiMCP.Deps{
 			Devices:         deviceRepo,
 			Positions:       positionRepo,

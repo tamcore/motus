@@ -260,9 +260,9 @@ func TestCoordinateFallback(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		result := coordinateFallback(tt.lat, tt.lon)
+		result := CoordinateFallback(tt.lat, tt.lon)
 		if result != tt.expected {
-			t.Errorf("coordinateFallback(%f, %f) = %q, want %q", tt.lat, tt.lon, result, tt.expected)
+			t.Errorf("CoordinateFallback(%f, %f) = %q, want %q", tt.lat, tt.lon, result, tt.expected)
 		}
 	}
 }

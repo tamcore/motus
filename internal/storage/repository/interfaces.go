@@ -176,7 +176,6 @@ type CalendarRepo interface {
 	Update(ctx context.Context, c *model.Calendar) error
 	Delete(ctx context.Context, id int64) error
 	UserHasAccess(ctx context.Context, user *model.User, calendarID int64) bool
-	AssociateUser(ctx context.Context, userID, calendarID int64) error
 }
 
 // TrailBookmarkRepo defines the operations on the trail_bookmarks table.

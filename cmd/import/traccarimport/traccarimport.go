@@ -1615,7 +1615,7 @@ func geocodeRecentPositions(ctx context.Context, pool *pgxpool.Pool, config *Con
 			}
 			failed++
 			// Use coordinate fallback
-			address = fmt.Sprintf("%.5f, %.5f", p.lat, p.lon)
+			address = geocoding.CoordinateFallback(p.lat, p.lon)
 		}
 
 		// Update position with address

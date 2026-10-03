@@ -44,6 +44,7 @@ type HandlerConfig struct {
 
 	NotificationService *services.NotificationService
 	GeofenceService     *services.GeofenceService
+	CalendarService     *services.CalendarService
 	DeviceRegistry      *protocol.DeviceRegistry
 	EncoderRegistry     *protocol.EncoderRegistry
 	Hub                 *websocket.Hub

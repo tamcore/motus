@@ -1,61 +1,36 @@
 import { test, expect } from '../fixtures/auth-fixture';
+import { mockFetch } from '../helpers/mock-fetch';
 
 test.describe('Chat page', () => {
   test.beforeEach(async ({ authedPage }) => {
-    // Mock /api/server to enable AI, /api/chat with a canned SSE response,
-    // and /api/chat/history with empty history (for the onMount fetch).
-    await authedPage.addInitScript(() => {
-      const origFetch = window.fetch;
-      window.fetch = async function (input: RequestInfo | URL, init?: RequestInit) {
-        const url =
-          typeof input === 'string'
-            ? input
-            : input instanceof URL
-              ? input.href
-              : input.url;
-
-        if (url.includes('/api/server')) {
-          return new Response(
-            JSON.stringify({
-              id: 1,
-              registration: false,
-              readonly: false,
-              deviceReadonly: false,
-              limitCommands: false,
-              version: 'test',
-              aiEnabled: true,
-            }),
-            { status: 200, headers: { 'Content-Type': 'application/json' } },
-          );
-        }
-
-        if (url.includes('/api/chat/history')) {
-          if ((init?.method ?? 'GET') === 'DELETE') {
-            return new Response(null, { status: 204 });
-          }
-          return new Response(
-            JSON.stringify({ messages: [] }),
-            { status: 200, headers: { 'Content-Type': 'application/json' } },
-          );
-        }
-
-        if (url.includes('/api/chat')) {
-          const body = [
-            'data: {"type":"tool_call","id":"tc1","name":"get_server_time"}\n\n',
-            'data: {"type":"tool_result","id":"tc1","name":"get_server_time","result":{"now":"2025-01-01T00:00:00Z"}}\n\n',
-            'data: {"type":"token","delta":"The "}\n\n',
-            'data: {"type":"token","delta":"answer is 42."}\n\n',
-            'data: {"type":"done"}\n\n',
-          ].join('');
-          return new Response(body, {
-            status: 200,
-            headers: { 'Content-Type': 'text/event-stream' },
-          });
-        }
-
-        return origFetch.apply(globalThis, [input, init] as Parameters<typeof fetch>);
-      } as typeof fetch;
-    });
+    // AI enabled, a canned SSE answer, and empty history for the onMount fetch.
+    await mockFetch(authedPage, [
+      {
+        match: '/api/server',
+        body: {
+          id: 1,
+          registration: false,
+          readonly: false,
+          deviceReadonly: false,
+          limitCommands: false,
+          version: 'test',
+          aiEnabled: true,
+        },
+      },
+      { path: '/api/chat/history', method: 'DELETE', status: 204 },
+      { path: '/api/chat/history', body: { messages: [] } },
+      {
+        path: '/api/chat',
+        contentType: 'text/event-stream',
+        text: [
+          'data: {"type":"tool_call","id":"tc1","name":"get_server_time"}\n\n',
+          'data: {"type":"tool_result","id":"tc1","name":"get_server_time","result":{"now":"2025-01-01T00:00:00Z"}}\n\n',
+          'data: {"type":"token","delta":"The "}\n\n',
+          'data: {"type":"token","delta":"answer is 42."}\n\n',
+          'data: {"type":"done"}\n\n',
+        ].join(''),
+      },
+    ]);
   });
 
   test('shows Chat nav link when aiEnabled', async ({ authedPage }) => {
@@ -92,29 +67,12 @@ test.describe('Chat page', () => {
 
   test('shows loaded history on mount', async ({ authedPage }) => {
     // Override the history GET mock to return a prior conversation.
-    await authedPage.addInitScript(() => {
-      const origFetch = window.fetch;
-      window.fetch = async function (input: RequestInfo | URL, init?: RequestInit) {
-        const url =
-          typeof input === 'string'
-            ? input
-            : input instanceof URL
-              ? input.href
-              : input.url;
-        if (url.includes('/api/chat/history') && (init?.method ?? 'GET') === 'GET') {
-          return new Response(
-            JSON.stringify({
-              messages: [
-                { role: 'user', content: 'Hello from history' },
-                { role: 'assistant', content: 'Hi there!' },
-              ],
-            }),
-            { status: 200, headers: { 'Content-Type': 'application/json' } },
-          );
-        }
-        return origFetch.apply(globalThis, [input, init] as Parameters<typeof fetch>);
-      } as typeof fetch;
-    });
+    await mockFetch(authedPage, [{ path: '/api/chat/history', method: 'GET', body: {
+      messages: [
+        { role: 'user', content: 'Hello from history' },
+        { role: 'assistant', content: 'Hi there!' },
+      ],
+    } }]);
 
     await authedPage.goto('/chat');
     await expect(authedPage.locator('.user-bubble').first()).toContainText('Hello from history', {
@@ -126,40 +84,23 @@ test.describe('Chat page', () => {
   });
 
   test('preserves tool call results on history reload', async ({ authedPage }) => {
-    await authedPage.addInitScript(() => {
-      const origFetch = window.fetch;
-      window.fetch = async function (input: RequestInfo | URL, init?: RequestInit) {
-        const url =
-          typeof input === 'string'
-            ? input
-            : input instanceof URL
-              ? input.href
-              : input.url;
-        if (url.includes('/api/chat/history') && (init?.method ?? 'GET') === 'GET') {
-          return new Response(
-            JSON.stringify({
-              messages: [
-                { role: 'user', content: 'What time is it?' },
-                {
-                  role: 'assistant',
-                  content: '',
-                  toolCalls: [{ id: 'tc1', name: 'get_server_time', arguments: '{}' }],
-                },
-                {
-                  role: 'tool',
-                  toolCallId: 'tc1',
-                  name: 'get_server_time',
-                  content: '{"now":"2025-01-01T00:00:00Z"}',
-                },
-                { role: 'assistant', content: 'It is midnight UTC.' },
-              ],
-            }),
-            { status: 200, headers: { 'Content-Type': 'application/json' } },
-          );
-        }
-        return origFetch.apply(globalThis, [input, init] as Parameters<typeof fetch>);
-      } as typeof fetch;
-    });
+    await mockFetch(authedPage, [{ path: '/api/chat/history', method: 'GET', body: {
+      messages: [
+        { role: 'user', content: 'What time is it?' },
+        {
+          role: 'assistant',
+          content: '',
+          toolCalls: [{ id: 'tc1', name: 'get_server_time', arguments: '{}' }],
+        },
+        {
+          role: 'tool',
+          toolCallId: 'tc1',
+          name: 'get_server_time',
+          content: '{"now":"2025-01-01T00:00:00Z"}',
+        },
+        { role: 'assistant', content: 'It is midnight UTC.' },
+      ],
+    } }]);
 
     await authedPage.goto('/chat');
 
@@ -176,30 +117,15 @@ test.describe('Chat page', () => {
   });
 
   test('renders markdown tables inside a scrollable container', async ({ authedPage }) => {
-    await authedPage.addInitScript(() => {
-      const origFetch = window.fetch;
-      window.fetch = async function (input: RequestInfo | URL, init?: RequestInit) {
-        const url =
-          typeof input === 'string'
-            ? input
-            : input instanceof URL
-              ? input.href
-              : input.url;
-        if (url.includes('/api/chat')) {
-          const tableMarkdown =
-            '| Device | Status | Location |\\n|--------|--------|----------|\\n| Car | Online | Berlin |\\n';
-          const body = [
-            `data: {"type":"token","delta":"${tableMarkdown}"}\n\n`,
-            'data: {"type":"done"}\n\n',
-          ].join('');
-          return new Response(body, {
-            status: 200,
-            headers: { 'Content-Type': 'text/event-stream' },
-          });
-        }
-        return origFetch.apply(globalThis, [input, init] as Parameters<typeof fetch>);
-      } as typeof fetch;
-    });
+    const tableMarkdown =
+      '| Device | Status | Location |\\n|--------|--------|----------|\\n| Car | Online | Berlin |\\n';
+    await mockFetch(authedPage, [
+      {
+        path: '/api/chat',
+        contentType: 'text/event-stream',
+        text: `data: {"type":"token","delta":"${tableMarkdown}"}\n\ndata: {"type":"done"}\n\n`,
+      },
+    ]);
 
     await authedPage.goto('/chat');
     const textarea = authedPage.locator('textarea');

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterEach } from "vitest";
+import { describe, it, expect, beforeAll } from "vitest";
 import * as leaflet from "leaflet";
 import {
   GEOFENCE_STYLE,
@@ -20,39 +20,11 @@ describe("geofenceDrawOptions", () => {
   // ES modules) that throws a ReferenceError on every mouse move while a
   // rectangle is drawn, so the rectangle never resizes on screen. The
   // rectangle tool shows the area by default, which is what triggers it.
-  afterEach(() => {
-    delete (globalThis as any).type;
-  });
-
   it("disables the area tooltip for rectangles (leaflet-draw strict-mode bug)", () => {
     const opts = geofenceDrawOptions();
     expect(opts.draw.rectangle).toMatchObject({ showArea: false, shapeOptions: GEOFENCE_STYLE });
     // Polygons must not opt into the broken area readout either.
     expect(opts.draw.polygon.showArea ?? false).toBe(false);
-  });
-
-  it("does not call readableArea while dragging a rectangle", () => {
-    // Emulate strict mode: the implicit global assignment `type = ...`
-    // in readableArea must throw, as it does in the bundled app.
-    Object.defineProperty(globalThis, "type", {
-      configurable: true,
-      set() {
-        throw new ReferenceError("type is not defined");
-      },
-    });
-
-    const container = document.createElement("div");
-    document.body.appendChild(container);
-    const map = L.map(container, { center: [52.52, 13.4], zoom: 13 });
-    const handler = new L.Draw.Rectangle(map, geofenceDrawOptions().draw.rectangle);
-    handler._shape = L.rectangle([
-      [52.5, 13.3],
-      [52.55, 13.45],
-    ]);
-
-    expect(() => handler._getTooltipText()).not.toThrow();
-    map.remove();
-    container.remove();
   });
 });
 

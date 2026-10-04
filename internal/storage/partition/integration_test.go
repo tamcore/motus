@@ -41,7 +41,7 @@ func TestPartitionManager_EnsureFuturePartitions(t *testing.T) {
 	if len(partitions) < 4 {
 		t.Errorf("expected at least 4 partitions, got %d", len(partitions))
 		for _, p := range partitions {
-			t.Logf("  partition: %s (%s to %s)", p.Name, p.RangeStart, p.RangeEnd)
+			t.Logf("  partition: %s (to %s)", p.Name, p.RangeEnd)
 		}
 	}
 

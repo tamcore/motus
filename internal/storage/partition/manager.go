@@ -16,7 +16,6 @@ import (
 	"fmt"
 	"log/slog"
 	"regexp"
-	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -215,11 +214,6 @@ func (m *Manager) dropExpiredPartitions(ctx context.Context) error {
 	}
 
 	for _, p := range partitions {
-		if p.Name == "positions_default" {
-			continue
-		}
-
-		// Parse the partition end date from its range.
 		if p.RangeEnd.Before(cutoffMonth) || p.RangeEnd.Equal(cutoffMonth) {
 			m.logger.Info("dropping expired partition",
 				slog.String("name", p.Name),
@@ -246,16 +240,15 @@ func (m *Manager) dropExpiredPartitions(ctx context.Context) error {
 
 // PartitionInfo holds metadata about an existing partition.
 type PartitionInfo struct {
-	Name       string
-	RangeStart time.Time
-	RangeEnd   time.Time
+	Name     string
+	RangeEnd time.Time
 }
 
-// ListPartitions returns information about all existing positions partitions.
+// ListPartitions returns information about all existing monthly positions
+// partitions. The range end is derived from the canonical partition name.
 func (m *Manager) ListPartitions(ctx context.Context) ([]PartitionInfo, error) {
 	rows, err := m.pool.Query(ctx, `
-		SELECT c.relname,
-			   pg_get_expr(c.relpartbound, c.oid) as partition_expr
+		SELECT c.relname
 		FROM pg_class c
 		JOIN pg_inherits i ON c.oid = i.inhrelid
 		JOIN pg_class parent ON parent.oid = i.inhparent
@@ -270,25 +263,19 @@ func (m *Manager) ListPartitions(ctx context.Context) ([]PartitionInfo, error) {
 
 	var partitions []PartitionInfo
 	for rows.Next() {
-		var name, expr string
-		if err := rows.Scan(&name, &expr); err != nil {
+		var name string
+		if err := rows.Scan(&name); err != nil {
 			return nil, fmt.Errorf("scan partition: %w", err)
 		}
-
-		start, end, err := parsePartitionBounds(expr)
+		start, err := time.Parse(partitionNameLayout, name)
 		if err != nil {
-			m.logger.Warn("cannot parse partition bounds",
+			m.logger.Warn("cannot parse partition name",
 				slog.String("partition", name),
 				slog.Any("error", err),
 			)
 			continue
 		}
-
-		partitions = append(partitions, PartitionInfo{
-			Name:       name,
-			RangeStart: start,
-			RangeEnd:   end,
-		})
+		partitions = append(partitions, PartitionInfo{Name: name, RangeEnd: start.AddDate(0, 1, 0)})
 	}
 
 	return partitions, rows.Err()
@@ -297,57 +284,7 @@ func (m *Manager) ListPartitions(ctx context.Context) ([]PartitionInfo, error) {
 // PartitionName returns the canonical partition name for a given month.
 // Format: positions_y{YYYY}m{MM}
 func PartitionName(t time.Time) string {
-	return fmt.Sprintf("positions_y%04dm%02d", t.Year(), t.Month())
+	return t.Format(partitionNameLayout)
 }
 
-// parsePartitionBounds extracts start and end dates from a PostgreSQL
-// partition bound expression like:
-//
-//	FOR VALUES FROM ('2026-01-01 00:00:00+00') TO ('2026-02-01 00:00:00+00')
-func parsePartitionBounds(expr string) (time.Time, time.Time, error) {
-	// Find all quoted strings in the expression.
-	dates := extractQuotedStrings(expr)
-	if len(dates) < 2 {
-		return time.Time{}, time.Time{}, fmt.Errorf("expected 2 dates in %q, found %d", expr, len(dates))
-	}
-
-	start, err := parsePartitionDate(dates[0])
-	if err != nil {
-		return time.Time{}, time.Time{}, fmt.Errorf("parse start date %q: %w", dates[0], err)
-	}
-
-	end, err := parsePartitionDate(dates[1])
-	if err != nil {
-		return time.Time{}, time.Time{}, fmt.Errorf("parse end date %q: %w", dates[1], err)
-	}
-
-	return start, end, nil
-}
-
-// extractQuotedStrings extracts all single-quoted strings from the input.
-func extractQuotedStrings(s string) []string {
-	parts := strings.Split(s, "'")
-	var result []string
-	// Odd parts are quoted; the last part is never closed.
-	for i := 1; i < len(parts)-1; i += 2 {
-		result = append(result, parts[i])
-	}
-	return result
-}
-
-// parsePartitionDate parses a date string from PostgreSQL partition bounds.
-// Handles formats like: "2026-01-01 00:00:00+00", "2026-01-01", etc.
-func parsePartitionDate(s string) (time.Time, error) {
-	formats := []string{
-		"2006-01-02 15:04:05-07",
-		"2006-01-02 15:04:05+00",
-		"2006-01-02 15:04:05",
-		"2006-01-02",
-	}
-	for _, f := range formats {
-		if t, err := time.Parse(f, s); err == nil {
-			return t.UTC(), nil
-		}
-	}
-	return time.Time{}, fmt.Errorf("cannot parse date %q", s)
-}
+const partitionNameLayout = "positions_y2006m01"

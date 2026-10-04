@@ -1,8 +1,30 @@
-import { describe, it, expect, vi } from 'vitest';
-import { userLocationLayers, type UseUserLocationReturn } from '$lib/composables/useUserLocation';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { readable } from 'svelte/store';
+import {
+	useUserLocation,
+	userLocationLayers,
+	type UseUserLocationReturn
+} from '$lib/composables/useUserLocation';
 
 function fakeLocation(active: boolean): UseUserLocationReturn {
-	return { active, position: null, heading: null, error: null, start: vi.fn(async () => {}), stop: vi.fn() };
+	const { subscribe } = readable({ active, position: null, heading: null, error: null });
+	return { subscribe, start: vi.fn(async () => {}), stop: vi.fn() };
+}
+
+function fakeLeaflet() {
+	const marker = { addTo: vi.fn().mockReturnThis(), setLatLng: vi.fn() };
+	const circle = { addTo: vi.fn().mockReturnThis(), setLatLng: vi.fn(), setRadius: vi.fn() };
+	const L = {
+		circle: vi.fn(() => circle),
+		marker: vi.fn(() => marker),
+		divIcon: vi.fn()
+	} as unknown as typeof import('leaflet');
+	const map = {
+		setView: vi.fn(),
+		getZoom: vi.fn(() => 10),
+		removeLayer: vi.fn()
+	} as unknown as import('leaflet').Map;
+	return { L, map, marker };
 }
 
 describe('userLocationLayers', () => {
@@ -24,8 +46,47 @@ describe('userLocationLayers', () => {
 	it('sync without a position adds no layers', () => {
 		const L = { circle: vi.fn(), marker: vi.fn() } as unknown as typeof import('leaflet');
 		const map = {} as unknown as import('leaflet').Map;
-		userLocationLayers(() => L, () => map).sync(fakeLocation(true));
+		userLocationLayers(() => L, () => map).sync({
+			active: true,
+			position: null,
+			heading: null,
+			error: null
+		});
 		expect(L.circle).not.toHaveBeenCalled();
 		expect(L.marker).not.toHaveBeenCalled();
+	});
+});
+
+describe('useUserLocation', () => {
+	afterEach(() => vi.unstubAllGlobals());
+
+	it('notifies subscribers on each fix so the marker is redrawn', async () => {
+		let onFix: PositionCallback = () => {};
+		vi.stubGlobal('navigator', {
+			geolocation: {
+				watchPosition: vi.fn((cb: PositionCallback) => {
+					onFix = cb;
+					return 1;
+				}),
+				clearWatch: vi.fn()
+			}
+		});
+		const fix = (lat: number, lng: number) =>
+			onFix({ coords: { latitude: lat, longitude: lng, accuracy: 5 } } as GeolocationPosition);
+
+		const location = useUserLocation();
+		const { L, map, marker } = fakeLeaflet();
+		const layers = userLocationLayers(() => L, () => map);
+		const unsubscribe = location.subscribe(layers.sync);
+
+		await location.start();
+		fix(52.5, 13.4);
+		fix(48.1, 11.6);
+
+		expect(L.marker).toHaveBeenCalledOnce();
+		expect(marker.setLatLng).toHaveBeenCalledWith([48.1, 11.6]);
+
+		location.stop();
+		unsubscribe();
 	});
 });

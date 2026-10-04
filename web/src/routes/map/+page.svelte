@@ -105,7 +105,7 @@
 
 	$: if (selectedDeviceId !== bookmarksDeviceId) void loadDeviceBookmarks(selectedDeviceId);
 
-	$: userLayers.sync(userLocation);
+	$: userLayers.sync($userLocation);
 
 	onMount(async () => {
 		// Subscribe to WebSocket connection state IMMEDIATELY (before any async work)
@@ -834,10 +834,10 @@
 		<!-- Locate Me button -->
 		<button
 			class="locate-me-btn"
-			class:active={userLocation.active}
+			class:active={$userLocation.active}
 			on:click={() => userLayers.toggle(userLocation)}
-			title={userLocation.active ? 'Stop locating me' : 'Show my location'}
-			aria-label={userLocation.active ? 'Stop locating me' : 'Show my location'}
+			title={$userLocation.active ? 'Stop locating me' : 'Show my location'}
+			aria-label={$userLocation.active ? 'Stop locating me' : 'Show my location'}
 		>
 			<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
 				<circle cx="12" cy="12" r="3"/>
@@ -846,9 +846,9 @@
 			</svg>
 		</button>
 
-		{#if userLocation.error}
+		{#if $userLocation.error}
 			<div class="locate-error" role="alert">
-				{userLocation.error}
+				{$userLocation.error}
 			</div>
 		{/if}
 	</div>

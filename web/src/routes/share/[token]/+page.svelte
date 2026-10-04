@@ -122,7 +122,7 @@
 
 	// --- WebSocket ---
 	function connectWebSocket() {
-		socket = new WebSocketManager(`?shareToken=${token}`);
+		socket = new WebSocketManager(`?shareToken=${encodeURIComponent(token)}`);
 		unsubscribers = [
 			socket.connected.subscribe((v) => (wsConnected = v)),
 			socket.lastMessage.subscribe((msg) => msg && handleWebSocketMessage(msg)),
@@ -324,7 +324,7 @@
 		}
 	}
 
-	$: userLayers.sync(userLocation);
+	$: userLayers.sync($userLocation);
 
 	// --- Update timer for "last update" display ---
 	let updateTimer: ReturnType<typeof setInterval> | null = null;
@@ -487,10 +487,10 @@
 			</button>
 			<button
 				class="control-btn"
-				class:active={userLocation.active}
+				class:active={$userLocation.active}
 				on:click={() => userLayers.toggle(userLocation)}
-				title={userLocation.active ? 'Hide my location' : 'Show my location'}
-				aria-label={userLocation.active ? 'Hide my location' : 'Show my location'}
+				title={$userLocation.active ? 'Hide my location' : 'Show my location'}
+				aria-label={$userLocation.active ? 'Hide my location' : 'Show my location'}
 			>
 				<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
 					<circle cx="12" cy="12" r="3"/>
@@ -500,9 +500,9 @@
 			</button>
 		</div>
 
-		{#if userLocation.error}
+		{#if $userLocation.error}
 			<div class="locate-error" role="alert">
-				{userLocation.error}
+				{$userLocation.error}
 			</div>
 		{/if}
 

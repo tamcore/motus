@@ -57,28 +57,17 @@ func Run() {
 		slog.String("format", logFormat),
 	)
 
-	// Database connection with pool configuration.
-	poolCfg, err := pgxpool.ParseConfig(cfg.Database.URL())
+	pool, err := repository.Connect(context.Background(), cfg.Database.URL(), func(pc *pgxpool.Config) {
+		pc.MaxConns = cfg.Database.Pool.MaxConns
+		pc.MinConns = cfg.Database.Pool.MinConns
+		pc.MaxConnLifetime = cfg.Database.Pool.MaxConnLifetime
+		pc.MaxConnIdleTime = cfg.Database.Pool.MaxConnIdleTime
+	})
 	if err != nil {
-		slog.Error("failed to parse database URL", slog.Any("error", err))
-		os.Exit(1)
-	}
-	poolCfg.MaxConns = cfg.Database.Pool.MaxConns
-	poolCfg.MinConns = cfg.Database.Pool.MinConns
-	poolCfg.MaxConnLifetime = cfg.Database.Pool.MaxConnLifetime
-	poolCfg.MaxConnIdleTime = cfg.Database.Pool.MaxConnIdleTime
-
-	pool, err := pgxpool.NewWithConfig(context.Background(), poolCfg)
-	if err != nil {
-		slog.Error("failed to connect to database", slog.Any("error", err))
+		slog.Error("database connection failed", slog.Any("error", err))
 		os.Exit(1)
 	}
 	defer pool.Close()
-
-	if err := pool.Ping(context.Background()); err != nil {
-		slog.Error("failed to ping database", slog.Any("error", err))
-		os.Exit(1)
-	}
 	slog.Info("connected to database",
 		slog.Int("maxConns", int(cfg.Database.Pool.MaxConns)),
 		slog.Int("minConns", int(cfg.Database.Pool.MinConns)),

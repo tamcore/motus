@@ -21,6 +21,7 @@ import (
 	"github.com/tamcore/motus/cmd/resetdemo"
 	"github.com/tamcore/motus/cmd/server/serve"
 	"github.com/tamcore/motus/internal/config"
+	"github.com/tamcore/motus/internal/storage/repository"
 	"github.com/tamcore/motus/internal/version"
 )
 
@@ -88,18 +89,19 @@ func connectDB() (*pgxpool.Pool, error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	return repository.Connect(ctx, cfg.Database.URL())
+}
 
-	pool, err := pgxpool.New(ctx, cfg.Database.URL())
+// dbURLOrConfig returns flagURL, or the database URL from the environment config.
+func dbURLOrConfig(flagURL string) string {
+	if flagURL != "" {
+		return flagURL
+	}
+	cfg, err := config.LoadFromEnv()
 	if err != nil {
-		return nil, fmt.Errorf("connect to database: %w", err)
+		fatal("failed to load config", slog.Any("error", err))
 	}
-
-	if err := pool.Ping(ctx); err != nil {
-		pool.Close()
-		return nil, fmt.Errorf("ping database: %w", err)
-	}
-
-	return pool, nil
+	return cfg.Database.URL()
 }
 
 // withDB runs fn with a connected pool and a 10s context, exiting on connection failure.

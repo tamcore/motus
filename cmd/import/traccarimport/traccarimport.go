@@ -13,28 +13,30 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	ics "github.com/arran4/golang-ical"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/spf13/cobra"
+	"github.com/tamcore/motus/internal/calendar"
 	"github.com/tamcore/motus/internal/geocoding"
 	"github.com/tamcore/motus/internal/model"
+	"github.com/tamcore/motus/internal/storage/repository"
 )
 
-// Config holds all CLI flags.
+// Config holds all CLI flags; see NewCmd for their help text.
 type Config struct {
-	// Source: dump file mode
-	SourceDump string // --source-dump: path to Traccar PostgreSQL dump file
+	SourceDump string
 
-	// Source: live database mode
-	SourceDBHost string // --source-dbhost
-	SourceDBPort int    // --source-dbport
-	SourceDBName string // --source-dbname
-	SourceDBUser string // --source-dbuser
-	SourceDBPass string // --source-dbpass
+	SourceDBHost string
+	SourceDBPort int
+	SourceDBName string
+	SourceDBUser string
+	SourceDBPass string
 
 	TargetHost     string
 	TargetPort     int
@@ -43,24 +45,19 @@ type Config struct {
 	TargetPassword string
 
 	AdminEmail   string
-	DeviceFilter string // Only import devices matching this unique_id or name
+	DeviceFilter string
 	MaxPositions int
 	RecentDays   int
 	Verbose      bool
 	DryRun       bool
 
-	// Import scope flags control which data types get imported.
 	ImportDevices   bool
 	ImportPositions bool
 	ImportGeofences bool
 	ImportCalendars bool
 
-	// ExcludeUnknown skips devices with status "unknown" during import.
 	ExcludeUnknown bool
-
-	// GeocodeLastN enables reverse geocoding for the last N imported positions.
-	// Set to 0 to disable geocoding. Default: 100.
-	GeocodeLastN int
+	GeocodeLastN   int
 }
 
 // sourceMode returns "dump" or "db" based on which source flags were set.
@@ -297,21 +294,15 @@ func runImport(config *Config) error {
 		return nil
 	}
 
-	// Connect to target database
-	connStr := fmt.Sprintf(
+	pool, err := repository.Connect(ctx, fmt.Sprintf(
 		"postgres://%s:%s@%s:%d/%s?sslmode=disable",
 		config.TargetUser, config.TargetPassword,
 		config.TargetHost, config.TargetPort, config.TargetDB,
-	)
-	pool, err := pgxpool.New(ctx, connStr)
+	))
 	if err != nil {
-		return fmt.Errorf("connect to target: %w", err)
+		return fmt.Errorf("target: %w", err)
 	}
 	defer pool.Close()
-
-	if err := pool.Ping(ctx); err != nil {
-		return fmt.Errorf("ping target: %w", err)
-	}
 	slog.Info("connected to target database")
 
 	// Look up admin user
@@ -322,44 +313,28 @@ func runImport(config *Config) error {
 	}
 	slog.Info("admin user found", slog.Int64("id", adminID), slog.String("email", config.AdminEmail))
 
-	// Import devices
 	var deviceMap map[int64]int64
 	if config.ImportDevices && len(devices) > 0 {
-		deviceMap, err = importDevices(ctx, pool, devices, adminID, config)
-		if err != nil {
-			return fmt.Errorf("import devices: %w", err)
-		}
+		deviceMap = importDevices(ctx, pool, devices, adminID, config)
 	}
 
-	// Import positions (requires deviceMap from device import)
 	if config.ImportPositions && len(positions) > 0 && len(deviceMap) > 0 {
 		if err := importPositions(ctx, pool, positions, deviceMap, config); err != nil {
 			return fmt.Errorf("import positions: %w", err)
 		}
-
-		// Update device lastUpdate from latest imported position timestamp
-		if err := updateDeviceLastUpdate(ctx, pool, deviceMap); err != nil {
-			return fmt.Errorf("update device last updates: %w", err)
-		}
+		updateDeviceLastUpdate(ctx, pool, deviceMap)
 	}
 
-	// Import calendars (before geofences, since geofences may reference calendars).
+	// Calendars go first because geofences reference them.
 	var calendarMap map[int64]int64
 	if config.ImportCalendars && len(calendars) > 0 {
-		calendarMap, err = importCalendars(ctx, pool, calendars, adminID, config)
-		if err != nil {
-			return fmt.Errorf("import calendars: %w", err)
-		}
+		calendarMap = importCalendars(ctx, pool, calendars, adminID, config)
 	}
 
-	// Import geofences (with calendar associations).
 	if config.ImportGeofences && len(geofences) > 0 {
-		if err := importGeofences(ctx, pool, geofences, adminID, calendarMap, config); err != nil {
-			return fmt.Errorf("import geofences: %w", err)
-		}
+		importGeofences(ctx, pool, geofences, adminID, calendarMap, config)
 	}
 
-	// Geocode last N positions if enabled (works on existing positions too)
 	if config.GeocodeLastN > 0 {
 		if err := geocodeRecentPositions(ctx, pool, config); err != nil {
 			slog.Warn("geocoding failed", slog.Any("error", err))
@@ -545,19 +520,13 @@ func parseDump(config *Config) ([]TraccarDevice, []TraccarPosition, []TraccarGeo
 // devices, positions, geofences, and calendars. The signature mirrors parseDump
 // so all downstream import functions are unchanged.
 func extractFromDB(ctx context.Context, config *Config) ([]TraccarDevice, []TraccarPosition, []TraccarGeofence, []TraccarCalendar, error) {
-	connStr := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable",
+	pool, err := repository.Connect(ctx, fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable",
 		config.SourceDBUser, config.SourceDBPass,
-		config.SourceDBHost, config.SourceDBPort, config.SourceDBName)
-
-	pool, err := pgxpool.New(ctx, connStr)
+		config.SourceDBHost, config.SourceDBPort, config.SourceDBName))
 	if err != nil {
-		return nil, nil, nil, nil, fmt.Errorf("connect to source: %w", err)
+		return nil, nil, nil, nil, fmt.Errorf("source: %w", err)
 	}
 	defer pool.Close()
-
-	if err := pool.Ping(ctx); err != nil {
-		return nil, nil, nil, nil, fmt.Errorf("ping source: %w", err)
-	}
 	slog.Info("connected to source traccar database")
 
 	var (
@@ -567,7 +536,6 @@ func extractFromDB(ctx context.Context, config *Config) ([]TraccarDevice, []Trac
 		calendars []TraccarCalendar
 	)
 
-	// --- Devices ---
 	var allowedIDs []int64 // IDs of all returned devices, used to filter positions
 
 	if config.ImportDevices {
@@ -577,37 +545,32 @@ func extractFromDB(ctx context.Context, config *Config) ([]TraccarDevice, []Trac
 		FROM tc_devices`
 		var conditions []string
 		var devArgs []any
-		argN := 1
 
 		if config.ExcludeUnknown {
 			conditions = append(conditions, "status != 'unknown'")
 			slog.Info("excluding devices with status 'unknown'")
 		}
 		if config.DeviceFilter != "" {
-			conditions = append(conditions, fmt.Sprintf("(uniqueid = $%d OR name = $%d)", argN, argN))
+			conditions = append(conditions, "(uniqueid = $1 OR name = $1)")
 			devArgs = append(devArgs, config.DeviceFilter)
-			argN++
 			slog.Info("device filter active", slog.String("filter", config.DeviceFilter))
 		}
 		if len(conditions) > 0 {
 			devQ += " WHERE " + strings.Join(conditions, " AND ")
 		}
 		devQ += " ORDER BY id"
-		_ = argN // may not be used further
 
 		devRows, err := pool.Query(ctx, devQ, devArgs...)
 		if err != nil {
 			return nil, nil, nil, nil, fmt.Errorf("query tc_devices: %w", err)
 		}
-		defer devRows.Close()
-
-		for devRows.Next() {
-			var d TraccarDevice
-			if err := devRows.Scan(&d.ID, &d.Name, &d.UniqueID, &d.Phone, &d.Model, &d.Category, &d.Disabled, &d.Status); err != nil {
-				return nil, nil, nil, nil, fmt.Errorf("scan device: %w", err)
-			}
+		devices, err = pgx.CollectRows(devRows, pgx.RowToStructByPos[TraccarDevice])
+		if err != nil {
+			return nil, nil, nil, nil, fmt.Errorf("read tc_devices: %w", err)
+		}
+		for i := range devices {
+			d := &devices[i]
 			d.Status = strings.TrimSpace(d.Status)
-			devices = append(devices, d)
 			allowedIDs = append(allowedIDs, d.ID)
 
 			if config.Verbose {
@@ -618,21 +581,10 @@ func extractFromDB(ctx context.Context, config *Config) ([]TraccarDevice, []Trac
 					slog.String("status", d.Status))
 			}
 		}
-		if err := devRows.Err(); err != nil {
-			return nil, nil, nil, nil, fmt.Errorf("iterate tc_devices: %w", err)
-		}
-		devRows.Close()
-
 		slog.Info("devices loaded", slog.Int("count", len(devices)))
 	}
 
-	// --- Positions ---
 	if config.ImportPositions {
-		if config.RecentDays > 0 {
-			cutoffTime := time.Now().AddDate(0, 0, -config.RecentDays)
-			slog.Info("position cutoff set", slog.String("after", cutoffTime.Format("2006-01-02")))
-		}
-
 		posQ := `SELECT id, COALESCE(protocol,''), deviceid,
 			servertime, devicetime, fixtime, valid,
 			latitude, longitude, altitude, speed, course,
@@ -649,6 +601,7 @@ func extractFromDB(ctx context.Context, config *Config) ([]TraccarDevice, []Trac
 		}
 		if config.RecentDays > 0 {
 			cutoff := time.Now().AddDate(0, 0, -config.RecentDays)
+			slog.Info("position cutoff set", slog.String("after", cutoff.Format("2006-01-02")))
 			conditions = append(conditions, fmt.Sprintf("fixtime >= $%d", argN))
 			posArgs = append(posArgs, cutoff)
 			argN++
@@ -665,34 +618,13 @@ func extractFromDB(ctx context.Context, config *Config) ([]TraccarDevice, []Trac
 		if err != nil {
 			return nil, nil, nil, nil, fmt.Errorf("query tc_positions: %w", err)
 		}
-		defer posRows.Close()
-
-		positionCount := 0
-		for posRows.Next() {
-			var p TraccarPosition
-			if err := posRows.Scan(
-				&p.ID, &p.Protocol, &p.DeviceID,
-				&p.ServerTime, &p.DeviceTime, &p.FixTime, &p.Valid,
-				&p.Latitude, &p.Longitude, &p.Altitude, &p.Speed, &p.Course,
-				&p.Address, &p.Attributes,
-			); err != nil {
-				return nil, nil, nil, nil, fmt.Errorf("scan position: %w", err)
-			}
-			positions = append(positions, p)
-			positionCount++
-			if positionCount%10000 == 0 {
-				slog.Info("loading positions", slog.Int("count", positionCount))
-			}
+		positions, err = pgx.CollectRows(posRows, pgx.RowToStructByPos[TraccarPosition])
+		if err != nil {
+			return nil, nil, nil, nil, fmt.Errorf("read tc_positions: %w", err)
 		}
-		if err := posRows.Err(); err != nil {
-			return nil, nil, nil, nil, fmt.Errorf("iterate tc_positions: %w", err)
-		}
-		posRows.Close()
-
 		slog.Info("positions loaded", slog.Int("count", len(positions)))
 	}
 
-	// --- Geofences ---
 	if config.ImportGeofences {
 		geoRows, err := pool.Query(ctx, `
 			SELECT id, name, COALESCE(description,''), area, calendarid
@@ -700,26 +632,13 @@ func extractFromDB(ctx context.Context, config *Config) ([]TraccarDevice, []Trac
 		if err != nil {
 			return nil, nil, nil, nil, fmt.Errorf("query tc_geofences: %w", err)
 		}
-		defer geoRows.Close()
-
-		for geoRows.Next() {
-			var g TraccarGeofence
-			var calID *int64
-			if err := geoRows.Scan(&g.ID, &g.Name, &g.Description, &g.Area, &calID); err != nil {
-				return nil, nil, nil, nil, fmt.Errorf("scan geofence: %w", err)
-			}
-			g.CalendarID = calID
-			geofences = append(geofences, g)
+		geofences, err = pgx.CollectRows(geoRows, pgx.RowToStructByPos[TraccarGeofence])
+		if err != nil {
+			return nil, nil, nil, nil, fmt.Errorf("read tc_geofences: %w", err)
 		}
-		if err := geoRows.Err(); err != nil {
-			return nil, nil, nil, nil, fmt.Errorf("iterate tc_geofences: %w", err)
-		}
-		geoRows.Close()
-
 		slog.Info("geofences loaded", slog.Int("count", len(geofences)))
 	}
 
-	// --- Calendars ---
 	// pgx returns BYTEA as []byte (already decoded from hex by the driver).
 	// importCalendars then applies the existing base64 decode + normalizeTraccarCalendar.
 	if config.ImportCalendars {
@@ -895,7 +814,7 @@ func parseCalendar(line string) (TraccarCalendar, error) {
 
 // importDevices inserts devices into the Motus database and returns a mapping
 // from Traccar device ID to Motus device ID.
-func importDevices(ctx context.Context, pool *pgxpool.Pool, devices []TraccarDevice, adminID int64, config *Config) (map[int64]int64, error) {
+func importDevices(ctx context.Context, pool *pgxpool.Pool, devices []TraccarDevice, adminID int64, config *Config) map[int64]int64 {
 	slog.Info("importing devices")
 
 	deviceMap := make(map[int64]int64) // traccar ID -> motus ID
@@ -969,17 +888,12 @@ func importDevices(ctx context.Context, pool *pgxpool.Pool, devices []TraccarDev
 	}
 
 	slog.Info("devices imported", slog.Int("imported", imported), slog.Int("mapped", len(deviceMap)))
-	return deviceMap, nil
+	return deviceMap
 }
 
 // importPositions inserts positions into the Motus database in batches.
 func importPositions(ctx context.Context, pool *pgxpool.Pool, positions []TraccarPosition, deviceMap map[int64]int64, config *Config) error {
 	slog.Info("importing positions", slog.Int("count", len(positions)))
-
-	if len(positions) == 0 {
-		slog.Info("no positions to import")
-		return nil
-	}
 
 	const batchSize = 500
 	imported := 0
@@ -1046,7 +960,7 @@ func importPositions(ctx context.Context, pool *pgxpool.Pool, positions []Tracca
 // updateDeviceLastUpdate sets each device's last_update to the latest position
 // timestamp for that device. This ensures imported devices show a meaningful
 // "last seen" value rather than NULL.
-func updateDeviceLastUpdate(ctx context.Context, pool *pgxpool.Pool, deviceMap map[int64]int64) error {
+func updateDeviceLastUpdate(ctx context.Context, pool *pgxpool.Pool, deviceMap map[int64]int64) {
 	slog.Info("updating device lastUpdate timestamps")
 
 	updated := 0
@@ -1069,7 +983,6 @@ func updateDeviceLastUpdate(ctx context.Context, pool *pgxpool.Pool, deviceMap m
 	}
 
 	slog.Info("updated device lastUpdate timestamps", slog.Int("updated", updated))
-	return nil
 }
 
 // logParsedData prints a summary of parsed data in dry-run mode.
@@ -1114,21 +1027,11 @@ func logParsedData(devices []TraccarDevice, positions []TraccarPosition, geofenc
 	}
 
 	if len(positions) > 0 {
-		// Find time range
-		earliest := positions[0].FixTime
-		latest := positions[0].FixTime
-		for _, p := range positions {
-			if p.FixTime.Before(earliest) {
-				earliest = p.FixTime
-			}
-			if p.FixTime.After(latest) {
-				latest = p.FixTime
-			}
-		}
+		byFixTime := func(a, b TraccarPosition) int { return a.FixTime.Compare(b.FixTime) }
 		slog.Info("positions summary",
 			slog.Int("total", len(positions)),
-			slog.String("from", earliest.Format("2006-01-02")),
-			slog.String("to", latest.Format("2006-01-02")))
+			slog.String("from", slices.MinFunc(positions, byFixTime).FixTime.Format("2006-01-02")),
+			slog.String("to", slices.MaxFunc(positions, byFixTime).FixTime.Format("2006-01-02")))
 	}
 }
 
@@ -1136,7 +1039,7 @@ func logParsedData(devices []TraccarDevice, positions []TraccarPosition, geofenc
 // Traccar stores WKT in latitude,longitude order but PostGIS expects longitude,latitude.
 // We swap the coordinates before inserting, and handle Traccar's CIRCLE format by converting
 // it to a buffered point using ST_Buffer.
-func importGeofences(ctx context.Context, pool *pgxpool.Pool, geofences []TraccarGeofence, adminID int64, calendarMap map[int64]int64, config *Config) error {
+func importGeofences(ctx context.Context, pool *pgxpool.Pool, geofences []TraccarGeofence, adminID int64, calendarMap map[int64]int64, config *Config) {
 	slog.Info("importing geofences", slog.Int("count", len(geofences)))
 
 	imported := 0
@@ -1145,10 +1048,6 @@ func importGeofences(ctx context.Context, pool *pgxpool.Pool, geofences []Tracca
 			slog.Debug("importing geofence",
 				slog.String("name", g.Name),
 				slog.String("areaPreview", g.Area[:min(60, len(g.Area))]))
-		}
-
-		if config.DryRun {
-			continue
 		}
 
 		var geofenceID int64
@@ -1220,13 +1119,12 @@ func importGeofences(ctx context.Context, pool *pgxpool.Pool, geofences []Tracca
 	}
 
 	slog.Info("geofences imported", slog.Int("imported", imported))
-	return nil
 }
 
 // importCalendars inserts calendars into the Motus database and returns a mapping
 // from Traccar calendar ID to Motus calendar ID.
 // Traccar stores calendar data as base64-encoded iCalendar.
-func importCalendars(ctx context.Context, pool *pgxpool.Pool, calendars []TraccarCalendar, adminID int64, config *Config) (map[int64]int64, error) {
+func importCalendars(ctx context.Context, pool *pgxpool.Pool, calendars []TraccarCalendar, adminID int64, config *Config) map[int64]int64 {
 	slog.Info("importing calendars", slog.Int("count", len(calendars)))
 
 	calendarMap := make(map[int64]int64) // traccar ID -> motus ID
@@ -1282,7 +1180,7 @@ func importCalendars(ctx context.Context, pool *pgxpool.Pool, calendars []Tracca
 	}
 
 	slog.Info("calendars imported", slog.Int("imported", imported))
-	return calendarMap, nil
+	return calendarMap
 }
 
 // normalizeTraccarCalendar fixes malformed Traccar iCalendar data where DTEND
@@ -1321,11 +1219,11 @@ func normalizeTraccarCalendar(icalData string) string {
 		return icalData
 	}
 
-	dtstart, err := parseICalTimestamp(start.Value)
+	dtstart, err := calendar.ParseValue(start.Value)
 	if err != nil {
 		return icalData
 	}
-	dtend, err := parseICalTimestamp(end.Value)
+	dtend, err := calendar.ParseValue(end.Value)
 	if err != nil {
 		return icalData
 	}
@@ -1341,22 +1239,6 @@ func normalizeTraccarCalendar(icalData string) string {
 		lineEnding = ics.WithNewLineUnix
 	}
 	return cal.Serialize(lineEnding)
-}
-
-// parseICalTimestamp parses a bare iCalendar timestamp value (no property prefix).
-// Handles: 20251105T200000, 20251105T200000Z, 20251105
-func parseICalTimestamp(val string) (time.Time, error) {
-	for _, layout := range []string{
-		"20060102T150405Z",
-		"20060102T150405",
-		"20060102",
-	} {
-		t, err := time.Parse(layout, val)
-		if err == nil {
-			return t, nil
-		}
-	}
-	return time.Time{}, fmt.Errorf("cannot parse iCal timestamp %q", val)
 }
 
 // adjustedDTEnd returns the DTEND value for one occurrence: the DTSTART date with
@@ -1382,8 +1264,6 @@ func adjustedDTEnd(dtstart, dtend time.Time, startVal string) string {
 	}
 }
 
-// --- Helpers ---
-
 // isTraccarCircle checks if the WKT is a Traccar-style CIRCLE.
 // Traccar uses: CIRCLE (lat lon, radius)
 func isTraccarCircle(wkt string) bool {
@@ -1401,14 +1281,13 @@ func parseTraccarCircle(wkt string) (lat, lon, radius float64, err error) {
 	s = strings.TrimSuffix(s, ")")
 	s = strings.TrimSpace(s)
 
-	// Split into "lat lon" and "radius".
-	parts := strings.SplitN(s, ",", 2)
-	if len(parts) != 2 {
+	center, radiusStr, ok := strings.Cut(s, ",")
+	if !ok {
 		return 0, 0, 0, fmt.Errorf("expected 'lat lon, radius' in CIRCLE, got: %s", wkt)
 	}
 
-	// Parse lat lon (Traccar order: lat first).
-	coords := strings.Fields(strings.TrimSpace(parts[0]))
+	// Traccar order: lat first.
+	coords := strings.Fields(center)
 	if len(coords) != 2 {
 		return 0, 0, 0, fmt.Errorf("expected 2 coordinates in CIRCLE center, got %d", len(coords))
 	}
@@ -1421,7 +1300,7 @@ func parseTraccarCircle(wkt string) (lat, lon, radius float64, err error) {
 		return 0, 0, 0, fmt.Errorf("parse lon: %w", err)
 	}
 
-	radius, err = strconv.ParseFloat(strings.TrimSpace(parts[1]), 64)
+	radius, err = strconv.ParseFloat(strings.TrimSpace(radiusStr), 64)
 	if err != nil {
 		return 0, 0, 0, fmt.Errorf("parse radius: %w", err)
 	}
@@ -1451,13 +1330,7 @@ func parseTimestamp(s string) (time.Time, error) {
 	if s == `\N` || s == "" {
 		return time.Time{}, fmt.Errorf("null timestamp")
 	}
-	// Try common formats
-	for _, layout := range []string{
-		"2006-01-02 15:04:05.999999",
-		"2006-01-02 15:04:05",
-		"2006-01-02T15:04:05Z",
-		time.RFC3339,
-	} {
+	for _, layout := range []string{"2006-01-02 15:04:05.999999", time.RFC3339} {
 		t, err := time.Parse(layout, s)
 		if err == nil {
 			return t, nil

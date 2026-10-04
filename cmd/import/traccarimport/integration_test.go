@@ -63,10 +63,7 @@ func TestImportDevices_Integration(t *testing.T) {
 	}
 
 	config := &Config{Verbose: true}
-	deviceMap, err := importDevices(ctx, pool, devices, adminID, config)
-	if err != nil {
-		t.Fatalf("importDevices: %v", err)
-	}
+	deviceMap := importDevices(ctx, pool, devices, adminID, config)
 
 	if len(deviceMap) != 4 {
 		t.Errorf("deviceMap len = %d, want 4", len(deviceMap))
@@ -119,10 +116,7 @@ func TestImportDevices_Integration(t *testing.T) {
 	}
 
 	// Re-importing the same devices (upsert) must not error.
-	_, err = importDevices(ctx, pool, devices[:1], adminID, config)
-	if err != nil {
-		t.Errorf("upsert importDevices: %v", err)
-	}
+	importDevices(ctx, pool, devices[:1], adminID, config)
 }
 
 // TestImportPositions_Integration verifies batch insertion, device mapping,
@@ -144,10 +138,7 @@ func TestImportPositions_Integration(t *testing.T) {
 		{ID: 10, Name: "TestCar", UniqueID: "POS-001", Status: "offline"},
 	}
 	config := &Config{Verbose: true}
-	deviceMap, err := importDevices(ctx, pool, devices, adminID, config)
-	if err != nil {
-		t.Fatalf("importDevices: %v", err)
-	}
+	deviceMap := importDevices(ctx, pool, devices, adminID, config)
 
 	now := time.Now().UTC()
 	positions := []TraccarPosition{
@@ -196,12 +187,9 @@ func TestUpdateDeviceLastUpdate_Integration(t *testing.T) {
 	}
 
 	config := &Config{}
-	deviceMap, err := importDevices(ctx, pool, []TraccarDevice{
+	deviceMap := importDevices(ctx, pool, []TraccarDevice{
 		{ID: 20, Name: "LU Car", UniqueID: "LU-001", Status: "offline"},
 	}, adminID, config)
-	if err != nil {
-		t.Fatalf("importDevices: %v", err)
-	}
 
 	oldest := time.Date(2026, 1, 1, 8, 0, 0, 0, time.UTC)
 	newest := time.Date(2026, 1, 2, 9, 0, 0, 0, time.UTC)
@@ -213,9 +201,7 @@ func TestUpdateDeviceLastUpdate_Integration(t *testing.T) {
 		t.Fatalf("importPositions: %v", err)
 	}
 
-	if err := updateDeviceLastUpdate(ctx, pool, deviceMap); err != nil {
-		t.Fatalf("updateDeviceLastUpdate: %v", err)
-	}
+	updateDeviceLastUpdate(ctx, pool, deviceMap)
 
 	motusID := deviceMap[20]
 	var lastUpdate *time.Time
@@ -269,10 +255,7 @@ func TestImportCalendars_Integration(t *testing.T) {
 	}
 
 	config := &Config{Verbose: true}
-	calMap, err := importCalendars(ctx, pool, calendars, adminID, config)
-	if err != nil {
-		t.Fatalf("importCalendars: %v", err)
-	}
+	calMap := importCalendars(ctx, pool, calendars, adminID, config)
 
 	if len(calMap) != 3 {
 		t.Fatalf("calMap len = %d, want 3", len(calMap))
@@ -345,9 +328,7 @@ func TestImportGeofences_Integration(t *testing.T) {
 	}
 
 	config := &Config{Verbose: true}
-	if err := importGeofences(ctx, pool, geofences, adminID, calMap, config); err != nil {
-		t.Fatalf("importGeofences: %v", err)
-	}
+	importGeofences(ctx, pool, geofences, adminID, calMap, config)
 
 	var count int
 	if err := pool.QueryRow(ctx, "SELECT COUNT(*) FROM geofences").Scan(&count); err != nil {
@@ -386,25 +367,6 @@ func TestImportGeofences_Integration(t *testing.T) {
 	}
 	if count != 2 {
 		t.Errorf("user_geofences count = %d, want 2", count)
-	}
-
-	// DryRun=true: geofences are not inserted.
-	testutil.CleanTables(t, pool)
-	if err := pool.QueryRow(ctx,
-		"INSERT INTO users (email, password_hash, name, role) VALUES ($1, 'hash', 'Admin2', 'admin') RETURNING id",
-		"admin2@geofences.local",
-	).Scan(&adminID); err != nil {
-		t.Fatalf("re-seed admin: %v", err)
-	}
-	dryConfig := &Config{DryRun: true, Verbose: true}
-	if err := importGeofences(ctx, pool, geofences, adminID, nil, dryConfig); err != nil {
-		t.Errorf("dry-run importGeofences: %v", err)
-	}
-	if err := pool.QueryRow(ctx, "SELECT COUNT(*) FROM geofences").Scan(&count); err != nil {
-		t.Fatalf("count geofences after dry-run: %v", err)
-	}
-	if count != 0 {
-		t.Errorf("dry-run should not insert geofences, got %d", count)
 	}
 }
 
@@ -876,9 +838,7 @@ func TestImportGeofences_CircleParseError(t *testing.T) {
 		{ID: 1, Name: "Bad Circle", Area: "CIRCLE (no comma here)"},
 	}
 	config := &Config{Verbose: true}
-	if err := importGeofences(ctx, pool, geofences, adminID, nil, config); err != nil {
-		t.Errorf("importGeofences with bad CIRCLE should not return error, got: %v", err)
-	}
+	importGeofences(ctx, pool, geofences, adminID, nil, config)
 
 	// The geofence should NOT have been inserted.
 	var count int
@@ -910,9 +870,7 @@ func TestImportGeofences_InvalidWKT(t *testing.T) {
 		{ID: 1, Name: "Bad WKT Fence", Area: "NOTVALID_WKT"},
 	}
 	config := &Config{Verbose: true}
-	if err := importGeofences(ctx, pool, geofences, adminID, nil, config); err != nil {
-		t.Errorf("importGeofences with invalid WKT should not return error, got: %v", err)
-	}
+	importGeofences(ctx, pool, geofences, adminID, nil, config)
 
 	var count int
 	if err := pool.QueryRow(ctx, "SELECT COUNT(*) FROM geofences").Scan(&count); err != nil {

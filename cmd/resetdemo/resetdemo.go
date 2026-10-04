@@ -6,16 +6,17 @@
 package resetdemo
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"log/slog"
 	"os"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/spf13/cobra"
 	"github.com/tamcore/motus/internal/config"
 	"github.com/tamcore/motus/internal/demo"
+	"github.com/tamcore/motus/internal/storage/repository"
 )
 
 // NewCmd returns a cobra command for the reset-demo subcommand.
@@ -32,26 +33,15 @@ func NewCmd() *cobra.Command {
 				os.Exit(1)
 			}
 
-			// Use explicit DB URL if provided, otherwise fall back to config.
-			connURL := dbURL
-			if connURL == "" {
-				connURL = cfg.Database.URL()
-			}
-
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			defer cancel()
 
-			pool, err := pgxpool.New(ctx, connURL)
+			pool, err := repository.Connect(ctx, cmp.Or(dbURL, cfg.Database.URL()))
 			if err != nil {
-				slog.Error("failed to connect to database", slog.Any("error", err))
+				slog.Error("database connection failed", slog.Any("error", err))
 				os.Exit(1)
 			}
 			defer pool.Close()
-
-			if err := pool.Ping(ctx); err != nil {
-				slog.Error("failed to ping database", slog.Any("error", err))
-				os.Exit(1)
-			}
 
 			result, err := demo.Reset(ctx, pool, demo.DefaultAccounts, cfg.Demo.DeviceIMEIs)
 			if err != nil {

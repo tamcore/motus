@@ -8,7 +8,6 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/spf13/cobra"
-	"github.com/tamcore/motus/internal/config"
 )
 
 func newWaitForDBCmd() *cobra.Command {
@@ -19,19 +18,7 @@ func newWaitForDBCmd() *cobra.Command {
 		Use:   "wait-for-db",
 		Short: "Wait until the database is reachable",
 		Run: func(cmd *cobra.Command, args []string) {
-			if dbURL == "" {
-				cfg, err := config.LoadFromEnv()
-				if err != nil {
-					slog.Error("failed to load config", slog.Any("error", err))
-					os.Exit(1)
-				}
-				dbURL = cfg.Database.URL()
-			}
-			if dbURL == "" {
-				slog.Error("database URL required (--db-url, POSTGRES_URI, or MOTUS_DATABASE_* env vars)")
-				os.Exit(1)
-			}
-
+			dbURL := dbURLOrConfig(dbURL)
 			ctx, cancel := context.WithTimeout(context.Background(), timeout)
 			defer cancel()
 

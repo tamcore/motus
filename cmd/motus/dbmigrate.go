@@ -9,7 +9,6 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 	"github.com/spf13/cobra"
-	"github.com/tamcore/motus/internal/config"
 	"github.com/tamcore/motus/migrations"
 )
 
@@ -25,20 +24,7 @@ The optional [command] argument is passed directly to goose (default: up).
 Available goose commands: up, up-one, down, down-to, redo, status, version, reset.`,
 		Args: cobra.MaximumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			if dbURL == "" {
-				cfg, err := config.LoadFromEnv()
-				if err != nil {
-					slog.Error("failed to load config", slog.Any("error", err))
-					os.Exit(1)
-				}
-				dbURL = cfg.Database.URL()
-			}
-			if dbURL == "" {
-				slog.Error("database URL required (--db-url, POSTGRES_URI, or MOTUS_DATABASE_* env vars)")
-				os.Exit(1)
-			}
-
-			db, err := sql.Open("pgx", dbURL)
+			db, err := sql.Open("pgx", dbURLOrConfig(dbURL))
 			if err != nil {
 				slog.Error("failed to open database", slog.Any("error", err))
 				os.Exit(1)

@@ -1712,24 +1712,6 @@ func TestSourceMode(t *testing.T) {
 	}
 }
 
-func TestParseICalTimestamp_Formats(t *testing.T) {
-	tests := []struct {
-		input   string
-		wantErr bool
-	}{
-		{"20260115T090000Z", false},
-		{"20260115T090000", false},
-		{"20260115", false},
-		{"not-a-timestamp", true},
-	}
-	for _, tt := range tests {
-		_, err := parseICalTimestamp(tt.input)
-		if (err != nil) != tt.wantErr {
-			t.Errorf("parseICalTimestamp(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
-		}
-	}
-}
-
 func TestParseTraccarCircle_Errors(t *testing.T) {
 	tests := []struct {
 		name  string

@@ -502,16 +502,53 @@
 			border-color: var(--border-hover);
 		}
 
-		.settings-page .message {
-			padding: var(--space-3) var(--space-4);
-			border-radius: var(--radius-md);
-			font-size: var(--text-sm);
+		.settings-page .session-badge,
+		.settings-page .permission-badge {
+			display: inline-flex;
+			align-items: center;
+			padding: var(--space-1) var(--space-2);
+			border-radius: var(--radius-sm);
+			font-size: var(--text-xs);
+			font-weight: var(--font-medium);
+			text-transform: uppercase;
+			letter-spacing: 0.05em;
 		}
 
-		.settings-page .message.error {
-			background-color: rgba(255, 68, 68, 0.1);
+		.settings-page .badge-current,
+		.settings-page .badge-full {
+			background-color: rgba(0, 212, 255, 0.15);
+			color: var(--accent-primary);
+			border: 1px solid rgba(0, 212, 255, 0.3);
+		}
+
+		.settings-page .badge-temporary,
+		.settings-page .badge-readonly {
+			background-color: rgba(255, 170, 0, 0.15);
+			color: var(--warning);
+			border: 1px solid rgba(255, 170, 0, 0.3);
+		}
+
+		.settings-page .badge-apikey {
+			background-color: rgba(168, 85, 247, 0.15);
+			color: #a855f7;
+			border: 1px solid rgba(168, 85, 247, 0.3);
+			text-transform: none;
+		}
+
+		.settings-page .badge-persistent {
+			background-color: rgba(0, 255, 136, 0.15);
+			color: var(--success);
+			border: 1px solid rgba(0, 255, 136, 0.3);
+		}
+
+		.settings-page .badge-expired {
+			background-color: rgba(255, 68, 68, 0.15);
 			color: var(--error);
-			border: 1px solid var(--error);
+			border: 1px solid rgba(255, 68, 68, 0.3);
+		}
+
+		.settings-page .form-error {
+			padding: var(--space-3) var(--space-4);
 		}
 
 		@media (max-width: 768px) {
@@ -567,58 +604,12 @@
 
 	.input {
 		width: 100%;
-		padding: var(--space-3) var(--space-4);
 		background-color: var(--bg-primary);
-		border: 1px solid var(--border-color);
-		border-radius: var(--radius-md);
-		color: var(--text-primary);
-		font-size: var(--text-base);
-		transition: border-color var(--transition-fast);
-		box-sizing: border-box;
-	}
-
-	.input:hover {
-		border-color: var(--border-hover);
-	}
-
-	.input:focus {
-		outline: none;
-		border-color: var(--accent-primary);
-		box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
 	}
 
 	.opacity-range {
 		width: 100%;
-		height: 6px;
-		-webkit-appearance: none;
-		appearance: none;
-		background: var(--bg-tertiary);
-		border-radius: 3px;
-		outline: none;
-		cursor: pointer;
 		margin-top: var(--space-1);
-	}
-
-	.opacity-range::-webkit-slider-thumb {
-		-webkit-appearance: none;
-		appearance: none;
-		width: 18px;
-		height: 18px;
-		border-radius: 50%;
-		background: var(--accent-primary);
-		cursor: pointer;
-		border: 2px solid var(--bg-secondary);
-		box-shadow: var(--shadow-sm);
-	}
-
-	.opacity-range::-moz-range-thumb {
-		width: 18px;
-		height: 18px;
-		border-radius: 50%;
-		background: var(--accent-primary);
-		cursor: pointer;
-		border: 2px solid var(--bg-secondary);
-		box-shadow: var(--shadow-sm);
 	}
 
 	.map-coords {

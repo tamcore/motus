@@ -956,17 +956,8 @@
 	}
 
 	.locate-error {
-		position: absolute;
 		top: calc(var(--space-3) + 36px + var(--space-2));
 		right: calc(var(--space-3) + 36px + var(--space-2));
-		z-index: 500;
-		max-width: 200px;
-		padding: var(--space-2) var(--space-3);
-		background-color: rgba(255, 68, 68, 0.15);
-		border: 1px solid rgba(255, 68, 68, 0.4);
-		border-radius: var(--radius-md);
-		font-size: var(--text-xs);
-		color: var(--error);
 	}
 
 	/* Override Leaflet Draw toolbar for dark theme */
@@ -1060,10 +1051,5 @@
 			border-right: none;
 			border-bottom: 1px solid var(--border-color);
 		}
-	}
-
-	.fence-item.other-user {
-		border-left: 3px solid var(--warning);
-		background: color-mix(in srgb, var(--warning) 4%, transparent);
 	}
 </style>

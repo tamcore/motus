@@ -221,7 +221,7 @@
 			</div>
 		{:else}
 			<div class="table-wrapper">
-				<table class="audit-table">
+				<table class="audit-table data-table">
 					<thead>
 						<tr>
 							<th>Time</th>
@@ -356,43 +356,8 @@
 	/* Empty state */
 
 	/* Table */
-	.audit-table {
-		width: 100%;
-		border-collapse: collapse;
-	}
-
-	.audit-table th {
-		text-align: left;
-		padding: var(--space-3) var(--space-4);
-		font-size: var(--text-xs);
-		font-weight: var(--font-semibold);
-		color: var(--text-secondary);
-		text-transform: uppercase;
-		letter-spacing: 0.5px;
-		border-bottom: 1px solid var(--border-color);
-		background-color: var(--bg-tertiary);
-	}
-
-	.audit-table td {
-		padding: var(--space-3) var(--space-4);
-		border-bottom: 1px solid var(--border-color);
-		font-size: var(--text-sm);
-		color: var(--text-primary);
-		vertical-align: middle;
-	}
-
-	.audit-table tbody tr:last-child td {
-		border-bottom: none;
-	}
-
-	.audit-table tbody tr:hover {
-		background-color: var(--bg-hover);
-	}
-
 	.time-cell {
 		white-space: nowrap;
-		color: var(--text-secondary);
-		font-size: var(--text-xs);
 		font-family: monospace;
 	}
 
@@ -481,7 +446,6 @@
 
 	/* Details */
 	.details-col {
-		text-align: center;
 		width: 80px;
 	}
 

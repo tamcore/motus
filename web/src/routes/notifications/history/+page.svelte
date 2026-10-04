@@ -313,22 +313,10 @@
 	}
 
 	.event-badge {
-		display: inline-block;
-		padding: var(--space-1) var(--space-2);
-		background-color: var(--bg-tertiary);
-		border-radius: var(--radius-sm);
-		font-size: var(--text-xs);
-		color: var(--text-secondary);
-		text-transform: uppercase;
 		white-space: nowrap;
 	}
 
 	.channel-badge {
-		display: inline-block;
-		padding: var(--space-1) var(--space-2);
-		border-radius: var(--radius-sm);
-		font-size: var(--text-xs);
-		font-weight: var(--font-medium);
 		text-transform: capitalize;
 	}
 

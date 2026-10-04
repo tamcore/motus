@@ -315,13 +315,13 @@
 			<!-- Desktop: Table view (hidden on mobile) -->
 			<div class="desktop-view">
 				<div class="table-wrapper">
-					<table class="users-table" aria-label="Users">
+					<table class="users-table data-table" aria-label="Users">
 						<thead>
 							<tr>
 								<th>User</th>
 								<th>Role</th>
 								<th>Created</th>
-								<th class="actions-col">Actions</th>
+								<th>Actions</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -386,14 +386,14 @@
 						{@const isExpanded = expandedIds.has(user.id)}
 						{@const userRole = getRoleFromUser(user)}
 						<div
-							class="user-card"
+							class="user-card list-card"
 							class:expanded={isExpanded}
 							class:is-self={user.id === currentUserId}
 							role="listitem"
 						>
 							<!-- Collapsed summary row - always visible -->
 							<div
-								class="user-summary"
+								class="user-summary list-card-summary"
 								role="button"
 								tabindex="0"
 								aria-expanded={isExpanded}
@@ -443,7 +443,7 @@
 							{#if isExpanded}
 								<div
 									id="user-detail-{user.id}"
-									class="user-detail"
+									class="user-detail list-card-detail"
 									transition:slide={{ duration: 200 }}
 								>
 									<div class="detail-grid">
@@ -674,57 +674,13 @@
 	/* Empty state */
 
 	/* ==== DESKTOP TABLE VIEW ==== */
-	.users-table {
-		width: 100%;
-		border-collapse: collapse;
-	}
-
 	.users-table th {
-		text-align: left;
-		padding: var(--space-3) var(--space-4);
-		font-size: var(--text-xs);
-		font-weight: var(--font-semibold);
-		color: var(--text-secondary);
-		text-transform: uppercase;
-		letter-spacing: 0.5px;
-		border-bottom: 1px solid var(--border-color);
-		background-color: var(--bg-tertiary);
 		white-space: nowrap;
-	}
-
-	.users-table td {
-		padding: var(--space-3) var(--space-4);
-		border-bottom: 1px solid var(--border-color);
-		font-size: var(--text-sm);
-		color: var(--text-primary);
-		vertical-align: middle;
-	}
-
-	.users-table tbody tr:last-child td {
-		border-bottom: none;
 	}
 
 	.users-table tr.is-self,
 	.table-row.is-self {
 		background-color: rgba(0, 212, 255, 0.04);
-	}
-
-	.actions-col {
-		text-align: right;
-	}
-
-	.user-avatar {
-		width: 36px;
-		height: 36px;
-		border-radius: 50%;
-		background-color: var(--accent-primary);
-		color: var(--text-inverse);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-size: var(--text-sm);
-		font-weight: var(--font-bold);
-		flex-shrink: 0;
 	}
 
 	.user-name {
@@ -747,7 +703,6 @@
 
 	.date-cell {
 		white-space: nowrap;
-		color: var(--text-secondary);
 	}
 
 	.actions-cell {
@@ -763,45 +718,8 @@
 		gap: var(--space-2);
 	}
 
-	.user-card {
-		border: 1px solid var(--border-color);
-		border-radius: var(--radius-lg);
-		background-color: var(--bg-primary);
-		overflow: hidden;
-		transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
-	}
-
-	.user-card:hover {
-		border-color: var(--border-hover);
-	}
-
-	.user-card.expanded {
-		border-color: var(--accent-primary);
-		box-shadow: 0 0 0 1px var(--accent-primary);
-	}
-
 	.user-card.is-self {
 		background-color: rgba(0, 212, 255, 0.04);
-	}
-
-	.user-summary {
-		display: flex;
-		align-items: center;
-		gap: var(--space-3);
-		padding: var(--space-3);
-		cursor: pointer;
-		user-select: none;
-		-webkit-user-select: none;
-	}
-
-	.user-summary:hover {
-		background-color: var(--bg-hover);
-	}
-
-	.user-summary:focus-visible {
-		outline: 2px solid var(--accent-primary);
-		outline-offset: -2px;
-		border-radius: var(--radius-lg);
 	}
 
 	.summary-name-row {
@@ -840,12 +758,6 @@
 		font-size: var(--text-sm);
 		color: var(--text-tertiary);
 		white-space: nowrap;
-	}
-
-	.user-detail {
-		border-top: 1px solid var(--border-color);
-		background-color: var(--bg-secondary);
-		padding: var(--space-3);
 	}
 
 	.detail-email {

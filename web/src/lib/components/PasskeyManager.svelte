@@ -112,7 +112,7 @@
 		{#if loading}
 			<p class="loading-text">Loading passkeys...</p>
 		{:else if listError}
-			<div class="message error">{listError}</div>
+			<div class="form-error">{listError}</div>
 		{:else if passkeys.length === 0}
 			<div class="empty-state">
 				<p class="empty-title">No passkeys</p>
@@ -145,7 +145,7 @@
 		{/if}
 
 		{#if actionError}
-			<div class="message error" role="alert">{actionError}</div>
+			<div class="form-error" role="alert">{actionError}</div>
 		{/if}
 	</section>
 
@@ -168,7 +168,7 @@
 			</p>
 
 			{#if createError}
-				<div class="message error">{createError}</div>
+				<div class="form-error">{createError}</div>
 			{/if}
 		</form>
 

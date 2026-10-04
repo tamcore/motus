@@ -399,15 +399,6 @@
 		line-height: 1;
 	}
 
-	.error-message {
-		padding: var(--space-3);
-		background-color: rgba(255, 68, 68, 0.1);
-		border: 1px solid var(--error);
-		border-radius: var(--radius-md);
-		color: var(--error);
-		font-size: var(--text-sm);
-	}
-
 	.change-server {
 		margin-top: var(--space-4);
 		text-align: center;

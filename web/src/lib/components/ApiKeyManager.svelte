@@ -188,7 +188,7 @@
 	{#if loading}
 		<p class="loading-text">Loading API keys...</p>
 	{:else if listError}
-		<div class="message error">{listError}</div>
+		<div class="form-error">{listError}</div>
 	{:else if apiKeys.length === 0}
 		<div class="empty-state">
 			<p class="empty-title">No API keys</p>
@@ -257,7 +257,7 @@
 	</details>
 
 	{#if actionError}
-		<div class="message error" role="alert">{actionError}</div>
+		<div class="form-error" role="alert">{actionError}</div>
 	{/if}
 </section>
 
@@ -359,7 +359,7 @@
 						<input
 							id="keyCustomDate"
 							type="date"
-							class="date-input"
+							class="field-sm"
 							bind:value={newKeyCustomDate}
 							min={getMinDate()}
 						/>
@@ -382,7 +382,7 @@
 			{/if}
 
 			{#if createError}
-				<div class="message error">{createError}</div>
+				<div class="form-error">{createError}</div>
 			{/if}
 		</form>
 	{/if}
@@ -415,35 +415,6 @@
 />
 
 <style>
-	.permission-badge {
-		display: inline-flex;
-		align-items: center;
-		padding: var(--space-1) var(--space-2);
-		border-radius: var(--radius-sm);
-		font-size: var(--text-xs);
-		font-weight: var(--font-medium);
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-	}
-
-	.badge-full {
-		background-color: rgba(0, 212, 255, 0.15);
-		color: var(--accent-primary);
-		border: 1px solid rgba(0, 212, 255, 0.3);
-	}
-
-	.badge-readonly {
-		background-color: rgba(255, 170, 0, 0.15);
-		color: var(--warning);
-		border: 1px solid rgba(255, 170, 0, 0.3);
-	}
-
-	.badge-expired {
-		background-color: rgba(255, 68, 68, 0.15);
-		color: var(--error);
-		border: 1px solid rgba(255, 68, 68, 0.3);
-	}
-
 	.key-card.key-expired {
 		opacity: 0.6;
 		border-color: var(--error);
@@ -460,14 +431,14 @@
 		font-size: var(--text-xs);
 	}
 
-	.date-input {
+	.field-sm {
 		width: 100%;
 		padding: var(--space-3) var(--space-4);
 		font-size: var(--text-base);
 		transition: border-color var(--transition-fast);
 	}
 
-	.date-input:hover {
+	.field-sm:hover {
 		border-color: var(--border-hover);
 	}
 
@@ -501,12 +472,6 @@
 		font-size: var(--text-sm);
 		cursor: text;
 		min-width: 0;
-	}
-
-	.token-input:focus {
-		outline: none;
-		border-color: var(--accent-primary);
-		box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
 	}
 
 	.copy-btn {

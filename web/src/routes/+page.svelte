@@ -483,9 +483,4 @@
 		white-space: nowrap;
 		flex: 1 1 100%;
 	}
-
-	.device-card.other-user {
-		border-left: 3px solid var(--warning);
-		background: color-mix(in srgb, var(--warning) 4%, transparent);
-	}
 </style>

@@ -345,9 +345,9 @@
 								<h3 class="rule-name">{rule.name}</h3>
 								<div class="rule-badges">
 									{#each rule.eventTypes as et}
-										<span class="rule-event">{getEventLabel(et)}</span>
+										<span class="event-badge">{getEventLabel(et)}</span>
 									{/each}
-									<span class="rule-channel channel-{rule.channel}">{getChannelLabel(rule.channel)}</span>
+									<span class="channel-badge channel-{rule.channel}">{getChannelLabel(rule.channel)}</span>
 									{#if rule.ownerName}
 										<span class="owner-badge" title="Owned by {rule.ownerName}">{rule.ownerName}</span>
 									{/if}
@@ -542,8 +542,8 @@
 				<span class="form-label">Headers (optional)</span>
 				{#each formHeaders as header, i}
 					<div class="header-row">
-						<input type="text" placeholder="Key" bind:value={header.key} class="header-input" />
-						<input type="text" placeholder="Value" bind:value={header.value} class="header-input" />
+						<input type="text" placeholder="Key" bind:value={header.key} class="header-input field-sm" />
+						<input type="text" placeholder="Value" bind:value={header.value} class="header-input field-sm" />
 						<button
 							type="button"
 							on:click={() => removeHeader(i)}
@@ -649,22 +649,6 @@
 		display: flex;
 		gap: var(--space-2);
 		flex-wrap: wrap;
-	}
-	.rule-event {
-		display: inline-block;
-		padding: var(--space-1) var(--space-2);
-		background-color: var(--bg-tertiary);
-		border-radius: var(--radius-sm);
-		font-size: var(--text-xs);
-		color: var(--text-secondary);
-		text-transform: uppercase;
-	}
-	.rule-channel {
-		display: inline-block;
-		padding: var(--space-1) var(--space-2);
-		border-radius: var(--radius-sm);
-		font-size: var(--text-xs);
-		font-weight: var(--font-medium);
 	}
 
 	/* Toggle */
@@ -802,6 +786,7 @@
 		color: var(--error);
 	}
 	.form-error {
+		border: none;
 		padding: var(--space-2) var(--space-3);
 		border-radius: var(--radius-md);
 		background-color: color-mix(in srgb, var(--error) 12%, transparent);
@@ -824,17 +809,7 @@
 	}
 	.header-input {
 		flex: 1;
-		padding: var(--space-2) var(--space-3);
 		background-color: var(--bg-secondary);
-		border: 1px solid var(--border-color);
-		border-radius: var(--radius-md);
-		color: var(--text-primary);
-		font-size: var(--text-sm);
-	}
-	.header-input:focus {
-		outline: none;
-		border-color: var(--accent-primary);
-		box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
 	}
 	.remove-btn {
 		padding: var(--space-2) var(--space-3);
@@ -856,11 +831,6 @@
 		font-family: 'Courier New', monospace;
 		font-size: var(--text-sm);
 		resize: vertical;
-	}
-	.template-textarea:focus {
-		outline: none;
-		border-color: var(--accent-primary);
-		box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
 	}
 	.template-variables {
 		display: flex;
@@ -890,10 +860,5 @@
 	.variable-btn:hover {
 		background-color: var(--accent-primary);
 		color: var(--text-inverse);
-	}
-
-	.rule-card.other-user {
-		border-left: 3px solid var(--warning);
-		background: color-mix(in srgb, var(--warning) 4%, transparent);
 	}
 </style>

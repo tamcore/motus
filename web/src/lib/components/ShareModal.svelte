@@ -112,7 +112,7 @@
 		</div>
 
 		{#if error}
-			<div class="error-msg" role="alert">{error}</div>
+			<div class="form-error" role="alert">{error}</div>
 		{/if}
 
 		{#if shareLink}
@@ -182,15 +182,6 @@
 
 	.form-action {
 		flex-shrink: 0;
-	}
-
-	.error-msg {
-		padding: var(--space-3);
-		background-color: rgba(255, 59, 48, 0.15);
-		border: 1px solid var(--error);
-		border-radius: var(--radius-md);
-		color: var(--error);
-		font-size: var(--text-sm);
 	}
 
 	.share-link {

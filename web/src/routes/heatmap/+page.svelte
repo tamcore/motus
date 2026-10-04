@@ -333,7 +333,7 @@
 				id="date-range"
 				bind:value={dateRange}
 				on:change={handleDateRangeChange}
-				class="select"
+				class="field-sm"
 			>
 				<option value="day">Last 24 Hours</option>
 				<option value="week">Last 7 Days</option>
@@ -349,14 +349,14 @@
 						id="date-from"
 						type="date"
 						bind:value={customFrom}
-						class="input"
+						class="field-sm"
 					/>
 					<label for="date-to" class="sub-label">To</label>
 					<input
 						id="date-to"
 						type="date"
 						bind:value={customTo}
-						class="input"
+						class="field-sm"
 					/>
 					<Button size="sm" on:click={applyCustomRange}>Apply</Button>
 				</div>
@@ -370,7 +370,7 @@
 				id="device-filter"
 				bind:value={selectedDeviceId}
 				on:change={handleDeviceChange}
-				class="select"
+				class="field-sm"
 			>
 				<option value="">All Devices</option>
 				{#each devices as device}
@@ -387,7 +387,7 @@
 			<select
 				id="intensity-mode"
 				bind:value={intensityMode}
-				class="select"
+				class="field-sm"
 			>
 				<option value="density">Position Density</option>
 				<option value="speed">Speed</option>
@@ -638,21 +638,8 @@
 		margin-top: var(--space-1);
 	}
 
-	.select,
-	.input {
-		padding: var(--space-2) var(--space-3);
-		background-color: var(--bg-primary);
-		border: 1px solid var(--border-color);
-		border-radius: var(--radius-md);
-		color: var(--text-primary);
-		font-size: var(--text-sm);
+	.field-sm {
 		width: 100%;
-	}
-
-	.select:focus,
-	.input:focus {
-		outline: none;
-		border-color: var(--accent-primary);
 	}
 
 	.controls-divider {
@@ -663,39 +650,6 @@
 
 	.slider {
 		width: 100%;
-		height: 6px;
-		border-radius: var(--radius-full);
-		background: var(--bg-tertiary);
-		outline: none;
-		cursor: pointer;
-		-webkit-appearance: none;
-		appearance: none;
-	}
-
-	.slider::-webkit-slider-thumb {
-		-webkit-appearance: none;
-		width: 16px;
-		height: 16px;
-		border-radius: 50%;
-		background: var(--accent-primary);
-		cursor: pointer;
-		border: 2px solid var(--bg-primary);
-		box-shadow: var(--shadow-sm);
-	}
-
-	.slider::-moz-range-thumb {
-		width: 16px;
-		height: 16px;
-		border-radius: 50%;
-		background: var(--accent-primary);
-		cursor: pointer;
-		border: 2px solid var(--bg-primary);
-		box-shadow: var(--shadow-sm);
-	}
-
-	.slider:focus-visible::-webkit-slider-thumb {
-		outline: 2px solid var(--accent-primary);
-		outline-offset: 2px;
 	}
 
 	.control-actions {
@@ -766,12 +720,6 @@
 
 	/* Messages */
 	.error-message {
-		padding: var(--space-3);
-		background-color: rgba(255, 68, 68, 0.1);
-		border: 1px solid var(--error);
-		border-radius: var(--radius-md);
-		color: var(--error);
-		font-size: var(--text-sm);
 		text-align: center;
 	}
 

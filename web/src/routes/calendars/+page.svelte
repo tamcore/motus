@@ -172,10 +172,10 @@
 				<Button on:click={openCreate}>Create your first calendar</Button>
 			</div>
 		{:else}
-			<div class="calendars-grid">
+			<div class="card-grid">
 				{#each calendars as calendar (calendar.id)}
 					{@const status = getCalendarStatus(calendar.id)}
-					<div class="calendar-card" class:other-user={calendar.ownerName}>
+					<div class="card calendar-card" class:other-user={calendar.ownerName}>
 						<div class="card-header">
 							<div class="card-title-row">
 								<svg class="card-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
@@ -274,26 +274,13 @@
 	/* Empty */
 
 	/* Calendar grid */
-	.calendars-grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-		gap: var(--space-4);
+	.card-grid {
+		grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr));
 	}
 
 	/* Calendar card */
 	.calendar-card {
-		background-color: var(--bg-secondary);
-		border: 1px solid var(--border-color);
-		border-radius: var(--radius-lg);
-		padding: var(--space-5);
-		display: flex;
-		flex-direction: column;
 		gap: var(--space-4);
-		transition: border-color var(--transition-fast);
-	}
-
-	.calendar-card:hover {
-		border-color: var(--border-hover);
 	}
 
 	.card-header {
@@ -313,16 +300,6 @@
 	.card-icon {
 		color: var(--accent-primary);
 		flex-shrink: 0;
-	}
-
-	.card-name {
-		font-size: var(--text-lg);
-		font-weight: var(--font-semibold);
-		color: var(--text-primary);
-		margin: 0;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
 	}
 
 	/* Status badge */
@@ -419,20 +396,11 @@
 			align-items: flex-start;
 			gap: var(--space-3);
 		}
-
-		.calendars-grid {
-			grid-template-columns: 1fr;
-		}
 	}
 
 	.page-header-actions {
 		display: flex;
 		align-items: center;
 		gap: var(--space-3);
-	}
-
-	.calendar-card.other-user {
-		border-left: 3px solid var(--warning);
-		background: color-mix(in srgb, var(--warning) 4%, transparent);
 	}
 </style>

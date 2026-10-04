@@ -932,11 +932,6 @@
 	.error-message {
 		margin-top: var(--space-4);
 		padding: var(--space-3) var(--space-4);
-		background-color: rgba(255, 68, 68, 0.1);
-		border: 1px solid var(--error);
-		border-radius: var(--radius-md);
-		color: var(--error);
-		font-size: var(--text-sm);
 	}
 
 	/* Main replay layout */
@@ -1214,32 +1209,6 @@
 
 	.progress-slider {
 		flex: 1;
-		height: 6px;
-		border-radius: var(--radius-full);
-		background: var(--bg-tertiary);
-		outline: none;
-		cursor: pointer;
-		-webkit-appearance: none;
-		appearance: none;
-	}
-
-	.progress-slider::-webkit-slider-thumb {
-		-webkit-appearance: none;
-		width: 14px;
-		height: 14px;
-		border-radius: 50%;
-		background: var(--accent-primary);
-		cursor: pointer;
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-	}
-
-	.progress-slider::-moz-range-thumb {
-		width: 14px;
-		height: 14px;
-		border: none;
-		border-radius: 50%;
-		background: var(--accent-primary);
-		cursor: pointer;
 	}
 
 	.controls-row {

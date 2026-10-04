@@ -270,11 +270,11 @@
 				{#if periodPreset === 'custom'}
 					<div class="filter-group">
 						<label for="chart-from" class="filter-label">From</label>
-						<input id="chart-from" type="date" bind:value={customFrom} class="date-input" />
+						<input id="chart-from" type="date" bind:value={customFrom} class="field-sm" />
 					</div>
 					<div class="filter-group">
 						<label for="chart-to" class="filter-label">To</label>
-						<input id="chart-to" type="date" bind:value={customTo} class="date-input" />
+						<input id="chart-to" type="date" bind:value={customTo} class="field-sm" />
 					</div>
 				{/if}
 

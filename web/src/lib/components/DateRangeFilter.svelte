@@ -20,9 +20,9 @@
 {#if preset === 'custom'}
 	<div class="filter-group date-inputs">
 		<label for="{idPrefix}-from" class="filter-label">From</label>
-		<input id="{idPrefix}-from" type="date" bind:value={from} class="date-input" />
+		<input id="{idPrefix}-from" type="date" bind:value={from} class="field-sm" />
 		<label for="{idPrefix}-to" class="filter-label">To</label>
-		<input id="{idPrefix}-to" type="date" bind:value={to} class="date-input" />
+		<input id="{idPrefix}-to" type="date" bind:value={to} class="field-sm" />
 	</div>
 {/if}
 

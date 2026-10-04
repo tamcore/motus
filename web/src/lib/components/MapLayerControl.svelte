@@ -197,35 +197,6 @@
 
 	.opacity-slider {
 		width: 100%;
-		height: 4px;
-		-webkit-appearance: none;
-		appearance: none;
-		background: var(--bg-tertiary);
-		border-radius: 2px;
-		outline: none;
-		cursor: pointer;
-	}
-
-	.opacity-slider::-webkit-slider-thumb {
-		-webkit-appearance: none;
-		appearance: none;
-		width: 14px;
-		height: 14px;
-		border-radius: 50%;
-		background: var(--accent-primary);
-		cursor: pointer;
-		border: 2px solid var(--bg-secondary);
-		box-shadow: var(--shadow-sm);
-	}
-
-	.opacity-slider::-moz-range-thumb {
-		width: 14px;
-		height: 14px;
-		border-radius: 50%;
-		background: var(--accent-primary);
-		cursor: pointer;
-		border: 2px solid var(--bg-secondary);
-		box-shadow: var(--shadow-sm);
 	}
 
 	@media (max-width: 768px) {

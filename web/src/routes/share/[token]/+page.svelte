@@ -779,17 +779,9 @@
 
 	/* Locate error */
 	.locate-error {
-		position: absolute;
 		bottom: calc(80px + 8px * 5 + 40px * 4 + 12px);
 		right: 12px;
 		z-index: 1000;
-		max-width: 200px;
-		padding: 6px 10px;
-		background-color: rgba(255, 68, 68, 0.15);
-		border: 1px solid rgba(255, 68, 68, 0.4);
-		border-radius: 8px;
-		font-size: 0.6875rem;
-		color: #ff6666;
 	}
 
 	/* No data overlay */

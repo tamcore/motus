@@ -101,7 +101,7 @@
 		{:else if stats}
 			<!-- Platform Overview Cards -->
 			<div class="stats-grid">
-				<div class="stat-card">
+				<div class="card stat-card">
 					<div class="stat-icon users-icon">
 						<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5">
 							<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
@@ -117,7 +117,7 @@
 					<div class="stat-secondary">{stats.activeUsers} active (24h)</div>
 				</div>
 
-				<div class="stat-card">
+				<div class="card stat-card">
 					<div class="stat-icon devices-icon">
 						<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5">
 							<rect x="5" y="2" width="14" height="20" rx="2"/>
@@ -130,7 +130,7 @@
 					</div>
 				</div>
 
-				<div class="stat-card">
+				<div class="card stat-card">
 					<div class="stat-icon positions-icon">
 						<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5">
 							<path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
@@ -144,7 +144,7 @@
 					<div class="stat-secondary">{stats.positionsToday.toLocaleString()} today</div>
 				</div>
 
-				<div class="stat-card">
+				<div class="card stat-card">
 					<div class="stat-icon events-icon">
 						<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5">
 							<path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
@@ -156,7 +156,7 @@
 					</div>
 				</div>
 
-				<div class="stat-card">
+				<div class="card stat-card">
 					<div class="stat-icon notifs-icon">
 						<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5">
 							<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
@@ -201,13 +201,13 @@
 			{#if users.length > 0}
 				<div class="section">
 					<h2 class="section-title">User Statistics</h2>
-					<div class="user-stats-table-wrapper">
-						<table class="user-stats-table">
+					<div class="table-wrapper">
+						<table class="user-stats-table data-table">
 							<thead>
 								<tr>
 									<th>User</th>
 									<th>Role</th>
-									<th class="text-right">Details</th>
+									<th>Details</th>
 								</tr>
 							</thead>
 							<tbody>
@@ -289,21 +289,6 @@
 		grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 		gap: var(--space-4);
 		margin-bottom: var(--space-8);
-	}
-
-	.stat-card {
-		background-color: var(--bg-secondary);
-		border: 1px solid var(--border-color);
-		border-radius: var(--radius-lg);
-		padding: var(--space-5);
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-3);
-		transition: border-color var(--transition-fast);
-	}
-
-	.stat-card:hover {
-		border-color: var(--border-hover);
 	}
 
 	.stat-icon {
@@ -431,46 +416,6 @@
 	}
 
 	/* User Stats Table */
-	.user-stats-table-wrapper {
-		overflow-x: auto;
-		border: 1px solid var(--border-color);
-		border-radius: var(--radius-lg);
-		background-color: var(--bg-secondary);
-	}
-
-	.user-stats-table {
-		width: 100%;
-		border-collapse: collapse;
-	}
-
-	.user-stats-table th {
-		text-align: left;
-		padding: var(--space-3) var(--space-4);
-		font-size: var(--text-xs);
-		font-weight: var(--font-semibold);
-		color: var(--text-secondary);
-		text-transform: uppercase;
-		letter-spacing: 0.5px;
-		border-bottom: 1px solid var(--border-color);
-		background-color: var(--bg-tertiary);
-	}
-
-	.user-stats-table td {
-		padding: var(--space-3) var(--space-4);
-		border-bottom: 1px solid var(--border-color);
-		font-size: var(--text-sm);
-		color: var(--text-primary);
-		vertical-align: middle;
-	}
-
-	.user-stats-table tbody tr:last-child td {
-		border-bottom: none;
-	}
-
-	.user-stats-table tbody tr:hover {
-		background-color: var(--bg-hover);
-	}
-
 	.user-stats-table tr.selected {
 		background-color: rgba(0, 212, 255, 0.04);
 	}
@@ -482,15 +427,7 @@
 	.user-avatar {
 		width: 32px;
 		height: 32px;
-		border-radius: 50%;
-		background-color: var(--accent-primary);
-		color: var(--text-inverse);
-		display: flex;
-		align-items: center;
-		justify-content: center;
 		font-size: var(--text-xs);
-		font-weight: var(--font-bold);
-		flex-shrink: 0;
 	}
 
 	.user-name {

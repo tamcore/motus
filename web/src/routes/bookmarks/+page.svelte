@@ -89,7 +89,7 @@
 			{#if bookmarks.length > 0}
 				<input
 					type="search"
-					class="bookmark-search"
+					class="bookmark-search field-sm"
 					placeholder="Search bookmarks..."
 					aria-label="Search bookmarks"
 					bind:value={searchQuery}
@@ -121,9 +121,9 @@
 		{:else if visible.length === 0}
 			<p class="no-results">No bookmarks match "{searchQuery}".</p>
 		{:else}
-			<div class="bookmarks-grid">
+			<div class="card-grid">
 				{#each visible as bookmark (bookmark.id)}
-					<article class="bookmark-card">
+					<article class="card bookmark-card">
 						<div class="card-header">
 							<h3 class="card-name" title={bookmark.name}>{bookmark.name}</h3>
 							{#if bookmark.deviceName}
@@ -178,18 +178,8 @@
 	}
 
 	.bookmark-search {
-		padding: var(--space-2) var(--space-3);
 		background-color: var(--bg-secondary);
-		border: 1px solid var(--border-color);
-		border-radius: var(--radius-md);
-		color: var(--text-primary);
-		font-size: var(--text-sm);
 		min-width: 220px;
-	}
-
-	.bookmark-search:focus {
-		outline: none;
-		border-color: var(--accent-primary);
 	}
 
 	.no-results {
@@ -207,43 +197,11 @@
 		text-decoration: underline;
 	}
 
-	.bookmarks-grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-		gap: var(--space-4);
-	}
-
-	.bookmark-card {
-		background-color: var(--bg-secondary);
-		border: 1px solid var(--border-color);
-		border-radius: var(--radius-lg);
-		padding: var(--space-5);
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-3);
-		transition: border-color var(--transition-fast);
-	}
-
-	.bookmark-card:hover {
-		border-color: var(--border-hover);
-	}
-
 	.card-header {
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
 		gap: var(--space-2);
-	}
-
-	.card-name {
-		font-size: var(--text-lg);
-		font-weight: var(--font-semibold);
-		color: var(--text-primary);
-		margin: 0;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-		min-width: 0;
 	}
 
 	.device-badge {
@@ -303,10 +261,6 @@
 		.bookmark-search {
 			width: 100%;
 			min-width: 0;
-		}
-
-		.bookmarks-grid {
-			grid-template-columns: 1fr;
 		}
 	}
 </style>

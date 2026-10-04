@@ -420,7 +420,7 @@
 								<input
 									type="date"
 									id="start-date"
-									class="date-input"
+									class="field-sm"
 									bind:value={startDate}
 									min={todayStr}
 									max={endDate || undefined}
@@ -433,7 +433,7 @@
 								<input
 									type="date"
 									id="end-date"
-									class="date-input"
+									class="field-sm"
 									bind:value={endDate}
 									min={startDate || todayStr}
 									aria-label="End date"
@@ -448,14 +448,14 @@
 						<div class="time-range">
 							<div class="time-picker">
 								<label for="visual-start-hour" class="sr-only">Start hour</label>
-								<select id="visual-start-hour" bind:value={startHour} class="time-select">
+								<select id="visual-start-hour" bind:value={startHour} class="time-select field-sm">
 									{#each Array(24) as _, h}
 										<option value={h}>{formatHourOption(h)}</option>
 									{/each}
 								</select>
 								<span class="time-sep">:</span>
 								<label for="visual-start-min" class="sr-only">Start minute</label>
-								<select id="visual-start-min" bind:value={startMinute} class="time-select time-select-min">
+								<select id="visual-start-min" bind:value={startMinute} class="time-select field-sm time-select-min">
 									{#each Array.from({length: 60}, (_, i) => i) as m}
 										<option value={m}>{pad2(m)}</option>
 									{/each}
@@ -464,14 +464,14 @@
 							<span class="time-to">to</span>
 							<div class="time-picker">
 								<label for="visual-end-hour" class="sr-only">End hour</label>
-								<select id="visual-end-hour" bind:value={endHour} class="time-select">
+								<select id="visual-end-hour" bind:value={endHour} class="time-select field-sm">
 									{#each Array(24) as _, h}
 										<option value={h}>{formatHourOption(h)}</option>
 									{/each}
 								</select>
 								<span class="time-sep">:</span>
 								<label for="visual-end-min" class="sr-only">End minute</label>
-								<select id="visual-end-min" bind:value={endMinute} class="time-select time-select-min">
+								<select id="visual-end-min" bind:value={endMinute} class="time-select field-sm time-select-min">
 									{#each Array.from({length: 60}, (_, i) => i) as m}
 										<option value={m}>{pad2(m)}</option>
 									{/each}
@@ -772,14 +772,14 @@
 		letter-spacing: 0.05em;
 	}
 
-	.date-input {
+	.field-sm {
 		background-color: var(--bg-tertiary);
 		font-family: inherit;
 		width: 100%;
 	}
 
 	/* Color scheme for date input to match theme */
-	.date-input::-webkit-calendar-picker-indicator {
+	.field-sm::-webkit-calendar-picker-indicator {
 		filter: invert(0.7);
 		cursor: pointer;
 	}
@@ -885,18 +885,7 @@
 	}
 
 	.time-select {
-		padding: var(--space-2) var(--space-3);
 		background-color: var(--bg-tertiary);
-		border: 1px solid var(--border-color);
-		border-radius: var(--radius-md);
-		color: var(--text-primary);
-		font-size: var(--text-sm);
-	}
-
-	.time-select:focus {
-		outline: none;
-		border-color: var(--accent-primary);
-		box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
 	}
 
 	.time-select-min {
@@ -926,12 +915,6 @@
 		resize: vertical;
 		line-height: 1.5;
 		box-sizing: border-box;
-	}
-
-	.ical-textarea:focus {
-		outline: none;
-		border-color: var(--accent-primary);
-		box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
 	}
 
 	.ical-textarea.has-error {

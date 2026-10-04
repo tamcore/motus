@@ -422,14 +422,14 @@
 					{#each filtered as device (device.id)}
 						{@const isExpanded = expandedIds.has(device.id)}
 						<div
-							class="device-card"
+							class="device-card list-card"
 							class:expanded={isExpanded}
 							class:other-user={device.ownerName}
 							role="listitem"
 						>
 							<!-- Collapsed summary row - always visible -->
 							<div
-								class="device-summary"
+								class="device-summary list-card-summary"
 								role="button"
 								tabindex="0"
 								aria-expanded={isExpanded}
@@ -480,7 +480,7 @@
 							{#if isExpanded}
 								<div
 									id="device-detail-{device.id}"
-									class="device-detail"
+									class="device-detail list-card-detail"
 									transition:slide={{ duration: 200 }}
 								>
 									<div class="detail-grid">
@@ -643,7 +643,7 @@
 		<Input name="category" label="Category" placeholder="car" bind:value={formCategory} />
 		<div class="input-group">
 			<label for="protocol" class="input-label">Protocol</label>
-			<select id="protocol" name="protocol" class="cmd-select" bind:value={formProtocol}>
+			<select id="protocol" name="protocol" class="cmd-select field-sm" bind:value={formProtocol}>
 				<option value="">— none —</option>
 				<option value="h02">H02</option>
 				<option value="watch">Watch</option>
@@ -694,7 +694,7 @@
 		{:else}
 			<div class="form-group">
 				<label class="form-label" for="cmd-type">Command Type</label>
-				<select id="cmd-type" class="cmd-select" bind:value={commandType} on:change={() => (commandSentInfo = '')} disabled={commandTypesLoading}>
+				<select id="cmd-type" class="cmd-select field-sm" bind:value={commandType} on:change={() => (commandSentInfo = '')} disabled={commandTypesLoading}>
 					{#each commandOptions as type}
 						<option value={type}>{COMMAND_TYPE_LABELS[type] ?? type}</option>
 					{/each}
@@ -781,11 +781,6 @@
 		border-radius: var(--radius-md);
 		color: var(--text-primary);
 		font-size: var(--text-sm);
-	}
-
-	.search-input:focus {
-		outline: none;
-		border-color: var(--accent-primary);
 	}
 
 	.result-count {
@@ -895,43 +890,6 @@
 		gap: var(--space-2);
 	}
 
-	.device-card {
-		border: 1px solid var(--border-color);
-		border-radius: var(--radius-lg);
-		background-color: var(--bg-primary);
-		overflow: hidden;
-		transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
-	}
-
-	.device-card:hover {
-		border-color: var(--border-hover);
-	}
-
-	.device-card.expanded {
-		border-color: var(--accent-primary);
-		box-shadow: 0 0 0 1px var(--accent-primary);
-	}
-
-	.device-summary {
-		display: flex;
-		align-items: center;
-		gap: var(--space-3);
-		padding: var(--space-3);
-		cursor: pointer;
-		user-select: none;
-		-webkit-user-select: none;
-	}
-
-	.device-summary:hover {
-		background-color: var(--bg-hover);
-	}
-
-	.device-summary:focus-visible {
-		outline: 2px solid var(--accent-primary);
-		outline-offset: -2px;
-		border-radius: var(--radius-lg);
-	}
-
 	.summary-name-status {
 		display: flex;
 		align-items: center;
@@ -967,12 +925,6 @@
 		white-space: nowrap;
 	}
 
-	.device-detail {
-		border-top: 1px solid var(--border-color);
-		background-color: var(--bg-secondary);
-		padding: var(--space-3);
-	}
-
 	.uid {
 		font-size: var(--text-xs);
 		padding: var(--space-1) var(--space-2);
@@ -1000,15 +952,6 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-4);
-	}
-
-	.form-error {
-		padding: var(--space-3);
-		background-color: rgba(255, 68, 68, 0.1);
-		border: 1px solid var(--error);
-		border-radius: var(--radius-md);
-		color: var(--error);
-		font-size: var(--text-sm);
 	}
 
 	.cmd-unsupported {
@@ -1070,18 +1013,8 @@
 	}
 
 	.cmd-select {
-		padding: var(--space-2) var(--space-3);
 		background-color: var(--bg-secondary);
-		border: 1px solid var(--border-color);
-		border-radius: var(--radius-md);
-		color: var(--text-primary);
-		font-size: var(--text-sm);
 		width: 100%;
-	}
-
-	.cmd-select:focus {
-		outline: none;
-		border-color: var(--accent-primary);
 	}
 
 	.cmd-sent-info {
@@ -1239,12 +1172,6 @@
 		.result-count {
 			text-align: right;
 		}
-	}
-
-	.table-row.other-user,
-	.device-card.other-user {
-		border-left: 3px solid var(--warning);
-		background: color-mix(in srgb, var(--warning) 4%, transparent);
 	}
 
 	.owner-badge {

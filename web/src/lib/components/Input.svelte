@@ -52,28 +52,8 @@
 		color: var(--error);
 	}
 
-	.input {
-		padding: var(--space-3) var(--space-4);
-		background-color: var(--bg-secondary);
-		border: 1px solid var(--border-color);
-		border-radius: var(--radius-md);
-		color: var(--text-primary);
-		font-size: var(--text-base);
-		transition: all var(--transition-fast);
-	}
-
-	.input:focus {
-		outline: none;
-		border-color: var(--accent-primary);
-		box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
-	}
-
 	.input.has-error {
 		border-color: var(--error);
-	}
-
-	.input:hover {
-		border-color: var(--border-hover);
 	}
 
 	.error-text {

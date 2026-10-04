@@ -4,13 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
-	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	ws "github.com/gorilla/websocket"
 	"github.com/tamcore/motus/internal/model"
 )
 
@@ -76,23 +73,6 @@ func (m *mockPubSub) getPublished() []redisEnvelope {
 	return result
 }
 
-// connectTestClient connects a WebSocket client to the hub's test server.
-func connectTestClient(t *testing.T, hub *Hub) *ws.Conn {
-	t.Helper()
-	srv := httptest.NewServer(http.HandlerFunc(hub.HandleConnect))
-	t.Cleanup(srv.Close)
-
-	url := "ws" + strings.TrimPrefix(srv.URL, "http")
-	conn, _, err := ws.DefaultDialer.Dial(url, nil)
-	if err != nil {
-		t.Fatalf("failed to connect: %v", err)
-	}
-	t.Cleanup(func() { _ = conn.Close() })
-
-	time.Sleep(50 * time.Millisecond)
-	return conn
-}
-
 func TestBroadcastPosition_PublishesToRedis(t *testing.T) {
 	checker := &mockAccessChecker{
 		deviceUsers: map[int64][]int64{10: {1}},
@@ -101,7 +81,7 @@ func TestBroadcastPosition_PublishesToRedis(t *testing.T) {
 	hub := NewHub(nil, checker, func(_ *http.Request) int64 { return 1 })
 	hub.SetPubSub(mock)
 
-	conn := connectTestClient(t, hub)
+	conn := connectClient(t, hub)
 
 	pos := &model.Position{ID: 1, DeviceID: 10, Latitude: 52.0, Longitude: 13.0, Timestamp: time.Now().UTC()}
 	hub.BroadcastPosition(pos)
@@ -143,7 +123,7 @@ func TestBroadcastDeviceStatus_PublishesToRedis(t *testing.T) {
 	hub := NewHub(nil, checker, func(_ *http.Request) int64 { return 1 })
 	hub.SetPubSub(mock)
 
-	connectTestClient(t, hub)
+	connectClient(t, hub)
 
 	device := &model.Device{ID: 42, UniqueID: "test", Name: "Test", Status: "online"}
 	hub.BroadcastDeviceStatus(device)
@@ -168,7 +148,7 @@ func TestBroadcastEvent_PublishesToRedis(t *testing.T) {
 	hub := NewHub(nil, checker, func(_ *http.Request) int64 { return 1 })
 	hub.SetPubSub(mock)
 
-	connectTestClient(t, hub)
+	connectClient(t, hub)
 
 	event := &model.Event{ID: 1, DeviceID: 42, Type: "geofenceEnter", Timestamp: time.Now().UTC()}
 	hub.BroadcastEvent(event)
@@ -193,7 +173,7 @@ func TestBroadcastPosition_NoPubSub_LocalOnly(t *testing.T) {
 	hub := NewHub(nil, checker, func(_ *http.Request) int64 { return 1 })
 	// No SetPubSub call.
 
-	conn := connectTestClient(t, hub)
+	conn := connectClient(t, hub)
 
 	pos := &model.Position{ID: 1, DeviceID: 10, Latitude: 52.0, Longitude: 13.0, Timestamp: time.Now().UTC()}
 	hub.BroadcastPosition(pos)
@@ -225,7 +205,7 @@ func TestStartSubscriber_RelaysRemoteMessages(t *testing.T) {
 	time.Sleep(50 * time.Millisecond) // Let subscriber start.
 
 	// Connect a client.
-	conn := connectTestClient(t, hub)
+	conn := connectClient(t, hub)
 
 	// Simulate a message arriving from another pod via Redis.
 	remotePos := model.Position{ID: 99, DeviceID: 10, Latitude: 48.0, Longitude: 11.0, Timestamp: time.Now().UTC()}
@@ -270,9 +250,9 @@ func TestStartSubscriber_FiltersRemoteByAccess(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 
 	// Client 1 (user 1) - has access to device 10.
-	conn1 := connectTestClient(t, hub)
+	conn1 := connectClient(t, hub)
 	// Client 2 (user 2) - does NOT have access to device 10.
-	conn2 := connectTestClient(t, hub)
+	conn2 := connectClient(t, hub)
 
 	// Simulate remote message for device 10.
 	remoteMsg := TraccarMessage{
@@ -333,7 +313,7 @@ func TestStartSubscriber_SkipsSelfEcho(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 
 	// Connect a client.
-	conn := connectTestClient(t, hub)
+	conn := connectClient(t, hub)
 
 	// Simulate a Redis message that came from THIS pod (self-echo).
 	selfMsg := TraccarMessage{
@@ -393,7 +373,7 @@ func TestBroadcastPosition_NoDoubleDelivery(t *testing.T) {
 	go hub.StartSubscriber(ctx)
 	time.Sleep(50 * time.Millisecond)
 
-	conn := connectTestClient(t, hub)
+	conn := connectClient(t, hub)
 
 	// BroadcastPosition will:
 	// 1. Publish to Redis (which triggers self-echo to subscriber)

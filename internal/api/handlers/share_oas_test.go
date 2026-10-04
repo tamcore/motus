@@ -68,30 +68,16 @@ func setupShareOASIntegration(t *testing.T) *shareOASIntegrationEnv {
 // createShareUserAndDevice creates a user and a device owned by that user.
 func (e *shareOASIntegrationEnv) createShareUserAndDevice(t *testing.T) (*model.User, *model.Device) {
 	t.Helper()
-	ctx := context.Background()
 
-	user := &model.User{Email: "share@example.com", PasswordHash: "hash", Name: "Share User"}
-	if err := e.userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
-	device := &model.Device{UniqueID: "share-test-001", Name: "Test Device", Status: "online"}
-	if err := e.deviceRepo.Create(ctx, device, user.ID); err != nil {
-		t.Fatalf("create device: %v", err)
-	}
+	user := testutil.CreateUser(t, "share@example.com")
+	device := testutil.CreateDevice(t, user.ID, "share-test-001")
 	return user, device
 }
 
 func (e *shareOASIntegrationEnv) createOtherUser(t *testing.T, email string) *model.User {
 	t.Helper()
-	other := &model.User{Email: email, PasswordHash: "hash", Name: "Other User"}
-	if err := e.userRepo.Create(context.Background(), other); err != nil {
-		t.Fatalf("create other user: %v", err)
-	}
+	other := testutil.CreateUser(t, email)
 	return other
-}
-
-func shareUserCtx(user *model.User) context.Context {
-	return api.ContextWithUser(context.Background(), user)
 }
 
 // ---------------------------------------------------------------------------
@@ -102,7 +88,7 @@ func TestCreateShare_Success_OAS(t *testing.T) {
 	env := setupShareOASIntegration(t)
 	user, device := env.createShareUserAndDevice(t)
 
-	res, err := env.handler.CreateShare(shareUserCtx(user),
+	res, err := env.handler.CreateShare(api.ContextWithUser(context.Background(), user),
 		oas.OptCreateShareRequest{}, oas.CreateShareParams{ID: device.ID})
 	if err != nil {
 		t.Fatalf("CreateShare returned error: %v", err)
@@ -131,7 +117,7 @@ func TestCreateShare_WithExpiry_OAS(t *testing.T) {
 		ExpiresAt: oas.NewOptDateTime(expiresAt),
 	})
 
-	res, err := env.handler.CreateShare(shareUserCtx(user), req, oas.CreateShareParams{ID: device.ID})
+	res, err := env.handler.CreateShare(api.ContextWithUser(context.Background(), user), req, oas.CreateShareParams{ID: device.ID})
 	if err != nil {
 		t.Fatalf("CreateShare returned error: %v", err)
 	}
@@ -154,7 +140,7 @@ func TestCreateShare_NoAccess_OAS(t *testing.T) {
 	other := env.createOtherUser(t, "other@example.com")
 
 	// IDOR: a user without access to the device must not be able to share it.
-	res, err := env.handler.CreateShare(shareUserCtx(other),
+	res, err := env.handler.CreateShare(api.ContextWithUser(context.Background(), other),
 		oas.OptCreateShareRequest{}, oas.CreateShareParams{ID: device.ID})
 	if err != nil {
 		t.Fatalf("CreateShare returned error: %v", err)
@@ -180,7 +166,7 @@ func TestListShares_Success_OAS(t *testing.T) {
 		}
 	}
 
-	res, err := env.handler.ListShares(shareUserCtx(user), oas.ListSharesParams{ID: device.ID})
+	res, err := env.handler.ListShares(api.ContextWithUser(context.Background(), user), oas.ListSharesParams{ID: device.ID})
 	if err != nil {
 		t.Fatalf("ListShares returned error: %v", err)
 	}
@@ -263,7 +249,7 @@ func TestDeleteShare_Unauthorized_OAS(t *testing.T) {
 
 	// IDOR: a user without access to the underlying device must not be able
 	// to delete the share.
-	res, err := env.handler.DeleteShare(shareUserCtx(other), oas.DeleteShareParams{ID: share.ID})
+	res, err := env.handler.DeleteShare(api.ContextWithUser(context.Background(), other), oas.DeleteShareParams{ID: share.ID})
 	if err != nil {
 		t.Fatalf("DeleteShare returned error: %v", err)
 	}
@@ -281,7 +267,7 @@ func TestDeleteShare_NotFound_OAS(t *testing.T) {
 	env := setupShareOASIntegration(t)
 	user := env.createOtherUser(t, "del-notfound@example.com")
 
-	res, err := env.handler.DeleteShare(shareUserCtx(user), oas.DeleteShareParams{ID: 99999})
+	res, err := env.handler.DeleteShare(api.ContextWithUser(context.Background(), user), oas.DeleteShareParams{ID: 99999})
 	if err != nil {
 		t.Fatalf("DeleteShare returned error: %v", err)
 	}
@@ -300,7 +286,7 @@ func TestDeleteShare_Success_OAS(t *testing.T) {
 		t.Fatalf("create share: %v", err)
 	}
 
-	res, err := env.handler.DeleteShare(shareUserCtx(user), oas.DeleteShareParams{ID: share.ID})
+	res, err := env.handler.DeleteShare(api.ContextWithUser(context.Background(), user), oas.DeleteShareParams{ID: share.ID})
 	if err != nil {
 		t.Fatalf("DeleteShare returned error: %v", err)
 	}

@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/tamcore/motus/internal/storage/repository/testutil"
+
 	"github.com/tamcore/motus/internal/model"
 )
 
@@ -16,17 +18,14 @@ const testGeoJSONEast = `{"type":"Polygon","coordinates":[[[13.45,52.51],[13.45,
 // device whose position alternates across a geofence boundary (GPS jitter)
 // emits exactly one enter and one exit instead of one event per oscillation.
 func TestGeofenceEvent_BoundaryJitterIsDeduplicated(t *testing.T) {
-	svc, geoRepo, _, deviceRepo, posRepo, userRepo := setupGeofenceService(t)
+	svc, geoRepo, _, _, posRepo, userRepo := setupGeofenceService(t)
 	ctx := context.Background()
 
 	user := &model.User{Email: "jitter@example.com", PasswordHash: "h", Name: "J"}
 	if err := userRepo.Create(ctx, user); err != nil {
 		t.Fatal(err)
 	}
-	device := &model.Device{UniqueID: "jitter-dev", Name: "Jitter", Status: "online"}
-	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
-		t.Fatal(err)
-	}
+	device := testutil.CreateDevice(t, user.ID, "jitter-dev")
 	g := &model.Geofence{Name: "J", Geometry: testGeoJSON}
 	if err := geoRepo.Create(ctx, g); err != nil {
 		t.Fatal(err)
@@ -154,14 +153,8 @@ func TestGeofenceEvent_SharedDeviceProducesOneEvent(t *testing.T) {
 	svc, geoRepo, _, deviceRepo, posRepo, userRepo := setupGeofenceService(t)
 	ctx := context.Background()
 
-	userA := &model.User{Email: "share-a@example.com", PasswordHash: "h", Name: "A"}
-	if err := userRepo.Create(ctx, userA); err != nil {
-		t.Fatal(err)
-	}
-	userB := &model.User{Email: "share-b@example.com", PasswordHash: "h", Name: "B"}
-	if err := userRepo.Create(ctx, userB); err != nil {
-		t.Fatal(err)
-	}
+	userA := testutil.CreateUser(t, "share-a@example.com")
+	userB := testutil.CreateUser(t, "share-b@example.com")
 
 	device := &model.Device{UniqueID: "shared-dev", Name: "Shared", Status: "online"}
 	if err := deviceRepo.Create(ctx, device, userA.ID); err != nil {
@@ -214,17 +207,11 @@ func TestGeofenceEvent_SharedDeviceProducesOneEvent(t *testing.T) {
 // legitimate new transition for the same geofence well outside the dedup
 // window does fire — the dedup is a window, not a one-shot.
 func TestGeofenceEvent_NewSessionAfterWindowFiresAgain(t *testing.T) {
-	svc, geoRepo, _, deviceRepo, posRepo, userRepo := setupGeofenceService(t)
+	svc, geoRepo, _, _, posRepo, _ := setupGeofenceService(t)
 	ctx := context.Background()
 
-	user := &model.User{Email: "session@example.com", PasswordHash: "h", Name: "Session"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatal(err)
-	}
-	device := &model.Device{UniqueID: "session-dev", Name: "Session", Status: "online"}
-	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
-		t.Fatal(err)
-	}
+	user := testutil.CreateUser(t, "session@example.com")
+	device := testutil.CreateDevice(t, user.ID, "session-dev")
 	g := &model.Geofence{Name: "S", Geometry: testGeoJSON}
 	if err := geoRepo.Create(ctx, g); err != nil {
 		t.Fatal(err)
@@ -289,17 +276,11 @@ func TestGeofenceEvent_NewSessionAfterWindowFiresAgain(t *testing.T) {
 // window only suppresses repeats for the SAME (device, geofence) pair — a
 // transition into a different geofence within the window must still fire.
 func TestGeofenceEvent_DifferentGeofencesNotShadowed(t *testing.T) {
-	svc, geoRepo, _, deviceRepo, posRepo, userRepo := setupGeofenceService(t)
+	svc, geoRepo, _, _, posRepo, _ := setupGeofenceService(t)
 	ctx := context.Background()
 
-	user := &model.User{Email: "twofences@example.com", PasswordHash: "h", Name: "TF"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatal(err)
-	}
-	device := &model.Device{UniqueID: "twofences-dev", Name: "TwoFences", Status: "online"}
-	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
-		t.Fatal(err)
-	}
+	user := testutil.CreateUser(t, "twofences@example.com")
+	device := testutil.CreateDevice(t, user.ID, "twofences-dev")
 
 	gA := &model.Geofence{Name: "A", Geometry: testGeoJSON}
 	if err := geoRepo.Create(ctx, gA); err != nil {

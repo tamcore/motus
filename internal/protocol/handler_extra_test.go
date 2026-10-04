@@ -39,15 +39,11 @@ func TestPositionHandler_HandlePosition_WithCheckers(t *testing.T) {
 
 	posRepo := repository.NewPositionRepository(pool)
 	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	hub := websocket.NewHub(nil, nil, func(r *http.Request) int64 { return 0 })
 
 	ctx := context.Background()
 
-	user := &model.User{Email: "checkers@example.com", PasswordHash: "hash", Name: "Checkers Test"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "checkers@example.com")
 
 	device := &model.Device{UniqueID: "checkers-dev", Name: "Checkers Device", Status: "offline"}
 	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
@@ -90,13 +86,11 @@ func TestPositionHandler_HandlePosition_CheckerErrors(t *testing.T) {
 
 	posRepo := repository.NewPositionRepository(pool)
 	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	hub := websocket.NewHub(nil, nil, func(r *http.Request) int64 { return 0 })
 
 	ctx := context.Background()
 
-	user := &model.User{Email: "errcheckers@example.com", PasswordHash: "hash", Name: "Error Checkers"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "errcheckers@example.com")
 
 	device := &model.Device{UniqueID: "err-checkers-dev", Name: "Error Checkers Device", Status: "offline"}
 	_ = deviceRepo.Create(ctx, device, user.ID)
@@ -142,13 +136,11 @@ func TestPositionHandler_HandlePosition_GeofenceError(t *testing.T) {
 
 	posRepo := repository.NewPositionRepository(pool)
 	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	hub := websocket.NewHub(nil, nil, func(r *http.Request) int64 { return 0 })
 
 	ctx := context.Background()
 
-	user := &model.User{Email: "geoerr@example.com", PasswordHash: "hash", Name: "Geo Error"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "geoerr@example.com")
 
 	device := &model.Device{UniqueID: "geoerr-dev", Name: "Geo Error Device", Status: "offline"}
 	_ = deviceRepo.Create(ctx, device, user.ID)

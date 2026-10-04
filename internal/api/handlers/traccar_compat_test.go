@@ -87,14 +87,7 @@ func setupCompatFixtures(t *testing.T) *compatTestFixtures {
 		t.Fatalf("create user: %v", err)
 	}
 
-	device := &model.Device{
-		UniqueID: "compat-dev-001",
-		Name:     "HA Test Device",
-		Status:   "online",
-	}
-	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
-		t.Fatalf("create device: %v", err)
-	}
+	device := testutil.CreateDevice(t, user.ID, "compat-dev-001")
 
 	return &compatTestFixtures{
 		pool:         pool,
@@ -107,11 +100,6 @@ func setupCompatFixtures(t *testing.T) *compatTestFixtures {
 		user:         user,
 		device:       device,
 	}
-}
-
-// compatUserCtx returns a context carrying the given authenticated user.
-func compatUserCtx(user *model.User) context.Context {
-	return api.ContextWithUser(context.Background(), user)
 }
 
 // remarshalOAS encodes an ogen response value with its generated JSON
@@ -142,7 +130,7 @@ func compatPositionHandler(positionRepo repository.PositionRepo, deviceRepo repo
 // and returns them in wire format.
 func listDevicesRaw(t *testing.T, h *handlers.Handler, user *model.User) []map[string]any {
 	t.Helper()
-	res, err := h.ListDevices(compatUserCtx(user))
+	res, err := h.ListDevices(api.ContextWithUser(context.Background(), user))
 	if err != nil {
 		t.Fatalf("ListDevices returned error: %v", err)
 	}
@@ -159,7 +147,7 @@ func listDevicesRaw(t *testing.T, h *handlers.Handler, user *model.User) []map[s
 // live ogen handler and returns them in wire format.
 func latestPositionsRaw(t *testing.T, h *handlers.Handler, user *model.User) []map[string]any {
 	t.Helper()
-	res, err := h.GetPositions(compatUserCtx(user), oas.GetPositionsParams{})
+	res, err := h.GetPositions(api.ContextWithUser(context.Background(), user), oas.GetPositionsParams{})
 	if err != nil {
 		t.Fatalf("GetPositions returned error: %v", err)
 	}
@@ -258,7 +246,7 @@ func TestTraccarCompat_DeviceFieldPresence_NilValues(t *testing.T) {
 	h := compatDeviceHandler(f.deviceRepo)
 
 	// Use GetDevice (single device) to isolate the minimal device.
-	res, err := h.GetDevice(compatUserCtx(f.user), oas.GetDeviceParams{ID: minimalDevice.ID})
+	res, err := h.GetDevice(api.ContextWithUser(context.Background(), f.user), oas.GetDeviceParams{ID: minimalDevice.ID})
 	if err != nil {
 		t.Fatalf("GetDevice returned error: %v", err)
 	}
@@ -465,7 +453,7 @@ func TestTraccarCompat_BareArrayResponses(t *testing.T) {
 	// type marshals to a bare JSON array (no envelope).
 	t.Run("GET /api/devices returns bare array", func(t *testing.T) {
 		h := compatDeviceHandler(f.deviceRepo)
-		res, err := h.ListDevices(compatUserCtx(f.user))
+		res, err := h.ListDevices(api.ContextWithUser(context.Background(), f.user))
 		if err != nil {
 			t.Fatalf("ListDevices returned error: %v", err)
 		}
@@ -482,7 +470,7 @@ func TestTraccarCompat_BareArrayResponses(t *testing.T) {
 
 	t.Run("GET /api/positions returns bare array", func(t *testing.T) {
 		h := compatPositionHandler(f.positionRepo, f.deviceRepo)
-		res, err := h.GetPositions(compatUserCtx(f.user), oas.GetPositionsParams{})
+		res, err := h.GetPositions(api.ContextWithUser(context.Background(), f.user), oas.GetPositionsParams{})
 		if err != nil {
 			t.Fatalf("GetPositions returned error: %v", err)
 		}
@@ -531,20 +519,12 @@ func TestTraccarCompat_EmptyListReturnsEmptyArray(t *testing.T) {
 	testutil.CleanTables(t, pool)
 	ctx := context.Background()
 
-	userRepo := repository.NewUserRepository(pool)
 	deviceRepo := repository.NewDeviceRepository(pool)
 	positionRepo := repository.NewPositionRepository(pool)
 	geofenceRepo := repository.NewGeofenceRepository(pool)
 
 	// Create a user with NO devices, positions, or geofences.
-	user := &model.User{
-		Email:        "empty@example.com",
-		PasswordHash: "hash",
-		Name:         "Empty User",
-	}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "empty@example.com")
 
 	t.Run("devices empty array", func(t *testing.T) {
 		h := compatDeviceHandler(deviceRepo)
@@ -553,7 +533,7 @@ func TestTraccarCompat_EmptyListReturnsEmptyArray(t *testing.T) {
 			t.Errorf("expected empty array [], got %d elements", len(devices))
 		}
 		// The wire format must be [] (not null) for pytraccar.
-		res, err := h.ListDevices(compatUserCtx(user))
+		res, err := h.ListDevices(api.ContextWithUser(context.Background(), user))
 		if err != nil {
 			t.Fatalf("ListDevices returned error: %v", err)
 		}
@@ -568,7 +548,7 @@ func TestTraccarCompat_EmptyListReturnsEmptyArray(t *testing.T) {
 
 	t.Run("positions empty array", func(t *testing.T) {
 		h := compatPositionHandler(positionRepo, deviceRepo)
-		res, err := h.GetPositions(compatUserCtx(user), oas.GetPositionsParams{})
+		res, err := h.GetPositions(api.ContextWithUser(context.Background(), user), oas.GetPositionsParams{})
 		if err != nil {
 			t.Fatalf("GetPositions returned error: %v", err)
 		}
@@ -740,17 +720,9 @@ func TestTraccarCompat_DeviceStatusValues(t *testing.T) {
 	testutil.CleanTables(t, pool)
 	ctx := context.Background()
 
-	userRepo := repository.NewUserRepository(pool)
 	deviceRepo := repository.NewDeviceRepository(pool)
 
-	user := &model.User{
-		Email:        "status@example.com",
-		PasswordHash: "hash",
-		Name:         "Status User",
-	}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "status@example.com")
 
 	validStatuses := []string{"online", "offline", "unknown"}
 
@@ -802,7 +774,7 @@ func TestTraccarCompat_DeviceStatusNeverMoving(t *testing.T) {
 	// CHECK constraint should prevent), the test will catch it.
 	h := compatDeviceHandler(f.deviceRepo)
 
-	res, err := h.GetDevice(compatUserCtx(f.user), oas.GetDeviceParams{ID: f.device.ID})
+	res, err := h.GetDevice(api.ContextWithUser(context.Background(), f.user), oas.GetDeviceParams{ID: f.device.ID})
 	if err != nil {
 		t.Fatalf("GetDevice returned error: %v", err)
 	}
@@ -846,7 +818,7 @@ func TestTraccarCompat_BearerTokenAuth(t *testing.T) {
 	env := setupCompatRouterServer(t)
 	ctx := context.Background()
 
-	user := createCompatUser(t, env.userRepo, "bearer@example.com", "bearerpass")
+	user := createIntegrationUser(t, env.userRepo, "bearer@example.com", "bearerpass")
 
 	// Create an API key for the user.
 	apiKey := &model.ApiKey{
@@ -859,14 +831,7 @@ func TestTraccarCompat_BearerTokenAuth(t *testing.T) {
 	}
 
 	// Create a device for the user so we have something to list.
-	dev := &model.Device{
-		UniqueID: "bearer-dev",
-		Name:     "Bearer Device",
-		Status:   "online",
-	}
-	if err := env.deviceRepo.Create(ctx, dev, user.ID); err != nil {
-		t.Fatalf("create device: %v", err)
-	}
+	testutil.CreateDevice(t, user.ID, "bearer-dev")
 
 	getDevices := func(t *testing.T, authorization string) *http.Response {
 		t.Helper()
@@ -973,20 +938,6 @@ func setupCompatRouterServer(t *testing.T) *compatRouterEnv {
 	}
 }
 
-// createCompatUser inserts a user with the given password into the test DB.
-func createCompatUser(t *testing.T, userRepo *repository.UserRepository, email, password string) *model.User {
-	t.Helper()
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.MinCost)
-	if err != nil {
-		t.Fatalf("hash password: %v", err)
-	}
-	user := &model.User{Email: email, PasswordHash: string(hash), Name: "Compat User", Role: model.RoleUser}
-	if err := userRepo.Create(context.Background(), user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
-	return user
-}
-
 // respSessionCookie returns the session_id cookie from an HTTP response, or nil.
 func respSessionCookie(resp *http.Response) *http.Cookie {
 	for _, c := range resp.Cookies() {
@@ -1026,7 +977,7 @@ func TestTraccarCompat_LegacyTokenAuth(t *testing.T) {
 	env := setupCompatRouterServer(t)
 	ctx := context.Background()
 
-	user := createCompatUser(t, env.userRepo, "legacy@example.com", "legacypass")
+	user := createIntegrationUser(t, env.userRepo, "legacy@example.com", "legacypass")
 
 	// Generate a legacy token (users.token column).
 	token, err := env.userRepo.GenerateToken(ctx, user.ID)
@@ -1067,7 +1018,7 @@ func TestTraccarCompat_SessionTokenQueryParam(t *testing.T) {
 	env := setupCompatRouterServer(t)
 	ctx := context.Background()
 
-	user := createCompatUser(t, env.userRepo, "pytraccar@example.com", "pytraccarpass")
+	user := createIntegrationUser(t, env.userRepo, "pytraccar@example.com", "pytraccarpass")
 
 	// Create an API key for the user; Create populates the token.
 	apiKey := &model.ApiKey{
@@ -1127,7 +1078,7 @@ func TestTraccarCompat_SessionTokenQueryParam_StaleCookie(t *testing.T) {
 	env := setupCompatRouterServer(t)
 	ctx := context.Background()
 
-	user := createCompatUser(t, env.userRepo, "stale-cookie@example.com", "stalecookiepass")
+	user := createIntegrationUser(t, env.userRepo, "stale-cookie@example.com", "stalecookiepass")
 
 	apiKey := &model.ApiKey{
 		UserID:      user.ID,
@@ -1178,7 +1129,7 @@ func TestTraccarCompat_SessionTokenQueryParam_InvalidToken(t *testing.T) {
 func TestTraccarCompat_CookieSessionAuth(t *testing.T) {
 	env := setupCompatRouterServer(t)
 
-	createCompatUser(t, env.userRepo, "cookie@example.com", "cookiepass")
+	createIntegrationUser(t, env.userRepo, "cookie@example.com", "cookiepass")
 
 	// Step 1: Login to get a session cookie.
 	sessionCookie := loginViaRouter(t, env.ts, "cookie@example.com", "cookiepass")
@@ -1239,10 +1190,7 @@ func TestTraccarCompat_FullRouterDevicesEndpoint(t *testing.T) {
 		t.Fatalf("create user: %v", err)
 	}
 
-	dev := &model.Device{UniqueID: "router-dev", Name: "Router Device", Status: "online"}
-	if err := deviceRepo.Create(ctx, dev, user.ID); err != nil {
-		t.Fatalf("create device: %v", err)
-	}
+	dev := testutil.CreateDevice(t, user.ID, "router-dev")
 
 	// Create a position for the device.
 	speed := 15.0
@@ -1404,7 +1352,7 @@ func TestTraccarCompat_FullRouterDevicesEndpoint(t *testing.T) {
 func TestTraccarCompat_FormEncodedLogin(t *testing.T) {
 	env := setupCompatRouterServer(t)
 
-	createCompatUser(t, env.userRepo, "formlogin@example.com", "formpass")
+	createIntegrationUser(t, env.userRepo, "formlogin@example.com", "formpass")
 
 	formBody := "email=formlogin%40example.com&password=formpass"
 	resp, err := http.Post(env.ts.URL+"/api/session",
@@ -1451,7 +1399,7 @@ func TestTraccarCompat_FormEncodedLogin(t *testing.T) {
 func TestTraccarCompat_Logout(t *testing.T) {
 	env := setupCompatRouterServer(t)
 
-	createCompatUser(t, env.userRepo, "logout@example.com", "logoutpass")
+	createIntegrationUser(t, env.userRepo, "logout@example.com", "logoutpass")
 
 	// Step 1: Login through the router to get a session cookie.
 	sessionCookie := loginViaRouter(t, env.ts, "logout@example.com", "logoutpass")
@@ -1521,7 +1469,7 @@ func TestTraccarCompat_ContentTypeJSON(t *testing.T) {
 	env := setupCompatRouterServer(t)
 	ctx := context.Background()
 
-	user := createCompatUser(t, env.userRepo, "contenttype@example.com", "ctpass")
+	user := createIntegrationUser(t, env.userRepo, "contenttype@example.com", "ctpass")
 	apiKey := &model.ApiKey{
 		UserID:      user.ID,
 		Name:        "Content-Type Key",

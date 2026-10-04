@@ -84,14 +84,10 @@ func setupGPXTest(t *testing.T) (*handlers.Handler, *repository.DeviceRepository
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 
-	userRepo := repository.NewUserRepository(pool)
 	deviceRepo := repository.NewDeviceRepository(pool)
 	posRepo := repository.NewPositionRepository(pool)
 
-	user := &model.User{Email: "gpxhandler@example.com", PasswordHash: "$2a$10$hash", Name: "GPX Handler"}
-	if err := userRepo.Create(context.Background(), user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "gpxhandler@example.com")
 
 	h := handlers.NewHandler(handlers.HandlerConfig{
 		Devices:   deviceRepo,
@@ -100,13 +96,8 @@ func setupGPXTest(t *testing.T) (*handlers.Handler, *repository.DeviceRepository
 	return h, deviceRepo, posRepo, user
 }
 
-// gpxUserCtx returns a context carrying the given authenticated user.
-func gpxUserCtx(user *model.User) context.Context {
-	return api.ContextWithUser(context.Background(), user)
-}
-
 func TestImportGPX_AccessDenied(t *testing.T) {
-	h, deviceRepo, _, user := setupGPXTest(t)
+	h, _, _, user := setupGPXTest(t)
 	ctx := context.Background()
 
 	// Create a device owned by a different user (IDOR check).
@@ -116,12 +107,9 @@ func TestImportGPX_AccessDenied(t *testing.T) {
 	if err := userRepo.Create(ctx, otherUser); err != nil {
 		t.Fatalf("create other user: %v", err)
 	}
-	device := &model.Device{UniqueID: "gpx-other-dev", Name: "Other Device", Status: "online"}
-	if err := deviceRepo.Create(ctx, device, otherUser.ID); err != nil {
-		t.Fatalf("create device: %v", err)
-	}
+	device := testutil.CreateDevice(t, otherUser.ID, "gpx-other-dev")
 
-	res, err := h.ImportGPX(gpxUserCtx(user), gpxMultipartReq(minimalGPX(2)), oas.ImportGPXParams{ID: device.ID})
+	res, err := h.ImportGPX(api.ContextWithUser(context.Background(), user), gpxMultipartReq(minimalGPX(2)), oas.ImportGPXParams{ID: device.ID})
 	if err != nil {
 		t.Fatalf("ImportGPX returned error: %v", err)
 	}
@@ -131,16 +119,12 @@ func TestImportGPX_AccessDenied(t *testing.T) {
 }
 
 func TestImportGPX_MissingOrEmptyFile(t *testing.T) {
-	h, deviceRepo, _, user := setupGPXTest(t)
-	ctx := context.Background()
+	h, _, _, user := setupGPXTest(t)
 
-	device := &model.Device{UniqueID: "gpx-nofile-dev", Name: "GPX Device", Status: "online"}
-	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
-		t.Fatalf("create device: %v", err)
-	}
+	device := testutil.CreateDevice(t, user.ID, "gpx-nofile-dev")
 
 	t.Run("file field not set", func(t *testing.T) {
-		res, err := h.ImportGPX(gpxUserCtx(user), &oas.ImportGPXReqMultipartFormData{}, oas.ImportGPXParams{ID: device.ID})
+		res, err := h.ImportGPX(api.ContextWithUser(context.Background(), user), &oas.ImportGPXReqMultipartFormData{}, oas.ImportGPXParams{ID: device.ID})
 		if err != nil {
 			t.Fatalf("ImportGPX returned error: %v", err)
 		}
@@ -154,7 +138,7 @@ func TestImportGPX_MissingOrEmptyFile(t *testing.T) {
 	})
 
 	t.Run("empty file content", func(t *testing.T) {
-		res, err := h.ImportGPX(gpxUserCtx(user), gpxMultipartReq(""), oas.ImportGPXParams{ID: device.ID})
+		res, err := h.ImportGPX(api.ContextWithUser(context.Background(), user), gpxMultipartReq(""), oas.ImportGPXParams{ID: device.ID})
 		if err != nil {
 			t.Fatalf("ImportGPX returned error: %v", err)
 		}
@@ -165,15 +149,11 @@ func TestImportGPX_MissingOrEmptyFile(t *testing.T) {
 }
 
 func TestImportGPX_InvalidGPXXML(t *testing.T) {
-	h, deviceRepo, _, user := setupGPXTest(t)
-	ctx := context.Background()
+	h, _, _, user := setupGPXTest(t)
 
-	device := &model.Device{UniqueID: "gpx-badxml-dev", Name: "GPX Device", Status: "online"}
-	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
-		t.Fatalf("create device: %v", err)
-	}
+	device := testutil.CreateDevice(t, user.ID, "gpx-badxml-dev")
 
-	res, err := h.ImportGPX(gpxUserCtx(user), gpxMultipartReq("this is not xml"), oas.ImportGPXParams{ID: device.ID})
+	res, err := h.ImportGPX(api.ContextWithUser(context.Background(), user), gpxMultipartReq("this is not xml"), oas.ImportGPXParams{ID: device.ID})
 	if err != nil {
 		t.Fatalf("ImportGPX returned error: %v", err)
 	}
@@ -187,13 +167,9 @@ func TestImportGPX_InvalidGPXXML(t *testing.T) {
 }
 
 func TestImportGPX_NoTimedPoints(t *testing.T) {
-	h, deviceRepo, _, user := setupGPXTest(t)
-	ctx := context.Background()
+	h, _, _, user := setupGPXTest(t)
 
-	device := &model.Device{UniqueID: "gpx-notimed-dev", Name: "GPX Device", Status: "online"}
-	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
-		t.Fatalf("create device: %v", err)
-	}
+	device := testutil.CreateDevice(t, user.ID, "gpx-notimed-dev")
 
 	// GPX with only untimed points.
 	gpx := `<?xml version="1.0" encoding="UTF-8"?>
@@ -203,7 +179,7 @@ func TestImportGPX_NoTimedPoints(t *testing.T) {
   </trkseg></trk>
 </gpx>`
 
-	res, err := h.ImportGPX(gpxUserCtx(user), gpxMultipartReq(gpx), oas.ImportGPXParams{ID: device.ID})
+	res, err := h.ImportGPX(api.ContextWithUser(context.Background(), user), gpxMultipartReq(gpx), oas.ImportGPXParams{ID: device.ID})
 	if err != nil {
 		t.Fatalf("ImportGPX returned error: %v", err)
 	}
@@ -220,13 +196,10 @@ func TestImportGPX_Success(t *testing.T) {
 	h, deviceRepo, posRepo, user := setupGPXTest(t)
 	ctx := context.Background()
 
-	device := &model.Device{UniqueID: "gpx-ok-dev", Name: "GPX Device", Status: "online"}
-	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
-		t.Fatalf("create device: %v", err)
-	}
+	device := testutil.CreateDevice(t, user.ID, "gpx-ok-dev")
 
 	// 3-point track with spacing for speed calculation.
-	res, err := h.ImportGPX(gpxUserCtx(user), gpxMultipartReq(minimalGPX(3)), oas.ImportGPXParams{ID: device.ID})
+	res, err := h.ImportGPX(api.ContextWithUser(context.Background(), user), gpxMultipartReq(minimalGPX(3)), oas.ImportGPXParams{ID: device.ID})
 	if err != nil {
 		t.Fatalf("ImportGPX returned error: %v", err)
 	}
@@ -294,15 +267,12 @@ func TestImportGPX_Success(t *testing.T) {
 }
 
 func TestImportGPX_UntimedPointsSkipped(t *testing.T) {
-	h, deviceRepo, posRepo, user := setupGPXTest(t)
+	h, _, posRepo, user := setupGPXTest(t)
 	ctx := context.Background()
 
-	device := &model.Device{UniqueID: "gpx-mix-dev", Name: "GPX Device", Status: "online"}
-	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
-		t.Fatalf("create device: %v", err)
-	}
+	device := testutil.CreateDevice(t, user.ID, "gpx-mix-dev")
 
-	res, err := h.ImportGPX(gpxUserCtx(user), gpxMultipartReq(gpxWithUntimed()), oas.ImportGPXParams{ID: device.ID})
+	res, err := h.ImportGPX(api.ContextWithUser(context.Background(), user), gpxMultipartReq(gpxWithUntimed()), oas.ImportGPXParams{ID: device.ID})
 	if err != nil {
 		t.Fatalf("ImportGPX returned error: %v", err)
 	}

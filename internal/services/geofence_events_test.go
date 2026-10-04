@@ -38,15 +38,13 @@ func setupGeofenceService(t *testing.T) (
 const testGeoJSON = `{"type":"Polygon","coordinates":[[[13.35,52.51],[13.35,52.53],[13.40,52.53],[13.40,52.51],[13.35,52.51]]]}`
 
 func TestGeofenceEvent_FirstPosition_EnterEvents(t *testing.T) {
-	svc, geoRepo, _, deviceRepo, posRepo, userRepo := setupGeofenceService(t)
+	svc, geoRepo, _, _, posRepo, _ := setupGeofenceService(t)
 	ctx := context.Background()
 
 	// Setup: user, device, geofence.
-	user := &model.User{Email: "geoevt@example.com", PasswordHash: "hash", Name: "Geo Evt"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "geoevt@example.com")
 
-	device := &model.Device{UniqueID: "geoevt-dev", Name: "Geo Device", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	device := testutil.CreateDevice(t, user.ID, "geoevt-dev")
 
 	g := &model.Geofence{Name: "Test Fence", Geometry: testGeoJSON}
 	_ = geoRepo.Create(ctx, g)
@@ -79,14 +77,12 @@ func TestGeofenceEvent_FirstPosition_EnterEvents(t *testing.T) {
 }
 
 func TestGeofenceEvent_NoGeofence_NoEvents(t *testing.T) {
-	svc, _, _, deviceRepo, posRepo, userRepo := setupGeofenceService(t)
+	svc, _, _, _, posRepo, _ := setupGeofenceService(t)
 	ctx := context.Background()
 
-	user := &model.User{Email: "geoevt-no@example.com", PasswordHash: "hash", Name: "No Geo"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "geoevt-no@example.com")
 
-	device := &model.Device{UniqueID: "nogeo-dev", Name: "No Geo Device", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	device := testutil.CreateDevice(t, user.ID, "nogeo-dev")
 
 	// No geofences created. Position should not generate events.
 	pos := &model.Position{
@@ -106,14 +102,12 @@ func TestGeofenceEvent_NoGeofence_NoEvents(t *testing.T) {
 }
 
 func TestGeofenceEvent_ExitDetection(t *testing.T) {
-	svc, geoRepo, _, deviceRepo, posRepo, userRepo := setupGeofenceService(t)
+	svc, geoRepo, _, _, posRepo, _ := setupGeofenceService(t)
 	ctx := context.Background()
 
-	user := &model.User{Email: "geoexit@example.com", PasswordHash: "hash", Name: "Geo Exit"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "geoexit@example.com")
 
-	device := &model.Device{UniqueID: "geoexit-dev", Name: "Exit Device", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	device := testutil.CreateDevice(t, user.ID, "geoexit-dev")
 
 	g := &model.Geofence{Name: "Exit Fence", Geometry: testGeoJSON}
 	_ = geoRepo.Create(ctx, g)
@@ -178,17 +172,11 @@ func TestGeofenceEvent_DeviceWithNoUsers(t *testing.T) {
 // previous position against the NEW polygon, finds "not inside", then compares
 // with the current position that IS inside → wrongly emits geofenceEnter.
 func TestCheckGeofences_ShapeEditDoesNotEmitSpuriousEvent(t *testing.T) {
-	svc, geoRepo, _, deviceRepo, posRepo, userRepo := setupGeofenceService(t)
+	svc, geoRepo, _, _, posRepo, _ := setupGeofenceService(t)
 	ctx := context.Background()
 
-	user := &model.User{Email: "spurious@example.com", PasswordHash: "h", Name: "Spurious"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatal(err)
-	}
-	device := &model.Device{UniqueID: "spurious-dev", Name: "Spurious", Status: "online"}
-	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
-		t.Fatal(err)
-	}
+	user := testutil.CreateUser(t, "spurious@example.com")
+	device := testutil.CreateDevice(t, user.ID, "spurious-dev")
 
 	// Large polygon covering (52.51-52.65, 13.35-13.40).
 	largePolygon := `{"type":"Polygon","coordinates":[[[13.35,52.51],[13.35,52.65],[13.40,52.65],[13.40,52.51],[13.35,52.51]]]}`

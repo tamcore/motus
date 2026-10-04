@@ -65,8 +65,9 @@ func (m *mockUserRepo) GetByToken(ctx context.Context, token string) (*model.Use
 
 // mockSessionRepo satisfies repository.SessionRepo for middleware tests.
 type mockSessionRepo struct {
-	getByIDFn      func(ctx context.Context, id string) (*model.Session, error)
-	updateExpiryFn func(ctx context.Context, id string, expiresAt time.Time)
+	getByIDFn        func(ctx context.Context, id string) (*model.Session, error)
+	updateExpiryFn   func(ctx context.Context, id string, expiresAt time.Time)
+	updateLastSeenFn func(ctx context.Context, id, ip, ua string) error
 }
 
 var _ repository.SessionRepo = (*mockSessionRepo)(nil)
@@ -96,7 +97,12 @@ func (m *mockSessionRepo) GetByID(ctx context.Context, id string) (*model.Sessio
 func (m *mockSessionRepo) GetByIDPrefix(_ context.Context, _ int64, _ string) (*model.Session, error) {
 	return nil, errors.New("not found")
 }
-func (m *mockSessionRepo) UpdateLastSeen(_ context.Context, _, _, _ string) error { return nil }
+func (m *mockSessionRepo) UpdateLastSeen(ctx context.Context, id, ip, ua string) error {
+	if m.updateLastSeenFn != nil {
+		return m.updateLastSeenFn(ctx, id, ip, ua)
+	}
+	return nil
+}
 func (m *mockSessionRepo) UpdateExpiry(ctx context.Context, id string, expiresAt time.Time) error {
 	if m.updateExpiryFn != nil {
 		m.updateExpiryFn(ctx, id, expiresAt)

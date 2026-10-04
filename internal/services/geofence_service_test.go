@@ -26,24 +26,12 @@ const testGeoJSONCircle = `{"type":"Polygon","coordinates":[[[13.40,52.51],[13.4
 
 func createTestUserAndGeofence(t *testing.T, ctx context.Context, svc *GeofenceService, userRepo *repository.UserRepository, email string) (*model.User, *model.Geofence) {
 	t.Helper()
-	user := &model.User{Email: email, PasswordHash: "hash", Name: "Test"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, email)
 	g, err := svc.CreateForUser(ctx, user, CreateGeofenceInput{Name: "Original", Geometry: testGeoJSONCircle})
 	if err != nil {
 		t.Fatalf("create geofence: %v", err)
 	}
 	return user, g
-}
-
-func createTestDevice(t *testing.T, ctx context.Context, user *model.User) *model.Device {
-	t.Helper()
-	d := &model.Device{UniqueID: "geo-svc-" + user.Email, Name: "Geo Service Device", Status: "online"}
-	if err := repository.NewDeviceRepository(testutil.SetupTestDB(t)).Create(ctx, d, user.ID); err != nil {
-		t.Fatalf("create device: %v", err)
-	}
-	return d
 }
 
 func TestGeofenceService_InvalidGeometryIsClientError(t *testing.T) {
@@ -130,8 +118,7 @@ func TestGeofenceService_UpdateForUser_AccessDenied(t *testing.T) {
 	ctx := context.Background()
 	_, g := createTestUserAndGeofence(t, ctx, svc, userRepo, "geo-owner@example.com")
 
-	other := &model.User{Email: "geo-other@example.com", PasswordHash: "hash", Name: "Other"}
-	_ = userRepo.Create(ctx, other)
+	other := testutil.CreateUser(t, "geo-other@example.com")
 
 	newName := "Hack"
 	_, err := svc.UpdateForUser(ctx, other, g.ID, UpdateGeofenceInput{Name: &newName})
@@ -147,7 +134,7 @@ func TestGeofenceService_UpdateForUser_ShapeChange(t *testing.T) {
 	svc, geoRepo, _, userRepo := setupGeofenceServiceCRUD(t)
 	ctx := context.Background()
 	user, g := createTestUserAndGeofence(t, ctx, svc, userRepo, "geo-shape@example.com")
-	device := createTestDevice(t, ctx, user)
+	device := testutil.CreateDevice(t, user.ID, "geo-svc-"+user.Email)
 
 	// Point inside original polygon.
 	insideOrig, _ := geoRepo.CheckContainmentForDevice(ctx, device.ID, 52.52, 13.41)
@@ -182,7 +169,7 @@ func TestGeofenceService_UpdateForUser_AreaWKT(t *testing.T) {
 	svc, geoRepo, _, userRepo := setupGeofenceServiceCRUD(t)
 	ctx := context.Background()
 	user, g := createTestUserAndGeofence(t, ctx, svc, userRepo, "geo-area@example.com")
-	device := createTestDevice(t, ctx, user)
+	device := testutil.CreateDevice(t, user.ID, "geo-svc-"+user.Email)
 
 	// Update via WKT area string (east polygon).
 	newArea := "POLYGON((13.60 52.55, 13.60 52.57, 13.65 52.57, 13.65 52.55, 13.60 52.55))"
@@ -220,8 +207,7 @@ func TestGeofenceService_DeleteForUser_AccessDenied(t *testing.T) {
 	ctx := context.Background()
 	_, g := createTestUserAndGeofence(t, ctx, svc, userRepo, "geo-delacc@example.com")
 
-	other := &model.User{Email: "geo-del-other@example.com", PasswordHash: "hash", Name: "Other2"}
-	_ = userRepo.Create(ctx, other)
+	other := testutil.CreateUser(t, "geo-del-other@example.com")
 
 	if err := svc.DeleteForUser(ctx, other, g.ID); err == nil {
 		t.Fatal("expected access denied error")

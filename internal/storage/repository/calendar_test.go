@@ -24,13 +24,9 @@ func TestCalendarRepository_Create(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	calRepo := repository.NewCalendarRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{Email: "cal-create@example.com", PasswordHash: "hash", Name: "Cal Create"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "cal-create@example.com")
 
 	cal := &model.Calendar{
 		UserID: user.ID,
@@ -61,13 +57,9 @@ func TestCalendarRepository_GetByID(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	calRepo := repository.NewCalendarRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{Email: "cal-getid@example.com", PasswordHash: "hash", Name: "Cal GetID"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "cal-getid@example.com")
 
 	cal := &model.Calendar{UserID: user.ID, Name: "Test Cal", Data: sampleICalData}
 	if err := calRepo.Create(ctx, cal); err != nil {
@@ -105,13 +97,9 @@ func TestCalendarRepository_GetByUser(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	calRepo := repository.NewCalendarRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{Email: "cal-user@example.com", PasswordHash: "hash", Name: "Cal User"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "cal-user@example.com")
 
 	cal1 := &model.Calendar{UserID: user.ID, Name: "Alpha Calendar", Data: sampleICalData}
 	cal2 := &model.Calendar{UserID: user.ID, Name: "Beta Calendar", Data: sampleICalData}
@@ -142,13 +130,9 @@ func TestCalendarRepository_GetByUser_Empty(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	calRepo := repository.NewCalendarRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{Email: "cal-empty@example.com", PasswordHash: "hash", Name: "Cal Empty"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "cal-empty@example.com")
 
 	calendars, err := calRepo.GetByUser(ctx, user.ID)
 	if err != nil {
@@ -163,13 +147,9 @@ func TestCalendarRepository_Update(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	calRepo := repository.NewCalendarRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{Email: "cal-update@example.com", PasswordHash: "hash", Name: "Cal Update"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "cal-update@example.com")
 
 	cal := &model.Calendar{UserID: user.ID, Name: "Before Update", Data: sampleICalData}
 	if err := calRepo.Create(ctx, cal); err != nil {
@@ -195,13 +175,9 @@ func TestCalendarRepository_Delete(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	calRepo := repository.NewCalendarRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{Email: "cal-delete@example.com", PasswordHash: "hash", Name: "Cal Delete"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "cal-delete@example.com")
 
 	cal := &model.Calendar{UserID: user.ID, Name: "Delete Me", Data: sampleICalData}
 	if err := calRepo.Create(ctx, cal); err != nil {
@@ -254,14 +230,10 @@ func TestCalendarRepository_Delete_NullsGeofenceCalendarID(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	calRepo := repository.NewCalendarRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	geoRepo := repository.NewGeofenceRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{Email: "cal-geo-null@example.com", PasswordHash: "hash", Name: "Cal GeoNull"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "cal-geo-null@example.com")
 
 	cal := &model.Calendar{UserID: user.ID, Name: "Linked Cal", Data: sampleICalData}
 	if err := calRepo.Create(ctx, cal); err != nil {

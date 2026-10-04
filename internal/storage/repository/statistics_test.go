@@ -133,14 +133,10 @@ func TestStatisticsRepository_GetUserStats_Empty(t *testing.T) {
 	testutil.CleanTables(t, pool)
 
 	ctx := context.Background()
-	userRepo := repository.NewUserRepository(pool)
 	statsRepo := repository.NewStatisticsRepository(pool)
 
 	// Create a user with no devices/positions/events.
-	u := &model.User{Email: "usrstats@example.com", PasswordHash: "hash", Name: "UserStats"}
-	if err := userRepo.Create(ctx, u); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	u := testutil.CreateUser(t, "usrstats@example.com")
 
 	stats, err := statsRepo.GetUserStats(ctx, u.ID)
 	if err != nil {
@@ -172,7 +168,6 @@ func TestStatisticsRepository_GetUserStats_WithData(t *testing.T) {
 	testutil.CleanTables(t, pool)
 
 	ctx := context.Background()
-	userRepo := repository.NewUserRepository(pool)
 	deviceRepo := repository.NewDeviceRepository(pool)
 	posRepo := repository.NewPositionRepository(pool)
 	eventRepo := repository.NewEventRepository(pool)
@@ -180,10 +175,7 @@ func TestStatisticsRepository_GetUserStats_WithData(t *testing.T) {
 	statsRepo := repository.NewStatisticsRepository(pool)
 
 	// Create a user.
-	u := &model.User{Email: "fullstats@example.com", PasswordHash: "hash", Name: "FullStats"}
-	if err := userRepo.Create(ctx, u); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	u := testutil.CreateUser(t, "fullstats@example.com")
 
 	// Create 2 devices assigned to the user.
 	d1 := &model.Device{UniqueID: "full-d1", Name: "Full D1", Status: "online"}

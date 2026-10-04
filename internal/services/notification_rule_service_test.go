@@ -192,10 +192,7 @@ func TestNotificationRuleService_AuditsAllMutations(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	ctx := t.Context()
-	user := &model.User{Email: "rule-audit@example.com", PasswordHash: "hash", Name: "Audit"}
-	if err := repository.NewUserRepository(pool).Create(ctx, user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "rule-audit@example.com")
 	logger := audit.NewLogger(pool)
 	svc := NewNotificationRuleService(repository.NewNotificationRepository(pool), repository.NewGeofenceRepository(pool), logger)
 

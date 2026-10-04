@@ -4,31 +4,26 @@ import (
 	"context"
 	"testing"
 
-	"github.com/tamcore/motus/internal/model"
 	"github.com/tamcore/motus/internal/storage/repository"
 	"github.com/tamcore/motus/internal/storage/repository/testutil"
 )
 
-func setupCalendarService(t *testing.T) (*CalendarService, *repository.CalendarRepository, *repository.UserRepository) {
+func setupCalendarService(t *testing.T) (*CalendarService, *repository.CalendarRepository) {
 	t.Helper()
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	calRepo := repository.NewCalendarRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	svc := NewCalendarService(calRepo, nil)
-	return svc, calRepo, userRepo
+	return svc, calRepo
 }
 
 const testIcal = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//test//test//EN\r\nBEGIN:VEVENT\r\nUID:test@test\r\nSUMMARY:Test\r\nDTSTART:20260606T180000Z\r\nDTEND:20260606T200000Z\r\nEND:VEVENT\r\nEND:VCALENDAR"
 
 func TestCalendarService_CreateForUser_HappyPath(t *testing.T) {
-	svc, calRepo, userRepo := setupCalendarService(t)
+	svc, calRepo := setupCalendarService(t)
 	ctx := context.Background()
 
-	user := &model.User{Email: "calsvc@example.com", PasswordHash: "hash", Name: "Cal Svc"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "calsvc@example.com")
 
 	cal, err := svc.CreateForUser(ctx, user, CalendarInput{Name: "Test Cal", Data: testIcal})
 	if err != nil {
@@ -51,11 +46,10 @@ func TestCalendarService_CreateForUser_HappyPath(t *testing.T) {
 }
 
 func TestCalendarService_CreateForUser_EmptyName(t *testing.T) {
-	svc, _, userRepo := setupCalendarService(t)
+	svc, _ := setupCalendarService(t)
 	ctx := context.Background()
 
-	user := &model.User{Email: "calname@example.com", PasswordHash: "hash", Name: "Cal Name"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "calname@example.com")
 
 	_, err := svc.CreateForUser(ctx, user, CalendarInput{Name: "", Data: testIcal})
 	if err == nil {
@@ -64,11 +58,10 @@ func TestCalendarService_CreateForUser_EmptyName(t *testing.T) {
 }
 
 func TestCalendarService_CreateForUser_InvalidIcal(t *testing.T) {
-	svc, _, userRepo := setupCalendarService(t)
+	svc, _ := setupCalendarService(t)
 	ctx := context.Background()
 
-	user := &model.User{Email: "calical@example.com", PasswordHash: "hash", Name: "Cal Ical"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "calical@example.com")
 
 	_, err := svc.CreateForUser(ctx, user, CalendarInput{Name: "Bad Cal", Data: "not-ical"})
 	if err == nil {
@@ -77,11 +70,10 @@ func TestCalendarService_CreateForUser_InvalidIcal(t *testing.T) {
 }
 
 func TestCalendarService_CreateForUser_NameTooLong(t *testing.T) {
-	svc, _, userRepo := setupCalendarService(t)
+	svc, _ := setupCalendarService(t)
 	ctx := context.Background()
 
-	user := &model.User{Email: "callong@example.com", PasswordHash: "hash", Name: "Cal Long"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "callong@example.com")
 
 	longName := string(make([]byte, 256))
 	_, err := svc.CreateForUser(ctx, user, CalendarInput{Name: longName, Data: testIcal})

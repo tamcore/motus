@@ -32,10 +32,7 @@ func TestRouter_Passkey_ReadonlyAndPublicExemptions(t *testing.T) {
 	sessionRepo := repository.NewSessionRepository(pool)
 	apiKeyRepo := repository.NewApiKeyRepository(pool)
 
-	user := &model.User{Email: "pk-router@example.com", PasswordHash: "hash", Name: "PK Router"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "pk-router@example.com")
 	readonlyKey := &model.ApiKey{UserID: user.ID, Name: "RO", Permissions: model.PermissionReadonly}
 	if err := apiKeyRepo.Create(ctx, readonlyKey); err != nil {
 		t.Fatalf("create readonly key: %v", err)

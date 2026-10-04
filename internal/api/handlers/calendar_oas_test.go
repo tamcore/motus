@@ -17,7 +17,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tamcore/motus/internal/api"
 	"github.com/tamcore/motus/internal/api/handlers"
 	oas "github.com/tamcore/motus/internal/api/oas"
 	"github.com/tamcore/motus/internal/audit"
@@ -50,10 +49,6 @@ func newCalendarTestHandler(calendars repository.CalendarRepo) *handlers.Handler
 	})
 }
 
-func calendarTestUserCtx(id int64) context.Context {
-	return api.ContextWithUser(context.Background(), &model.User{ID: id, Email: "cal@example.com", Role: model.RoleUser})
-}
-
 // ---------------------------------------------------------------------------
 // CreateCalendar
 // ---------------------------------------------------------------------------
@@ -69,7 +64,7 @@ func TestCreateCalendar_Success(t *testing.T) {
 	}
 	h := newCalendarTestHandler(mock)
 
-	res, err := h.CreateCalendar(calendarTestUserCtx(1), &oas.CalendarInput{
+	res, err := h.CreateCalendar(ctxAs(1, model.RoleUser), &oas.CalendarInput{
 		Name: "Test Calendar",
 		Data: testICalData,
 	})
@@ -98,7 +93,7 @@ func TestCreateCalendar_StorageErrorIsGeneric(t *testing.T) {
 		},
 	})
 
-	res, _ := h.CreateCalendar(calendarTestUserCtx(1), &oas.CalendarInput{Name: "Cal", Data: testICalData})
+	res, _ := h.CreateCalendar(ctxAs(1, model.RoleUser), &oas.CalendarInput{Name: "Cal", Data: testICalData})
 	bad, ok := res.(*oas.CreateCalendarBadRequest)
 	if !ok || bad.Error != "failed to create calendar" {
 		t.Fatalf("got %#v, want generic failure", res)
@@ -118,16 +113,16 @@ func TestUpdateCalendar_Errors(t *testing.T) {
 	})
 	params := oas.UpdateCalendarParams{ID: 4}
 
-	res, _ := h.UpdateCalendar(calendarTestUserCtx(1), &oas.CalendarInput{Name: "New"}, params)
+	res, _ := h.UpdateCalendar(ctxAs(1, model.RoleUser), &oas.CalendarInput{Name: "New"}, params)
 	if bad, ok := res.(*oas.UpdateCalendarBadRequest); !ok || bad.Error != "failed to update calendar" {
 		t.Errorf("storage error: got %#v", res)
 	}
-	res, _ = h.UpdateCalendar(calendarTestUserCtx(1), &oas.CalendarInput{Data: "not ical"}, params)
+	res, _ = h.UpdateCalendar(ctxAs(1, model.RoleUser), &oas.CalendarInput{Data: "not ical"}, params)
 	if bad, ok := res.(*oas.UpdateCalendarBadRequest); !ok || !strings.HasPrefix(bad.Error, "invalid iCalendar data:") {
 		t.Errorf("invalid data: got %#v", res)
 	}
 	hasAccess = false
-	res, _ = h.UpdateCalendar(calendarTestUserCtx(1), &oas.CalendarInput{Name: "New"}, params)
+	res, _ = h.UpdateCalendar(ctxAs(1, model.RoleUser), &oas.CalendarInput{Name: "New"}, params)
 	if nf, ok := res.(*oas.UpdateCalendarNotFound); !ok || nf.Error != "calendar not found" {
 		t.Errorf("no access: got %#v", res)
 	}
@@ -136,7 +131,7 @@ func TestUpdateCalendar_Errors(t *testing.T) {
 func TestCreateCalendar_MissingName(t *testing.T) {
 	h := newCalendarTestHandler(&auditMockCalendarRepo{})
 
-	res, err := h.CreateCalendar(calendarTestUserCtx(1), &oas.CalendarInput{Data: testICalData})
+	res, err := h.CreateCalendar(ctxAs(1, model.RoleUser), &oas.CalendarInput{Data: testICalData})
 	if err != nil {
 		t.Fatalf("CreateCalendar returned error: %v", err)
 	}
@@ -152,7 +147,7 @@ func TestCreateCalendar_MissingName(t *testing.T) {
 func TestCreateCalendar_MissingData(t *testing.T) {
 	h := newCalendarTestHandler(&auditMockCalendarRepo{})
 
-	res, err := h.CreateCalendar(calendarTestUserCtx(1), &oas.CalendarInput{Name: "No Data"})
+	res, err := h.CreateCalendar(ctxAs(1, model.RoleUser), &oas.CalendarInput{Name: "No Data"})
 	if err != nil {
 		t.Fatalf("CreateCalendar returned error: %v", err)
 	}
@@ -168,7 +163,7 @@ func TestCreateCalendar_MissingData(t *testing.T) {
 func TestCreateCalendar_InvalidICalData(t *testing.T) {
 	h := newCalendarTestHandler(&auditMockCalendarRepo{})
 
-	res, err := h.CreateCalendar(calendarTestUserCtx(1), &oas.CalendarInput{
+	res, err := h.CreateCalendar(ctxAs(1, model.RoleUser), &oas.CalendarInput{
 		Name: "Bad Cal",
 		Data: "this is not valid ical",
 	})
@@ -199,7 +194,7 @@ func TestCreateCalendar_InvalidName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			res, err := h.CreateCalendar(calendarTestUserCtx(1), &oas.CalendarInput{
+			res, err := h.CreateCalendar(ctxAs(1, model.RoleUser), &oas.CalendarInput{
 				Name: tt.calName,
 				Data: testICalData,
 			})
@@ -231,7 +226,7 @@ func TestUpdateCalendar_Success(t *testing.T) {
 	}
 	h := newCalendarTestHandler(mock)
 
-	res, err := h.UpdateCalendar(calendarTestUserCtx(1),
+	res, err := h.UpdateCalendar(ctxAs(1, model.RoleUser),
 		&oas.CalendarInput{Name: "After"}, oas.UpdateCalendarParams{ID: 3})
 	if err != nil {
 		t.Fatalf("UpdateCalendar returned error: %v", err)
@@ -268,7 +263,7 @@ func TestUpdateCalendar_Forbidden(t *testing.T) {
 	}
 	h := newCalendarTestHandler(mock)
 
-	res, err := h.UpdateCalendar(calendarTestUserCtx(1),
+	res, err := h.UpdateCalendar(ctxAs(1, model.RoleUser),
 		&oas.CalendarInput{Name: "Hacked"}, oas.UpdateCalendarParams{ID: 3})
 	if err != nil {
 		t.Fatalf("UpdateCalendar returned error: %v", err)
@@ -300,7 +295,7 @@ func TestUpdateCalendar_InvalidName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			res, err := h.UpdateCalendar(calendarTestUserCtx(1),
+			res, err := h.UpdateCalendar(ctxAs(1, model.RoleUser),
 				&oas.CalendarInput{Name: tt.calName}, oas.UpdateCalendarParams{ID: 3})
 			if err != nil {
 				t.Fatalf("UpdateCalendar returned error: %v", err)
@@ -327,7 +322,7 @@ func TestDeleteCalendar_Success(t *testing.T) {
 	}
 	h := newCalendarTestHandler(mock)
 
-	res, err := h.DeleteCalendar(calendarTestUserCtx(1), oas.DeleteCalendarParams{ID: 5})
+	res, err := h.DeleteCalendar(ctxAs(1, model.RoleUser), oas.DeleteCalendarParams{ID: 5})
 	if err != nil {
 		t.Fatalf("DeleteCalendar returned error: %v", err)
 	}
@@ -350,7 +345,7 @@ func TestDeleteCalendar_Forbidden(t *testing.T) {
 	}
 	h := newCalendarTestHandler(mock)
 
-	res, err := h.DeleteCalendar(calendarTestUserCtx(1), oas.DeleteCalendarParams{ID: 5})
+	res, err := h.DeleteCalendar(ctxAs(1, model.RoleUser), oas.DeleteCalendarParams{ID: 5})
 	if err != nil {
 		t.Fatalf("DeleteCalendar returned error: %v", err)
 	}
@@ -375,7 +370,7 @@ func TestCheckCalendar_Success(t *testing.T) {
 	}
 	h := newCalendarTestHandler(mock)
 
-	res, err := h.CheckCalendar(calendarTestUserCtx(1), oas.CheckCalendarParams{ID: 5})
+	res, err := h.CheckCalendar(ctxAs(1, model.RoleUser), oas.CheckCalendarParams{ID: 5})
 	if err != nil {
 		t.Fatalf("CheckCalendar returned error: %v", err)
 	}
@@ -395,7 +390,7 @@ func TestCheckCalendar_Forbidden(t *testing.T) {
 	}
 	h := newCalendarTestHandler(mock)
 
-	res, err := h.CheckCalendar(calendarTestUserCtx(1), oas.CheckCalendarParams{ID: 5})
+	res, err := h.CheckCalendar(ctxAs(1, model.RoleUser), oas.CheckCalendarParams{ID: 5})
 	if err != nil {
 		t.Fatalf("CheckCalendar returned error: %v", err)
 	}
@@ -421,7 +416,7 @@ func TestAdminListCalendars_NonAdminForbidden(t *testing.T) {
 	}
 
 	// Non-admin.
-	res, err = h.AdminListCalendars(calendarTestUserCtx(1))
+	res, err = h.AdminListCalendars(ctxAs(1, model.RoleUser))
 	if err != nil {
 		t.Fatalf("AdminListCalendars returned error: %v", err)
 	}

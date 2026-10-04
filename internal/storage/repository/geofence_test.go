@@ -84,13 +84,9 @@ func TestGeofenceRepository_GetByUser(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	geoRepo := repository.NewGeofenceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{Email: "geo-user@example.com", PasswordHash: "hash", Name: "Geo User"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("Create user failed: %v", err)
-	}
+	user := testutil.CreateUser(t, "geo-user@example.com")
 
 	g1 := &model.Geofence{Name: "Alpha Fence", Geometry: berlinPolygonGeoJSON}
 	g2 := &model.Geofence{Name: "Beta Fence", Geometry: berlinPolygonGeoJSON}
@@ -175,13 +171,9 @@ func TestGeofenceRepository_AssociateUser_Idempotent(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	geoRepo := repository.NewGeofenceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{Email: "assoc@example.com", PasswordHash: "hash", Name: "Assoc User"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("Create user failed: %v", err)
-	}
+	user := testutil.CreateUser(t, "assoc@example.com")
 
 	g := &model.Geofence{Name: "Assoc Fence", Geometry: berlinPolygonGeoJSON}
 	if err := geoRepo.Create(ctx, g); err != nil {
@@ -201,13 +193,9 @@ func TestGeofenceRepository_UserHasAccess(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	geoRepo := repository.NewGeofenceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{Email: "access-geo@example.com", PasswordHash: "hash", Name: "Access Geo"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("Create user failed: %v", err)
-	}
+	user := testutil.CreateUser(t, "access-geo@example.com")
 
 	g := &model.Geofence{Name: "Access Fence", Geometry: berlinPolygonGeoJSON}
 	if err := geoRepo.Create(ctx, g); err != nil {
@@ -233,10 +221,10 @@ func TestGeofenceRepository_Update_Geometry(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	geoRepo := repository.NewGeofenceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user, device := createTestDevice(t, pool, repository.NewDeviceRepository(pool), userRepo)
+	user := testutil.CreateUser(t, "geofence-1@example.com")
+	device := testutil.CreateDevice(t, user.ID, "geofence-1")
 
 	// Create with the central-Berlin polygon (covers 52.51-52.53, 13.35-13.40).
 	g := &model.Geofence{Name: "Shape Test", Geometry: berlinPolygonGeoJSON}
@@ -285,10 +273,10 @@ func TestGeofenceRepository_CheckContainmentForDevice(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	geoRepo := repository.NewGeofenceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user, device := createTestDevice(t, pool, repository.NewDeviceRepository(pool), userRepo)
+	user := testutil.CreateUser(t, "geofence-2@example.com")
+	device := testutil.CreateDevice(t, user.ID, "geofence-2")
 
 	// Polygon around central Berlin: lat 52.51-52.53, lon 13.35-13.40
 	g := &model.Geofence{Name: "Berlin Center", Geometry: berlinPolygonGeoJSON}

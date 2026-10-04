@@ -40,20 +40,13 @@ func setupEventsOASIntegration(t *testing.T) *eventsOASEnv {
 	t.Helper()
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
-	ctx := context.Background()
 
 	userRepo := repository.NewUserRepository(pool)
 	deviceRepo := repository.NewDeviceRepository(pool)
 	eventRepo := repository.NewEventRepository(pool)
 
-	user := &model.User{Email: "events-oas@example.com", PasswordHash: "$2a$10$hash", Name: "Events OAS"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
-	device := &model.Device{UniqueID: "events-oas-dev", Name: "Events Device", Status: "online"}
-	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
-		t.Fatalf("create device: %v", err)
-	}
+	user := testutil.CreateUser(t, "events-oas@example.com")
+	device := testutil.CreateDevice(t, user.ID, "events-oas-dev")
 
 	h := handlers.NewHandler(handlers.HandlerConfig{
 		Users:   userRepo,
@@ -70,10 +63,7 @@ func (e *eventsOASEnv) userCtx() context.Context {
 // createOtherUser inserts a second user with no access to env.device.
 func (e *eventsOASEnv) createOtherUser(t *testing.T) *model.User {
 	t.Helper()
-	other := &model.User{Email: "events-oas-other@example.com", PasswordHash: "$2a$10$hash", Name: "Other"}
-	if err := e.userRepo.Create(context.Background(), other); err != nil {
-		t.Fatalf("create other user: %v", err)
-	}
+	other := testutil.CreateUser(t, "events-oas-other@example.com")
 	return other
 }
 
@@ -194,10 +184,7 @@ func TestReportEvents_DeviceIDFilter_Integration(t *testing.T) {
 	env := setupEventsOASIntegration(t)
 	ctx := context.Background()
 
-	d2 := &model.Device{UniqueID: "events-oas-dev-2", Name: "D2", Status: "online"}
-	if err := env.deviceRepo.Create(ctx, d2, env.user.ID); err != nil {
-		t.Fatalf("create second device: %v", err)
-	}
+	d2 := testutil.CreateDevice(t, env.user.ID, "events-oas-dev-2")
 
 	now := time.Now().UTC()
 	_ = env.eventRepo.Create(ctx, &model.Event{DeviceID: env.device.ID, Type: "deviceOnline", Timestamp: now})

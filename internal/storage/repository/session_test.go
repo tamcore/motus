@@ -14,13 +14,9 @@ func TestSessionRepository_Create(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	sessionRepo := repository.NewSessionRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{Email: "session@example.com", PasswordHash: "hash", Name: "Session User"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("Create user failed: %v", err)
-	}
+	user := testutil.CreateUser(t, "session@example.com")
 
 	session, err := sessionRepo.Create(ctx, user.ID)
 	if err != nil {
@@ -42,13 +38,9 @@ func TestSessionRepository_GetByID(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	sessionRepo := repository.NewSessionRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{Email: "sess-get@example.com", PasswordHash: "hash", Name: "Sess Get"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("Create user failed: %v", err)
-	}
+	user := testutil.CreateUser(t, "sess-get@example.com")
 
 	session, err := sessionRepo.Create(ctx, user.ID)
 	if err != nil {
@@ -80,13 +72,9 @@ func TestSessionRepository_CreateWithExpiry(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	sessionRepo := repository.NewSessionRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{Email: "sess-expiry@example.com", PasswordHash: "hash", Name: "Expiry User"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("Create user failed: %v", err)
-	}
+	user := testutil.CreateUser(t, "sess-expiry@example.com")
 
 	expiry := time.Now().Add(10 * 365 * 24 * time.Hour)
 	session, err := sessionRepo.CreateWithExpiry(ctx, user.ID, expiry, true)
@@ -117,14 +105,10 @@ func TestSessionRepository_CreateWithApiKey(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	sessionRepo := repository.NewSessionRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	apiKeyRepo := repository.NewApiKeyRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{Email: "sess-apikey@example.com", PasswordHash: "hash", Name: "API Key Session User"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("Create user failed: %v", err)
-	}
+	user := testutil.CreateUser(t, "sess-apikey@example.com")
 
 	key := &model.ApiKey{UserID: user.ID, Name: "Test Key", Permissions: model.PermissionReadonly}
 	if err := apiKeyRepo.Create(ctx, key); err != nil {
@@ -167,13 +151,9 @@ func TestSessionRepository_CreateWithApiKey_NilApiKeyID_OnGetByID(t *testing.T) 
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	sessionRepo := repository.NewSessionRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{Email: "sess-no-apikey@example.com", PasswordHash: "hash", Name: "No API Key Session User"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("Create user failed: %v", err)
-	}
+	user := testutil.CreateUser(t, "sess-no-apikey@example.com")
 
 	// Regular session creation -- no api_key_id.
 	session, err := sessionRepo.Create(ctx, user.ID)
@@ -194,13 +174,9 @@ func TestSessionRepository_Delete(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	sessionRepo := repository.NewSessionRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{Email: "sess-del@example.com", PasswordHash: "hash", Name: "Sess Del"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("Create user failed: %v", err)
-	}
+	user := testutil.CreateUser(t, "sess-del@example.com")
 
 	session, err := sessionRepo.Create(ctx, user.ID)
 	if err != nil {
@@ -221,14 +197,10 @@ func TestSessionRepository_ListByUser(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	sessionRepo := repository.NewSessionRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	apiKeyRepo := repository.NewApiKeyRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{Email: "sess-list@example.com", PasswordHash: "hash", Name: "List User"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("Create user failed: %v", err)
-	}
+	user := testutil.CreateUser(t, "sess-list@example.com")
 
 	// Create an API key to link to one session.
 	key := &model.ApiKey{UserID: user.ID, Name: "Session Key", Permissions: model.PermissionFull}
@@ -243,10 +215,7 @@ func TestSessionRepository_ListByUser(t *testing.T) {
 	}
 
 	// Session 2: sudo session.
-	adminUser := &model.User{Email: "sess-list-admin@example.com", PasswordHash: "hash", Name: "Admin"}
-	if err := userRepo.Create(ctx, adminUser); err != nil {
-		t.Fatalf("Create admin user failed: %v", err)
-	}
+	adminUser := testutil.CreateUser(t, "sess-list-admin@example.com")
 	s2, err := sessionRepo.CreateSudo(ctx, user.ID, adminUser.ID)
 	if err != nil {
 		t.Fatalf("Create sudo session failed: %v", err)
@@ -313,13 +282,9 @@ func TestSessionRepository_ListByUser_Empty(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	sessionRepo := repository.NewSessionRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{Email: "sess-list-empty@example.com", PasswordHash: "hash", Name: "Empty User"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("Create user failed: %v", err)
-	}
+	user := testutil.CreateUser(t, "sess-list-empty@example.com")
 
 	sessions, err := sessionRepo.ListByUser(ctx, user.ID)
 	if err != nil {
@@ -334,13 +299,9 @@ func TestSessionRepository_ListByUser_ExcludesExpired(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	sessionRepo := repository.NewSessionRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{Email: "sess-list-expired@example.com", PasswordHash: "hash", Name: "Expired User"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("Create user failed: %v", err)
-	}
+	user := testutil.CreateUser(t, "sess-list-expired@example.com")
 
 	// Create a session that already expired (1 hour in the past).
 	pastExpiry := time.Now().Add(-1 * time.Hour)
@@ -362,13 +323,9 @@ func TestSessionRepository_UpdateLastSeen(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	sessionRepo := repository.NewSessionRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{Email: "sess-lastseen@example.com", PasswordHash: "hash", Name: "Last Seen User"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("Create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "sess-lastseen@example.com")
 
 	session, err := sessionRepo.Create(ctx, user.ID)
 	if err != nil {
@@ -424,14 +381,10 @@ func TestSessionRepository_CascadeDeleteApiKey(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	sessionRepo := repository.NewSessionRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	apiKeyRepo := repository.NewApiKeyRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{Email: "sess-cascade-apikey@example.com", PasswordHash: "hash", Name: "Cascade User"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("Create user failed: %v", err)
-	}
+	user := testutil.CreateUser(t, "sess-cascade-apikey@example.com")
 
 	key := &model.ApiKey{UserID: user.ID, Name: "Cascade Key", Permissions: model.PermissionReadonly}
 	if err := apiKeyRepo.Create(ctx, key); err != nil {

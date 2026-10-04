@@ -17,7 +17,6 @@ func setupMotionService(t *testing.T) (
 	*repository.EventRepository,
 	*repository.DeviceRepository,
 	*repository.PositionRepository,
-	*repository.UserRepository,
 ) {
 	t.Helper()
 	pool := testutil.SetupTestDB(t)
@@ -26,22 +25,19 @@ func setupMotionService(t *testing.T) (
 	eventRepo := repository.NewEventRepository(pool)
 	deviceRepo := repository.NewDeviceRepository(pool)
 	posRepo := repository.NewPositionRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	hub := websocket.NewHub(nil, nil, func(r *http.Request) int64 { return 0 })
 
 	svc := NewMotionService(posRepo, eventRepo, hub, nil, nil)
-	return svc, eventRepo, deviceRepo, posRepo, userRepo
+	return svc, eventRepo, deviceRepo, posRepo
 }
 
 func TestMotion_StartedMoving(t *testing.T) {
-	svc, _, deviceRepo, posRepo, userRepo := setupMotionService(t)
+	svc, _, _, posRepo := setupMotionService(t)
 	ctx := context.Background()
 
-	user := &model.User{Email: "motion@example.com", PasswordHash: "hash", Name: "Motion"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "motion@example.com")
 
-	device := &model.Device{UniqueID: "motion-dev", Name: "Motion Device", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	device := testutil.CreateDevice(t, user.ID, "motion-dev")
 
 	now := time.Now().UTC()
 
@@ -85,14 +81,12 @@ func TestMotion_StartedMoving(t *testing.T) {
 }
 
 func TestMotion_AlreadyMoving(t *testing.T) {
-	svc, _, deviceRepo, posRepo, userRepo := setupMotionService(t)
+	svc, _, _, posRepo := setupMotionService(t)
 	ctx := context.Background()
 
-	user := &model.User{Email: "already@example.com", PasswordHash: "hash", Name: "Already Moving"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "already@example.com")
 
-	device := &model.Device{UniqueID: "already-dev", Name: "Already Device", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	device := testutil.CreateDevice(t, user.ID, "already-dev")
 
 	now := time.Now().UTC()
 
@@ -129,14 +123,12 @@ func TestMotion_AlreadyMoving(t *testing.T) {
 }
 
 func TestMotion_StillStationary(t *testing.T) {
-	svc, _, deviceRepo, posRepo, userRepo := setupMotionService(t)
+	svc, _, _, posRepo := setupMotionService(t)
 	ctx := context.Background()
 
-	user := &model.User{Email: "still@example.com", PasswordHash: "hash", Name: "Still"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "still@example.com")
 
-	device := &model.Device{UniqueID: "still-dev", Name: "Still Device", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	device := testutil.CreateDevice(t, user.ID, "still-dev")
 
 	now := time.Now().UTC()
 
@@ -173,14 +165,12 @@ func TestMotion_StillStationary(t *testing.T) {
 }
 
 func TestMotion_NoPreviousPosition(t *testing.T) {
-	svc, _, deviceRepo, posRepo, userRepo := setupMotionService(t)
+	svc, _, _, posRepo := setupMotionService(t)
 	ctx := context.Background()
 
-	user := &model.User{Email: "noprev@example.com", PasswordHash: "hash", Name: "No Prev"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "noprev@example.com")
 
-	device := &model.Device{UniqueID: "noprev-dev", Name: "No Prev Device", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	device := testutil.CreateDevice(t, user.ID, "noprev-dev")
 
 	// First ever position with high speed: no event since no previous.
 	speed := 50.0
@@ -205,14 +195,12 @@ func TestMotion_NoPreviousPosition(t *testing.T) {
 }
 
 func TestMotion_NilSpeedTreatedAsZero(t *testing.T) {
-	svc, _, deviceRepo, posRepo, userRepo := setupMotionService(t)
+	svc, _, _, posRepo := setupMotionService(t)
 	ctx := context.Background()
 
-	user := &model.User{Email: "nilmotion@example.com", PasswordHash: "hash", Name: "Nil Motion"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "nilmotion@example.com")
 
-	device := &model.Device{UniqueID: "nilmotion-dev", Name: "Nil Motion Device", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	device := testutil.CreateDevice(t, user.ID, "nilmotion-dev")
 
 	now := time.Now().UTC()
 
@@ -251,14 +239,12 @@ func TestMotion_NilSpeedTreatedAsZero(t *testing.T) {
 }
 
 func TestMotion_ThresholdBoundary(t *testing.T) {
-	svc, _, deviceRepo, posRepo, userRepo := setupMotionService(t)
+	svc, _, _, posRepo := setupMotionService(t)
 	ctx := context.Background()
 
-	user := &model.User{Email: "boundary@example.com", PasswordHash: "hash", Name: "Boundary"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "boundary@example.com")
 
-	device := &model.Device{UniqueID: "boundary-dev", Name: "Boundary Device", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	device := testutil.CreateDevice(t, user.ID, "boundary-dev")
 
 	now := time.Now().UTC()
 

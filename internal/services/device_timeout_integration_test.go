@@ -17,23 +17,16 @@ func TestDeviceTimeoutService_CheckTimeouts_IntegrationTest(t *testing.T) {
 	testutil.CleanTables(t, pool)
 
 	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	hub := websocket.NewHub(nil, nil, func(r *http.Request) int64 { return 0 })
 
 	ctx := context.Background()
 
 	// Create a user and devices.
-	user := &model.User{Email: "timeout-integ@example.com", PasswordHash: "hash", Name: "Timeout Integ"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "timeout-integ@example.com")
 
 	// Device 1: online with recent last_seen (should stay online).
 	recentTime := time.Now().UTC()
-	d1 := &model.Device{UniqueID: "timeout-recent", Name: "Recent Device", Status: "online"}
-	if err := deviceRepo.Create(ctx, d1, user.ID); err != nil {
-		t.Fatalf("create device 1: %v", err)
-	}
+	d1 := testutil.CreateDevice(t, user.ID, "timeout-recent")
 	d1.LastUpdate = &recentTime
 	if err := deviceRepo.Update(ctx, d1); err != nil {
 		t.Fatalf("update device 1: %v", err)
@@ -41,10 +34,7 @@ func TestDeviceTimeoutService_CheckTimeouts_IntegrationTest(t *testing.T) {
 
 	// Device 2: online with old last_seen (should be marked offline).
 	oldTime := time.Now().UTC().Add(-10 * time.Minute)
-	d2 := &model.Device{UniqueID: "timeout-old", Name: "Old Device", Status: "online"}
-	if err := deviceRepo.Create(ctx, d2, user.ID); err != nil {
-		t.Fatalf("create device 2: %v", err)
-	}
+	d2 := testutil.CreateDevice(t, user.ID, "timeout-old")
 	d2.LastUpdate = &oldTime
 	if err := deviceRepo.Update(ctx, d2); err != nil {
 		t.Fatalf("update device 2: %v", err)
@@ -97,17 +87,14 @@ func TestDeviceTimeoutService_CheckTimeouts_NilLastUpdate(t *testing.T) {
 	testutil.CleanTables(t, pool)
 
 	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	hub := websocket.NewHub(nil, nil, func(r *http.Request) int64 { return 0 })
 
 	ctx := context.Background()
 
-	user := &model.User{Email: "timeout-nil@example.com", PasswordHash: "hash", Name: "Nil LastUpdate"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "timeout-nil@example.com")
 
 	// Device with nil last_seen and status online should be marked offline.
-	d := &model.Device{UniqueID: "timeout-nil-ls", Name: "Nil LastUpdate Device", Status: "online"}
-	_ = deviceRepo.Create(ctx, d, user.ID)
+	d := testutil.CreateDevice(t, user.ID, "timeout-nil-ls")
 
 	svc := NewDeviceTimeoutService(deviceRepo, hub, 5*time.Minute, 1*time.Minute, nil)
 
@@ -156,15 +143,11 @@ func TestDeviceTimeoutService_CheckTimeouts_MovingDevice(t *testing.T) {
 	testutil.CleanTables(t, pool)
 
 	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	hub := websocket.NewHub(nil, nil, func(r *http.Request) int64 { return 0 })
 
 	ctx := context.Background()
 
-	user := &model.User{Email: "timeout-moving@example.com", PasswordHash: "hash", Name: "Timeout Moving"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "timeout-moving@example.com")
 
 	// Device with "moving" status and recent last_update should stay "moving".
 	recentTime := time.Now().UTC()

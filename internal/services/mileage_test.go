@@ -35,19 +35,6 @@ func (r *mileageMockDeviceRepo) Update(_ context.Context, d *model.Device) error
 	return nil
 }
 
-type mileageMockEventRepo struct {
-	created []*model.Event
-}
-
-func (r *mileageMockEventRepo) Create(_ context.Context, ev *model.Event) error {
-	ev.ID = int64(len(r.created) + 1)
-	r.created = append(r.created, ev)
-	return nil
-}
-func (r *mileageMockEventRepo) GetRecentByDeviceAndType(_ context.Context, _ int64, _ string, _ int) ([]*model.Event, error) {
-	return nil, nil
-}
-
 // --- Helper functions ---
 
 func makeMovingPos(deviceID int64, lat, lon, speed float64, ts time.Time) *model.Position {
@@ -149,7 +136,7 @@ func TestProcessPosition_CommitsOnTripCompletion(t *testing.T) {
 
 	posRepo := &mileageMockPositionRepo{prev: prev, lastMoving: lastMoving}
 	devRepo := &mileageMockDeviceRepo{}
-	evRepo := &mileageMockEventRepo{}
+	evRepo := &recordingEventRepo{}
 	svc := NewMileageService(posRepo, devRepo, evRepo, nil, nil, nil)
 
 	mileage := 1000.0
@@ -236,7 +223,7 @@ func TestCommitPendingMileage_CommitsAndCreatesEvent(t *testing.T) {
 
 	posRepo := &mileageMockPositionRepo{latest: latest}
 	devRepo := &mileageMockDeviceRepo{}
-	evRepo := &mileageMockEventRepo{}
+	evRepo := &recordingEventRepo{}
 	svc := NewMileageService(posRepo, devRepo, evRepo, nil, nil, nil)
 
 	mileage := 5000.0

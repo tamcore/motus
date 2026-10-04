@@ -5,22 +5,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/tamcore/motus/internal/storage/repository/testutil"
 )
-
-// createTestUser inserts a user directly into the database and returns the user ID.
-func createTestUser(t *testing.T, pool *pgxpool.Pool, email string) int64 {
-	t.Helper()
-	var id int64
-	err := pool.QueryRow(context.Background(),
-		"INSERT INTO users (email, password_hash, name, role) VALUES ($1, 'hash', 'Test User', 'user') RETURNING id",
-		email).Scan(&id)
-	if err != nil {
-		t.Fatalf("create test user: %v", err)
-	}
-	return id
-}
 
 func TestLogger_LogAction(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
@@ -29,7 +15,7 @@ func TestLogger_LogAction(t *testing.T) {
 	logger := NewLogger(pool)
 	ctx := context.Background()
 
-	userID := createTestUser(t, pool, "audit-test@example.com")
+	userID := testutil.CreateUser(t, "audit-test@example.com").ID
 	resourceID := new(int64(42))
 
 	logger.Log(ctx, &userID, ActionSessionLogin, ResourceSession, resourceID,
@@ -141,7 +127,7 @@ func TestLogger_LogRequestMetadata(t *testing.T) {
 	testutil.CleanTables(t, pool)
 
 	logger := NewLogger(pool)
-	userID := createTestUser(t, pool, "logfromreq@example.com")
+	userID := testutil.CreateUser(t, "logfromreq@example.com").ID
 
 	req := httptest.NewRequest("POST", "/api/login", nil)
 	req.RemoteAddr = "192.168.1.100:54321"
@@ -235,8 +221,8 @@ func TestQuery_FilterByUserID(t *testing.T) {
 	logger := NewLogger(pool)
 	ctx := context.Background()
 
-	user1 := createTestUser(t, pool, "filter-user1@example.com")
-	user2 := createTestUser(t, pool, "filter-user2@example.com")
+	user1 := testutil.CreateUser(t, "filter-user1@example.com").ID
+	user2 := testutil.CreateUser(t, "filter-user2@example.com").ID
 
 	// Insert entries for two different users.
 	logger.Log(ctx, &user1, ActionSessionLogin, ResourceSession, nil, nil, "10.0.0.1", "")
@@ -270,7 +256,7 @@ func TestQuery_FilterByAction(t *testing.T) {
 	logger := NewLogger(pool)
 	ctx := context.Background()
 
-	user1 := createTestUser(t, pool, "action-filter@example.com")
+	user1 := testutil.CreateUser(t, "action-filter@example.com").ID
 
 	logger.Log(ctx, &user1, ActionSessionLogin, ResourceSession, nil, nil, "", "")
 	logger.Log(ctx, &user1, ActionSessionLogout, ResourceSession, nil, nil, "", "")
@@ -324,8 +310,8 @@ func TestQuery_CombinedFilters(t *testing.T) {
 	logger := NewLogger(pool)
 	ctx := context.Background()
 
-	user1 := createTestUser(t, pool, "combined1@example.com")
-	user2 := createTestUser(t, pool, "combined2@example.com")
+	user1 := testutil.CreateUser(t, "combined1@example.com").ID
+	user2 := testutil.CreateUser(t, "combined2@example.com").ID
 
 	logger.Log(ctx, &user1, ActionSessionLogin, ResourceSession, nil, nil, "", "")
 	logger.Log(ctx, &user1, ActionUserCreate, ResourceUser, nil, nil, "", "")
@@ -355,7 +341,7 @@ func TestQuery_Pagination(t *testing.T) {
 	logger := NewLogger(pool)
 	ctx := context.Background()
 
-	user1 := createTestUser(t, pool, "pagination@example.com")
+	user1 := testutil.CreateUser(t, "pagination@example.com").ID
 
 	// Insert 10 entries.
 	for i := range 10 {
@@ -566,7 +552,7 @@ func TestQuery_FilterByAllThreeFields(t *testing.T) {
 	logger := NewLogger(pool)
 	ctx := context.Background()
 
-	user1 := createTestUser(t, pool, "all-filters@example.com")
+	user1 := testutil.CreateUser(t, "all-filters@example.com").ID
 
 	logger.Log(ctx, &user1, ActionSessionLogin, ResourceSession, nil, nil, "", "")
 	logger.Log(ctx, &user1, ActionUserCreate, ResourceUser, nil, nil, "", "")

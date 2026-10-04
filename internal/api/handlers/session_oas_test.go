@@ -51,16 +51,6 @@ func doOASLogin(t *testing.T, ctx context.Context, h *handlers.Handler, email, p
 	return res
 }
 
-// recorderSessionCookie returns the session_id cookie recorded on rr, or nil.
-func recorderSessionCookie(rr *httptest.ResponseRecorder) *http.Cookie {
-	for _, c := range rr.Result().Cookies() {
-		if c.Name == "session_id" {
-			return c
-		}
-	}
-	return nil
-}
-
 // ---------------------------------------------------------------------------
 // Login lockout (ported from login_limiter_test.go)
 // ---------------------------------------------------------------------------
@@ -171,7 +161,7 @@ func TestLogout_ClearsCookie(t *testing.T) {
 		t.Errorf("expected *oas.LogoutNoContent, got %T", res)
 	}
 
-	c := recorderSessionCookie(rr)
+	c := respSessionCookie(rr.Result())
 	if c == nil {
 		t.Fatal("expected session_id cookie to be cleared")
 	}
@@ -195,7 +185,7 @@ func TestLogout_SecureCookieInProduction(t *testing.T) {
 		t.Fatalf("Logout returned error: %v", err)
 	}
 
-	c := recorderSessionCookie(rr)
+	c := respSessionCookie(rr.Result())
 	if c == nil {
 		t.Fatal("session_id cookie not found")
 	}
@@ -222,7 +212,7 @@ func TestLogout_InsecureCookieInDev(t *testing.T) {
 		t.Fatalf("Logout returned error: %v", err)
 	}
 
-	c := recorderSessionCookie(rr)
+	c := respSessionCookie(rr.Result())
 	if c == nil {
 		t.Fatal("session_id cookie not found")
 	}
@@ -699,7 +689,7 @@ func TestGetSession_ApiKeyToken(t *testing.T) {
 	}
 
 	// Verify session cookie is set (for WebSocket compatibility).
-	c := recorderSessionCookie(rr)
+	c := respSessionCookie(rr.Result())
 	if c == nil || c.Value == "" {
 		t.Error("expected session_id cookie to be set for API key token auth")
 	}
@@ -891,7 +881,7 @@ func TestLogin_Success_Integration(t *testing.T) {
 	}
 
 	// Verify session cookie attributes.
-	c := recorderSessionCookie(rr)
+	c := respSessionCookie(rr.Result())
 	if c == nil || c.Value == "" {
 		t.Fatal("expected session_id cookie to be set")
 	}
@@ -993,7 +983,7 @@ func TestLogin_RememberMe_Integration(t *testing.T) {
 				t.Fatalf("expected *oas.User, got %T", res)
 			}
 
-			c := recorderSessionCookie(rr)
+			c := respSessionCookie(rr.Result())
 			if c == nil {
 				t.Fatal("expected session_id cookie to be set")
 			}

@@ -13,7 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tamcore/motus/internal/api"
 	"github.com/tamcore/motus/internal/api/handlers"
 	oas "github.com/tamcore/motus/internal/api/oas"
 	"github.com/tamcore/motus/internal/audit"
@@ -136,14 +135,6 @@ func newBookmarkTestHandler(repo repository.TrailBookmarkRepo, devices repositor
 	})
 }
 
-func bookmarkUserCtx(id int64) context.Context {
-	return api.ContextWithUser(context.Background(), &model.User{ID: id, Email: "hiker@example.com", Role: model.RoleUser})
-}
-
-func bookmarkAdminCtx() context.Context {
-	return api.ContextWithUser(context.Background(), &model.User{ID: 1, Email: "admin@example.com", Role: model.RoleAdmin})
-}
-
 func validBookmarkInput() *oas.TrailBookmarkInput {
 	return &oas.TrailBookmarkInput{
 		DeviceId:    5,
@@ -199,7 +190,7 @@ func TestListTrailBookmarks_ReturnsOwnAndPassesDeviceFilter(t *testing.T) {
 	}
 	h := newBookmarkTestHandler(repo, bookmarkDevices(5))
 
-	res, err := h.ListTrailBookmarks(bookmarkUserCtx(7), oas.ListTrailBookmarksParams{DeviceId: oas.NewOptInt64(5)})
+	res, err := h.ListTrailBookmarks(ctxAs(7, model.RoleUser), oas.ListTrailBookmarksParams{DeviceId: oas.NewOptInt64(5)})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -223,7 +214,7 @@ func TestListTrailBookmarks_ReturnsOwnAndPassesDeviceFilter(t *testing.T) {
 
 func TestListTrailBookmarks_EmptyIsArray(t *testing.T) {
 	h := newBookmarkTestHandler(newMockTrailBookmarkRepo(), bookmarkDevices())
-	res, err := h.ListTrailBookmarks(bookmarkUserCtx(7), oas.ListTrailBookmarksParams{})
+	res, err := h.ListTrailBookmarks(ctxAs(7, model.RoleUser), oas.ListTrailBookmarksParams{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -239,7 +230,7 @@ func TestListTrailBookmarks_StorageFailureIs500(t *testing.T) {
 		return nil, errDB
 	}
 	h := newBookmarkTestHandler(repo, bookmarkDevices())
-	res, err := h.ListTrailBookmarks(bookmarkUserCtx(7), oas.ListTrailBookmarksParams{})
+	res, err := h.ListTrailBookmarks(ctxAs(7, model.RoleUser), oas.ListTrailBookmarksParams{})
 	// An *oas.Error response would be encoded as 401 and look like an
 	// expired session to the frontend.
 	assertInternalError(t, res, err)
@@ -253,7 +244,7 @@ func TestCreateTrailBookmark_Success(t *testing.T) {
 
 	in := validBookmarkInput()
 	in.Name = "  Zugspitze  "
-	res, err := h.CreateTrailBookmark(bookmarkUserCtx(7), in)
+	res, err := h.CreateTrailBookmark(ctxAs(7, model.RoleUser), in)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -312,7 +303,7 @@ func TestCreateTrailBookmark_Validation(t *testing.T) {
 			h := newBookmarkTestHandler(repo, bookmarkDevices(5))
 			in := validBookmarkInput()
 			tc.mutate(in)
-			res, err := h.CreateTrailBookmark(bookmarkUserCtx(7), in)
+			res, err := h.CreateTrailBookmark(ctxAs(7, model.RoleUser), in)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -338,7 +329,7 @@ func TestCreateTrailBookmark_LimitsCountCharacters(t *testing.T) {
 	in := validBookmarkInput()
 	in.Name = strings.Repeat("ö", 200)                           // 400 bytes
 	in.Description = oas.NewOptString(strings.Repeat("🥾", 2000)) // 8000 bytes
-	res, err := h.CreateTrailBookmark(bookmarkUserCtx(7), in)
+	res, err := h.CreateTrailBookmark(ctxAs(7, model.RoleUser), in)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -350,7 +341,7 @@ func TestCreateTrailBookmark_LimitsCountCharacters(t *testing.T) {
 func TestCreateTrailBookmark_DeviceWithoutAccess(t *testing.T) {
 	repo := newMockTrailBookmarkRepo()
 	h := newBookmarkTestHandler(repo, bookmarkDevices( /* none */ ))
-	res, err := h.CreateTrailBookmark(bookmarkUserCtx(7), validBookmarkInput())
+	res, err := h.CreateTrailBookmark(ctxAs(7, model.RoleUser), validBookmarkInput())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -366,7 +357,7 @@ func TestCreateTrailBookmark_StorageFailureIs500(t *testing.T) {
 	repo := newMockTrailBookmarkRepo()
 	repo.createErr = errDB
 	h := newBookmarkTestHandler(repo, bookmarkDevices(5))
-	res, err := h.CreateTrailBookmark(bookmarkUserCtx(7), validBookmarkInput())
+	res, err := h.CreateTrailBookmark(ctxAs(7, model.RoleUser), validBookmarkInput())
 	assertInternalError(t, res, err)
 }
 
@@ -380,7 +371,7 @@ func TestUpdateTrailBookmark_Success(t *testing.T) {
 	in.DeviceId = 6
 	in.Name = "New name"
 	in.Description = oas.OptString{}
-	res, err := h.UpdateTrailBookmark(bookmarkUserCtx(7), in, oas.UpdateTrailBookmarkParams{ID: 1})
+	res, err := h.UpdateTrailBookmark(ctxAs(7, model.RoleUser), in, oas.UpdateTrailBookmarkParams{ID: 1})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -402,7 +393,7 @@ func TestUpdateTrailBookmark_PreservesExactTimestamps(t *testing.T) {
 	in := validBookmarkInput()
 	in.From = time.Date(2026, 6, 6, 8, 0, 12, 345_000_000, time.UTC)
 	in.To = time.Date(2026, 6, 6, 16, 30, 59, 999_000_000, time.UTC)
-	if _, err := h.UpdateTrailBookmark(bookmarkUserCtx(7), in, oas.UpdateTrailBookmarkParams{ID: 1}); err != nil {
+	if _, err := h.UpdateTrailBookmark(ctxAs(7, model.RoleUser), in, oas.UpdateTrailBookmarkParams{ID: 1}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if !repo.updated.From.Equal(in.From) || !repo.updated.To.Equal(in.To) {
@@ -413,7 +404,7 @@ func TestUpdateTrailBookmark_PreservesExactTimestamps(t *testing.T) {
 func TestUpdateTrailBookmark_NotFound(t *testing.T) {
 	repo := newMockTrailBookmarkRepo()
 	h := newBookmarkTestHandler(repo, bookmarkDevices(5))
-	res, err := h.UpdateTrailBookmark(bookmarkUserCtx(7), validBookmarkInput(), oas.UpdateTrailBookmarkParams{ID: 42})
+	res, err := h.UpdateTrailBookmark(ctxAs(7, model.RoleUser), validBookmarkInput(), oas.UpdateTrailBookmarkParams{ID: 42})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -425,7 +416,7 @@ func TestUpdateTrailBookmark_NotFound(t *testing.T) {
 func TestUpdateTrailBookmark_OtherUser(t *testing.T) {
 	repo := newMockTrailBookmarkRepo(existingBookmark(1, 7, 5))
 	h := newBookmarkTestHandler(repo, bookmarkDevices(5))
-	res, err := h.UpdateTrailBookmark(bookmarkUserCtx(8), validBookmarkInput(), oas.UpdateTrailBookmarkParams{ID: 1})
+	res, err := h.UpdateTrailBookmark(ctxAs(8, model.RoleUser), validBookmarkInput(), oas.UpdateTrailBookmarkParams{ID: 1})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -440,7 +431,7 @@ func TestUpdateTrailBookmark_OtherUser(t *testing.T) {
 func TestUpdateTrailBookmark_DeviceAccessRevoked(t *testing.T) {
 	repo := newMockTrailBookmarkRepo(existingBookmark(1, 7, 5))
 	h := newBookmarkTestHandler(repo, bookmarkDevices())
-	res, err := h.UpdateTrailBookmark(bookmarkUserCtx(7), validBookmarkInput(), oas.UpdateTrailBookmarkParams{ID: 1})
+	res, err := h.UpdateTrailBookmark(ctxAs(7, model.RoleUser), validBookmarkInput(), oas.UpdateTrailBookmarkParams{ID: 1})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -457,7 +448,7 @@ func TestUpdateTrailBookmark_MoveToInaccessibleDevice(t *testing.T) {
 	h := newBookmarkTestHandler(repo, bookmarkDevices(5))
 	in := validBookmarkInput()
 	in.DeviceId = 99
-	res, err := h.UpdateTrailBookmark(bookmarkUserCtx(7), in, oas.UpdateTrailBookmarkParams{ID: 1})
+	res, err := h.UpdateTrailBookmark(ctxAs(7, model.RoleUser), in, oas.UpdateTrailBookmarkParams{ID: 1})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -474,7 +465,7 @@ func TestUpdateTrailBookmark_Validation(t *testing.T) {
 	h := newBookmarkTestHandler(repo, bookmarkDevices(5))
 	in := validBookmarkInput()
 	in.From, in.To = bmTo, bmFrom
-	res, err := h.UpdateTrailBookmark(bookmarkUserCtx(7), in, oas.UpdateTrailBookmarkParams{ID: 1})
+	res, err := h.UpdateTrailBookmark(ctxAs(7, model.RoleUser), in, oas.UpdateTrailBookmarkParams{ID: 1})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -486,7 +477,7 @@ func TestUpdateTrailBookmark_Validation(t *testing.T) {
 func TestUpdateTrailBookmark_AdminCanEditOthers(t *testing.T) {
 	repo := newMockTrailBookmarkRepo(existingBookmark(1, 7, 5))
 	h := newBookmarkTestHandler(repo, bookmarkDevices(5))
-	res, err := h.UpdateTrailBookmark(bookmarkAdminCtx(), validBookmarkInput(), oas.UpdateTrailBookmarkParams{ID: 1})
+	res, err := h.UpdateTrailBookmark(ctxAs(1, model.RoleAdmin), validBookmarkInput(), oas.UpdateTrailBookmarkParams{ID: 1})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -502,7 +493,7 @@ func TestUpdateTrailBookmark_LoadFailureIs500(t *testing.T) {
 	repo := newMockTrailBookmarkRepo(existingBookmark(1, 7, 5))
 	repo.getErr = errDB
 	h := newBookmarkTestHandler(repo, bookmarkDevices(5))
-	res, err := h.UpdateTrailBookmark(bookmarkUserCtx(7), validBookmarkInput(), oas.UpdateTrailBookmarkParams{ID: 1})
+	res, err := h.UpdateTrailBookmark(ctxAs(7, model.RoleUser), validBookmarkInput(), oas.UpdateTrailBookmarkParams{ID: 1})
 	assertInternalError(t, res, err)
 }
 
@@ -510,7 +501,7 @@ func TestUpdateTrailBookmark_StorageFailureIs500(t *testing.T) {
 	repo := newMockTrailBookmarkRepo(existingBookmark(1, 7, 5))
 	repo.updateErr = errDB
 	h := newBookmarkTestHandler(repo, bookmarkDevices(5))
-	res, err := h.UpdateTrailBookmark(bookmarkUserCtx(7), validBookmarkInput(), oas.UpdateTrailBookmarkParams{ID: 1})
+	res, err := h.UpdateTrailBookmark(ctxAs(7, model.RoleUser), validBookmarkInput(), oas.UpdateTrailBookmarkParams{ID: 1})
 	assertInternalError(t, res, err)
 }
 
@@ -520,7 +511,7 @@ func TestDeleteTrailBookmark_Owner(t *testing.T) {
 	repo := newMockTrailBookmarkRepo(existingBookmark(1, 7, 5))
 	// Deleting is allowed even after device access was revoked (cleanup).
 	h := newBookmarkTestHandler(repo, bookmarkDevices())
-	res, err := h.DeleteTrailBookmark(bookmarkUserCtx(7), oas.DeleteTrailBookmarkParams{ID: 1})
+	res, err := h.DeleteTrailBookmark(ctxAs(7, model.RoleUser), oas.DeleteTrailBookmarkParams{ID: 1})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -535,7 +526,7 @@ func TestDeleteTrailBookmark_Owner(t *testing.T) {
 func TestDeleteTrailBookmark_AdminCanDeleteOthers(t *testing.T) {
 	repo := newMockTrailBookmarkRepo(existingBookmark(1, 7, 5))
 	h := newBookmarkTestHandler(repo, bookmarkDevices(5))
-	res, err := h.DeleteTrailBookmark(bookmarkAdminCtx(), oas.DeleteTrailBookmarkParams{ID: 1})
+	res, err := h.DeleteTrailBookmark(ctxAs(1, model.RoleAdmin), oas.DeleteTrailBookmarkParams{ID: 1})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -547,7 +538,7 @@ func TestDeleteTrailBookmark_AdminCanDeleteOthers(t *testing.T) {
 func TestDeleteTrailBookmark_OtherUser(t *testing.T) {
 	repo := newMockTrailBookmarkRepo(existingBookmark(1, 7, 5))
 	h := newBookmarkTestHandler(repo, bookmarkDevices(5))
-	res, err := h.DeleteTrailBookmark(bookmarkUserCtx(8), oas.DeleteTrailBookmarkParams{ID: 1})
+	res, err := h.DeleteTrailBookmark(ctxAs(8, model.RoleUser), oas.DeleteTrailBookmarkParams{ID: 1})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -561,7 +552,7 @@ func TestDeleteTrailBookmark_OtherUser(t *testing.T) {
 
 func TestDeleteTrailBookmark_NotFound(t *testing.T) {
 	h := newBookmarkTestHandler(newMockTrailBookmarkRepo(), bookmarkDevices(5))
-	res, err := h.DeleteTrailBookmark(bookmarkUserCtx(7), oas.DeleteTrailBookmarkParams{ID: 42})
+	res, err := h.DeleteTrailBookmark(ctxAs(7, model.RoleUser), oas.DeleteTrailBookmarkParams{ID: 42})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -585,7 +576,7 @@ func TestDeleteTrailBookmark_LoadFailureIs500(t *testing.T) {
 	repo := newMockTrailBookmarkRepo(existingBookmark(1, 7, 5))
 	repo.getErr = errDB
 	h := newBookmarkTestHandler(repo, bookmarkDevices(5))
-	res, err := h.DeleteTrailBookmark(bookmarkUserCtx(7), oas.DeleteTrailBookmarkParams{ID: 1})
+	res, err := h.DeleteTrailBookmark(ctxAs(7, model.RoleUser), oas.DeleteTrailBookmarkParams{ID: 1})
 	assertInternalError(t, res, err)
 }
 
@@ -593,7 +584,7 @@ func TestDeleteTrailBookmark_StorageFailureIs500(t *testing.T) {
 	repo := newMockTrailBookmarkRepo(existingBookmark(1, 7, 5))
 	repo.deleteErr = errDB
 	h := newBookmarkTestHandler(repo, bookmarkDevices(5))
-	res, err := h.DeleteTrailBookmark(bookmarkUserCtx(7), oas.DeleteTrailBookmarkParams{ID: 1})
+	res, err := h.DeleteTrailBookmark(ctxAs(7, model.RoleUser), oas.DeleteTrailBookmarkParams{ID: 1})
 	assertInternalError(t, res, err)
 	if len(repo.deleted) != 0 {
 		t.Error("nothing should be recorded as deleted")

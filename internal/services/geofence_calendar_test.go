@@ -30,7 +30,6 @@ func setupCalendarGeofenceTest(t *testing.T) (
 	*repository.EventRepository,
 	*repository.DeviceRepository,
 	*repository.PositionRepository,
-	*repository.UserRepository,
 	*repository.CalendarRepository,
 ) {
 	t.Helper()
@@ -41,24 +40,21 @@ func setupCalendarGeofenceTest(t *testing.T) (
 	eventRepo := repository.NewEventRepository(pool)
 	deviceRepo := repository.NewDeviceRepository(pool)
 	posRepo := repository.NewPositionRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	calRepo := repository.NewCalendarRepository(pool)
 	hub := websocket.NewHub(nil, nil, func(r *http.Request) int64 { return 0 })
 
 	svc := NewGeofenceEventService(geoRepo, eventRepo, posRepo, calRepo, hub, nil, nil)
 
-	return svc, geoRepo, eventRepo, deviceRepo, posRepo, userRepo, calRepo
+	return svc, geoRepo, eventRepo, deviceRepo, posRepo, calRepo
 }
 
 func TestGeofenceCalendar_NoCalendar_AlwaysTriggers(t *testing.T) {
-	svc, geoRepo, _, deviceRepo, posRepo, userRepo, _ := setupCalendarGeofenceTest(t)
+	svc, geoRepo, _, _, posRepo, _ := setupCalendarGeofenceTest(t)
 	ctx := context.Background()
 
-	user := &model.User{Email: "cal-nocal@example.com", PasswordHash: "hash", Name: "No Cal"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "cal-nocal@example.com")
 
-	device := &model.Device{UniqueID: "cal-nocal-dev", Name: "No Cal Device", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	device := testutil.CreateDevice(t, user.ID, "cal-nocal-dev")
 
 	// Geofence without calendar_id -- should always trigger.
 	g := &model.Geofence{Name: "Always Active Fence", Geometry: testGeoJSON}
@@ -85,14 +81,12 @@ func TestGeofenceCalendar_NoCalendar_AlwaysTriggers(t *testing.T) {
 }
 
 func TestGeofenceCalendar_ActiveCalendar_Triggers(t *testing.T) {
-	svc, geoRepo, _, deviceRepo, posRepo, userRepo, calRepo := setupCalendarGeofenceTest(t)
+	svc, geoRepo, _, _, posRepo, calRepo := setupCalendarGeofenceTest(t)
 	ctx := context.Background()
 
-	user := &model.User{Email: "cal-active@example.com", PasswordHash: "hash", Name: "Active Cal"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "cal-active@example.com")
 
-	device := &model.Device{UniqueID: "cal-active-dev", Name: "Active Cal Device", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	device := testutil.CreateDevice(t, user.ID, "cal-active-dev")
 
 	// Create a calendar that is active at the test time.
 	cal := &model.Calendar{UserID: user.ID, Name: "Business Hours", Data: businessHoursICal}
@@ -124,14 +118,12 @@ func TestGeofenceCalendar_ActiveCalendar_Triggers(t *testing.T) {
 }
 
 func TestGeofenceCalendar_InactiveCalendar_Suppresses(t *testing.T) {
-	svc, geoRepo, _, deviceRepo, posRepo, userRepo, calRepo := setupCalendarGeofenceTest(t)
+	svc, geoRepo, _, _, posRepo, calRepo := setupCalendarGeofenceTest(t)
 	ctx := context.Background()
 
-	user := &model.User{Email: "cal-inactive@example.com", PasswordHash: "hash", Name: "Inactive Cal"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "cal-inactive@example.com")
 
-	device := &model.Device{UniqueID: "cal-inactive-dev", Name: "Inactive Cal Device", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	device := testutil.CreateDevice(t, user.ID, "cal-inactive-dev")
 
 	// Create a business hours calendar.
 	cal := &model.Calendar{UserID: user.ID, Name: "Business Hours", Data: businessHoursICal}
@@ -164,14 +156,12 @@ func TestGeofenceCalendar_InactiveCalendar_Suppresses(t *testing.T) {
 }
 
 func TestGeofenceCalendar_OutsideHours_Suppresses(t *testing.T) {
-	svc, geoRepo, _, deviceRepo, posRepo, userRepo, calRepo := setupCalendarGeofenceTest(t)
+	svc, geoRepo, _, _, posRepo, calRepo := setupCalendarGeofenceTest(t)
 	ctx := context.Background()
 
-	user := &model.User{Email: "cal-hours@example.com", PasswordHash: "hash", Name: "Hours Cal"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "cal-hours@example.com")
 
-	device := &model.Device{UniqueID: "cal-hours-dev", Name: "Hours Cal Device", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	device := testutil.CreateDevice(t, user.ID, "cal-hours-dev")
 
 	// Create a business hours calendar.
 	cal := &model.Calendar{UserID: user.ID, Name: "Business Hours", Data: businessHoursICal}
@@ -203,14 +193,12 @@ func TestGeofenceCalendar_OutsideHours_Suppresses(t *testing.T) {
 }
 
 func TestGeofenceCalendar_ExitAlsoSuppressed(t *testing.T) {
-	svc, geoRepo, _, deviceRepo, posRepo, userRepo, calRepo := setupCalendarGeofenceTest(t)
+	svc, geoRepo, _, _, posRepo, calRepo := setupCalendarGeofenceTest(t)
 	ctx := context.Background()
 
-	user := &model.User{Email: "cal-exit@example.com", PasswordHash: "hash", Name: "Cal Exit"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "cal-exit@example.com")
 
-	device := &model.Device{UniqueID: "cal-exit-dev", Name: "Cal Exit Device", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	device := testutil.CreateDevice(t, user.ID, "cal-exit-dev")
 
 	cal := &model.Calendar{UserID: user.ID, Name: "Business Hours", Data: businessHoursICal}
 	_ = calRepo.Create(ctx, cal)

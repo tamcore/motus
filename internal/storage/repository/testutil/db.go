@@ -5,9 +5,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"os"
-	"path/filepath"
-	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -16,6 +13,10 @@ import (
 	"github.com/pressly/goose/v3"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
+
+	"github.com/tamcore/motus/internal/model"
+	"github.com/tamcore/motus/internal/storage/repository"
+	"github.com/tamcore/motus/migrations"
 
 	// pgx driver for goose migrations.
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -122,40 +123,6 @@ func startContainer() (*pgxpool.Pool, testcontainers.Container, string, error) {
 	return pool, container, connStr, nil
 }
 
-// migrationsDir locates the project's migrations directory relative to this
-// source file. This avoids issues with the working directory during tests.
-func migrationsDir() string {
-	_, filename, _, _ := runtime.Caller(0)
-	// filename = .../internal/storage/repository/testutil/db.go
-	// project root = 4 levels up (not 5)
-	projectRoot := filepath.Join(filepath.Dir(filename), "..", "..", "..", "..")
-	// Clean the path to resolve all .. references
-	projectRoot = filepath.Clean(projectRoot)
-	dir := filepath.Join(projectRoot, "migrations")
-
-	// Validate the directory exists.
-	if info, err := os.Stat(dir); err != nil || !info.IsDir() {
-		// Fallback: try from working directory.
-		if cwd, err := os.Getwd(); err == nil {
-			alt := filepath.Join(cwd, "migrations")
-			if info, err := os.Stat(alt); err == nil && info.IsDir() {
-				return alt
-			}
-
-			// Fallback 2: search upward from cwd
-			current := cwd
-			for range 10 {
-				alt = filepath.Join(current, "migrations")
-				if info, err := os.Stat(alt); err == nil && info.IsDir() {
-					return alt
-				}
-				current = filepath.Dir(current)
-			}
-		}
-	}
-	return dir
-}
-
 func runMigrations(connStr string) error {
 	db, err := sql.Open("pgx", connStr)
 	if err != nil {
@@ -172,9 +139,9 @@ func runMigrations(connStr string) error {
 		return fmt.Errorf("set dialect: %w", err)
 	}
 
-	dir := migrationsDir()
-	if err := goose.Up(db, dir); err != nil {
-		return fmt.Errorf("goose up from %s: %w", dir, err)
+	goose.SetBaseFS(migrations.FS)
+	if err := goose.Up(db, "."); err != nil {
+		return fmt.Errorf("goose up: %w", err)
 	}
 
 	return nil
@@ -209,4 +176,24 @@ func CleanTables(t *testing.T, pool *pgxpool.Pool) {
 	if err != nil {
 		t.Fatalf("failed to truncate tables: %v", err)
 	}
+}
+
+// CreateUser inserts a regular user with the given email.
+func CreateUser(t *testing.T, email string) *model.User {
+	t.Helper()
+	u := &model.User{Email: email, PasswordHash: "hash", Name: "Test User"}
+	if err := repository.NewUserRepository(SetupTestDB(t)).Create(context.Background(), u); err != nil {
+		t.Fatalf("create user %s: %v", email, err)
+	}
+	return u
+}
+
+// CreateDevice inserts an online device owned by userID.
+func CreateDevice(t *testing.T, userID int64, uniqueID string) *model.Device {
+	t.Helper()
+	d := &model.Device{UniqueID: uniqueID, Name: "Test Device", Status: "online"}
+	if err := repository.NewDeviceRepository(SetupTestDB(t)).Create(context.Background(), d, userID); err != nil {
+		t.Fatalf("create device %s: %v", uniqueID, err)
+	}
+	return d
 }

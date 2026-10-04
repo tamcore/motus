@@ -8,7 +8,6 @@ import (
 	"github.com/tamcore/motus/internal/api"
 	oas "github.com/tamcore/motus/internal/api/oas"
 	"github.com/tamcore/motus/internal/model"
-	"github.com/tamcore/motus/internal/storage/repository"
 	"github.com/tamcore/motus/internal/storage/repository/testutil"
 )
 
@@ -22,15 +21,8 @@ func TestCountPositions_OAS(t *testing.T) {
 			t.Fatalf("create position: %v", err)
 		}
 	}
-	pool := testutil.SetupTestDB(t)
-	other := &model.User{Email: "count-other@example.com", PasswordHash: "$2a$10$hash", Name: "Other"}
-	if err := repository.NewUserRepository(pool).Create(ctx, other); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
-	otherDevice := &model.Device{UniqueID: "count-other-dev", Name: "Other", Status: "online"}
-	if err := repository.NewDeviceRepository(pool).Create(ctx, otherDevice, other.ID); err != nil {
-		t.Fatalf("create device: %v", err)
-	}
+	other := testutil.CreateUser(t, "count-other@example.com")
+	otherDevice := testutil.CreateDevice(t, other.ID, "count-other-dev")
 	if err := env.posRepo.Create(ctx, &model.Position{DeviceID: otherDevice.ID, Latitude: 52, Longitude: 13, Timestamp: now.Add(-time.Minute)}); err != nil {
 		t.Fatalf("create position: %v", err)
 	}

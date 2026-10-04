@@ -72,7 +72,7 @@ func TestCreateNotification_CommandRuleWithGeofence(t *testing.T) {
 	var created *model.NotificationRule
 	h := newNotificationGeofenceTestHandler(capturingNotifRepo(&created), 100)
 
-	res, err := h.CreateNotification(notificationTestUserCtx(1), petExitRuleInput())
+	res, err := h.CreateNotification(ctxAs(1, model.RoleUser), petExitRuleInput())
 	if err != nil {
 		t.Fatalf("CreateNotification: %v", err)
 	}
@@ -116,7 +116,7 @@ func TestCreateNotification_WebhookGeofenceFilterDeduplicated(t *testing.T) {
 
 	in := validNotificationInput(t)
 	in.GeofenceIds = []int64{4, 3, 4}
-	res, _ := h.CreateNotification(notificationTestUserCtx(1), in)
+	res, _ := h.CreateNotification(ctxAs(1, model.RoleUser), in)
 	if _, ok := res.(*oas.NotificationRule); !ok {
 		t.Fatalf("expected success, got %#v", res)
 	}
@@ -129,7 +129,7 @@ func TestCreateNotification_NoGeofenceFilterReturnsEmptyList(t *testing.T) {
 	var created *model.NotificationRule
 	h := newNotificationGeofenceTestHandler(capturingNotifRepo(&created))
 
-	res, _ := h.CreateNotification(notificationTestUserCtx(1), validNotificationInput(t))
+	res, _ := h.CreateNotification(ctxAs(1, model.RoleUser), validNotificationInput(t))
 	out, ok := res.(*oas.NotificationRule)
 	if !ok {
 		t.Fatalf("expected success, got %#v", res)
@@ -145,7 +145,7 @@ func TestCreateNotification_GeofenceAccessDenied(t *testing.T) {
 
 	in := petExitRuleInput()
 	in.GeofenceIds = []int64{100, 666}
-	res, _ := h.CreateNotification(notificationTestUserCtx(1), in)
+	res, _ := h.CreateNotification(ctxAs(1, model.RoleUser), in)
 	bad, ok := res.(*oas.CreateNotificationBadRequest)
 	if !ok || !strings.Contains(bad.Error, "geofence") {
 		t.Fatalf("expected geofence access error, got %#v", res)
@@ -161,7 +161,7 @@ func TestCreateNotification_GeofenceFilterRequiresGeofenceEvent(t *testing.T) {
 
 	in := petExitRuleInput()
 	in.EventTypes = []string{"deviceOffline"}
-	res, _ := h.CreateNotification(notificationTestUserCtx(1), in)
+	res, _ := h.CreateNotification(ctxAs(1, model.RoleUser), in)
 	if _, ok := res.(*oas.CreateNotificationBadRequest); !ok {
 		t.Fatalf("expected BadRequest, got %#v", res)
 	}
@@ -212,7 +212,7 @@ func TestCreateNotification_CommandValidation(t *testing.T) {
 			h := newNotificationGeofenceTestHandler(capturingNotifRepo(&created), 100)
 			in := petExitRuleInput()
 			tt.mutate(in)
-			res, err := h.CreateNotification(notificationTestUserCtx(1), in)
+			res, err := h.CreateNotification(ctxAs(1, model.RoleUser), in)
 			if err != nil {
 				t.Fatalf("CreateNotification: %v", err)
 			}
@@ -242,7 +242,7 @@ func TestCreateNotification_ParameterlessCommandAllowed(t *testing.T) {
 			Channel: oas.NotificationConfigCommandChannelCommand, CommandType: model.CommandPositionSingle,
 		}),
 	}
-	res, _ := h.CreateNotification(notificationTestUserCtx(1), in)
+	res, _ := h.CreateNotification(ctxAs(1, model.RoleUser), in)
 	if _, ok := res.(*oas.NotificationRule); !ok {
 		t.Fatalf("expected success, got %#v", res)
 	}
@@ -264,7 +264,7 @@ func TestUpdateNotification_CommandRuleAndGeofenceAccess(t *testing.T) {
 	}
 	h := newNotificationGeofenceTestHandler(mock, 100)
 
-	res, _ := h.UpdateNotification(notificationTestUserCtx(1), petExitRuleInput(), oas.UpdateNotificationParams{ID: 5})
+	res, _ := h.UpdateNotification(ctxAs(1, model.RoleUser), petExitRuleInput(), oas.UpdateNotificationParams{ID: 5})
 	if _, ok := res.(*oas.NotificationRule); !ok {
 		t.Fatalf("expected success, got %#v", res)
 	}
@@ -275,7 +275,7 @@ func TestUpdateNotification_CommandRuleAndGeofenceAccess(t *testing.T) {
 	updated = nil
 	in := petExitRuleInput()
 	in.GeofenceIds = []int64{666}
-	res, _ = h.UpdateNotification(notificationTestUserCtx(1), in, oas.UpdateNotificationParams{ID: 5})
+	res, _ = h.UpdateNotification(ctxAs(1, model.RoleUser), in, oas.UpdateNotificationParams{ID: 5})
 	if _, ok := res.(*oas.UpdateNotificationBadRequest); !ok {
 		t.Fatalf("expected BadRequest for inaccessible geofence, got %#v", res)
 	}
@@ -311,7 +311,7 @@ func TestCreateNotification_RejectsReconnectLoopCommands(t *testing.T) {
 			var created *model.NotificationRule
 			h := newNotificationGeofenceTestHandler(capturingNotifRepo(&created))
 			in := &oas.NotificationRuleInput{Name: "r", EventTypes: tt.eventTypes, Channel: "command", Config: tt.cfg}
-			res, _ := h.CreateNotification(notificationTestUserCtx(1), in)
+			res, _ := h.CreateNotification(ctxAs(1, model.RoleUser), in)
 			if tt.wantOK {
 				if _, ok := res.(*oas.NotificationRule); !ok {
 					t.Fatalf("expected success, got %#v", res)
@@ -369,7 +369,7 @@ func TestUpdateNotification_AbsentGeofenceIdsKeepsFilter(t *testing.T) {
 
 	in := petExitRuleInput()
 	in.GeofenceIds = nil // field absent from the request body
-	res, _ := h.UpdateNotification(notificationTestUserCtx(1), in, oas.UpdateNotificationParams{ID: 5})
+	res, _ := h.UpdateNotification(ctxAs(1, model.RoleUser), in, oas.UpdateNotificationParams{ID: 5})
 	out, ok := res.(*oas.NotificationRule)
 	if !ok {
 		t.Fatalf("expected success, got %#v", res)
@@ -385,7 +385,7 @@ func TestUpdateNotification_EmptyGeofenceIdsClearsFilter(t *testing.T) {
 
 	in := petExitRuleInput()
 	in.GeofenceIds = []int64{} // explicit []
-	res, _ := h.UpdateNotification(notificationTestUserCtx(1), in, oas.UpdateNotificationParams{ID: 5})
+	res, _ := h.UpdateNotification(ctxAs(1, model.RoleUser), in, oas.UpdateNotificationParams{ID: 5})
 	if _, ok := res.(*oas.NotificationRule); !ok {
 		t.Fatalf("expected success, got %#v", res)
 	}
@@ -401,7 +401,7 @@ func TestUpdateNotification_AbsentGeofenceIdsWithoutGeofenceEventClearsFilter(t 
 	in := petExitRuleInput()
 	in.EventTypes = []string{"alarm"}
 	in.GeofenceIds = nil
-	res, _ := h.UpdateNotification(notificationTestUserCtx(1), in, oas.UpdateNotificationParams{ID: 5})
+	res, _ := h.UpdateNotification(ctxAs(1, model.RoleUser), in, oas.UpdateNotificationParams{ID: 5})
 	if _, ok := res.(*oas.NotificationRule); !ok {
 		t.Fatalf("expected success, got %#v", res)
 	}
@@ -419,7 +419,7 @@ func TestUpdateNotification_DeletedStoredGeofenceAllowed(t *testing.T) {
 	in := petExitRuleInput()
 	in.GeofenceIds = []int64{666, 100}
 	in.Enabled = oas.NewOptBool(false)
-	res, _ := h.UpdateNotification(notificationTestUserCtx(1), in, oas.UpdateNotificationParams{ID: 5})
+	res, _ := h.UpdateNotification(ctxAs(1, model.RoleUser), in, oas.UpdateNotificationParams{ID: 5})
 	if _, ok := res.(*oas.NotificationRule); !ok {
 		t.Fatalf("unchanged stored geofence IDs must be accepted, got %#v", res)
 	}
@@ -430,7 +430,7 @@ func TestUpdateNotification_DeletedStoredGeofenceAllowed(t *testing.T) {
 	// Explicitly removing the deleted geofence and adding a replacement works.
 	updated = nil
 	in.GeofenceIds = []int64{100, 101}
-	res, _ = h.UpdateNotification(notificationTestUserCtx(1), in, oas.UpdateNotificationParams{ID: 5})
+	res, _ = h.UpdateNotification(ctxAs(1, model.RoleUser), in, oas.UpdateNotificationParams{ID: 5})
 	if _, ok := res.(*oas.NotificationRule); !ok {
 		t.Fatalf("expected success, got %#v", res)
 	}
@@ -441,7 +441,7 @@ func TestUpdateNotification_DeletedStoredGeofenceAllowed(t *testing.T) {
 	// Newly added IDs are still validated.
 	updated = nil
 	in.GeofenceIds = []int64{100, 666, 777}
-	res, _ = h.UpdateNotification(notificationTestUserCtx(1), in, oas.UpdateNotificationParams{ID: 5})
+	res, _ = h.UpdateNotification(ctxAs(1, model.RoleUser), in, oas.UpdateNotificationParams{ID: 5})
 	bad, ok := res.(*oas.UpdateNotificationBadRequest)
 	if !ok || !strings.Contains(bad.Error, "777") {
 		t.Fatalf("expected rejection of new inaccessible geofence 777, got %#v", res)
@@ -462,7 +462,7 @@ func TestTestNotification_CommandRuleNotTestable(t *testing.T) {
 	}
 	h := newNotificationGeofenceTestHandler(mock)
 
-	res, err := h.TestNotification(notificationTestUserCtx(1), oas.TestNotificationParams{ID: 4})
+	res, err := h.TestNotification(ctxAs(1, model.RoleUser), oas.TestNotificationParams{ID: 4})
 	if err != nil {
 		t.Fatalf("TestNotification: %v", err)
 	}

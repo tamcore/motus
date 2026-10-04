@@ -61,19 +61,6 @@ func (r *ignitionMockDeviceRepo) SetIgnitionState(_ context.Context, _ int64, on
 	return changed, nil
 }
 
-// Satisfy the full DeviceRepo interface with no-ops.
-type ignitionMockEventRepo struct {
-	created []*model.Event
-}
-
-func (r *ignitionMockEventRepo) Create(_ context.Context, event *model.Event) error {
-	event.ID = int64(len(r.created) + 1)
-	r.created = append(r.created, event)
-	return nil
-}
-func (r *ignitionMockEventRepo) GetRecentByDeviceAndType(_ context.Context, _ int64, _ string, _ int) ([]*model.Event, error) {
-	return nil, nil
-}
 func makeIgnitionPos(deviceID int64, ignition bool, ts time.Time) *model.Position {
 	id := ts.Unix()
 	return &model.Position{
@@ -100,7 +87,7 @@ func newIgnitionDevice(ignOn bool, lastIgnTime *time.Time) *model.Device {
 func TestCheckIgnition_NoEvent_WhenNoChange(t *testing.T) {
 	ts := time.Now().Add(-5 * time.Second)
 	devRepo := &ignitionMockDeviceRepo{device: newIgnitionDevice(true, &ts)}
-	evRepo := &ignitionMockEventRepo{}
+	evRepo := &recordingEventRepo{}
 	svc := NewIgnitionService(devRepo, evRepo, nil, nil, nil)
 
 	curr := makeIgnitionPos(1, true, time.Now())
@@ -115,7 +102,7 @@ func TestCheckIgnition_NoEvent_WhenNoChange(t *testing.T) {
 func TestCheckIgnition_EmitsIgnitionOff(t *testing.T) {
 	ts := time.Now().Add(-5 * time.Second)
 	devRepo := &ignitionMockDeviceRepo{device: newIgnitionDevice(true, &ts)}
-	evRepo := &ignitionMockEventRepo{}
+	evRepo := &recordingEventRepo{}
 	svc := NewIgnitionService(devRepo, evRepo, nil, nil, nil)
 
 	curr := makeIgnitionPos(1, false, time.Now())
@@ -132,7 +119,7 @@ func TestCheckIgnition_EmitsIgnitionOff(t *testing.T) {
 
 func TestCheckIgnition_EmitsIgnitionOn(t *testing.T) {
 	devRepo := &ignitionMockDeviceRepo{device: newIgnitionDevice(false, nil)}
-	evRepo := &ignitionMockEventRepo{}
+	evRepo := &recordingEventRepo{}
 	svc := NewIgnitionService(devRepo, evRepo, nil, nil, nil)
 
 	curr := makeIgnitionPos(1, true, time.Now())
@@ -149,7 +136,7 @@ func TestCheckIgnition_EmitsIgnitionOn(t *testing.T) {
 
 func TestCheckIgnition_SkipsWhenNoIgnitionAttribute(t *testing.T) {
 	devRepo := &ignitionMockDeviceRepo{device: newIgnitionDevice(true, nil)}
-	evRepo := &ignitionMockEventRepo{}
+	evRepo := &recordingEventRepo{}
 	svc := NewIgnitionService(devRepo, evRepo, nil, nil, nil)
 
 	// Position without "ignition" attribute (e.g. WATCH protocol).
@@ -170,7 +157,7 @@ func TestCheckIgnition_SkipsWhenNoIgnitionAttribute(t *testing.T) {
 func TestCheckIgnition_EventCarriesPositionID(t *testing.T) {
 	ts := time.Now().Add(-5 * time.Second)
 	devRepo := &ignitionMockDeviceRepo{device: newIgnitionDevice(true, &ts)}
-	evRepo := &ignitionMockEventRepo{}
+	evRepo := &recordingEventRepo{}
 	svc := NewIgnitionService(devRepo, evRepo, nil, nil, nil)
 
 	curr := makeIgnitionPos(1, false, time.Now())
@@ -196,7 +183,7 @@ func TestCheckIgnition_EventCarriesPositionID(t *testing.T) {
 // event per out-of-order position.
 func TestCheckIgnition_OutOfOrderPositions_SingleEvent(t *testing.T) {
 	devRepo := &ignitionMockDeviceRepo{device: newIgnitionDevice(false, nil)}
-	evRepo := &ignitionMockEventRepo{}
+	evRepo := &recordingEventRepo{}
 	svc := NewIgnitionService(devRepo, evRepo, nil, nil, nil)
 
 	ctx := context.Background()
@@ -230,7 +217,7 @@ func TestCheckIgnition_OutOfOrderPositions_SingleEvent(t *testing.T) {
 func TestCheckIgnition_DuplicateTimestamp_SingleEvent(t *testing.T) {
 	ts := time.Now().Add(-10 * time.Second)
 	devRepo := &ignitionMockDeviceRepo{device: newIgnitionDevice(true, &ts)}
-	evRepo := &ignitionMockEventRepo{}
+	evRepo := &recordingEventRepo{}
 	svc := NewIgnitionService(devRepo, evRepo, nil, nil, nil)
 
 	ctx := context.Background()
@@ -257,7 +244,7 @@ func TestCheckIgnition_OutOfOrderSkipped(t *testing.T) {
 	now := time.Now().UTC()
 	lastIgn := now // device ignition changed at "now"
 	devRepo := &ignitionMockDeviceRepo{device: newIgnitionDevice(true, &lastIgn)}
-	evRepo := &ignitionMockEventRepo{}
+	evRepo := &recordingEventRepo{}
 	svc := NewIgnitionService(devRepo, evRepo, nil, nil, nil)
 
 	// Position with ignition=false but older timestamp → should be skipped
@@ -278,7 +265,7 @@ func TestCheckIgnition_OutOfOrderSkipped(t *testing.T) {
 // TestCheckIgnition_NormalOnOffCycle verifies a complete on→off→on cycle.
 func TestCheckIgnition_NormalOnOffCycle(t *testing.T) {
 	devRepo := &ignitionMockDeviceRepo{device: newIgnitionDevice(false, nil)}
-	evRepo := &ignitionMockEventRepo{}
+	evRepo := &recordingEventRepo{}
 	svc := NewIgnitionService(devRepo, evRepo, nil, nil, nil)
 
 	ctx := context.Background()
@@ -325,7 +312,7 @@ func TestCheckIgnition_NormalOnOffCycle(t *testing.T) {
 // device has never had ignition state set (LastIgnitionTime is nil).
 func TestCheckIgnition_FirstPositionWithIgnitionOn(t *testing.T) {
 	devRepo := &ignitionMockDeviceRepo{device: newIgnitionDevice(false, nil)}
-	evRepo := &ignitionMockEventRepo{}
+	evRepo := &recordingEventRepo{}
 	svc := NewIgnitionService(devRepo, evRepo, nil, nil, nil)
 
 	curr := makeIgnitionPos(1, true, time.Now())
@@ -344,7 +331,7 @@ func TestCheckIgnition_FirstPositionWithIgnitionOn(t *testing.T) {
 // with no prior ignition state receiving ignition=false does not fire an event.
 func TestCheckIgnition_FirstPositionIgnitionOff_NoEvent(t *testing.T) {
 	devRepo := &ignitionMockDeviceRepo{device: newIgnitionDevice(false, nil)}
-	evRepo := &ignitionMockEventRepo{}
+	evRepo := &recordingEventRepo{}
 	svc := NewIgnitionService(devRepo, evRepo, nil, nil, nil)
 
 	curr := makeIgnitionPos(1, false, time.Now())

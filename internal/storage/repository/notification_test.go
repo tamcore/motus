@@ -14,13 +14,9 @@ func TestNotificationRepository_Create(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	notifRepo := repository.NewNotificationRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{Email: "notif@example.com", PasswordHash: "hash", Name: "Notif User"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("Create user failed: %v", err)
-	}
+	user := testutil.CreateUser(t, "notif@example.com")
 
 	rule := &model.NotificationRule{
 		UserID:     user.ID,
@@ -49,11 +45,9 @@ func TestNotificationRepository_GetByID(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	notifRepo := repository.NewNotificationRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{Email: "notifget@example.com", PasswordHash: "hash", Name: "Notif Get"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "notifget@example.com")
 
 	rule := &model.NotificationRule{
 		UserID:     user.ID,
@@ -94,11 +88,9 @@ func TestNotificationRepository_GetByUser(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	notifRepo := repository.NewNotificationRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{Email: "notifusr@example.com", PasswordHash: "hash", Name: "Notif Usr"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "notifusr@example.com")
 
 	r1 := &model.NotificationRule{
 		UserID: user.ID, Name: "Alpha Rule", EventTypes: []string{"geofenceEnter"},
@@ -128,11 +120,9 @@ func TestNotificationRepository_GetByEventType(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	notifRepo := repository.NewNotificationRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{Email: "notifevt@example.com", PasswordHash: "hash", Name: "Notif Evt"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "notifevt@example.com")
 
 	// Create enabled and disabled rules for the same event type.
 	r1 := &model.NotificationRule{
@@ -168,11 +158,9 @@ func TestNotificationRepository_Update(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	notifRepo := repository.NewNotificationRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{Email: "notifupd@example.com", PasswordHash: "hash", Name: "Notif Upd"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "notifupd@example.com")
 
 	rule := &model.NotificationRule{
 		UserID: user.ID, Name: "Before Update", EventTypes: []string{"deviceOnline"},
@@ -204,11 +192,9 @@ func TestNotificationRepository_Delete(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	notifRepo := repository.NewNotificationRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{Email: "notifdel@example.com", PasswordHash: "hash", Name: "Notif Del"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "notifdel@example.com")
 
 	rule := &model.NotificationRule{
 		UserID: user.ID, Name: "Delete Me", EventTypes: []string{"deviceOffline"},
@@ -230,16 +216,12 @@ func TestNotificationRepository_LogDelivery(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	notifRepo := repository.NewNotificationRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	eventRepo := repository.NewEventRepository(pool)
-	deviceRepo := repository.NewDeviceRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{Email: "notiflog@example.com", PasswordHash: "hash", Name: "Notif Log"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "notiflog@example.com")
 
-	device := &model.Device{UniqueID: "notiflog-dev-" + time.Now().Format("150405.000"), Name: "Log Device", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	device := testutil.CreateDevice(t, user.ID, "notiflog-dev-"+time.Now().Format("150405.000"))
 
 	// Create an event to reference in the log.
 	event := &model.Event{DeviceID: device.ID, Type: "geofenceEnter", Timestamp: time.Now().UTC()}
@@ -272,16 +254,12 @@ func TestNotificationRepository_GetLogsByRule(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	notifRepo := repository.NewNotificationRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	eventRepo := repository.NewEventRepository(pool)
-	deviceRepo := repository.NewDeviceRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{Email: "logsget@example.com", PasswordHash: "hash", Name: "Logs Get"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "logsget@example.com")
 
-	device := &model.Device{UniqueID: "logsget-dev-" + time.Now().Format("150405.000"), Name: "Logs Device", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	device := testutil.CreateDevice(t, user.ID, "logsget-dev-"+time.Now().Format("150405.000"))
 
 	event := &model.Event{DeviceID: device.ID, Type: "geofenceEnter", Timestamp: time.Now().UTC()}
 	_ = eventRepo.Create(ctx, event)
@@ -313,11 +291,9 @@ func TestNotificationRepository_GetLogsByRule_LimitCap(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	notifRepo := repository.NewNotificationRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{Email: "logscap@example.com", PasswordHash: "hash", Name: "Logs Cap"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "logscap@example.com")
 
 	rule := &model.NotificationRule{
 		UserID: user.ID, Name: "Cap Rule", EventTypes: []string{"deviceOnline"},

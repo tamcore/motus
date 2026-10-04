@@ -15,15 +15,10 @@ func TestCommandRepository_Create(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	cmdRepo := repository.NewCommandRepository(pool)
-	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := createTestUser(t, userRepo)
-	device := &model.Device{UniqueID: "cmd-dev-" + time.Now().Format("150405.000"), Name: "Cmd Device", Status: "online"}
-	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
-		t.Fatalf("Create device failed: %v", err)
-	}
+	user := testutil.CreateUser(t, "command-1@example.com")
+	device := testutil.CreateDevice(t, user.ID, "cmd-dev-"+time.Now().Format("150405.000"))
 
 	cmd := &model.Command{
 		DeviceID: device.ID,
@@ -50,10 +45,9 @@ func TestCommandRepository_GetPendingByUniqueIDs(t *testing.T) {
 	testutil.CleanTables(t, pool)
 	cmdRepo := repository.NewCommandRepository(pool)
 	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := createTestUser(t, userRepo)
+	user := testutil.CreateUser(t, "command-2@example.com")
 	a := &model.Device{UniqueID: "cmdpend-a", Name: "A", Status: "online", Protocol: "h02"}
 	b := &model.Device{UniqueID: "cmdpend-b", Name: "B", Status: "online", Protocol: "watch"}
 	other := &model.Device{UniqueID: "cmdpend-other", Name: "Other", Status: "online"}
@@ -96,13 +90,10 @@ func TestCommandRepository_UpdateStatus(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	cmdRepo := repository.NewCommandRepository(pool)
-	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := createTestUser(t, userRepo)
-	device := &model.Device{UniqueID: "cmdupd-" + time.Now().Format("150405.000"), Name: "Update Cmd Device", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	user := testutil.CreateUser(t, "command-3@example.com")
+	device := testutil.CreateDevice(t, user.ID, "cmdupd-"+time.Now().Format("150405.000"))
 
 	cmd := &model.Command{DeviceID: device.ID, Type: "rebootDevice", Status: "pending"}
 	_ = cmdRepo.Create(ctx, cmd)
@@ -125,13 +116,10 @@ func TestCommandRepository_ListByDevice(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	cmdRepo := repository.NewCommandRepository(pool)
-	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := createTestUser(t, userRepo)
-	device := &model.Device{UniqueID: "cmdlist-" + time.Now().Format("150405.000"), Name: "List Cmd Device", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	user := testutil.CreateUser(t, "command-4@example.com")
+	device := testutil.CreateDevice(t, user.ID, "cmdlist-"+time.Now().Format("150405.000"))
 
 	// Create 3 commands.
 	for range 3 {
@@ -152,13 +140,10 @@ func TestCommandRepository_ListByDevice_Empty(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	cmdRepo := repository.NewCommandRepository(pool)
-	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := createTestUser(t, userRepo)
-	device := &model.Device{UniqueID: "cmdlistempty-" + time.Now().Format("150405.000"), Name: "Empty List Device", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	user := testutil.CreateUser(t, "command-5@example.com")
+	device := testutil.CreateDevice(t, user.ID, "cmdlistempty-"+time.Now().Format("150405.000"))
 
 	cmds, err := cmdRepo.ListByDevice(ctx, device.ID, 10)
 	if err != nil {
@@ -174,13 +159,10 @@ func TestCommandRepository_AppendResult(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	cmdRepo := repository.NewCommandRepository(pool)
-	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := createTestUser(t, userRepo)
-	device := &model.Device{UniqueID: "cmdresult-" + time.Now().Format("150405.000"), Name: "Result Device", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	user := testutil.CreateUser(t, "command-6@example.com")
+	device := testutil.CreateDevice(t, user.ID, "cmdresult-"+time.Now().Format("150405.000"))
 
 	cmd := &model.Command{DeviceID: device.ID, Type: "rebootDevice", Status: "sent"}
 	_ = cmdRepo.Create(ctx, cmd)
@@ -194,13 +176,10 @@ func TestCommandRepository_GetLatestSentByDevice(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	cmdRepo := repository.NewCommandRepository(pool)
-	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := createTestUser(t, userRepo)
-	device := &model.Device{UniqueID: "cmdlatest-" + time.Now().Format("150405.000"), Name: "Latest Device", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	user := testutil.CreateUser(t, "command-7@example.com")
+	device := testutil.CreateDevice(t, user.ID, "cmdlatest-"+time.Now().Format("150405.000"))
 
 	// Create a pending and a sent command.
 	c1 := &model.Command{DeviceID: device.ID, Type: "rebootDevice", Status: "pending"}
@@ -225,13 +204,10 @@ func TestCommandRepository_GetLatestSentByDevice_None(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	cmdRepo := repository.NewCommandRepository(pool)
-	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := createTestUser(t, userRepo)
-	device := &model.Device{UniqueID: "cmdnone2-" + time.Now().Format("150405.000"), Name: "No Sent Device", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	user := testutil.CreateUser(t, "command-8@example.com")
+	device := testutil.CreateDevice(t, user.ID, "cmdnone2-"+time.Now().Format("150405.000"))
 
 	// No commands at all — should return an error (pgx.ErrNoRows).
 	_, err := cmdRepo.GetLatestSentByDevice(ctx, device.ID)

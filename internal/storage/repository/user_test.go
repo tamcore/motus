@@ -92,10 +92,7 @@ func TestUserRepository_GetByID(t *testing.T) {
 	repo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{Email: "byid@example.com", PasswordHash: "hash", Name: "ByID"}
-	if err := repo.Create(ctx, user); err != nil {
-		t.Fatalf("Create failed: %v", err)
-	}
+	user := testutil.CreateUser(t, "byid@example.com")
 
 	found, err := repo.GetByID(ctx, user.ID)
 	if err != nil {
@@ -124,10 +121,7 @@ func TestUserRepository_GenerateToken(t *testing.T) {
 	repo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{Email: "token@example.com", PasswordHash: "hash", Name: "Token User"}
-	if err := repo.Create(ctx, user); err != nil {
-		t.Fatalf("Create failed: %v", err)
-	}
+	user := testutil.CreateUser(t, "token@example.com")
 
 	token, err := repo.GenerateToken(ctx, user.ID)
 	if err != nil {
@@ -148,10 +142,7 @@ func TestUserRepository_GetByToken(t *testing.T) {
 	repo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{Email: "tokenget@example.com", PasswordHash: "hash", Name: "Token Get"}
-	if err := repo.Create(ctx, user); err != nil {
-		t.Fatalf("Create failed: %v", err)
-	}
+	user := testutil.CreateUser(t, "tokenget@example.com")
 
 	token, err := repo.GenerateToken(ctx, user.ID)
 	if err != nil {
@@ -205,10 +196,7 @@ func TestUserRepository_Create_DefaultRole(t *testing.T) {
 	repo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{Email: "default@example.com", PasswordHash: "hash", Name: "Default"}
-	if err := repo.Create(ctx, user); err != nil {
-		t.Fatalf("Create failed: %v", err)
-	}
+	user := testutil.CreateUser(t, "default@example.com")
 	if user.Role != model.RoleUser {
 		t.Errorf("expected default role 'user', got %q", user.Role)
 	}
@@ -283,8 +271,7 @@ func TestUserRepository_UpdatePassword(t *testing.T) {
 	repo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{Email: "pass@example.com", PasswordHash: "oldhash", Name: "Pass User"}
-	_ = repo.Create(ctx, user)
+	user := testutil.CreateUser(t, "pass@example.com")
 
 	if err := repo.UpdatePassword(ctx, user.ID, "newhash"); err != nil {
 		t.Fatalf("UpdatePassword failed: %v", err)
@@ -305,8 +292,7 @@ func TestUserRepository_Delete(t *testing.T) {
 	repo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{Email: "del@example.com", PasswordHash: "hash", Name: "Delete Me"}
-	_ = repo.Create(ctx, user)
+	user := testutil.CreateUser(t, "del@example.com")
 
 	if err := repo.Delete(ctx, user.ID); err != nil {
 		t.Fatalf("Delete failed: %v", err)
@@ -329,8 +315,7 @@ func TestUserRepository_DeviceAssignment(t *testing.T) {
 	_ = userRepo.Create(ctx, user)
 
 	// Create a device owned by a different user.
-	owner := &model.User{Email: "owner@example.com", PasswordHash: "hash", Name: "Owner"}
-	_ = userRepo.Create(ctx, owner)
+	owner := testutil.CreateUser(t, "owner@example.com")
 	device := &model.Device{UniqueID: "dev-assign-001", Name: "Test Device", Status: "unknown"}
 	_ = deviceRepo.Create(ctx, device, owner.ID)
 

@@ -24,12 +24,11 @@ func TestPositionRepository_StreamTrackByDeviceAndTimeRange(t *testing.T) {
 	testutil.CleanTables(t, pool)
 	posRepo := repository.NewPositionRepository(pool)
 	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	_, device := createTestDevice(t, pool, deviceRepo, userRepo)
+	device := testutil.CreateDevice(t, testutil.CreateUser(t, "position-track-2@example.com").ID, "position-track-2")
 	other := &model.Device{UniqueID: "track-other", Name: "Other", Status: "online"}
-	if err := deviceRepo.Create(ctx, other, createTestUser(t, userRepo).ID); err != nil {
+	if err := deviceRepo.Create(ctx, other, testutil.CreateUser(t, "position-track-1@example.com").ID); err != nil {
 		t.Fatalf("create device: %v", err)
 	}
 
@@ -94,7 +93,7 @@ func TestPositionRepository_StreamTrack_NoStaleValuesAndAbort(t *testing.T) {
 	testutil.CleanTables(t, pool)
 	posRepo := repository.NewPositionRepository(pool)
 	ctx := context.Background()
-	_, device := createTestDevice(t, pool, repository.NewDeviceRepository(pool), repository.NewUserRepository(pool))
+	device := testutil.CreateDevice(t, testutil.CreateUser(t, "position-track-3@example.com").ID, "position-track-3")
 
 	from := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
 	s1, s2, a1, a2 := 10.0, 20.0, "A", "B"

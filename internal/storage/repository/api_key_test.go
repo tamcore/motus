@@ -10,29 +10,13 @@ import (
 	"github.com/tamcore/motus/internal/storage/repository/testutil"
 )
 
-// createTestUserWithEmail is a helper that inserts a user with a specific email and returns it.
-func createTestUserWithEmail(t *testing.T, repo *repository.UserRepository, email string) *model.User {
-	t.Helper()
-	u := &model.User{
-		Email:        email,
-		PasswordHash: "$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ12",
-		Name:         "Test User",
-		Role:         model.RoleUser,
-	}
-	if err := repo.Create(context.Background(), u); err != nil {
-		t.Fatalf("create test user: %v", err)
-	}
-	return u
-}
-
 func TestApiKeyRepository_Create(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 
-	userRepo := repository.NewUserRepository(pool)
 	keyRepo := repository.NewApiKeyRepository(pool)
 
-	user := createTestUserWithEmail(t, userRepo, "apikey-create@example.com")
+	user := testutil.CreateUser(t, "apikey-create@example.com")
 
 	key := &model.ApiKey{
 		UserID:      user.ID,
@@ -66,10 +50,9 @@ func TestApiKeyRepository_Create_DefaultPermissions(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 
-	userRepo := repository.NewUserRepository(pool)
 	keyRepo := repository.NewApiKeyRepository(pool)
 
-	user := createTestUserWithEmail(t, userRepo, "apikey-default@example.com")
+	user := testutil.CreateUser(t, "apikey-default@example.com")
 
 	key := &model.ApiKey{
 		UserID: user.ID,
@@ -91,10 +74,9 @@ func TestApiKeyRepository_Create_Readonly(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 
-	userRepo := repository.NewUserRepository(pool)
 	keyRepo := repository.NewApiKeyRepository(pool)
 
-	user := createTestUserWithEmail(t, userRepo, "apikey-readonly@example.com")
+	user := testutil.CreateUser(t, "apikey-readonly@example.com")
 
 	key := &model.ApiKey{
 		UserID:      user.ID,
@@ -116,10 +98,9 @@ func TestApiKeyRepository_GetByToken(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 
-	userRepo := repository.NewUserRepository(pool)
 	keyRepo := repository.NewApiKeyRepository(pool)
 
-	user := createTestUserWithEmail(t, userRepo, "apikey-gettoken@example.com")
+	user := testutil.CreateUser(t, "apikey-gettoken@example.com")
 
 	key := &model.ApiKey{
 		UserID:      user.ID,
@@ -165,10 +146,9 @@ func TestApiKeyRepository_GetByID(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 
-	userRepo := repository.NewUserRepository(pool)
 	keyRepo := repository.NewApiKeyRepository(pool)
 
-	user := createTestUserWithEmail(t, userRepo, "apikey-getid@example.com")
+	user := testutil.CreateUser(t, "apikey-getid@example.com")
 
 	key := &model.ApiKey{
 		UserID:      user.ID,
@@ -196,10 +176,9 @@ func TestApiKeyRepository_ListByUser(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 
-	userRepo := repository.NewUserRepository(pool)
 	keyRepo := repository.NewApiKeyRepository(pool)
 
-	user := createTestUserWithEmail(t, userRepo, "apikey-list@example.com")
+	user := testutil.CreateUser(t, "apikey-list@example.com")
 
 	// Create multiple keys.
 	for i, name := range []string{"Key A", "Key B", "Key C"} {
@@ -236,10 +215,9 @@ func TestApiKeyRepository_ListByUser_Empty(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 
-	userRepo := repository.NewUserRepository(pool)
 	keyRepo := repository.NewApiKeyRepository(pool)
 
-	user := createTestUserWithEmail(t, userRepo, "apikey-listempty@example.com")
+	user := testutil.CreateUser(t, "apikey-listempty@example.com")
 
 	keys, err := keyRepo.ListByUser(context.Background(), user.ID)
 	if err != nil {
@@ -255,11 +233,10 @@ func TestApiKeyRepository_ListByUser_IsolatedPerUser(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 
-	userRepo := repository.NewUserRepository(pool)
 	keyRepo := repository.NewApiKeyRepository(pool)
 
-	user1 := createTestUserWithEmail(t, userRepo, "user1-apikey@example.com")
-	user2 := createTestUserWithEmail(t, userRepo, "user2-apikey@example.com")
+	user1 := testutil.CreateUser(t, "user1-apikey@example.com")
+	user2 := testutil.CreateUser(t, "user2-apikey@example.com")
 
 	// Create key for user1.
 	if err := keyRepo.Create(context.Background(), &model.ApiKey{
@@ -298,10 +275,9 @@ func TestApiKeyRepository_Delete(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 
-	userRepo := repository.NewUserRepository(pool)
 	keyRepo := repository.NewApiKeyRepository(pool)
 
-	user := createTestUserWithEmail(t, userRepo, "apikey-delete@example.com")
+	user := testutil.CreateUser(t, "apikey-delete@example.com")
 
 	key := &model.ApiKey{
 		UserID:      user.ID,
@@ -328,10 +304,9 @@ func TestApiKeyRepository_Delete_DoesNotAffectOtherKeys(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 
-	userRepo := repository.NewUserRepository(pool)
 	keyRepo := repository.NewApiKeyRepository(pool)
 
-	user := createTestUserWithEmail(t, userRepo, "apikey-delother@example.com")
+	user := testutil.CreateUser(t, "apikey-delother@example.com")
 
 	key1 := &model.ApiKey{UserID: user.ID, Name: "Keep", Permissions: model.PermissionFull}
 	key2 := &model.ApiKey{UserID: user.ID, Name: "Delete", Permissions: model.PermissionFull}
@@ -361,10 +336,9 @@ func TestApiKeyRepository_UpdateLastUsed(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 
-	userRepo := repository.NewUserRepository(pool)
 	keyRepo := repository.NewApiKeyRepository(pool)
 
-	user := createTestUserWithEmail(t, userRepo, "apikey-lastused@example.com")
+	user := testutil.CreateUser(t, "apikey-lastused@example.com")
 
 	key := &model.ApiKey{
 		UserID:      user.ID,
@@ -406,7 +380,7 @@ func TestApiKeyRepository_CascadeDeleteOnUserDelete(t *testing.T) {
 	userRepo := repository.NewUserRepository(pool)
 	keyRepo := repository.NewApiKeyRepository(pool)
 
-	user := createTestUserWithEmail(t, userRepo, "apikey-cascade@example.com")
+	user := testutil.CreateUser(t, "apikey-cascade@example.com")
 
 	key := &model.ApiKey{
 		UserID:      user.ID,
@@ -433,10 +407,9 @@ func TestApiKeyRepository_Create_WithExpiration(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 
-	userRepo := repository.NewUserRepository(pool)
 	keyRepo := repository.NewApiKeyRepository(pool)
 
-	user := createTestUserWithEmail(t, userRepo, "apikey-expiry@example.com")
+	user := testutil.CreateUser(t, "apikey-expiry@example.com")
 
 	expiresAt := time.Now().Add(7 * 24 * time.Hour).UTC()
 	key := &model.ApiKey{
@@ -470,10 +443,9 @@ func TestApiKeyRepository_Create_WithoutExpiration(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 
-	userRepo := repository.NewUserRepository(pool)
 	keyRepo := repository.NewApiKeyRepository(pool)
 
-	user := createTestUserWithEmail(t, userRepo, "apikey-noexpiry@example.com")
+	user := testutil.CreateUser(t, "apikey-noexpiry@example.com")
 
 	key := &model.ApiKey{
 		UserID:      user.ID,
@@ -500,10 +472,9 @@ func TestApiKeyRepository_ListByUser_IncludesExpiration(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 
-	userRepo := repository.NewUserRepository(pool)
 	keyRepo := repository.NewApiKeyRepository(pool)
 
-	user := createTestUserWithEmail(t, userRepo, "apikey-listexpiry@example.com")
+	user := testutil.CreateUser(t, "apikey-listexpiry@example.com")
 
 	// Create one with expiration, one without.
 	expiresAt := time.Now().Add(24 * time.Hour).UTC()
@@ -544,10 +515,9 @@ func TestApiKeyRepository_GetByID_IncludesExpiration(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 
-	userRepo := repository.NewUserRepository(pool)
 	keyRepo := repository.NewApiKeyRepository(pool)
 
-	user := createTestUserWithEmail(t, userRepo, "apikey-getidexpiry@example.com")
+	user := testutil.CreateUser(t, "apikey-getidexpiry@example.com")
 
 	expiresAt := time.Now().Add(48 * time.Hour).UTC()
 	key := &model.ApiKey{
@@ -573,10 +543,9 @@ func TestApiKeyRepository_UniqueTokens(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 
-	userRepo := repository.NewUserRepository(pool)
 	keyRepo := repository.NewApiKeyRepository(pool)
 
-	user := createTestUserWithEmail(t, userRepo, "apikey-unique@example.com")
+	user := testutil.CreateUser(t, "apikey-unique@example.com")
 
 	// Create multiple keys and verify they all have different tokens.
 	tokens := make(map[string]bool)

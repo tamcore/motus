@@ -12,27 +12,13 @@ import (
 	"github.com/tamcore/motus/internal/storage/repository/testutil"
 )
 
-func createTestUser(t *testing.T, repo *repository.UserRepository) *model.User {
-	t.Helper()
-	user := &model.User{
-		Email:        "device-test-" + time.Now().Format("20060102150405.000000000") + "@example.com",
-		PasswordHash: "$2a$10$fakehash",
-		Name:         "Device Test User",
-	}
-	if err := repo.Create(context.Background(), user); err != nil {
-		t.Fatalf("failed to create test user: %v", err)
-	}
-	return user
-}
-
 func TestDeviceRepository_Create(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := createTestUser(t, userRepo)
+	user := testutil.CreateUser(t, "device-1@example.com")
 
 	device := &model.Device{
 		UniqueID: "test-device-001",
@@ -57,10 +43,9 @@ func TestDeviceRepository_Create_DuplicateUniqueID(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := createTestUser(t, userRepo)
+	user := testutil.CreateUser(t, "device-2@example.com")
 
 	d1 := &model.Device{UniqueID: "dup-001", Name: "Device 1", Status: "unknown"}
 	d2 := &model.Device{UniqueID: "dup-001", Name: "Device 2", Status: "unknown"}
@@ -77,10 +62,9 @@ func TestDeviceRepository_GetByID(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := createTestUser(t, userRepo)
+	user := testutil.CreateUser(t, "device-3@example.com")
 	device := &model.Device{UniqueID: "getbyid-001", Name: "Get By ID", Protocol: "watch", Status: "unknown"}
 	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
 		t.Fatalf("Create failed: %v", err)
@@ -114,10 +98,9 @@ func TestDeviceRepository_GetByUniqueID(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := createTestUser(t, userRepo)
+	user := testutil.CreateUser(t, "device-4@example.com")
 	device := &model.Device{UniqueID: "unique-find-001", Name: "Unique Find", Status: "unknown"}
 	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
 		t.Fatalf("Create failed: %v", err)
@@ -136,10 +119,9 @@ func TestDeviceRepository_GetByUser(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := createTestUser(t, userRepo)
+	user := testutil.CreateUser(t, "device-5@example.com")
 
 	d1 := &model.Device{UniqueID: "user-dev-1", Name: "Alpha Device", Status: "unknown"}
 	d2 := &model.Device{UniqueID: "user-dev-2", Name: "Beta Device", Status: "unknown"}
@@ -168,10 +150,9 @@ func TestDeviceRepository_GetAll(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := createTestUser(t, userRepo)
+	user := testutil.CreateUser(t, "device-6@example.com")
 
 	d1 := &model.Device{UniqueID: "all-1", Name: "Device A", Status: "online"}
 	d2 := &model.Device{UniqueID: "all-2", Name: "Device B", Status: "offline"}
@@ -195,10 +176,9 @@ func TestDeviceRepository_GetUserIDs(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := createTestUser(t, userRepo)
+	user := testutil.CreateUser(t, "device-7@example.com")
 	device := &model.Device{UniqueID: "userid-dev", Name: "UserID Device", Status: "unknown"}
 	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
 		t.Fatalf("Create failed: %v", err)
@@ -220,10 +200,9 @@ func TestDeviceRepository_UserHasAccess(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := createTestUser(t, userRepo)
+	user := testutil.CreateUser(t, "device-8@example.com")
 	device := &model.Device{UniqueID: "access-dev", Name: "Access Device", Status: "unknown"}
 	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
 		t.Fatalf("Create failed: %v", err)
@@ -241,10 +220,9 @@ func TestDeviceRepository_Update(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := createTestUser(t, userRepo)
+	user := testutil.CreateUser(t, "device-9@example.com")
 	device := &model.Device{UniqueID: "update-dev", Name: "Before Update", Status: "unknown"}
 	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
 		t.Fatalf("Create failed: %v", err)
@@ -278,10 +256,9 @@ func TestDeviceRepository_Delete(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := createTestUser(t, userRepo)
+	user := testutil.CreateUser(t, "device-10@example.com")
 	device := &model.Device{UniqueID: "delete-dev", Name: "Delete Me", Status: "unknown"}
 	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
 		t.Fatalf("Create failed: %v", err)
@@ -301,10 +278,9 @@ func TestDeviceRepository_UpdateProtocol(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := createTestUser(t, userRepo)
+	user := testutil.CreateUser(t, "device-11@example.com")
 	device := &model.Device{UniqueID: "proto-dev", Name: "Proto Device", Protocol: "watch", Status: "unknown"}
 	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
 		t.Fatalf("Create failed: %v", err)
@@ -334,10 +310,9 @@ func TestDeviceRepository_UpdateProtocol_Clear(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := createTestUser(t, userRepo)
+	user := testutil.CreateUser(t, "device-12@example.com")
 	device := &model.Device{UniqueID: "proto-clear-dev", Name: "Clear Proto", Protocol: "h02", Status: "unknown"}
 	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
 		t.Fatalf("Create failed: %v", err)
@@ -360,10 +335,9 @@ func TestDeviceRepository_MarkOnline(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := createTestUser(t, userRepo)
+	user := testutil.CreateUser(t, "device-13@example.com")
 	device := &model.Device{UniqueID: "mark-online", Name: "Before", Status: "unknown", Disabled: true}
 	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
 		t.Fatalf("Create: %v", err)
@@ -401,7 +375,7 @@ func TestDeviceRepository_MarkOnline_BatteryLevel(t *testing.T) {
 	posRepo := repository.NewPositionRepository(pool)
 	ctx := t.Context()
 
-	user := createTestUser(t, repository.NewUserRepository(pool))
+	user := testutil.CreateUser(t, "device-14@example.com")
 	device := &model.Device{UniqueID: "battery-level", Name: "Battery", Status: "unknown"}
 	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
 		t.Fatalf("Create: %v", err)
@@ -465,11 +439,8 @@ func TestDeviceRepository_SetIgnitionState(t *testing.T) {
 	testutil.CleanTables(t, pool)
 	deviceRepo := repository.NewDeviceRepository(pool)
 	ctx := context.Background()
-	user := createTestUser(t, repository.NewUserRepository(pool))
-	device := &model.Device{UniqueID: "ignition-atomic", Name: "Ign", Status: "online"}
-	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
-		t.Fatalf("Create: %v", err)
-	}
+	user := testutil.CreateUser(t, "device-15@example.com")
+	device := testutil.CreateDevice(t, user.ID, "ignition-atomic")
 
 	t0 := time.Date(2026, 10, 2, 12, 0, 0, 0, time.UTC)
 	steps := []struct {
@@ -511,11 +482,8 @@ func TestDeviceRepository_SetIgnitionState_ConcurrentReportsChangeOnce(t *testin
 	testutil.CleanTables(t, pool)
 	deviceRepo := repository.NewDeviceRepository(pool)
 	ctx := context.Background()
-	user := createTestUser(t, repository.NewUserRepository(pool))
-	device := &model.Device{UniqueID: "ignition-race", Name: "Ign", Status: "online"}
-	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
-		t.Fatalf("Create: %v", err)
-	}
+	user := testutil.CreateUser(t, "device-16@example.com")
+	device := testutil.CreateDevice(t, user.ID, "ignition-race")
 
 	ts := time.Date(2026, 10, 2, 12, 0, 0, 0, time.UTC)
 	var changes atomic.Int32

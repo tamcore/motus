@@ -69,10 +69,7 @@ func setupReports(t *testing.T) *reportsEnv {
 	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
 		t.Fatalf("create device: %v", err)
 	}
-	other := &model.Device{UniqueID: "reports-other", Name: "Other Device", Status: "online"}
-	if err := deviceRepo.Create(ctx, other, owner.ID); err != nil {
-		t.Fatalf("create device: %v", err)
-	}
+	other := testutil.CreateDevice(t, owner.ID, "reports-other")
 
 	start := time.Now().UTC().Add(-2 * time.Hour).Truncate(time.Second)
 	for i := range 21 {

@@ -18,13 +18,9 @@ func TestNotificationRepository_GeofenceIDsAndCommandChannel(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	notifRepo := repository.NewNotificationRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{Email: "notifgeo@example.com", PasswordHash: "hash", Name: "Notif Geo"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "notifgeo@example.com")
 
 	rule := &model.NotificationRule{
 		UserID:      user.ID,
@@ -107,13 +103,9 @@ func TestNotificationRepository_LogDeliveryQueued(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	notifRepo := repository.NewNotificationRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{Email: "notifqueued@example.com", PasswordHash: "hash", Name: "Notif Queued"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "notifqueued@example.com")
 	rule := &model.NotificationRule{
 		UserID:     user.ID,
 		Name:       "Back home",

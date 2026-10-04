@@ -17,10 +17,7 @@ import (
 func TestNotificationRuleTools_UseSharedService(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
-	user := &model.User{Email: "mcp-rules@example.com", PasswordHash: "hash", Name: "MCP"}
-	if err := repository.NewUserRepository(pool).Create(t.Context(), user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "mcp-rules@example.com")
 	ctx := api.ContextWithUser(t.Context(), user)
 	rules := repository.NewNotificationRepository(pool)
 	logger := audit.NewLogger(pool)
@@ -66,10 +63,7 @@ func TestNotificationRuleTools_UseSharedService(t *testing.T) {
 func TestCreateNotificationRuleTool(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
-	user := &model.User{Email: "mcp-create-rule@example.com", PasswordHash: "hash", Name: "MCP"}
-	if err := repository.NewUserRepository(pool).Create(t.Context(), user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "mcp-create-rule@example.com")
 	ctx := api.ContextWithUser(t.Context(), user)
 	rules := repository.NewNotificationRepository(pool)
 	logger := audit.NewLogger(pool)

@@ -6,11 +6,12 @@ import (
 	"testing"
 	"time"
 
+	"os"
+
 	"github.com/tamcore/motus/internal/model"
 	"github.com/tamcore/motus/internal/storage/partition"
 	"github.com/tamcore/motus/internal/storage/repository"
 	"github.com/tamcore/motus/internal/storage/repository/testutil"
-	"os"
 )
 
 func TestMain(m *testing.M) {
@@ -97,27 +98,11 @@ func TestPartitionManager_InsertIntoPartition(t *testing.T) {
 	}
 
 	// Create a test device and insert a position.
-	userRepo := repository.NewUserRepository(pool)
-	deviceRepo := repository.NewDeviceRepository(pool)
 	posRepo := repository.NewPositionRepository(pool)
 
-	user := &model.User{
-		Email:        "parttest@example.com",
-		PasswordHash: "$2a$10$fakehashforfasttest",
-		Name:         "Partition Test",
-	}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "parttest@example.com")
 
-	device := &model.Device{
-		UniqueID: "part-test-" + time.Now().Format("20060102150405.000000000"),
-		Name:     "Partition Test Device",
-		Status:   "online",
-	}
-	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
-		t.Fatalf("create device: %v", err)
-	}
+	device := testutil.CreateDevice(t, user.ID, "part-test-"+time.Now().Format("20060102150405.000000000"))
 
 	speed := 45.5
 	pos := &model.Position{
@@ -157,27 +142,11 @@ func TestPartitionManager_TimeRangeQuery(t *testing.T) {
 		t.Fatalf("RunOnce failed: %v", err)
 	}
 
-	userRepo := repository.NewUserRepository(pool)
-	deviceRepo := repository.NewDeviceRepository(pool)
 	posRepo := repository.NewPositionRepository(pool)
 
-	user := &model.User{
-		Email:        "rangetest@example.com",
-		PasswordHash: "$2a$10$fakehashforfasttest",
-		Name:         "Range Test",
-	}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "rangetest@example.com")
 
-	device := &model.Device{
-		UniqueID: "range-test-" + time.Now().Format("20060102150405.000000000"),
-		Name:     "Range Test Device",
-		Status:   "online",
-	}
-	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
-		t.Fatalf("create device: %v", err)
-	}
+	device := testutil.CreateDevice(t, user.ID, "range-test-"+time.Now().Format("20060102150405.000000000"))
 
 	now := time.Now().UTC()
 	positions := []*model.Position{

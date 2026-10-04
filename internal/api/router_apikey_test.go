@@ -32,14 +32,7 @@ func TestRouter_ReadonlyApiKey_BlocksDelete(t *testing.T) {
 	apiKeyRepo := repository.NewApiKeyRepository(pool)
 
 	// Create test user.
-	user := &model.User{
-		Email:        "readonly-delete-test@example.com",
-		PasswordHash: "hash",
-		Name:         "Readonly Delete Test",
-	}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "readonly-delete-test@example.com")
 
 	// Create a device owned by the user.
 	device := &model.Device{
@@ -230,14 +223,7 @@ func TestRouter_ReadonlyApiKey_BlocksAllWriteEndpoints(t *testing.T) {
 	geofenceRepo := repository.NewGeofenceRepository(pool)
 
 	// Create test user.
-	user := &model.User{
-		Email:        "readonly-all-endpoints@example.com",
-		PasswordHash: "hash",
-		Name:         "Readonly All Endpoints",
-	}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "readonly-all-endpoints@example.com")
 
 	// Create readonly API key.
 	readonlyKey := &model.ApiKey{

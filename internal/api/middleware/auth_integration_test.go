@@ -30,10 +30,7 @@ func TestAuthMiddleware_ValidBearerToken(t *testing.T) {
 	sessionRepo := repository.NewSessionRepository(pool)
 
 	// Create a user and generate a token.
-	user := &model.User{Email: "bearer@example.com", PasswordHash: "hash", Name: "Bearer User"}
-	if err := userRepo.Create(context.Background(), user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "bearer@example.com")
 
 	token, err := userRepo.GenerateToken(context.Background(), user.ID)
 	if err != nil {
@@ -73,10 +70,7 @@ func TestAuthMiddleware_ValidSessionCookie(t *testing.T) {
 	sessionRepo := repository.NewSessionRepository(pool)
 
 	// Create a user and session.
-	user := &model.User{Email: "session@example.com", PasswordHash: "hash", Name: "Session User"}
-	if err := userRepo.Create(context.Background(), user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "session@example.com")
 
 	session, err := sessionRepo.Create(context.Background(), user.ID)
 	if err != nil {
@@ -116,10 +110,7 @@ func TestAuthMiddleware_InvalidBearerFallsToSession(t *testing.T) {
 	sessionRepo := repository.NewSessionRepository(pool)
 
 	// Create a user and session.
-	user := &model.User{Email: "fallback@example.com", PasswordHash: "hash", Name: "Fallback User"}
-	if err := userRepo.Create(context.Background(), user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "fallback@example.com")
 
 	session, err := sessionRepo.Create(context.Background(), user.ID)
 	if err != nil {

@@ -26,10 +26,7 @@ func TestAuthMiddleware_ApiKey_FullAccess(t *testing.T) {
 	apiKeyRepo := repository.NewApiKeyRepository(pool)
 
 	// Create a test user.
-	user := &model.User{Email: "apikey-full@example.com", PasswordHash: "hash", Name: "API Key User"}
-	if err := userRepo.Create(context.Background(), user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "apikey-full@example.com")
 
 	// Create a full-access API key.
 	key := &model.ApiKey{UserID: user.ID, Name: "Full Key", Permissions: model.PermissionFull}
@@ -78,10 +75,7 @@ func TestAuthMiddleware_ApiKey_ReadonlyAccess(t *testing.T) {
 	sessionRepo := repository.NewSessionRepository(pool)
 	apiKeyRepo := repository.NewApiKeyRepository(pool)
 
-	user := &model.User{Email: "apikey-readonly@example.com", PasswordHash: "hash", Name: "Readonly User"}
-	if err := userRepo.Create(context.Background(), user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "apikey-readonly@example.com")
 
 	key := &model.ApiKey{UserID: user.ID, Name: "Readonly Key", Permissions: model.PermissionReadonly}
 	if err := apiKeyRepo.Create(context.Background(), key); err != nil {
@@ -147,10 +141,7 @@ func TestAuthMiddleware_LegacyToken_StillWorks(t *testing.T) {
 	sessionRepo := repository.NewSessionRepository(pool)
 	apiKeyRepo := repository.NewApiKeyRepository(pool)
 
-	user := &model.User{Email: "legacy-token@example.com", PasswordHash: "hash", Name: "Legacy User"}
-	if err := userRepo.Create(context.Background(), user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "legacy-token@example.com")
 
 	token, err := userRepo.GenerateToken(context.Background(), user.ID)
 	if err != nil {
@@ -196,10 +187,7 @@ func TestAuthMiddleware_ApiKey_PrioritizedOverLegacyToken(t *testing.T) {
 	sessionRepo := repository.NewSessionRepository(pool)
 	apiKeyRepo := repository.NewApiKeyRepository(pool)
 
-	user := &model.User{Email: "priority@example.com", PasswordHash: "hash", Name: "Priority User"}
-	if err := userRepo.Create(context.Background(), user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "priority@example.com")
 
 	// Create an API key.
 	key := &model.ApiKey{UserID: user.ID, Name: "Priority Key", Permissions: model.PermissionReadonly}
@@ -241,10 +229,7 @@ func TestAuthMiddleware_ApiKey_UpdatesLastUsed(t *testing.T) {
 	sessionRepo := repository.NewSessionRepository(pool)
 	apiKeyRepo := repository.NewApiKeyRepository(pool)
 
-	user := &model.User{Email: "lastused@example.com", PasswordHash: "hash", Name: "Last Used User"}
-	if err := userRepo.Create(context.Background(), user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "lastused@example.com")
 
 	key := &model.ApiKey{UserID: user.ID, Name: "Track Usage", Permissions: model.PermissionFull}
 	if err := apiKeyRepo.Create(context.Background(), key); err != nil {
@@ -297,10 +282,7 @@ func TestReadonlyKeyIntegration_BlocksPostWithRealAuth(t *testing.T) {
 	sessionRepo := repository.NewSessionRepository(pool)
 	apiKeyRepo := repository.NewApiKeyRepository(pool)
 
-	user := &model.User{Email: "readonly-post@example.com", PasswordHash: "hash", Name: "Readonly User"}
-	if err := userRepo.Create(context.Background(), user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "readonly-post@example.com")
 
 	key := &model.ApiKey{UserID: user.ID, Name: "Readonly Key", Permissions: model.PermissionReadonly}
 	if err := apiKeyRepo.Create(context.Background(), key); err != nil {
@@ -345,10 +327,7 @@ func TestFullKeyIntegration_AllowsPostWithRealAuth(t *testing.T) {
 	sessionRepo := repository.NewSessionRepository(pool)
 	apiKeyRepo := repository.NewApiKeyRepository(pool)
 
-	user := &model.User{Email: "full-post@example.com", PasswordHash: "hash", Name: "Full Access User"}
-	if err := userRepo.Create(context.Background(), user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "full-post@example.com")
 
 	key := &model.ApiKey{UserID: user.ID, Name: "Full Key", Permissions: model.PermissionFull}
 	if err := apiKeyRepo.Create(context.Background(), key); err != nil {
@@ -385,10 +364,7 @@ func TestKeyRevocation_BlocksAfterDelete(t *testing.T) {
 	sessionRepo := repository.NewSessionRepository(pool)
 	apiKeyRepo := repository.NewApiKeyRepository(pool)
 
-	user := &model.User{Email: "revoke@example.com", PasswordHash: "hash", Name: "Revoke User"}
-	if err := userRepo.Create(context.Background(), user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "revoke@example.com")
 
 	key := &model.ApiKey{UserID: user.ID, Name: "Revocable Key", Permissions: model.PermissionFull}
 	if err := apiKeyRepo.Create(context.Background(), key); err != nil {
@@ -435,10 +411,7 @@ func TestSessionAuth_NoApiKeyInContext(t *testing.T) {
 	sessionRepo := repository.NewSessionRepository(pool)
 	apiKeyRepo := repository.NewApiKeyRepository(pool)
 
-	user := &model.User{Email: "session-no-key@example.com", PasswordHash: "hash", Name: "Session User"}
-	if err := userRepo.Create(context.Background(), user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "session-no-key@example.com")
 
 	session, err := sessionRepo.Create(context.Background(), user.ID)
 	if err != nil {
@@ -478,10 +451,7 @@ func TestSessionWithApiKey_ReadonlyEnforced(t *testing.T) {
 	sessionRepo := repository.NewSessionRepository(pool)
 	apiKeyRepo := repository.NewApiKeyRepository(pool)
 
-	user := &model.User{Email: "readonly-session@example.com", PasswordHash: "hash", Name: "Readonly Session User"}
-	if err := userRepo.Create(context.Background(), user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "readonly-session@example.com")
 
 	// Create a readonly API key.
 	key := &model.ApiKey{UserID: user.ID, Name: "Readonly Key", Permissions: model.PermissionReadonly}
@@ -546,10 +516,7 @@ func TestSessionWithApiKey_FullAccessAllowed(t *testing.T) {
 	sessionRepo := repository.NewSessionRepository(pool)
 	apiKeyRepo := repository.NewApiKeyRepository(pool)
 
-	user := &model.User{Email: "full-session@example.com", PasswordHash: "hash", Name: "Full Access Session User"}
-	if err := userRepo.Create(context.Background(), user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "full-session@example.com")
 
 	// Create a full-access API key.
 	key := &model.ApiKey{UserID: user.ID, Name: "Full Key", Permissions: model.PermissionFull}
@@ -596,10 +563,7 @@ func TestSessionWithApiKey_PasswordLoginUnrestricted(t *testing.T) {
 	sessionRepo := repository.NewSessionRepository(pool)
 	apiKeyRepo := repository.NewApiKeyRepository(pool)
 
-	user := &model.User{Email: "password-login@example.com", PasswordHash: "hash", Name: "Password Login User"}
-	if err := userRepo.Create(context.Background(), user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "password-login@example.com")
 
 	// User has a readonly API key but logs in with password.
 	readonlyKey := &model.ApiKey{UserID: user.ID, Name: "Readonly Key", Permissions: model.PermissionReadonly}
@@ -641,10 +605,7 @@ func TestSessionWithApiKey_DeletedKeyCascadesToSession(t *testing.T) {
 	sessionRepo := repository.NewSessionRepository(pool)
 	apiKeyRepo := repository.NewApiKeyRepository(pool)
 
-	user := &model.User{Email: "deleted-key@example.com", PasswordHash: "hash", Name: "Deleted Key User"}
-	if err := userRepo.Create(context.Background(), user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "deleted-key@example.com")
 
 	key := &model.ApiKey{UserID: user.ID, Name: "Will Be Deleted", Permissions: model.PermissionReadonly}
 	if err := apiKeyRepo.Create(context.Background(), key); err != nil {
@@ -701,10 +662,7 @@ func TestSessionWithApiKey_ContextHasCorrectApiKey(t *testing.T) {
 	sessionRepo := repository.NewSessionRepository(pool)
 	apiKeyRepo := repository.NewApiKeyRepository(pool)
 
-	user := &model.User{Email: "ctx-check@example.com", PasswordHash: "hash", Name: "Context Check User"}
-	if err := userRepo.Create(context.Background(), user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "ctx-check@example.com")
 
 	key := &model.ApiKey{UserID: user.ID, Name: "Context Key", Permissions: model.PermissionReadonly}
 	if err := apiKeyRepo.Create(context.Background(), key); err != nil {
@@ -763,10 +721,7 @@ func TestReadonlyApiKey_CannotMintUserToken(t *testing.T) {
 	sessionRepo := repository.NewSessionRepository(pool)
 	apiKeyRepo := repository.NewApiKeyRepository(pool)
 
-	user := &model.User{Email: "readonly-token@example.com", PasswordHash: "hash", Name: "Readonly Token User"}
-	if err := userRepo.Create(context.Background(), user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "readonly-token@example.com")
 
 	key := &model.ApiKey{UserID: user.ID, Name: "Readonly Key", Permissions: model.PermissionReadonly}
 	if err := apiKeyRepo.Create(context.Background(), key); err != nil {

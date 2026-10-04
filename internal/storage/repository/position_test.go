@@ -12,29 +12,13 @@ import (
 	"github.com/tamcore/motus/internal/storage/repository/testutil"
 )
 
-func createTestDevice(t *testing.T, pool any, deviceRepo *repository.DeviceRepository, userRepo *repository.UserRepository) (*model.User, *model.Device) {
-	t.Helper()
-	user := createTestUser(t, userRepo)
-	device := &model.Device{
-		UniqueID: "pos-dev-" + time.Now().Format("20060102150405.000000000"),
-		Name:     "Position Test Device",
-		Status:   "online",
-	}
-	if err := deviceRepo.Create(context.Background(), device, user.ID); err != nil {
-		t.Fatalf("failed to create test device: %v", err)
-	}
-	return user, device
-}
-
 func TestPositionRepository_Create(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	posRepo := repository.NewPositionRepository(pool)
-	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	_, device := createTestDevice(t, pool, deviceRepo, userRepo)
+	device := testutil.CreateDevice(t, testutil.CreateUser(t, "position-1@example.com").ID, "position-1")
 
 	speed := 45.5
 	altitude := 100.0
@@ -66,11 +50,9 @@ func TestPositionRepository_GetLatestByDevice(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	posRepo := repository.NewPositionRepository(pool)
-	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	_, device := createTestDevice(t, pool, deviceRepo, userRepo)
+	device := testutil.CreateDevice(t, testutil.CreateUser(t, "position-2@example.com").ID, "position-2")
 
 	// Insert two positions at different times.
 	now := time.Now().UTC()
@@ -103,11 +85,9 @@ func TestPositionRepository_StreamByDeviceAndTimeRange_NegativeLimitTreatedAsUnl
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	posRepo := repository.NewPositionRepository(pool)
-	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	_, device := createTestDevice(t, pool, deviceRepo, userRepo)
+	device := testutil.CreateDevice(t, testutil.CreateUser(t, "position-3@example.com").ID, "position-3")
 
 	now := time.Now().UTC()
 	for i := range 3 {
@@ -140,11 +120,9 @@ func TestPositionRepository_GetPreviousByDevice(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	posRepo := repository.NewPositionRepository(pool)
-	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	_, device := createTestDevice(t, pool, deviceRepo, userRepo)
+	device := testutil.CreateDevice(t, testutil.CreateUser(t, "position-4@example.com").ID, "position-4")
 
 	now := time.Now().UTC()
 	p1 := &model.Position{DeviceID: device.ID, Latitude: 52.0, Longitude: 13.0, Timestamp: now.Add(-10 * time.Minute)}
@@ -170,11 +148,9 @@ func TestPositionRepository_GetByID(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	posRepo := repository.NewPositionRepository(pool)
-	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	_, device := createTestDevice(t, pool, deviceRepo, userRepo)
+	device := testutil.CreateDevice(t, testutil.CreateUser(t, "position-5@example.com").ID, "position-5")
 
 	pos := &model.Position{
 		DeviceID:  device.ID,
@@ -207,11 +183,10 @@ func TestPositionRepository_NullProtocol(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	posRepo := repository.NewPositionRepository(pool)
-	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user, device := createTestDevice(t, pool, deviceRepo, userRepo)
+	user := testutil.CreateUser(t, "position-6@example.com")
+	device := testutil.CreateDevice(t, user.ID, "position-6")
 
 	// Insert a position with NULL protocol directly via SQL to simulate
 	// pre-migration data that exists in production.
@@ -253,19 +228,11 @@ func TestPositionRepository_GetLatestByUser(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	posRepo := repository.NewPositionRepository(pool)
-	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user, device1 := createTestDevice(t, pool, deviceRepo, userRepo)
-	device2 := &model.Device{
-		UniqueID: "latuser-dev-2-" + time.Now().Format("20060102150405.000000000"),
-		Name:     "Second Device",
-		Status:   "online",
-	}
-	if err := deviceRepo.Create(ctx, device2, user.ID); err != nil {
-		t.Fatalf("Create device2 failed: %v", err)
-	}
+	user := testutil.CreateUser(t, "position-7@example.com")
+	device1 := testutil.CreateDevice(t, user.ID, "position-7")
+	device2 := testutil.CreateDevice(t, user.ID, "latuser-dev-2-"+time.Now().Format("20060102150405.000000000"))
 
 	now := time.Now().UTC()
 	// Positions for device 1
@@ -275,10 +242,7 @@ func TestPositionRepository_GetLatestByUser(t *testing.T) {
 	_ = posRepo.Create(ctx, &model.Position{DeviceID: device2.ID, Latitude: 51.0, Longitude: 12.0, Timestamp: now.Add(-5 * time.Minute)})
 	_ = posRepo.Create(ctx, &model.Position{DeviceID: device2.ID, Latitude: 51.1, Longitude: 12.1, Timestamp: now})
 
-	empty := &model.Device{UniqueID: "latuser-empty-" + time.Now().Format("20060102150405.000000000"), Name: "No Positions", Status: "online"}
-	if err := deviceRepo.Create(ctx, empty, user.ID); err != nil {
-		t.Fatalf("Create empty device failed: %v", err)
-	}
+	testutil.CreateDevice(t, user.ID, "latuser-empty-"+time.Now().Format("20060102150405.000000000"))
 
 	latest, err := posRepo.GetLatestByUser(ctx, user.ID)
 	if err != nil {
@@ -303,11 +267,9 @@ func TestPositionRepository_UpdateGeofenceIDs(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	posRepo := repository.NewPositionRepository(pool)
-	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	_, device := createTestDevice(t, pool, deviceRepo, userRepo)
+	device := testutil.CreateDevice(t, testutil.CreateUser(t, "position-8@example.com").ID, "position-8")
 
 	pos := &model.Position{
 		DeviceID:  device.ID,
@@ -338,11 +300,9 @@ func TestPositionRepository_UpdateAddress(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	posRepo := repository.NewPositionRepository(pool)
-	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	_, device := createTestDevice(t, pool, deviceRepo, userRepo)
+	device := testutil.CreateDevice(t, testutil.CreateUser(t, "position-9@example.com").ID, "position-9")
 
 	pos := &model.Position{
 		DeviceID:  device.ID,
@@ -372,11 +332,9 @@ func TestPositionRepository_StreamByDeviceAndTimeRange_AllRows(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	posRepo := repository.NewPositionRepository(pool)
-	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	_, device := createTestDevice(t, pool, deviceRepo, userRepo)
+	device := testutil.CreateDevice(t, testutil.CreateUser(t, "position-10@example.com").ID, "position-10")
 
 	now := time.Now().UTC()
 	for i := range 10 {
@@ -408,11 +366,9 @@ func TestPositionRepository_StreamByDeviceAndTimeRange_WithLimit(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	posRepo := repository.NewPositionRepository(pool)
-	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	_, device := createTestDevice(t, pool, deviceRepo, userRepo)
+	device := testutil.CreateDevice(t, testutil.CreateUser(t, "position-11@example.com").ID, "position-11")
 
 	now := time.Now().UTC()
 	for i := range 10 {
@@ -461,11 +417,10 @@ func TestPositionRepository_StreamByUserAndTimeRange_WithLimit(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	posRepo := repository.NewPositionRepository(pool)
-	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user, device := createTestDevice(t, pool, deviceRepo, userRepo)
+	user := testutil.CreateUser(t, "position-12@example.com")
+	device := testutil.CreateDevice(t, user.ID, "position-12")
 	now := time.Now().UTC()
 	for i := range 9 {
 		if err := posRepo.Create(ctx, &model.Position{DeviceID: device.ID, Latitude: 52, Longitude: 13, Timestamp: now.Add(time.Duration(-9+i) * time.Minute)}); err != nil {
@@ -490,15 +445,11 @@ func TestPositionRepository_StreamByUserAndTimeRange_PerDeviceSampling(t *testin
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	posRepo := repository.NewPositionRepository(pool)
-	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := t.Context()
 
-	user, busy := createTestDevice(t, pool, deviceRepo, userRepo)
-	quiet := &model.Device{UniqueID: "pos-quiet-" + time.Now().Format("150405.000000000"), Name: "Quiet", Status: "online"}
-	if err := deviceRepo.Create(ctx, quiet, user.ID); err != nil {
-		t.Fatalf("create quiet device: %v", err)
-	}
+	user := testutil.CreateUser(t, "position-13@example.com")
+	busy := testutil.CreateDevice(t, user.ID, "position-13")
+	quiet := testutil.CreateDevice(t, user.ID, "pos-quiet-"+time.Now().Format("150405.000000000"))
 	now := time.Now().UTC()
 	for i := range 20 {
 		if err := posRepo.Create(ctx, &model.Position{DeviceID: busy.ID, Latitude: 52, Longitude: 13, Timestamp: now.Add(time.Duration(-20+i) * time.Minute)}); err != nil {
@@ -533,29 +484,14 @@ func TestPositionRepository_GetLatestAll(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	posRepo := repository.NewPositionRepository(pool)
-	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
 	// Create two users with one device each.
-	user1, device1 := createTestDevice(t, pool, deviceRepo, userRepo)
+	user1 := testutil.CreateUser(t, "position-14@example.com")
+	device1 := testutil.CreateDevice(t, user1.ID, "position-14")
 	_ = user1
-	user2 := &model.User{
-		Email:        "getlatestall2@example.com",
-		PasswordHash: "$2a$10$hash",
-		Name:         "User Two",
-	}
-	if err := userRepo.Create(ctx, user2); err != nil {
-		t.Fatalf("Create user2 failed: %v", err)
-	}
-	device2 := &model.Device{
-		UniqueID: "latall-dev-2-" + time.Now().Format("20060102150405.000000000"),
-		Name:     "Second User Device",
-		Status:   "online",
-	}
-	if err := deviceRepo.Create(ctx, device2, user2.ID); err != nil {
-		t.Fatalf("Create device2 failed: %v", err)
-	}
+	user2 := testutil.CreateUser(t, "getlatestall2@example.com")
+	device2 := testutil.CreateDevice(t, user2.ID, "latall-dev-2-"+time.Now().Format("20060102150405.000000000"))
 
 	now := time.Now().UTC()
 	// Positions for device 1 (user 1)

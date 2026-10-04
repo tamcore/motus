@@ -10,23 +10,13 @@ import (
 	"github.com/tamcore/motus/internal/storage/repository/testutil"
 )
 
-func newPasskeyTestUser(t *testing.T, userRepo *repository.UserRepository, email string) *model.User {
-	t.Helper()
-	user := &model.User{Email: email, PasswordHash: "hash", Name: "Passkey User"}
-	if err := userRepo.Create(context.Background(), user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
-	return user
-}
-
 func TestPasskeyRepository_CreateAndList(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	ctx := context.Background()
 
-	userRepo := repository.NewUserRepository(pool)
 	repo := repository.NewPasskeyRepository(pool)
-	user := newPasskeyTestUser(t, userRepo, "pk-create@example.com")
+	user := testutil.CreateUser(t, "pk-create@example.com")
 
 	cred := &model.PasskeyCredential{
 		UserID:          user.ID,
@@ -74,9 +64,8 @@ func TestPasskeyRepository_GetByCredentialID(t *testing.T) {
 	testutil.CleanTables(t, pool)
 	ctx := context.Background()
 
-	userRepo := repository.NewUserRepository(pool)
 	repo := repository.NewPasskeyRepository(pool)
-	user := newPasskeyTestUser(t, userRepo, "pk-get@example.com")
+	user := testutil.CreateUser(t, "pk-get@example.com")
 
 	cred := &model.PasskeyCredential{
 		UserID: user.ID, CredentialID: []byte("lookup-id"), PublicKey: []byte("pk"), Name: "Key",
@@ -103,9 +92,8 @@ func TestPasskeyRepository_UpdateSignCount(t *testing.T) {
 	testutil.CleanTables(t, pool)
 	ctx := context.Background()
 
-	userRepo := repository.NewUserRepository(pool)
 	repo := repository.NewPasskeyRepository(pool)
-	user := newPasskeyTestUser(t, userRepo, "pk-sc@example.com")
+	user := testutil.CreateUser(t, "pk-sc@example.com")
 
 	cred := &model.PasskeyCredential{UserID: user.ID, CredentialID: []byte("sc"), PublicKey: []byte("pk")}
 	if err := repo.Create(ctx, cred); err != nil {
@@ -133,10 +121,9 @@ func TestPasskeyRepository_Delete_ScopedByUser(t *testing.T) {
 	testutil.CleanTables(t, pool)
 	ctx := context.Background()
 
-	userRepo := repository.NewUserRepository(pool)
 	repo := repository.NewPasskeyRepository(pool)
-	owner := newPasskeyTestUser(t, userRepo, "pk-owner@example.com")
-	other := newPasskeyTestUser(t, userRepo, "pk-other@example.com")
+	owner := testutil.CreateUser(t, "pk-owner@example.com")
+	other := testutil.CreateUser(t, "pk-other@example.com")
 
 	cred := &model.PasskeyCredential{UserID: owner.ID, CredentialID: []byte("del"), PublicKey: []byte("pk")}
 	if err := repo.Create(ctx, cred); err != nil {

@@ -18,7 +18,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tamcore/motus/internal/api"
 	"github.com/tamcore/motus/internal/api/handlers"
 	oas "github.com/tamcore/motus/internal/api/oas"
 	"github.com/tamcore/motus/internal/audit"
@@ -34,11 +33,6 @@ func newDeviceTestHandler(devices *mockDeviceRepo) *handlers.Handler {
 	})
 }
 
-func deviceTestUserCtx(id int64) context.Context {
-	return api.ContextWithUser(context.Background(),
-		&model.User{ID: id, Email: "devhandler@example.com", Name: "Dev Handler"})
-}
-
 // ---------------------------------------------------------------------------
 // ListDevices
 // ---------------------------------------------------------------------------
@@ -46,7 +40,7 @@ func deviceTestUserCtx(id int64) context.Context {
 func TestListDevices_Empty_OAS(t *testing.T) {
 	h := newDeviceTestHandler(&mockDeviceRepo{})
 
-	res, err := h.ListDevices(deviceTestUserCtx(1))
+	res, err := h.ListDevices(ctxAs(1, model.RoleUser))
 	if err != nil {
 		t.Fatalf("ListDevices returned error: %v", err)
 	}
@@ -73,7 +67,7 @@ func TestListDevices_WithDevices_OAS(t *testing.T) {
 	}
 	h := newDeviceTestHandler(mock)
 
-	res, err := h.ListDevices(deviceTestUserCtx(1))
+	res, err := h.ListDevices(ctxAs(1, model.RoleUser))
 	if err != nil {
 		t.Fatalf("ListDevices returned error: %v", err)
 	}
@@ -97,7 +91,7 @@ func TestListDevices_DBError_OAS(t *testing.T) {
 	}
 	h := newDeviceTestHandler(mock)
 
-	res, err := h.ListDevices(deviceTestUserCtx(1))
+	res, err := h.ListDevices(ctxAs(1, model.RoleUser))
 	if err != nil {
 		t.Fatalf("ListDevices returned error: %v", err)
 	}
@@ -124,7 +118,7 @@ func TestGetDevice_Success_OAS(t *testing.T) {
 	}
 	h := newDeviceTestHandler(mock)
 
-	res, err := h.GetDevice(deviceTestUserCtx(1), oas.GetDeviceParams{ID: 10})
+	res, err := h.GetDevice(ctxAs(1, model.RoleUser), oas.GetDeviceParams{ID: 10})
 	if err != nil {
 		t.Fatalf("GetDevice returned error: %v", err)
 	}
@@ -144,7 +138,7 @@ func TestGetDevice_Forbidden_OAS(t *testing.T) {
 	}
 	h := newDeviceTestHandler(mock)
 
-	res, err := h.GetDevice(deviceTestUserCtx(99), oas.GetDeviceParams{ID: 10})
+	res, err := h.GetDevice(ctxAs(99, model.RoleUser), oas.GetDeviceParams{ID: 10})
 	if err != nil {
 		t.Fatalf("GetDevice returned error: %v", err)
 	}
@@ -170,7 +164,7 @@ func TestCreateDevice_Success_OAS(t *testing.T) {
 	}
 	h := newDeviceTestHandler(mock)
 
-	res, err := h.CreateDevice(deviceTestUserCtx(7), &oas.DeviceInput{
+	res, err := h.CreateDevice(ctxAs(7, model.RoleUser), &oas.DeviceInput{
 		UniqueId: "new-001",
 		Name:     "Brand New Device",
 		Protocol: oas.NewOptString("h02"),
@@ -216,7 +210,7 @@ func TestCreateDevice_ValidationMatrix_OAS(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			h := newDeviceTestHandler(&mockDeviceRepo{})
-			res, err := h.CreateDevice(deviceTestUserCtx(1), &oas.DeviceInput{
+			res, err := h.CreateDevice(ctxAs(1, model.RoleUser), &oas.DeviceInput{
 				UniqueId: tt.uniqueID,
 				Name:     tt.devName,
 			})
@@ -240,7 +234,7 @@ func TestCreateDevice_ValidInput_OAS(t *testing.T) {
 	}
 	h := newDeviceTestHandler(mock)
 
-	res, err := h.CreateDevice(deviceTestUserCtx(1), &oas.DeviceInput{
+	res, err := h.CreateDevice(ctxAs(1, model.RoleUser), &oas.DeviceInput{
 		UniqueId: "valid-device-002",
 		Name:     "Valid Device",
 		Protocol: oas.NewOptString("h02"),
@@ -265,7 +259,7 @@ func TestCreateDevice_DBError_OAS(t *testing.T) {
 	}
 	h := newDeviceTestHandler(mock)
 
-	res, err := h.CreateDevice(deviceTestUserCtx(1), &oas.DeviceInput{
+	res, err := h.CreateDevice(ctxAs(1, model.RoleUser), &oas.DeviceInput{
 		UniqueId: "dup-001",
 		Name:     "Duplicate",
 	})
@@ -300,7 +294,7 @@ func TestUpdateDevice_Success_OAS(t *testing.T) {
 	}
 	h := newDeviceTestHandler(mock)
 
-	res, err := h.UpdateDevice(deviceTestUserCtx(1), &oas.DeviceInput{
+	res, err := h.UpdateDevice(ctxAs(1, model.RoleUser), &oas.DeviceInput{
 		UniqueId: "upd-001",
 		Name:     "After Update",
 	}, oas.UpdateDeviceParams{ID: 10})
@@ -338,7 +332,7 @@ func TestDeviceMileage_RoundTrip_OAS(t *testing.T) {
 		},
 	}
 	h := newDeviceTestHandler(mock)
-	ctx := deviceTestUserCtx(1)
+	ctx := ctxAs(1, model.RoleUser)
 	mileage := func() any {
 		if stored.Mileage == nil {
 			return nil
@@ -392,7 +386,7 @@ func TestUpdateDevice_UniqueIDChangeKeepsIgnitionState_OAS(t *testing.T) {
 	}
 	h := newDeviceTestHandler(mock)
 
-	res, err := h.UpdateDevice(deviceTestUserCtx(1), &oas.DeviceInput{
+	res, err := h.UpdateDevice(ctxAs(1, model.RoleUser), &oas.DeviceInput{
 		UniqueId: "ign-new",
 		Name:     "Car",
 	}, oas.UpdateDeviceParams{ID: 10})
@@ -419,7 +413,7 @@ func TestUpdateDevice_InvalidName_OAS(t *testing.T) {
 	}
 	h := newDeviceTestHandler(mock)
 
-	res, err := h.UpdateDevice(deviceTestUserCtx(1), &oas.DeviceInput{
+	res, err := h.UpdateDevice(ctxAs(1, model.RoleUser), &oas.DeviceInput{
 		UniqueId: "update-val-001",
 		Name:     "name<script>alert(1)</script>",
 	}, oas.UpdateDeviceParams{ID: 10})
@@ -446,7 +440,7 @@ func TestDeleteDevice_Success_OAS(t *testing.T) {
 	}
 	h := newDeviceTestHandler(mock)
 
-	res, err := h.DeleteDevice(deviceTestUserCtx(1), oas.DeleteDeviceParams{ID: 10})
+	res, err := h.DeleteDevice(ctxAs(1, model.RoleUser), oas.DeleteDeviceParams{ID: 10})
 	if err != nil {
 		t.Fatalf("DeleteDevice returned error: %v", err)
 	}
@@ -464,7 +458,7 @@ func TestDeleteDevice_Forbidden_OAS(t *testing.T) {
 	}
 	h := newDeviceTestHandler(mock)
 
-	res, err := h.DeleteDevice(deviceTestUserCtx(99), oas.DeleteDeviceParams{ID: 10})
+	res, err := h.DeleteDevice(ctxAs(99, model.RoleUser), oas.DeleteDeviceParams{ID: 10})
 	if err != nil {
 		t.Fatalf("DeleteDevice returned error: %v", err)
 	}

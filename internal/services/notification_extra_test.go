@@ -25,12 +25,10 @@ func TestNotificationService_SendNotification_WithGeofenceAndPosition(t *testing
 	geoRepo := repository.NewGeofenceRepository(pool)
 	posRepo := repository.NewPositionRepository(pool)
 	eventRepo := repository.NewEventRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
 	// Create user + device.
-	user := &model.User{Email: "sendnotif@example.com", PasswordHash: "hash", Name: "Send Notif"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "sendnotif@example.com")
 
 	device := &model.Device{UniqueID: "sendnotif-dev", Name: "Notif Device", Status: "online"}
 	_ = deviceRepo.Create(ctx, device, user.ID)
@@ -175,16 +173,13 @@ func TestGeofenceEventService_CreateEvent_WithNotificationService(t *testing.T) 
 	deviceRepo := repository.NewDeviceRepository(pool)
 	posRepo := repository.NewPositionRepository(pool)
 	notifRepo := repository.NewNotificationRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 
 	ctx := context.Background()
 
 	// Create user, device, geofence.
-	user := &model.User{Email: "geoevent-notif@example.com", PasswordHash: "hash", Name: "Geo Notif"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "geoevent-notif@example.com")
 
-	device := &model.Device{UniqueID: "geonotif-dev", Name: "GeoNotif Device", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	device := testutil.CreateDevice(t, user.ID, "geonotif-dev")
 
 	geoJSON := `{"type":"Polygon","coordinates":[[[13.35,52.51],[13.35,52.53],[13.40,52.53],[13.40,52.51],[13.35,52.51]]]}`
 	g := &model.Geofence{Name: "Notif Fence", Geometry: geoJSON}

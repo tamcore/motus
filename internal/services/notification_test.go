@@ -20,7 +20,6 @@ func setupNotificationService(t *testing.T) (
 	*repository.GeofenceRepository,
 	*repository.PositionRepository,
 	*repository.EventRepository,
-	*repository.UserRepository,
 ) {
 	t.Helper()
 	pool := testutil.SetupTestDB(t)
@@ -31,14 +30,13 @@ func setupNotificationService(t *testing.T) (
 	geoRepo := repository.NewGeofenceRepository(pool)
 	posRepo := repository.NewPositionRepository(pool)
 	eventRepo := repository.NewEventRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 
 	svc := NewNotificationService(notifRepo, deviceRepo, geoRepo, posRepo, nil, nil)
-	return svc, notifRepo, deviceRepo, geoRepo, posRepo, eventRepo, userRepo
+	return svc, notifRepo, deviceRepo, geoRepo, posRepo, eventRepo
 }
 
 func TestNotificationService_ProcessEvent_FindsMatchingRules(t *testing.T) {
-	svc, notifRepo, deviceRepo, geoRepo, posRepo, eventRepo, userRepo := setupNotificationService(t)
+	svc, notifRepo, _, geoRepo, posRepo, eventRepo := setupNotificationService(t)
 	ctx := context.Background()
 
 	// Setup a webhook server to receive notifications.
@@ -55,11 +53,9 @@ func TestNotificationService_ProcessEvent_FindsMatchingRules(t *testing.T) {
 	_ = posRepo
 
 	// Create user + device.
-	user := &model.User{Email: "notifsvc@example.com", PasswordHash: "hash", Name: "Notif Svc"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "notifsvc@example.com")
 
-	device := &model.Device{UniqueID: "notifsvc-dev", Name: "Notif Device", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	device := testutil.CreateDevice(t, user.ID, "notifsvc-dev")
 
 	// Create a notification rule matching geofenceEnter events.
 	rule := &model.NotificationRule{
@@ -98,14 +94,12 @@ func TestNotificationService_ProcessEvent_FindsMatchingRules(t *testing.T) {
 }
 
 func TestNotificationService_ProcessEvent_SkipsDisabledRules(t *testing.T) {
-	svc, notifRepo, deviceRepo, _, _, eventRepo, userRepo := setupNotificationService(t)
+	svc, notifRepo, _, _, _, eventRepo := setupNotificationService(t)
 	ctx := context.Background()
 
-	user := &model.User{Email: "notifdis@example.com", PasswordHash: "hash", Name: "Notif Dis"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "notifdis@example.com")
 
-	device := &model.Device{UniqueID: "notifdis-dev", Name: "Disabled Device", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	device := testutil.CreateDevice(t, user.ID, "notifdis-dev")
 
 	// Create a DISABLED rule.
 	rule := &model.NotificationRule{
@@ -133,14 +127,12 @@ func TestNotificationService_ProcessEvent_SkipsDisabledRules(t *testing.T) {
 }
 
 func TestNotificationService_ProcessEvent_NoRules(t *testing.T) {
-	svc, _, deviceRepo, _, _, eventRepo, userRepo := setupNotificationService(t)
+	svc, _, _, _, _, eventRepo := setupNotificationService(t)
 	ctx := context.Background()
 
-	user := &model.User{Email: "notifnone@example.com", PasswordHash: "hash", Name: "No Rules"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "notifnone@example.com")
 
-	device := &model.Device{UniqueID: "notifnone-dev", Name: "No Rules Device", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	device := testutil.CreateDevice(t, user.ID, "notifnone-dev")
 
 	event := &model.Event{
 		DeviceID:  device.ID,
@@ -156,7 +148,7 @@ func TestNotificationService_ProcessEvent_NoRules(t *testing.T) {
 }
 
 func TestNotificationService_SendTestNotification(t *testing.T) {
-	svc, _, _, _, _, _, _ := setupNotificationService(t)
+	svc, _, _, _, _, _ := setupNotificationService(t)
 	ctx := context.Background()
 
 	// Start a test server.
@@ -182,7 +174,7 @@ func TestNotificationService_SendTestNotification(t *testing.T) {
 }
 
 func TestNotificationService_SendTestNotification_WebhookError(t *testing.T) {
-	svc, _, _, _, _, _, _ := setupNotificationService(t)
+	svc, _, _, _, _, _ := setupNotificationService(t)
 	ctx := context.Background()
 
 	// Server that returns 500.

@@ -24,11 +24,9 @@ func TestPositionRepository_PointsByDeviceAndTimeRange(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	posRepo := repository.NewPositionRepository(pool)
-	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	_, device := createTestDevice(t, pool, deviceRepo, userRepo)
+	device := testutil.CreateDevice(t, testutil.CreateUser(t, "position-points-1@example.com").ID, "position-points-1")
 	now := time.Now().UTC().Truncate(time.Microsecond)
 	speed, course, altitude := 36.0, 270.5, 120.0
 	for i := range 10 {

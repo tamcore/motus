@@ -17,7 +17,6 @@ func setupIdleService(t *testing.T) (
 	*repository.EventRepository,
 	*repository.DeviceRepository,
 	*repository.PositionRepository,
-	*repository.UserRepository,
 ) {
 	t.Helper()
 	pool := testutil.SetupTestDB(t)
@@ -26,22 +25,19 @@ func setupIdleService(t *testing.T) (
 	eventRepo := repository.NewEventRepository(pool)
 	deviceRepo := repository.NewDeviceRepository(pool)
 	posRepo := repository.NewPositionRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	hub := websocket.NewHub(nil, nil, func(r *http.Request) int64 { return 0 })
 
 	svc := NewIdleService(deviceRepo, posRepo, eventRepo, hub, nil, nil, nil)
-	return svc, eventRepo, deviceRepo, posRepo, userRepo
+	return svc, eventRepo, deviceRepo, posRepo
 }
 
 func TestIdle_DeviceIdleLongEnough(t *testing.T) {
-	svc, _, deviceRepo, posRepo, userRepo := setupIdleService(t)
+	svc, _, _, posRepo := setupIdleService(t)
 	ctx := context.Background()
 
-	user := &model.User{Email: "idle@example.com", PasswordHash: "hash", Name: "Idle"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "idle@example.com")
 
-	device := &model.Device{UniqueID: "idle-dev", Name: "Idle Device", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	device := testutil.CreateDevice(t, user.ID, "idle-dev")
 
 	// Position from 45 minutes ago with zero speed (beyond idle threshold of 30m).
 	zeroSpeed := 0.0
@@ -75,14 +71,12 @@ func TestIdle_DeviceIdleLongEnough(t *testing.T) {
 }
 
 func TestIdle_DeviceNotIdleLongEnough(t *testing.T) {
-	svc, _, deviceRepo, posRepo, userRepo := setupIdleService(t)
+	svc, _, _, posRepo := setupIdleService(t)
 	ctx := context.Background()
 
-	user := &model.User{Email: "notidle@example.com", PasswordHash: "hash", Name: "Not Idle"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "notidle@example.com")
 
-	device := &model.Device{UniqueID: "notidle-dev", Name: "Not Idle Device", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	device := testutil.CreateDevice(t, user.ID, "notidle-dev")
 
 	// Position from 10 minutes ago (below idle threshold of 30m).
 	zeroSpeed := 0.0
@@ -107,14 +101,12 @@ func TestIdle_DeviceNotIdleLongEnough(t *testing.T) {
 }
 
 func TestIdle_DeviceMoving(t *testing.T) {
-	svc, _, deviceRepo, posRepo, userRepo := setupIdleService(t)
+	svc, _, _, posRepo := setupIdleService(t)
 	ctx := context.Background()
 
-	user := &model.User{Email: "moving@example.com", PasswordHash: "hash", Name: "Moving"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "moving@example.com")
 
-	device := &model.Device{UniqueID: "moving-dev", Name: "Moving Device", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	device := testutil.CreateDevice(t, user.ID, "moving-dev")
 
 	// Position from 45 minutes ago but speed is above idle threshold.
 	speed := 10.0
@@ -139,14 +131,12 @@ func TestIdle_DeviceMoving(t *testing.T) {
 }
 
 func TestIdle_Deduplication(t *testing.T) {
-	svc, _, deviceRepo, posRepo, userRepo := setupIdleService(t)
+	svc, _, _, posRepo := setupIdleService(t)
 	ctx := context.Background()
 
-	user := &model.User{Email: "dedup@example.com", PasswordHash: "hash", Name: "Dedup"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "dedup@example.com")
 
-	device := &model.Device{UniqueID: "dedup-dev", Name: "Dedup Device", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	device := testutil.CreateDevice(t, user.ID, "dedup-dev")
 
 	// Position from 45 minutes ago.
 	zeroSpeed := 0.0
@@ -187,14 +177,12 @@ func TestIdle_Deduplication(t *testing.T) {
 // deviceIdle event total, instead of one every IdleThreshold (which spammed
 // webhook subscribers for hours).
 func TestIdle_LongParkOnlyOneEvent(t *testing.T) {
-	svc, _, deviceRepo, posRepo, userRepo := setupIdleService(t)
+	svc, _, _, posRepo := setupIdleService(t)
 	ctx := context.Background()
 
-	user := &model.User{Email: "longpark@example.com", PasswordHash: "hash", Name: "LongPark"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "longpark@example.com")
 
-	device := &model.Device{UniqueID: "longpark-dev", Name: "Long Park", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	device := testutil.CreateDevice(t, user.ID, "longpark-dev")
 
 	zeroSpeed := 0.0
 	pos := &model.Position{
@@ -228,14 +216,12 @@ func TestIdle_LongParkOnlyOneEvent(t *testing.T) {
 // briefly moves (sends a fresh position) and then parks again, a second
 // deviceIdle event is correctly emitted.
 func TestIdle_NewPositionTriggersNewIdleEvent(t *testing.T) {
-	svc, _, deviceRepo, posRepo, userRepo := setupIdleService(t)
+	svc, _, _, posRepo := setupIdleService(t)
 	ctx := context.Background()
 
-	user := &model.User{Email: "park2@example.com", PasswordHash: "hash", Name: "Park2"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "park2@example.com")
 
-	device := &model.Device{UniqueID: "park2-dev", Name: "Park 2", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	device := testutil.CreateDevice(t, user.ID, "park2-dev")
 
 	zeroSpeed := 0.0
 	pos1 := &model.Position{
@@ -273,14 +259,12 @@ func TestIdle_NewPositionTriggersNewIdleEvent(t *testing.T) {
 }
 
 func TestIdle_NoPositions(t *testing.T) {
-	svc, _, deviceRepo, _, userRepo := setupIdleService(t)
+	svc, _, _, _ := setupIdleService(t)
 	ctx := context.Background()
 
-	user := &model.User{Email: "nopos@example.com", PasswordHash: "hash", Name: "No Pos"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "nopos@example.com")
 
-	device := &model.Device{UniqueID: "nopos-dev", Name: "No Position Device", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	device := testutil.CreateDevice(t, user.ID, "nopos-dev")
 
 	// No positions created for this device.
 	err := svc.CheckIdle(ctx)
@@ -295,14 +279,12 @@ func TestIdle_NoPositions(t *testing.T) {
 }
 
 func TestIdle_NilSpeedTreatedAsZero(t *testing.T) {
-	svc, _, deviceRepo, posRepo, userRepo := setupIdleService(t)
+	svc, _, _, posRepo := setupIdleService(t)
 	ctx := context.Background()
 
-	user := &model.User{Email: "nilidle@example.com", PasswordHash: "hash", Name: "Nil Idle"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "nilidle@example.com")
 
-	device := &model.Device{UniqueID: "nilidle-dev", Name: "Nil Idle Device", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	device := testutil.CreateDevice(t, user.ID, "nilidle-dev")
 
 	// Position from 45 minutes ago with nil speed (treated as 0).
 	pos := &model.Position{

@@ -20,17 +20,11 @@ func setupShareTest(t *testing.T) (*repository.DeviceShareRepository, *repositor
 }
 
 func TestDeviceShareRepository_Create(t *testing.T) {
-	shareRepo, userRepo, deviceRepo := setupShareTest(t)
+	shareRepo, _, _ := setupShareTest(t)
 	ctx := context.Background()
 
-	user := &model.User{Email: "share-create@example.com", PasswordHash: "hash", Name: "Share Create"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
-	device := &model.Device{UniqueID: "share-dev-001", Name: "Share Dev", Status: "online"}
-	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
-		t.Fatalf("create device: %v", err)
-	}
+	user := testutil.CreateUser(t, "share-create@example.com")
+	device := testutil.CreateDevice(t, user.ID, "share-dev-001")
 
 	share := &model.DeviceShare{DeviceID: device.ID, CreatedBy: user.ID}
 	if err := shareRepo.Create(ctx, share); err != nil {
@@ -48,13 +42,11 @@ func TestDeviceShareRepository_Create(t *testing.T) {
 }
 
 func TestDeviceShareRepository_GetByToken(t *testing.T) {
-	shareRepo, userRepo, deviceRepo := setupShareTest(t)
+	shareRepo, _, _ := setupShareTest(t)
 	ctx := context.Background()
 
-	user := &model.User{Email: "share-get@example.com", PasswordHash: "hash", Name: "Share Get"}
-	_ = userRepo.Create(ctx, user)
-	device := &model.Device{UniqueID: "share-dev-002", Name: "Share Dev 2", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	user := testutil.CreateUser(t, "share-get@example.com")
+	device := testutil.CreateDevice(t, user.ID, "share-dev-002")
 
 	share := &model.DeviceShare{DeviceID: device.ID, CreatedBy: user.ID}
 	_ = shareRepo.Create(ctx, share)
@@ -69,13 +61,11 @@ func TestDeviceShareRepository_GetByToken(t *testing.T) {
 }
 
 func TestDeviceShareRepository_GetByToken_Expired(t *testing.T) {
-	shareRepo, userRepo, deviceRepo := setupShareTest(t)
+	shareRepo, _, _ := setupShareTest(t)
 	ctx := context.Background()
 
-	user := &model.User{Email: "share-exp@example.com", PasswordHash: "hash", Name: "Share Exp"}
-	_ = userRepo.Create(ctx, user)
-	device := &model.Device{UniqueID: "share-dev-003", Name: "Share Dev 3", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	user := testutil.CreateUser(t, "share-exp@example.com")
+	device := testutil.CreateDevice(t, user.ID, "share-dev-003")
 
 	expired := time.Now().Add(-1 * time.Hour)
 	share := &model.DeviceShare{DeviceID: device.ID, CreatedBy: user.ID, ExpiresAt: &expired}
@@ -88,13 +78,11 @@ func TestDeviceShareRepository_GetByToken_Expired(t *testing.T) {
 }
 
 func TestDeviceShareRepository_ListByDevice(t *testing.T) {
-	shareRepo, userRepo, deviceRepo := setupShareTest(t)
+	shareRepo, _, _ := setupShareTest(t)
 	ctx := context.Background()
 
-	user := &model.User{Email: "share-list@example.com", PasswordHash: "hash", Name: "Share List"}
-	_ = userRepo.Create(ctx, user)
-	device := &model.Device{UniqueID: "share-dev-004", Name: "Share Dev 4", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	user := testutil.CreateUser(t, "share-list@example.com")
+	device := testutil.CreateDevice(t, user.ID, "share-dev-004")
 
 	for range 3 {
 		share := &model.DeviceShare{DeviceID: device.ID, CreatedBy: user.ID}
@@ -111,13 +99,11 @@ func TestDeviceShareRepository_ListByDevice(t *testing.T) {
 }
 
 func TestDeviceShareRepository_GetByID(t *testing.T) {
-	shareRepo, userRepo, deviceRepo := setupShareTest(t)
+	shareRepo, _, _ := setupShareTest(t)
 	ctx := context.Background()
 
-	user := &model.User{Email: "share-getid@example.com", PasswordHash: "hash", Name: "Share GetID"}
-	_ = userRepo.Create(ctx, user)
-	device := &model.Device{UniqueID: "share-dev-getid", Name: "Share Dev GetID", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	user := testutil.CreateUser(t, "share-getid@example.com")
+	device := testutil.CreateDevice(t, user.ID, "share-dev-getid")
 
 	share := &model.DeviceShare{DeviceID: device.ID, CreatedBy: user.ID}
 	_ = shareRepo.Create(ctx, share)
@@ -148,13 +134,11 @@ func TestDeviceShareRepository_GetByID_NotFound(t *testing.T) {
 }
 
 func TestDeviceShareRepository_Delete(t *testing.T) {
-	shareRepo, userRepo, deviceRepo := setupShareTest(t)
+	shareRepo, _, _ := setupShareTest(t)
 	ctx := context.Background()
 
-	user := &model.User{Email: "share-del@example.com", PasswordHash: "hash", Name: "Share Del"}
-	_ = userRepo.Create(ctx, user)
-	device := &model.Device{UniqueID: "share-dev-005", Name: "Share Dev 5", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	user := testutil.CreateUser(t, "share-del@example.com")
+	device := testutil.CreateDevice(t, user.ID, "share-dev-005")
 
 	share := &model.DeviceShare{DeviceID: device.ID, CreatedBy: user.ID}
 	_ = shareRepo.Create(ctx, share)

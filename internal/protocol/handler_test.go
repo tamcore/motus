@@ -35,16 +35,12 @@ func TestPositionHandler_HandlePosition_Integration(t *testing.T) {
 
 	posRepo := repository.NewPositionRepository(pool)
 	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	hub := websocket.NewHub(nil, nil, func(r *http.Request) int64 { return 0 })
 
 	ctx := context.Background()
 
 	// Create user and device.
-	user := &model.User{Email: "handler@example.com", PasswordHash: "hash", Name: "Handler Test"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "handler@example.com")
 
 	device := &model.Device{UniqueID: "handler-test-dev", Name: "Handler Device", Status: "offline"}
 	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
@@ -106,15 +102,11 @@ func TestPositionHandler_HandlePosition_StationaryDevice(t *testing.T) {
 
 	posRepo := repository.NewPositionRepository(pool)
 	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	hub := websocket.NewHub(nil, nil, func(r *http.Request) int64 { return 0 })
 
 	ctx := context.Background()
 
-	user := &model.User{Email: "stationary@example.com", PasswordHash: "hash", Name: "Stationary Test"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "stationary@example.com")
 
 	device := &model.Device{UniqueID: "stationary-dev", Name: "Stationary Device", Status: "offline"}
 	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
@@ -157,15 +149,11 @@ func TestPositionHandler_HandlePosition_NilSpeed(t *testing.T) {
 
 	posRepo := repository.NewPositionRepository(pool)
 	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	hub := websocket.NewHub(nil, nil, func(r *http.Request) int64 { return 0 })
 
 	ctx := context.Background()
 
-	user := &model.User{Email: "nilspeed@example.com", PasswordHash: "hash", Name: "Nil Speed Test"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "nilspeed@example.com")
 
 	device := &model.Device{UniqueID: "nilspeed-dev", Name: "Nil Speed Device", Status: "offline"}
 	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
@@ -206,15 +194,11 @@ func TestPositionHandler_HandlePosition_ExactThreshold(t *testing.T) {
 
 	posRepo := repository.NewPositionRepository(pool)
 	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	hub := websocket.NewHub(nil, nil, func(r *http.Request) int64 { return 0 })
 
 	ctx := context.Background()
 
-	user := &model.User{Email: "threshold@example.com", PasswordHash: "hash", Name: "Threshold Test"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "threshold@example.com")
 
 	device := &model.Device{UniqueID: "threshold-dev", Name: "Threshold Device", Status: "offline"}
 	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
@@ -256,15 +240,11 @@ func TestPositionHandler_HandlePosition_MotionAttributePersisted(t *testing.T) {
 
 	posRepo := repository.NewPositionRepository(pool)
 	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	hub := websocket.NewHub(nil, nil, func(r *http.Request) int64 { return 0 })
 
 	ctx := context.Background()
 
-	user := &model.User{Email: "persist@example.com", PasswordHash: "hash", Name: "Persist Test"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "persist@example.com")
 
 	device := &model.Device{UniqueID: "persist-dev", Name: "Persist Device", Status: "offline"}
 	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
@@ -312,15 +292,11 @@ func TestPositionHandler_HandlePosition_MovingThenStopping(t *testing.T) {
 
 	posRepo := repository.NewPositionRepository(pool)
 	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	hub := websocket.NewHub(nil, nil, func(r *http.Request) int64 { return 0 })
 
 	ctx := context.Background()
 
-	user := &model.User{Email: "transition@example.com", PasswordHash: "hash", Name: "Transition Test"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "transition@example.com")
 
 	device := &model.Device{UniqueID: "transition-dev", Name: "Transition Device", Status: "offline"}
 	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
@@ -380,13 +356,11 @@ func TestPositionHandler_HandlePosition_NoGeofenceChecker(t *testing.T) {
 
 	posRepo := repository.NewPositionRepository(pool)
 	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	hub := websocket.NewHub(nil, nil, func(r *http.Request) int64 { return 0 })
 
 	ctx := context.Background()
 
-	user := &model.User{Email: "nochecker@example.com", PasswordHash: "hash", Name: "No Checker"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "nochecker@example.com")
 
 	device := &model.Device{UniqueID: "nochecker-dev", Name: "No Checker Device", Status: "offline"}
 	_ = deviceRepo.Create(ctx, device, user.ID)

@@ -20,14 +20,10 @@ func TestDecodeH02_FullDecode(t *testing.T) {
 	testutil.CleanTables(t, pool)
 
 	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
 	// Create a user and device to satisfy the lookup.
-	user := &model.User{Email: "h02full@example.com", PasswordHash: "hash", Name: "H02 Full"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	user := testutil.CreateUser(t, "h02full@example.com")
 
 	device := &model.Device{UniqueID: "123456789012345", Name: "Test H02 Device", Status: "offline"}
 	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
@@ -104,11 +100,9 @@ func TestDecodeH02_V6WithICCID(t *testing.T) {
 	testutil.CleanTables(t, pool)
 
 	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{Email: "h02v6@example.com", PasswordHash: "hash", Name: "H02 V6"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "h02v6@example.com")
 
 	device := &model.Device{UniqueID: "123456789012345", Name: "V6 Device", Status: "offline"}
 	_ = deviceRepo.Create(ctx, device, user.ID)
@@ -164,11 +158,9 @@ func TestDecodeWatch_FullDecode(t *testing.T) {
 	testutil.CleanTables(t, pool)
 
 	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{Email: "watchfull@example.com", PasswordHash: "hash", Name: "Watch Full"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "watchfull@example.com")
 
 	device := &model.Device{UniqueID: "1234567890", Name: "Watch Device", Status: "offline"}
 	_ = deviceRepo.Create(ctx, device, user.ID)
@@ -276,14 +268,11 @@ func TestMarkDeviceOffline_WithRepo(t *testing.T) {
 	testutil.CleanTables(t, pool)
 
 	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{Email: "offline@example.com", PasswordHash: "hash", Name: "Offline Test"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "offline@example.com")
 
-	device := &model.Device{UniqueID: "offline-dev", Name: "Offline Device", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	device := testutil.CreateDevice(t, user.ID, "offline-dev")
 
 	srv := &Server{
 		name:    "test",
@@ -621,11 +610,9 @@ func TestDecodeH02_NoCellTowerInfo(t *testing.T) {
 	testutil.CleanTables(t, pool)
 
 	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := &model.User{Email: "h02nocell@example.com", PasswordHash: "hash", Name: "No Cell"}
-	_ = userRepo.Create(ctx, user)
+	user := testutil.CreateUser(t, "h02nocell@example.com")
 
 	device := &model.Device{UniqueID: "1111111111", Name: "No Cell Device", Status: "offline"}
 	_ = deviceRepo.Create(ctx, device, user.ID)

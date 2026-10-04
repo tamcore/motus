@@ -119,7 +119,7 @@ func TestAdminStartSudo_Success(t *testing.T) {
 	}
 
 	// The sudo session cookie must be set on the response writer.
-	c := recorderSessionCookie(rr)
+	c := respSessionCookie(rr.Result())
 	if c == nil {
 		t.Fatal("expected session_id cookie to be set")
 	}
@@ -295,7 +295,7 @@ func TestEndSudo_Success(t *testing.T) {
 	if deletedSessionID != "sudo-sess" {
 		t.Errorf("expected sudo session 'sudo-sess' to be deleted, got %q", deletedSessionID)
 	}
-	c := recorderSessionCookie(rr)
+	c := respSessionCookie(rr.Result())
 	if c == nil {
 		t.Fatal("expected new session_id cookie after EndSudo")
 	}

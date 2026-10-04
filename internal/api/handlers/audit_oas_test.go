@@ -29,12 +29,6 @@ func newAuditTestHandler(logger *audit.Logger) *handlers.Handler {
 	})
 }
 
-// auditAdminCtx returns a context carrying an authenticated admin user.
-func auditAdminCtx(id int64) context.Context {
-	admin := &model.User{ID: id, Role: model.RoleAdmin}
-	return api.ContextWithUser(context.Background(), admin)
-}
-
 // ---------------------------------------------------------------------------
 // Unit tests (nil-pool logger; never reach the database)
 // ---------------------------------------------------------------------------
@@ -77,7 +71,7 @@ func TestAdminGetAuditLog_NonAdminForbidden(t *testing.T) {
 func TestAdminGetAuditLog_QueryError(t *testing.T) {
 	h := newAuditTestHandler(audit.NewLogger(nil))
 
-	res, err := h.AdminGetAuditLog(auditAdminCtx(1), oas.AdminGetAuditLogParams{
+	res, err := h.AdminGetAuditLog(ctxAs(1, model.RoleAdmin), oas.AdminGetAuditLogParams{
 		Action: oas.NewOptString("Bad Filter!"),
 	})
 	if err != nil {
@@ -131,7 +125,7 @@ func TestAdminGetAuditLog_Integration_SuccessWithEntries(t *testing.T) {
 		audit.ActionUserUpdate,
 	})
 
-	res, err := h.AdminGetAuditLog(auditAdminCtx(user.ID), oas.AdminGetAuditLogParams{})
+	res, err := h.AdminGetAuditLog(ctxAs(user.ID, model.RoleAdmin), oas.AdminGetAuditLogParams{})
 	if err != nil {
 		t.Fatalf("AdminGetAuditLog returned error: %v", err)
 	}
@@ -162,7 +156,7 @@ func TestAdminGetAuditLog_Integration_SuccessWithEntries(t *testing.T) {
 func TestAdminGetAuditLog_Integration_EmptyEntries(t *testing.T) {
 	h, _, user := setupAuditIntegration(t)
 
-	res, err := h.AdminGetAuditLog(auditAdminCtx(user.ID), oas.AdminGetAuditLogParams{})
+	res, err := h.AdminGetAuditLog(ctxAs(user.ID, model.RoleAdmin), oas.AdminGetAuditLogParams{})
 	if err != nil {
 		t.Fatalf("AdminGetAuditLog returned error: %v", err)
 	}
@@ -189,7 +183,7 @@ func TestAdminGetAuditLog_Integration_LimitOffset(t *testing.T) {
 		audit.ActionUserUpdate,
 	})
 
-	res, err := h.AdminGetAuditLog(auditAdminCtx(user.ID), oas.AdminGetAuditLogParams{
+	res, err := h.AdminGetAuditLog(ctxAs(user.ID, model.RoleAdmin), oas.AdminGetAuditLogParams{
 		Limit:  oas.NewOptInt(1),
 		Offset: oas.NewOptInt(1),
 	})
@@ -211,17 +205,12 @@ func TestAdminGetAuditLog_Integration_LimitOffset(t *testing.T) {
 func TestAdminGetAuditLog_Integration_UserIDFilter(t *testing.T) {
 	h, logger, admin := setupAuditIntegration(t)
 
-	pool := testutil.SetupTestDB(t)
-	userRepo := repository.NewUserRepository(pool)
-	other := &model.User{Email: "audit-other@example.com", PasswordHash: "hash", Name: "Other"}
-	if err := userRepo.Create(context.Background(), other); err != nil {
-		t.Fatalf("create other user: %v", err)
-	}
+	other := testutil.CreateUser(t, "audit-other@example.com")
 
 	logEntries(t, logger, admin.ID, []string{audit.ActionSessionLogin, audit.ActionUserUpdate})
 	logEntries(t, logger, other.ID, []string{audit.ActionDeviceCreate})
 
-	res, err := h.AdminGetAuditLog(auditAdminCtx(admin.ID), oas.AdminGetAuditLogParams{
+	res, err := h.AdminGetAuditLog(ctxAs(admin.ID, model.RoleAdmin), oas.AdminGetAuditLogParams{
 		UserId: oas.NewOptInt64(other.ID),
 	})
 	if err != nil {

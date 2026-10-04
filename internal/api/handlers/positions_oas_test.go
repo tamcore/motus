@@ -46,14 +46,8 @@ func setupPositionsOASIntegration(t *testing.T) *positionsOASIntegrationEnv {
 	deviceRepo := repository.NewDeviceRepository(pool)
 	posRepo := repository.NewPositionRepository(pool)
 
-	user := &model.User{Email: "poshandler@example.com", PasswordHash: "$2a$10$hash", Name: "Pos Handler"}
-	if err := userRepo.Create(context.Background(), user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
-	device := &model.Device{UniqueID: "pos-handler-dev", Name: "Pos Device", Status: "online"}
-	if err := deviceRepo.Create(context.Background(), device, user.ID); err != nil {
-		t.Fatalf("create device: %v", err)
-	}
+	user := testutil.CreateUser(t, "poshandler@example.com")
+	device := testutil.CreateDevice(t, user.ID, "pos-handler-dev")
 
 	h := handlers.NewHandler(handlers.HandlerConfig{
 		Positions:   posRepo,

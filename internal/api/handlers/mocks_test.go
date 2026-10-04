@@ -9,6 +9,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/tamcore/motus/internal/api"
 	"github.com/tamcore/motus/internal/model"
 	"github.com/tamcore/motus/internal/storage/repository"
 )
@@ -27,7 +28,6 @@ type mockUserRepo struct {
 	updateFn           func(ctx context.Context, user *model.User) error
 	updatePasswordFn   func(ctx context.Context, userID int64, hash string) error
 	deleteFn           func(ctx context.Context, id int64) error
-	getDevicesForUser  func(ctx context.Context, userID int64) ([]int64, error)
 	assignDeviceFn     func(ctx context.Context, userID, deviceID int64) error
 	unassignDeviceFn   func(ctx context.Context, userID, deviceID int64) error
 	generateTokenFn    func(ctx context.Context, userID int64) (string, error)
@@ -102,9 +102,6 @@ func (m *mockUserRepo) Delete(ctx context.Context, id int64) error {
 	return errors.New("not implemented")
 }
 func (m *mockUserRepo) GetDevicesForUser(ctx context.Context, userID int64) ([]int64, error) {
-	if m.getDevicesForUser != nil {
-		return m.getDevicesForUser(ctx, userID)
-	}
 	return nil, nil
 }
 func (m *mockUserRepo) AssignDevice(ctx context.Context, userID, deviceID int64) error {
@@ -203,12 +200,11 @@ func (m *mockSessionRepo) ListByUser(ctx context.Context, userID int64) ([]*mode
 // mockApiKeyRepo is a mock implementation of repository.ApiKeyRepo for
 // unit testing handlers without a database.
 type mockApiKeyRepo struct {
-	createFn         func(ctx context.Context, key *model.ApiKey) error
-	getByTokenFn     func(ctx context.Context, token string) (*model.ApiKey, error)
-	getByIDFn        func(ctx context.Context, id int64) (*model.ApiKey, error)
-	listByUserFn     func(ctx context.Context, userID int64) ([]*model.ApiKey, error)
-	deleteFn         func(ctx context.Context, id int64) error
-	updateLastUsedFn func(ctx context.Context, id int64) error
+	createFn     func(ctx context.Context, key *model.ApiKey) error
+	getByTokenFn func(ctx context.Context, token string) (*model.ApiKey, error)
+	getByIDFn    func(ctx context.Context, id int64) (*model.ApiKey, error)
+	listByUserFn func(ctx context.Context, userID int64) ([]*model.ApiKey, error)
+	deleteFn     func(ctx context.Context, id int64) error
 }
 
 // Compile-time assertion that mockApiKeyRepo satisfies repository.ApiKeyRepo.
@@ -252,9 +248,6 @@ func (m *mockApiKeyRepo) Delete(ctx context.Context, id int64) error {
 }
 
 func (m *mockApiKeyRepo) UpdateLastUsed(ctx context.Context, id int64) error {
-	if m.updateLastUsedFn != nil {
-		return m.updateLastUsedFn(ctx, id)
-	}
 	return nil
 }
 
@@ -264,10 +257,8 @@ type mockDeviceRepo struct {
 	// Configurable return values.
 	userHasAccessFn func(ctx context.Context, user *model.User, deviceID int64) bool
 	getByIDFn       func(ctx context.Context, id int64) (*model.Device, error)
-	getByUniqueIDFn func(ctx context.Context, uniqueID string) (*model.Device, error)
 	getByUserFn     func(ctx context.Context, userID int64) ([]*model.Device, error)
 	getAllFn        func(ctx context.Context) ([]model.Device, error)
-	getUserIDsFn    func(ctx context.Context, deviceID int64) ([]int64, error)
 	createFn        func(ctx context.Context, d *model.Device, userID int64) error
 	updateFn        func(ctx context.Context, d *model.Device) error
 	deleteFn        func(ctx context.Context, id int64) error
@@ -291,9 +282,6 @@ func (m *mockDeviceRepo) GetByID(ctx context.Context, id int64) (*model.Device, 
 }
 
 func (m *mockDeviceRepo) GetByUniqueID(ctx context.Context, uniqueID string) (*model.Device, error) {
-	if m.getByUniqueIDFn != nil {
-		return m.getByUniqueIDFn(ctx, uniqueID)
-	}
 	return nil, errors.New("not found")
 }
 
@@ -312,9 +300,6 @@ func (m *mockDeviceRepo) GetAll(ctx context.Context) ([]model.Device, error) {
 }
 
 func (m *mockDeviceRepo) GetUserIDs(ctx context.Context, deviceID int64) ([]int64, error) {
-	if m.getUserIDsFn != nil {
-		return m.getUserIDsFn(ctx, deviceID)
-	}
 	return nil, nil
 }
 
@@ -360,4 +345,8 @@ func (m *mockDeviceRepo) UpdateProtocol(_ context.Context, _ int64, _ string) er
 
 func (m *mockDeviceRepo) MarkOnline(_ context.Context, _, _ int64, _ time.Time, _ *float64) (*model.Device, error) {
 	return nil, nil
+}
+
+func ctxAs(id int64, role string) context.Context {
+	return api.ContextWithUser(context.Background(), &model.User{ID: id, Role: role})
 }

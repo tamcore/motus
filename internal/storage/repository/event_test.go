@@ -14,15 +14,10 @@ func TestEventRepository_Create(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	eventRepo := repository.NewEventRepository(pool)
-	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := createTestUser(t, userRepo)
-	device := &model.Device{UniqueID: "event-dev-" + time.Now().Format("150405.000"), Name: "Event Device", Status: "online"}
-	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
-		t.Fatalf("Create device failed: %v", err)
-	}
+	user := testutil.CreateUser(t, "event-1@example.com")
+	device := testutil.CreateDevice(t, user.ID, "event-dev-"+time.Now().Format("150405.000"))
 
 	geoID := int64(0) // We'll use a nil geofence for this basic test.
 	event := &model.Event{
@@ -49,13 +44,10 @@ func TestEventRepository_GetRecentByDeviceAndType(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	eventRepo := repository.NewEventRepository(pool)
-	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := createTestUser(t, userRepo)
-	device := &model.Device{UniqueID: "evttype-" + time.Now().Format("150405.000"), Name: "EvtType", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
+	user := testutil.CreateUser(t, "event-2@example.com")
+	device := testutil.CreateDevice(t, user.ID, "evttype-"+time.Now().Format("150405.000"))
 
 	now := time.Now().UTC()
 
@@ -109,10 +101,9 @@ func TestEventRepository_GetByFilters(t *testing.T) {
 	testutil.CleanTables(t, pool)
 	eventRepo := repository.NewEventRepository(pool)
 	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	user := createTestUser(t, userRepo)
+	user := testutil.CreateUser(t, "event-3@example.com")
 	d1 := &model.Device{UniqueID: "filt-1-" + time.Now().Format("150405.000"), Name: "D1", Status: "online"}
 	d2 := &model.Device{UniqueID: "filt-2-" + time.Now().Format("150405.000"), Name: "D2", Status: "online"}
 	_ = deviceRepo.Create(ctx, d1, user.ID)

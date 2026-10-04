@@ -23,7 +23,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tamcore/motus/internal/api"
 	"github.com/tamcore/motus/internal/api/handlers"
 	oas "github.com/tamcore/motus/internal/api/oas"
 	"github.com/tamcore/motus/internal/audit"
@@ -44,10 +43,6 @@ func newNotificationTestHandler(notifications repository.NotificationRepo) *hand
 		NotificationRules:   services.NewNotificationRuleService(notifications, nil, nil),
 		AuditLogger:         audit.NewLogger(nil),
 	})
-}
-
-func notificationTestUserCtx(id int64) context.Context {
-	return api.ContextWithUser(context.Background(), &model.User{ID: id, Email: "notif@example.com", Role: model.RoleUser})
 }
 
 // webhookRuleConfig builds a typed webhook config for the given URL.
@@ -93,7 +88,7 @@ func TestCreateNotification_Success(t *testing.T) {
 	}
 	h := newNotificationTestHandler(mock)
 
-	res, err := h.CreateNotification(notificationTestUserCtx(1), validNotificationInput(t))
+	res, err := h.CreateNotification(ctxAs(1, model.RoleUser), validNotificationInput(t))
 	if err != nil {
 		t.Fatalf("CreateNotification returned error: %v", err)
 	}
@@ -117,7 +112,7 @@ func TestCreateNotification_MissingName(t *testing.T) {
 
 	in := validNotificationInput(t)
 	in.Name = ""
-	res, err := h.CreateNotification(notificationTestUserCtx(1), in)
+	res, err := h.CreateNotification(ctxAs(1, model.RoleUser), in)
 	if err != nil {
 		t.Fatalf("CreateNotification returned error: %v", err)
 	}
@@ -135,7 +130,7 @@ func TestCreateNotification_InvalidEventType(t *testing.T) {
 
 	in := validNotificationInput(t)
 	in.EventTypes = []string{"invalid"}
-	res, err := h.CreateNotification(notificationTestUserCtx(1), in)
+	res, err := h.CreateNotification(ctxAs(1, model.RoleUser), in)
 	if err != nil {
 		t.Fatalf("CreateNotification returned error: %v", err)
 	}
@@ -153,7 +148,7 @@ func TestCreateNotification_InvalidChannel(t *testing.T) {
 
 	in := validNotificationInput(t)
 	in.Channel = "email"
-	res, err := h.CreateNotification(notificationTestUserCtx(1), in)
+	res, err := h.CreateNotification(ctxAs(1, model.RoleUser), in)
 	if err != nil {
 		t.Fatalf("CreateNotification returned error: %v", err)
 	}
@@ -171,7 +166,7 @@ func TestCreateNotification_NtfyChannelRejected(t *testing.T) {
 
 	in := validNotificationInput(t)
 	in.Channel = "ntfy"
-	res, err := h.CreateNotification(notificationTestUserCtx(1), in)
+	res, err := h.CreateNotification(ctxAs(1, model.RoleUser), in)
 	if err != nil {
 		t.Fatalf("CreateNotification returned error: %v", err)
 	}
@@ -189,7 +184,7 @@ func TestCreateNotification_MissingTemplate(t *testing.T) {
 
 	in := validNotificationInput(t)
 	in.Template = oas.OptString{}
-	res, err := h.CreateNotification(notificationTestUserCtx(1), in)
+	res, err := h.CreateNotification(ctxAs(1, model.RoleUser), in)
 	if err != nil {
 		t.Fatalf("CreateNotification returned error: %v", err)
 	}
@@ -218,7 +213,7 @@ func TestCreateNotification_WebhookSSRFValidation(t *testing.T) {
 	in := validNotificationInput(t)
 	in.Name = "SSRF Test"
 	in.Config = webhookRuleConfig(t, "https://10.0.0.1/internal")
-	res, err := h.CreateNotification(notificationTestUserCtx(1), in)
+	res, err := h.CreateNotification(ctxAs(1, model.RoleUser), in)
 	if err != nil {
 		t.Fatalf("CreateNotification returned error: %v", err)
 	}
@@ -256,7 +251,7 @@ func TestUpdateNotification_Success(t *testing.T) {
 	in.EventTypes = []string{"deviceOffline"}
 	in.Template = oas.NewOptString("after")
 	in.Enabled = oas.NewOptBool(false)
-	res, err := h.UpdateNotification(notificationTestUserCtx(1), in, oas.UpdateNotificationParams{ID: 8})
+	res, err := h.UpdateNotification(ctxAs(1, model.RoleUser), in, oas.UpdateNotificationParams{ID: 8})
 	if err != nil {
 		t.Fatalf("UpdateNotification returned error: %v", err)
 	}
@@ -277,7 +272,7 @@ func TestUpdateNotification_InvalidEventType(t *testing.T) {
 
 	in := validNotificationInput(t)
 	in.EventTypes = []string{"badType"}
-	res, err := h.UpdateNotification(notificationTestUserCtx(1), in, oas.UpdateNotificationParams{ID: 8})
+	res, err := h.UpdateNotification(ctxAs(1, model.RoleUser), in, oas.UpdateNotificationParams{ID: 8})
 	if err != nil {
 		t.Fatalf("UpdateNotification returned error: %v", err)
 	}
@@ -291,7 +286,7 @@ func TestUpdateNotification_MissingName(t *testing.T) {
 
 	in := validNotificationInput(t)
 	in.Name = ""
-	res, err := h.UpdateNotification(notificationTestUserCtx(1), in, oas.UpdateNotificationParams{ID: 8})
+	res, err := h.UpdateNotification(ctxAs(1, model.RoleUser), in, oas.UpdateNotificationParams{ID: 8})
 	if err != nil {
 		t.Fatalf("UpdateNotification returned error: %v", err)
 	}
@@ -309,7 +304,7 @@ func TestUpdateNotification_InvalidChannel(t *testing.T) {
 
 	in := validNotificationInput(t)
 	in.Channel = "email"
-	res, err := h.UpdateNotification(notificationTestUserCtx(1), in, oas.UpdateNotificationParams{ID: 8})
+	res, err := h.UpdateNotification(ctxAs(1, model.RoleUser), in, oas.UpdateNotificationParams{ID: 8})
 	if err != nil {
 		t.Fatalf("UpdateNotification returned error: %v", err)
 	}
@@ -341,7 +336,7 @@ func TestUpdateNotification_WebhookSSRFValidation(t *testing.T) {
 	in := validNotificationInput(t)
 	in.Name = "SSRF Update"
 	in.Config = webhookRuleConfig(t, "https://192.168.1.1/internal")
-	res, err := h.UpdateNotification(notificationTestUserCtx(1), in, oas.UpdateNotificationParams{ID: 8})
+	res, err := h.UpdateNotification(ctxAs(1, model.RoleUser), in, oas.UpdateNotificationParams{ID: 8})
 	if err != nil {
 		t.Fatalf("UpdateNotification returned error: %v", err)
 	}
@@ -374,7 +369,7 @@ func TestDeleteNotification_Success(t *testing.T) {
 	}
 	h := newNotificationTestHandler(mock)
 
-	res, err := h.DeleteNotification(notificationTestUserCtx(1), oas.DeleteNotificationParams{ID: 4})
+	res, err := h.DeleteNotification(ctxAs(1, model.RoleUser), oas.DeleteNotificationParams{ID: 4})
 	if err != nil {
 		t.Fatalf("DeleteNotification returned error: %v", err)
 	}
@@ -399,7 +394,7 @@ func TestDeleteNotification_Forbidden(t *testing.T) {
 	}
 	h := newNotificationTestHandler(mock)
 
-	res, err := h.DeleteNotification(notificationTestUserCtx(1), oas.DeleteNotificationParams{ID: 4})
+	res, err := h.DeleteNotification(ctxAs(1, model.RoleUser), oas.DeleteNotificationParams{ID: 4})
 	if err != nil {
 		t.Fatalf("DeleteNotification returned error: %v", err)
 	}
@@ -426,7 +421,7 @@ func TestNotificationLogs_Success(t *testing.T) {
 	}
 	h := newNotificationTestHandler(mock)
 
-	res, err := h.NotificationLogs(notificationTestUserCtx(1), oas.NotificationLogsParams{ID: 4})
+	res, err := h.NotificationLogs(ctxAs(1, model.RoleUser), oas.NotificationLogsParams{ID: 4})
 	if err != nil {
 		t.Fatalf("NotificationLogs returned error: %v", err)
 	}
@@ -452,7 +447,7 @@ func TestNotificationLogs_Forbidden(t *testing.T) {
 	}
 	h := newNotificationTestHandler(mock)
 
-	res, err := h.NotificationLogs(notificationTestUserCtx(1), oas.NotificationLogsParams{ID: 4})
+	res, err := h.NotificationLogs(ctxAs(1, model.RoleUser), oas.NotificationLogsParams{ID: 4})
 	if err != nil {
 		t.Fatalf("NotificationLogs returned error: %v", err)
 	}
@@ -491,7 +486,7 @@ func TestTestNotification_Success(t *testing.T) {
 
 	h := newNotificationTestHandler(webhookTestRuleRepo(1, srv.URL))
 
-	res, err := h.TestNotification(notificationTestUserCtx(1), oas.TestNotificationParams{ID: 4})
+	res, err := h.TestNotification(ctxAs(1, model.RoleUser), oas.TestNotificationParams{ID: 4})
 	if err != nil {
 		t.Fatalf("TestNotification returned error: %v", err)
 	}
@@ -503,7 +498,7 @@ func TestTestNotification_Success(t *testing.T) {
 func TestTestNotification_Forbidden(t *testing.T) {
 	h := newNotificationTestHandler(webhookTestRuleRepo(99, "http://127.0.0.1:9/hook"))
 
-	res, err := h.TestNotification(notificationTestUserCtx(1), oas.TestNotificationParams{ID: 4})
+	res, err := h.TestNotification(ctxAs(1, model.RoleUser), oas.TestNotificationParams{ID: 4})
 	if err != nil {
 		t.Fatalf("TestNotification returned error: %v", err)
 	}
@@ -520,7 +515,7 @@ func TestTestNotification_NotFound(t *testing.T) {
 	}
 	h := newNotificationTestHandler(mock)
 
-	res, err := h.TestNotification(notificationTestUserCtx(1), oas.TestNotificationParams{ID: 99999})
+	res, err := h.TestNotification(ctxAs(1, model.RoleUser), oas.TestNotificationParams{ID: 99999})
 	if err != nil {
 		t.Fatalf("TestNotification returned error: %v", err)
 	}
@@ -539,7 +534,7 @@ func TestTestNotification_WebhookFails(t *testing.T) {
 
 	h := newNotificationTestHandler(webhookTestRuleRepo(1, srv.URL))
 
-	res, err := h.TestNotification(notificationTestUserCtx(1), oas.TestNotificationParams{ID: 4})
+	res, err := h.TestNotification(ctxAs(1, model.RoleUser), oas.TestNotificationParams{ID: 4})
 	if err != nil {
 		t.Fatalf("TestNotification returned error: %v", err)
 	}

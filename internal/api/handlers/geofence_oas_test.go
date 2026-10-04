@@ -45,10 +45,6 @@ func newGeofenceTestHandler(geofences repository.GeofenceRepo) *handlers.Handler
 	})
 }
 
-func geofenceTestUserCtx(id int64) context.Context {
-	return api.ContextWithUser(context.Background(), &model.User{ID: id, Email: "geo@example.com", Role: model.RoleUser})
-}
-
 // ---------------------------------------------------------------------------
 // CreateGeofence
 // ---------------------------------------------------------------------------
@@ -67,7 +63,7 @@ func TestCreateGeofence_Success(t *testing.T) {
 	}
 	h := newGeofenceTestHandler(mock)
 
-	res, err := h.CreateGeofence(geofenceTestUserCtx(1), &oas.GeofenceInput{
+	res, err := h.CreateGeofence(ctxAs(1, model.RoleUser), &oas.GeofenceInput{
 		Name:        "Test Fence",
 		Description: oas.NewOptString("A test"),
 		Geometry:    oas.NewOptString(testPolygonGeoJSON),
@@ -101,7 +97,7 @@ func TestGeofence_StorageErrorIsGeneric(t *testing.T) {
 		},
 	})
 
-	res, _ := h.CreateGeofence(geofenceTestUserCtx(1), &oas.GeofenceInput{
+	res, _ := h.CreateGeofence(ctxAs(1, model.RoleUser), &oas.GeofenceInput{
 		Name:     "Geo",
 		Geometry: oas.NewOptString(testPolygonGeoJSON),
 	})
@@ -109,7 +105,7 @@ func TestGeofence_StorageErrorIsGeneric(t *testing.T) {
 		t.Errorf("create: got %#v, want generic failure", res)
 	}
 
-	upd, _ := h.UpdateGeofence(geofenceTestUserCtx(1), &oas.GeofenceUpdateInput{Name: oas.NewOptString("New")},
+	upd, _ := h.UpdateGeofence(ctxAs(1, model.RoleUser), &oas.GeofenceUpdateInput{Name: oas.NewOptString("New")},
 		oas.UpdateGeofenceParams{ID: 3})
 	if bad, ok := upd.(*oas.UpdateGeofenceBadRequest); !ok || bad.Error != "failed to update geofence" {
 		t.Errorf("update: got %#v, want generic failure", upd)
@@ -125,12 +121,12 @@ func TestDeleteGeofence_Errors(t *testing.T) {
 		},
 	})
 
-	res, _ := h.DeleteGeofence(geofenceTestUserCtx(1), oas.DeleteGeofenceParams{ID: 3})
+	res, _ := h.DeleteGeofence(ctxAs(1, model.RoleUser), oas.DeleteGeofenceParams{ID: 3})
 	if f, ok := res.(*oas.DeleteGeofenceForbidden); !ok || f.Error != "failed to delete geofence" {
 		t.Errorf("storage error: got %#v", res)
 	}
 	hasAccess = false
-	res, _ = h.DeleteGeofence(geofenceTestUserCtx(1), oas.DeleteGeofenceParams{ID: 3})
+	res, _ = h.DeleteGeofence(ctxAs(1, model.RoleUser), oas.DeleteGeofenceParams{ID: 3})
 	if f, ok := res.(*oas.DeleteGeofenceForbidden); !ok || f.Error != "access denied" {
 		t.Errorf("no access: got %#v", res)
 	}
@@ -139,7 +135,7 @@ func TestDeleteGeofence_Errors(t *testing.T) {
 func TestCreateGeofence_MissingName(t *testing.T) {
 	h := newGeofenceTestHandler(&auditMockGeofenceRepo{})
 
-	res, err := h.CreateGeofence(geofenceTestUserCtx(1), &oas.GeofenceInput{
+	res, err := h.CreateGeofence(ctxAs(1, model.RoleUser), &oas.GeofenceInput{
 		Geometry: oas.NewOptString(testPolygonGeoJSON),
 	})
 	if err != nil {
@@ -157,7 +153,7 @@ func TestCreateGeofence_MissingName(t *testing.T) {
 func TestCreateGeofence_MissingGeometry(t *testing.T) {
 	h := newGeofenceTestHandler(&auditMockGeofenceRepo{})
 
-	res, err := h.CreateGeofence(geofenceTestUserCtx(1), &oas.GeofenceInput{Name: "No Geometry"})
+	res, err := h.CreateGeofence(ctxAs(1, model.RoleUser), &oas.GeofenceInput{Name: "No Geometry"})
 	if err != nil {
 		t.Fatalf("CreateGeofence returned error: %v", err)
 	}
@@ -187,7 +183,7 @@ func TestCreateGeofence_InvalidNameOrDescription(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			res, err := h.CreateGeofence(geofenceTestUserCtx(1), &oas.GeofenceInput{
+			res, err := h.CreateGeofence(ctxAs(1, model.RoleUser), &oas.GeofenceInput{
 				Name:        tt.fenceName,
 				Description: oas.NewOptString(tt.description),
 				Geometry:    oas.NewOptString(testPolygonGeoJSON),
@@ -214,7 +210,7 @@ func TestGetGeofence_Forbidden(t *testing.T) {
 	}
 	h := newGeofenceTestHandler(mock)
 
-	res, err := h.GetGeofence(geofenceTestUserCtx(1), oas.GetGeofenceParams{ID: 9})
+	res, err := h.GetGeofence(ctxAs(1, model.RoleUser), oas.GetGeofenceParams{ID: 9})
 	if err != nil {
 		t.Fatalf("GetGeofence returned error: %v", err)
 	}
@@ -245,7 +241,7 @@ func TestUpdateGeofence_Success(t *testing.T) {
 	}
 	h := newGeofenceTestHandler(mock)
 
-	res, err := h.UpdateGeofence(geofenceTestUserCtx(1), &oas.GeofenceUpdateInput{
+	res, err := h.UpdateGeofence(ctxAs(1, model.RoleUser), &oas.GeofenceUpdateInput{
 		Name: oas.NewOptString("After"),
 	}, oas.UpdateGeofenceParams{ID: 4})
 	if err != nil {
@@ -280,7 +276,7 @@ func TestUpdateGeofence_GeometryClearsArea(t *testing.T) {
 	}
 	h := newGeofenceTestHandler(mock)
 
-	res, err := h.UpdateGeofence(geofenceTestUserCtx(1), &oas.GeofenceUpdateInput{
+	res, err := h.UpdateGeofence(ctxAs(1, model.RoleUser), &oas.GeofenceUpdateInput{
 		Geometry: oas.NewOptString(testPolygonEastGeoJSON),
 	}, oas.UpdateGeofenceParams{ID: 4})
 	if err != nil {
@@ -317,7 +313,7 @@ func TestUpdateGeofence_AreaClearsGeometry(t *testing.T) {
 	}
 	h := newGeofenceTestHandler(mock)
 
-	res, err := h.UpdateGeofence(geofenceTestUserCtx(1), &oas.GeofenceUpdateInput{
+	res, err := h.UpdateGeofence(ctxAs(1, model.RoleUser), &oas.GeofenceUpdateInput{
 		Area: oas.NewOptString(newArea),
 	}, oas.UpdateGeofenceParams{ID: 4})
 	if err != nil {
@@ -346,17 +342,10 @@ func TestUpdateGeofence_GeometryAndArea_Integration(t *testing.T) {
 	testutil.CleanTables(t, pool)
 	ctx := context.Background()
 
-	userRepo := repository.NewUserRepository(pool)
 	geoRepo := repository.NewGeofenceRepository(pool)
 
-	user := &model.User{Email: "geo-oas@example.com", PasswordHash: "$2a$10$hash", Name: "Geo OAS"}
-	if err := userRepo.Create(ctx, user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
-	device := &model.Device{UniqueID: "geo-oas-dev", Name: "Geo OAS Device", Status: "online"}
-	if err := repository.NewDeviceRepository(pool).Create(ctx, device, user.ID); err != nil {
-		t.Fatalf("create device: %v", err)
-	}
+	user := testutil.CreateUser(t, "geo-oas@example.com")
+	device := testutil.CreateDevice(t, user.ID, "geo-oas-dev")
 
 	g := &model.Geofence{Name: "Shape Test", Geometry: testPolygonGeoJSON}
 	if err := geoRepo.Create(ctx, g); err != nil {
@@ -421,7 +410,7 @@ func TestUpdateGeofence_InvalidName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			res, err := h.UpdateGeofence(geofenceTestUserCtx(1), &oas.GeofenceUpdateInput{
+			res, err := h.UpdateGeofence(ctxAs(1, model.RoleUser), &oas.GeofenceUpdateInput{
 				Name:        tt.fenceName,
 				Description: tt.description,
 			}, oas.UpdateGeofenceParams{ID: 4})
@@ -450,7 +439,7 @@ func TestDeleteGeofence_Success(t *testing.T) {
 	}
 	h := newGeofenceTestHandler(mock)
 
-	res, err := h.DeleteGeofence(geofenceTestUserCtx(1), oas.DeleteGeofenceParams{ID: 6})
+	res, err := h.DeleteGeofence(ctxAs(1, model.RoleUser), oas.DeleteGeofenceParams{ID: 6})
 	if err != nil {
 		t.Fatalf("DeleteGeofence returned error: %v", err)
 	}

@@ -61,16 +61,6 @@ func newUsersTestHandler(users repository.UserRepo, devices repository.DeviceRep
 	})
 }
 
-func usersTestAdminCtx() context.Context {
-	return api.ContextWithUser(context.Background(),
-		&model.User{ID: 1, Email: "admin@example.com", Role: model.RoleAdmin})
-}
-
-func usersTestRegularCtx() context.Context {
-	return api.ContextWithUser(context.Background(),
-		&model.User{ID: 999, Email: "user@example.com", Role: model.RoleUser})
-}
-
 // ---------------------------------------------------------------------------
 // Hub device-access cache invalidation (bug fix, TDD)
 // ---------------------------------------------------------------------------
@@ -122,7 +112,7 @@ func TestAdminAssignDevice_InvalidatesHubDeviceCache(t *testing.T) {
 	}
 	h := newUsersTestHandler(users, &mockDeviceRepo{}, hub)
 
-	res, err := h.AdminAssignDevice(usersTestAdminCtx(), oas.AdminAssignDeviceParams{ID: 7, DeviceId: deviceID})
+	res, err := h.AdminAssignDevice(ctxAs(1, model.RoleAdmin), oas.AdminAssignDeviceParams{ID: 7, DeviceId: deviceID})
 	if err != nil {
 		t.Fatalf("AdminAssignDevice returned error: %v", err)
 	}
@@ -149,7 +139,7 @@ func TestAdminUnassignDevice_InvalidatesHubDeviceCache(t *testing.T) {
 	}
 	h := newUsersTestHandler(users, &mockDeviceRepo{}, hub)
 
-	res, err := h.AdminUnassignDevice(usersTestAdminCtx(), oas.AdminUnassignDeviceParams{ID: 7, DeviceId: deviceID})
+	res, err := h.AdminUnassignDevice(ctxAs(1, model.RoleAdmin), oas.AdminUnassignDeviceParams{ID: 7, DeviceId: deviceID})
 	if err != nil {
 		t.Fatalf("AdminUnassignDevice returned error: %v", err)
 	}
@@ -172,10 +162,10 @@ func TestAdminAssignDevice_NilHubSafe(t *testing.T) {
 	}
 	h := newUsersTestHandler(users, &mockDeviceRepo{}, nil)
 
-	if _, err := h.AdminAssignDevice(usersTestAdminCtx(), oas.AdminAssignDeviceParams{ID: 1, DeviceId: 2}); err != nil {
+	if _, err := h.AdminAssignDevice(ctxAs(1, model.RoleAdmin), oas.AdminAssignDeviceParams{ID: 1, DeviceId: 2}); err != nil {
 		t.Fatalf("AdminAssignDevice with nil hub returned error: %v", err)
 	}
-	if _, err := h.AdminUnassignDevice(usersTestAdminCtx(), oas.AdminUnassignDeviceParams{ID: 1, DeviceId: 2}); err != nil {
+	if _, err := h.AdminUnassignDevice(ctxAs(1, model.RoleAdmin), oas.AdminUnassignDeviceParams{ID: 1, DeviceId: 2}); err != nil {
 		t.Fatalf("AdminUnassignDevice with nil hub returned error: %v", err)
 	}
 }
@@ -196,7 +186,7 @@ func TestAdminListUsers_AdminOnly(t *testing.T) {
 	h := newUsersTestHandler(users, &mockDeviceRepo{}, nil)
 
 	t.Run("admin can list", func(t *testing.T) {
-		res, err := h.AdminListUsers(usersTestAdminCtx())
+		res, err := h.AdminListUsers(ctxAs(1, model.RoleAdmin))
 		if err != nil {
 			t.Fatalf("AdminListUsers returned error: %v", err)
 		}
@@ -217,7 +207,7 @@ func TestAdminListUsers_AdminOnly(t *testing.T) {
 	})
 
 	t.Run("non-admin forbidden", func(t *testing.T) {
-		res, err := h.AdminListUsers(usersTestRegularCtx())
+		res, err := h.AdminListUsers(ctxAs(999, model.RoleUser))
 		if err != nil {
 			t.Fatalf("AdminListUsers returned error: %v", err)
 		}
@@ -259,7 +249,7 @@ func TestAdminCreateUser_Success(t *testing.T) {
 	users, created := newCreateUserMock()
 	h := newUsersTestHandler(users, &mockDeviceRepo{}, nil)
 
-	res, err := h.AdminCreateUser(usersTestAdminCtx(), &oas.UserInput{
+	res, err := h.AdminCreateUser(ctxAs(1, model.RoleAdmin), &oas.UserInput{
 		Email:    "new@test.com",
 		Name:     "New User",
 		Password: oas.NewOptString("secret123"),
@@ -294,7 +284,7 @@ func TestAdminCreateUser_DefaultRole(t *testing.T) {
 	users, created := newCreateUserMock()
 	h := newUsersTestHandler(users, &mockDeviceRepo{}, nil)
 
-	res, err := h.AdminCreateUser(usersTestAdminCtx(), &oas.UserInput{
+	res, err := h.AdminCreateUser(ctxAs(1, model.RoleAdmin), &oas.UserInput{
 		Email:    "default@test.com",
 		Name:     "Default Role",
 		Password: oas.NewOptString("secret123"),
@@ -330,7 +320,7 @@ func TestAdminCreateUser_InvalidEmail(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			h := newUsersTestHandler(&mockUserRepo{}, &mockDeviceRepo{}, nil)
-			res, err := h.AdminCreateUser(usersTestAdminCtx(), &oas.UserInput{
+			res, err := h.AdminCreateUser(ctxAs(1, model.RoleAdmin), &oas.UserInput{
 				Email:    tt.email,
 				Name:     "Test",
 				Password: oas.NewOptString("validpassword123"),
@@ -348,7 +338,7 @@ func TestAdminCreateUser_InvalidEmail(t *testing.T) {
 func TestAdminCreateUser_InvalidPassword(t *testing.T) {
 	h := newUsersTestHandler(&mockUserRepo{}, &mockDeviceRepo{}, nil)
 
-	res, err := h.AdminCreateUser(usersTestAdminCtx(), &oas.UserInput{
+	res, err := h.AdminCreateUser(ctxAs(1, model.RoleAdmin), &oas.UserInput{
 		Email:    "valid@example.com",
 		Name:     "Test",
 		Password: oas.NewOptString("1234567"), // too short
@@ -364,7 +354,7 @@ func TestAdminCreateUser_InvalidPassword(t *testing.T) {
 func TestAdminCreateUser_InvalidName(t *testing.T) {
 	h := newUsersTestHandler(&mockUserRepo{}, &mockDeviceRepo{}, nil)
 
-	res, err := h.AdminCreateUser(usersTestAdminCtx(), &oas.UserInput{
+	res, err := h.AdminCreateUser(ctxAs(1, model.RoleAdmin), &oas.UserInput{
 		Email:    "nametest@example.com",
 		Name:     "name<script>alert(1)</script>",
 		Password: oas.NewOptString("validpassword123"),
@@ -390,7 +380,7 @@ func TestAdminCreateUser_InvalidRole(t *testing.T) {
 func TestAdminCreateUser_NonAdminForbidden(t *testing.T) {
 	h := newUsersTestHandler(&mockUserRepo{}, &mockDeviceRepo{}, nil)
 
-	res, err := h.AdminCreateUser(usersTestRegularCtx(), &oas.UserInput{
+	res, err := h.AdminCreateUser(ctxAs(999, model.RoleUser), &oas.UserInput{
 		Email:    "x@test.com",
 		Name:     "X",
 		Password: oas.NewOptString("secret123"),
@@ -425,7 +415,7 @@ func newUpdateUserMock() *mockUserRepo {
 func TestAdminUpdateUser_NameAndRole(t *testing.T) {
 	h := newUsersTestHandler(newUpdateUserMock(), &mockDeviceRepo{}, nil)
 
-	res, err := h.AdminUpdateUser(usersTestAdminCtx(), &oas.UserInput{
+	res, err := h.AdminUpdateUser(ctxAs(1, model.RoleAdmin), &oas.UserInput{
 		Name: "Updated Name",
 		Role: oas.NewOptUserInputRole(oas.UserInputRoleReadonly),
 	}, oas.AdminUpdateUserParams{ID: 5})
@@ -465,7 +455,7 @@ func TestAdminUpdateUser_Password_RevokesSessions(t *testing.T) {
 		AuditLogger: audit.NewLogger(nil),
 	})
 
-	res, err := h.AdminUpdateUser(usersTestAdminCtx(), &oas.UserInput{
+	res, err := h.AdminUpdateUser(ctxAs(1, model.RoleAdmin), &oas.UserInput{
 		Email:    "target@test.com",
 		Password: oas.NewOptString("newpassword123"),
 	}, oas.AdminUpdateUserParams{ID: 5})
@@ -493,7 +483,7 @@ func TestAdminUpdateUser_CannotDemoteSelf(t *testing.T) {
 	}
 	h := newUsersTestHandler(users, &mockDeviceRepo{}, nil)
 
-	res, err := h.AdminUpdateUser(usersTestAdminCtx(), &oas.UserInput{
+	res, err := h.AdminUpdateUser(ctxAs(1, model.RoleAdmin), &oas.UserInput{
 		Role: oas.NewOptUserInputRole(oas.UserInputRoleUser),
 	}, oas.AdminUpdateUserParams{ID: 1})
 	if err != nil {
@@ -507,7 +497,7 @@ func TestAdminUpdateUser_CannotDemoteSelf(t *testing.T) {
 func TestAdminUpdateUser_NotFound(t *testing.T) {
 	h := newUsersTestHandler(newUpdateUserMock(), &mockDeviceRepo{}, nil)
 
-	res, err := h.AdminUpdateUser(usersTestAdminCtx(), &oas.UserInput{Name: "X"},
+	res, err := h.AdminUpdateUser(ctxAs(1, model.RoleAdmin), &oas.UserInput{Name: "X"},
 		oas.AdminUpdateUserParams{ID: 99999})
 	if err != nil {
 		t.Fatalf("AdminUpdateUser returned error: %v", err)
@@ -530,7 +520,7 @@ func TestAdminUpdateUser_InvalidRole(t *testing.T) {
 func TestAdminUpdateUser_InvalidEmail(t *testing.T) {
 	h := newUsersTestHandler(newUpdateUserMock(), &mockDeviceRepo{}, nil)
 
-	res, err := h.AdminUpdateUser(usersTestAdminCtx(), &oas.UserInput{
+	res, err := h.AdminUpdateUser(ctxAs(1, model.RoleAdmin), &oas.UserInput{
 		Email: "invalid-email",
 	}, oas.AdminUpdateUserParams{ID: 5})
 	if err != nil {
@@ -555,7 +545,7 @@ func TestAdminDeleteUser_Success(t *testing.T) {
 	}
 	h := newUsersTestHandler(users, &mockDeviceRepo{}, nil)
 
-	res, err := h.AdminDeleteUser(usersTestAdminCtx(), oas.AdminDeleteUserParams{ID: 5})
+	res, err := h.AdminDeleteUser(ctxAs(1, model.RoleAdmin), oas.AdminDeleteUserParams{ID: 5})
 	if err != nil {
 		t.Fatalf("AdminDeleteUser returned error: %v", err)
 	}
@@ -571,7 +561,7 @@ func TestAdminDeleteUser_CannotDeleteSelf(t *testing.T) {
 	h := newUsersTestHandler(&mockUserRepo{}, &mockDeviceRepo{}, nil)
 
 	// Admin from usersTestAdminCtx has ID 1.
-	res, err := h.AdminDeleteUser(usersTestAdminCtx(), oas.AdminDeleteUserParams{ID: 1})
+	res, err := h.AdminDeleteUser(ctxAs(1, model.RoleAdmin), oas.AdminDeleteUserParams{ID: 1})
 	if err != nil {
 		t.Fatalf("AdminDeleteUser returned error: %v", err)
 	}
@@ -583,7 +573,7 @@ func TestAdminDeleteUser_CannotDeleteSelf(t *testing.T) {
 func TestAdminDeleteUser_NonAdminForbidden(t *testing.T) {
 	h := newUsersTestHandler(&mockUserRepo{}, &mockDeviceRepo{}, nil)
 
-	res, err := h.AdminDeleteUser(usersTestRegularCtx(), oas.AdminDeleteUserParams{ID: 5})
+	res, err := h.AdminDeleteUser(ctxAs(999, model.RoleUser), oas.AdminDeleteUserParams{ID: 5})
 	if err != nil {
 		t.Fatalf("AdminDeleteUser returned error: %v", err)
 	}
@@ -609,7 +599,7 @@ func TestAdminListDevices_Success(t *testing.T) {
 	}
 	h := newUsersTestHandler(&mockUserRepo{}, devices, nil)
 
-	res, err := h.AdminListDevices(usersTestAdminCtx())
+	res, err := h.AdminListDevices(ctxAs(1, model.RoleAdmin))
 	if err != nil {
 		t.Fatalf("AdminListDevices returned error: %v", err)
 	}
@@ -625,7 +615,7 @@ func TestAdminListDevices_Success(t *testing.T) {
 func TestAdminListDevices_NonAdminForbidden(t *testing.T) {
 	h := newUsersTestHandler(&mockUserRepo{}, &mockDeviceRepo{}, nil)
 
-	res, err := h.AdminListDevices(usersTestRegularCtx())
+	res, err := h.AdminListDevices(ctxAs(999, model.RoleUser))
 	if err != nil {
 		t.Fatalf("AdminListDevices returned error: %v", err)
 	}
@@ -645,7 +635,7 @@ func TestAdminListUserDevices_Success(t *testing.T) {
 	}
 	h := newUsersTestHandler(&mockUserRepo{}, devices, nil)
 
-	res, err := h.AdminListUserDevices(usersTestAdminCtx(), oas.AdminListUserDevicesParams{ID: 5})
+	res, err := h.AdminListUserDevices(ctxAs(1, model.RoleAdmin), oas.AdminListUserDevicesParams{ID: 5})
 	if err != nil {
 		t.Fatalf("AdminListUserDevices returned error: %v", err)
 	}
@@ -661,7 +651,7 @@ func TestAdminListUserDevices_Success(t *testing.T) {
 func TestAdminListUserDevices_Empty(t *testing.T) {
 	h := newUsersTestHandler(&mockUserRepo{}, &mockDeviceRepo{}, nil)
 
-	res, err := h.AdminListUserDevices(usersTestAdminCtx(), oas.AdminListUserDevicesParams{ID: 5})
+	res, err := h.AdminListUserDevices(ctxAs(1, model.RoleAdmin), oas.AdminListUserDevicesParams{ID: 5})
 	if err != nil {
 		t.Fatalf("AdminListUserDevices returned error: %v", err)
 	}
@@ -677,7 +667,7 @@ func TestAdminListUserDevices_Empty(t *testing.T) {
 func TestAdminListUserDevices_NonAdminForbidden(t *testing.T) {
 	h := newUsersTestHandler(&mockUserRepo{}, &mockDeviceRepo{}, nil)
 
-	res, err := h.AdminListUserDevices(usersTestRegularCtx(), oas.AdminListUserDevicesParams{ID: 5})
+	res, err := h.AdminListUserDevices(ctxAs(999, model.RoleUser), oas.AdminListUserDevicesParams{ID: 5})
 	if err != nil {
 		t.Fatalf("AdminListUserDevices returned error: %v", err)
 	}
@@ -698,7 +688,7 @@ func TestAdminAssignDevice_RepoErrorIsNotFound(t *testing.T) {
 	}
 	h := newUsersTestHandler(users, &mockDeviceRepo{}, nil)
 
-	res, err := h.AdminAssignDevice(usersTestAdminCtx(), oas.AdminAssignDeviceParams{ID: 99999, DeviceId: 1})
+	res, err := h.AdminAssignDevice(ctxAs(1, model.RoleAdmin), oas.AdminAssignDeviceParams{ID: 99999, DeviceId: 1})
 	if err != nil {
 		t.Fatalf("AdminAssignDevice returned error: %v", err)
 	}
@@ -710,7 +700,7 @@ func TestAdminAssignDevice_RepoErrorIsNotFound(t *testing.T) {
 func TestAdminAssignDevice_NonAdminForbidden(t *testing.T) {
 	h := newUsersTestHandler(&mockUserRepo{}, &mockDeviceRepo{}, nil)
 
-	res, err := h.AdminAssignDevice(usersTestRegularCtx(), oas.AdminAssignDeviceParams{ID: 5, DeviceId: 10})
+	res, err := h.AdminAssignDevice(ctxAs(999, model.RoleUser), oas.AdminAssignDeviceParams{ID: 5, DeviceId: 10})
 	if err != nil {
 		t.Fatalf("AdminAssignDevice returned error: %v", err)
 	}
@@ -722,7 +712,7 @@ func TestAdminAssignDevice_NonAdminForbidden(t *testing.T) {
 func TestAdminUnassignDevice_NonAdminForbidden(t *testing.T) {
 	h := newUsersTestHandler(&mockUserRepo{}, &mockDeviceRepo{}, nil)
 
-	res, err := h.AdminUnassignDevice(usersTestRegularCtx(), oas.AdminUnassignDeviceParams{ID: 5, DeviceId: 10})
+	res, err := h.AdminUnassignDevice(ctxAs(999, model.RoleUser), oas.AdminUnassignDeviceParams{ID: 5, DeviceId: 10})
 	if err != nil {
 		t.Fatalf("AdminUnassignDevice returned error: %v", err)
 	}
@@ -789,10 +779,7 @@ func TestAdminAssignDevice_AuditLogged_Integration(t *testing.T) {
 	env := setupUsersOASIntegration(t)
 	ctx := context.Background()
 
-	target := &model.User{Email: "devuser@test.com", PasswordHash: "hash", Name: "Dev User", Role: model.RoleUser}
-	if err := env.userRepo.Create(ctx, target); err != nil {
-		t.Fatalf("create target: %v", err)
-	}
+	target := testutil.CreateUser(t, "devuser@test.com")
 	device := &model.Device{UniqueID: "assign-001", Name: "Test Device", Status: "unknown"}
 	if err := env.deviceRepo.Create(ctx, device, env.admin.ID); err != nil {
 		t.Fatalf("create device: %v", err)
@@ -851,10 +838,7 @@ func TestAdminUnassignDevice_AuditLogged_Integration(t *testing.T) {
 	env := setupUsersOASIntegration(t)
 	ctx := context.Background()
 
-	target := &model.User{Email: "unassign@test.com", PasswordHash: "hash", Name: "Unassign User", Role: model.RoleUser}
-	if err := env.userRepo.Create(ctx, target); err != nil {
-		t.Fatalf("create target: %v", err)
-	}
+	target := testutil.CreateUser(t, "unassign@test.com")
 	device := &model.Device{UniqueID: "unassign-001", Name: "Test Device", Status: "unknown"}
 	if err := env.deviceRepo.Create(ctx, device, env.admin.ID); err != nil {
 		t.Fatalf("create device: %v", err)

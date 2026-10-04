@@ -21,7 +21,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tamcore/motus/internal/api"
 	"github.com/tamcore/motus/internal/api/handlers"
 	oas "github.com/tamcore/motus/internal/api/oas"
 	"github.com/tamcore/motus/internal/audit"
@@ -107,10 +106,6 @@ func newCommandTestHandler(commands repository.CommandRepo, devices repository.D
 	})
 }
 
-func commandTestUserCtx(id int64) context.Context {
-	return api.ContextWithUser(context.Background(), &model.User{ID: id, Email: "cmd@example.com", Role: model.RoleUser})
-}
-
 // customTextAttrs builds typed attributes for a custom command.
 func customTextAttrs(text string) oas.OptCommandAttributes {
 	return oas.NewOptCommandAttributes(oas.NewCommandAttrCustomCommandAttributes(oas.CommandAttrCustom{
@@ -132,7 +127,7 @@ func TestCreateCommand_Success(t *testing.T) {
 	}
 	h := newCommandTestHandler(cmdRepo, accessGrantingDeviceRepo("cmd-dev", "h02"), nil, nil)
 
-	res, err := h.CreateCommand(commandTestUserCtx(1), &oas.CommandInput{
+	res, err := h.CreateCommand(ctxAs(1, model.RoleUser), &oas.CommandInput{
 		DeviceId: 5,
 		Type:     "rebootDevice",
 	})
@@ -166,7 +161,7 @@ func TestCreateCommand_MissingFields(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			res, err := h.CreateCommand(commandTestUserCtx(1), &oas.CommandInput{
+			res, err := h.CreateCommand(ctxAs(1, model.RoleUser), &oas.CommandInput{
 				DeviceId: tt.deviceID,
 				Type:     tt.cmdType,
 			})
@@ -187,7 +182,7 @@ func TestCreateCommand_MissingFields(t *testing.T) {
 func TestCreateCommand_InvalidCommandType(t *testing.T) {
 	h := newCommandTestHandler(&mockCommandRepo{}, accessGrantingDeviceRepo("cmd-dev", "h02"), nil, nil)
 
-	res, err := h.CreateCommand(commandTestUserCtx(1), &oas.CommandInput{
+	res, err := h.CreateCommand(ctxAs(1, model.RoleUser), &oas.CommandInput{
 		DeviceId: 5,
 		Type:     "deleteAllData",
 	})
@@ -218,7 +213,7 @@ func TestCreateCommand_Forbidden(t *testing.T) {
 	}
 	h := newCommandTestHandler(cmdRepo, devices, nil, nil)
 
-	res, err := h.CreateCommand(commandTestUserCtx(1), &oas.CommandInput{
+	res, err := h.CreateCommand(ctxAs(1, model.RoleUser), &oas.CommandInput{
 		DeviceId: 5,
 		Type:     "rebootDevice",
 	})
@@ -247,7 +242,7 @@ func TestSendCommand_OfflineDeviceQueues(t *testing.T) {
 	cmdRepo := &mockCommandRepo{}
 	h := newCommandTestHandler(cmdRepo, accessGrantingDeviceRepo("offline-dev", "h02"), nil, nil)
 
-	res, err := h.SendCommand(commandTestUserCtx(1), &oas.SendCommandRequest{
+	res, err := h.SendCommand(ctxAs(1, model.RoleUser), &oas.SendCommandRequest{
 		DeviceId: 5,
 		Type:     "positionSingle",
 	})
@@ -278,7 +273,7 @@ func TestSendCommand_OnlineDeviceSends(t *testing.T) {
 	h := newCommandTestHandler(cmdRepo, accessGrantingDeviceRepo("online-dev", "h02"),
 		reg, protocol.NewEncoderRegistry(nil))
 
-	res, err := h.SendCommand(commandTestUserCtx(1), &oas.SendCommandRequest{
+	res, err := h.SendCommand(ctxAs(1, model.RoleUser), &oas.SendCommandRequest{
 		DeviceId: 5,
 		Type:     "rebootDevice",
 	})
@@ -305,7 +300,7 @@ func TestSendCommand_OnlineDeviceSends(t *testing.T) {
 func TestSendCommand_CustomCommand(t *testing.T) {
 	h := newCommandTestHandler(&mockCommandRepo{}, accessGrantingDeviceRepo("offline-dev", "h02"), nil, nil)
 
-	res, err := h.SendCommand(commandTestUserCtx(1), &oas.SendCommandRequest{
+	res, err := h.SendCommand(ctxAs(1, model.RoleUser), &oas.SendCommandRequest{
 		DeviceId:   5,
 		Type:       "custom",
 		Attributes: customTextAttrs("rconf"),
@@ -326,7 +321,7 @@ func TestSendCommand_CustomCommand(t *testing.T) {
 func TestSendCommand_CustomCommand_MissingText(t *testing.T) {
 	h := newCommandTestHandler(&mockCommandRepo{}, accessGrantingDeviceRepo("offline-dev", "h02"), nil, nil)
 
-	res, err := h.SendCommand(commandTestUserCtx(1), &oas.SendCommandRequest{
+	res, err := h.SendCommand(ctxAs(1, model.RoleUser), &oas.SendCommandRequest{
 		DeviceId: 5,
 		Type:     "custom",
 	})
@@ -351,7 +346,7 @@ func TestSendCommand_MissingRequiredAttributes(t *testing.T) {
 		model.CommandSetSpeedAlarm:    "setSpeedAlarm requires a speed attribute >= 0",
 	} {
 		t.Run(cmdType, func(t *testing.T) {
-			res, err := h.SendCommand(commandTestUserCtx(1), &oas.SendCommandRequest{DeviceId: 5, Type: cmdType})
+			res, err := h.SendCommand(ctxAs(1, model.RoleUser), &oas.SendCommandRequest{DeviceId: 5, Type: cmdType})
 			if err != nil {
 				t.Fatalf("SendCommand returned error: %v", err)
 			}
@@ -379,7 +374,7 @@ func TestSendCommand_Forbidden(t *testing.T) {
 	}
 	h := newCommandTestHandler(cmdRepo, devices, nil, nil)
 
-	res, err := h.SendCommand(commandTestUserCtx(1), &oas.SendCommandRequest{
+	res, err := h.SendCommand(ctxAs(1, model.RoleUser), &oas.SendCommandRequest{
 		DeviceId: 5,
 		Type:     "rebootDevice",
 	})
@@ -408,7 +403,7 @@ func TestListCommands_Forbidden(t *testing.T) {
 	}
 	h := newCommandTestHandler(&mockCommandRepo{}, devices, nil, nil)
 
-	res, err := h.ListCommands(commandTestUserCtx(1), oas.ListCommandsParams{
+	res, err := h.ListCommands(ctxAs(1, model.RoleUser), oas.ListCommandsParams{
 		DeviceId: oas.NewOptInt64(5),
 	})
 	if err != nil {
@@ -435,7 +430,7 @@ func TestListCommands_Success(t *testing.T) {
 	}
 	h := newCommandTestHandler(cmdRepo, accessGrantingDeviceRepo("cmd-dev", "h02"), nil, nil)
 
-	res, err := h.ListCommands(commandTestUserCtx(1), oas.ListCommandsParams{
+	res, err := h.ListCommands(ctxAs(1, model.RoleUser), oas.ListCommandsParams{
 		DeviceId: oas.NewOptInt64(5),
 	})
 	if err != nil {
@@ -453,7 +448,7 @@ func TestListCommands_Success(t *testing.T) {
 func TestListCommands_Empty(t *testing.T) {
 	h := newCommandTestHandler(&mockCommandRepo{}, accessGrantingDeviceRepo("cmd-dev", "h02"), nil, nil)
 
-	res, err := h.ListCommands(commandTestUserCtx(1), oas.ListCommandsParams{
+	res, err := h.ListCommands(ctxAs(1, model.RoleUser), oas.ListCommandsParams{
 		DeviceId: oas.NewOptInt64(5),
 	})
 	if err != nil {
@@ -522,7 +517,7 @@ func TestSendCommand_WatchCommandsAreFramed(t *testing.T) {
 		{&oas.SendCommandRequest{DeviceId: 5, Type: "positionSingle"}, "[SG*9705141740*0002*CR]"},
 		{&oas.SendCommandRequest{DeviceId: 5, Type: "custom", Attributes: customTextAttrs("POWEROFF")}, "[SG*9705141740*0008*POWEROFF]"},
 	} {
-		res, err := h.SendCommand(commandTestUserCtx(1), tt.req)
+		res, err := h.SendCommand(ctxAs(1, model.RoleUser), tt.req)
 		if err != nil {
 			t.Fatalf("SendCommand returned error: %v", err)
 		}
@@ -539,7 +534,7 @@ func TestSendCommand_WatchUnsupportedCommand(t *testing.T) {
 	h := newCommandTestHandler(&mockCommandRepo{}, accessGrantingDeviceRepo("9705141740", "watch"),
 		nil, protocol.NewEncoderRegistry(nil))
 
-	res, err := h.SendCommand(commandTestUserCtx(1), &oas.SendCommandRequest{DeviceId: 5, Type: "factoryReset"})
+	res, err := h.SendCommand(ctxAs(1, model.RoleUser), &oas.SendCommandRequest{DeviceId: 5, Type: "factoryReset"})
 	if err != nil {
 		t.Fatalf("SendCommand returned error: %v", err)
 	}
@@ -575,7 +570,7 @@ func TestGetCommandTypes_PerDevice(t *testing.T) {
 	}
 	for _, tt := range tests {
 		h := newCommandTestHandler(&mockCommandRepo{}, accessGrantingDeviceRepo("dev", tt.protocol), nil, protocol.NewEncoderRegistry(nil))
-		res, err := h.GetCommandTypes(commandTestUserCtx(1), oas.GetCommandTypesParams{DeviceId: oas.NewOptInt64(5)})
+		res, err := h.GetCommandTypes(ctxAs(1, model.RoleUser), oas.GetCommandTypesParams{DeviceId: oas.NewOptInt64(5)})
 		if err != nil {
 			t.Fatalf("%q: %v", tt.protocol, err)
 		}
@@ -595,7 +590,7 @@ func TestGetCommandTypes_PerDeviceErrors(t *testing.T) {
 
 	denied := &mockDeviceRepo{userHasAccessFn: func(context.Context, *model.User, int64) bool { return false }}
 	h = newCommandTestHandler(&mockCommandRepo{}, denied, nil, protocol.NewEncoderRegistry(nil))
-	if res, _ := h.GetCommandTypes(commandTestUserCtx(1), params); !isType[*oas.GetCommandTypesForbidden](res) {
+	if res, _ := h.GetCommandTypes(ctxAs(1, model.RoleUser), params); !isType[*oas.GetCommandTypesForbidden](res) {
 		t.Errorf("foreign device: got %T", res)
 	}
 
@@ -604,7 +599,7 @@ func TestGetCommandTypes_PerDeviceErrors(t *testing.T) {
 		getByIDFn:       func(context.Context, int64) (*model.Device, error) { return nil, errors.New("not found") },
 	}
 	h = newCommandTestHandler(&mockCommandRepo{}, missing, nil, protocol.NewEncoderRegistry(nil))
-	if res, _ := h.GetCommandTypes(commandTestUserCtx(1), params); !isType[*oas.GetCommandTypesNotFound](res) {
+	if res, _ := h.GetCommandTypes(ctxAs(1, model.RoleUser), params); !isType[*oas.GetCommandTypesNotFound](res) {
 		t.Errorf("missing device: got %T", res)
 	}
 }
@@ -634,7 +629,7 @@ func TestSendCommand_RejectsUnsupportedType(t *testing.T) {
 				Type: oas.CommandAttrSetSpeedAlarmTypeSetSpeedAlarm, Speed: 80,
 			}))
 		}
-		res, err := h.SendCommand(commandTestUserCtx(1), req)
+		res, err := h.SendCommand(ctxAs(1, model.RoleUser), req)
 		if err != nil {
 			t.Fatalf("%s/%s: %v", tt.protocol, tt.typ, err)
 		}

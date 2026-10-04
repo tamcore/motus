@@ -1,24 +1,3 @@
-/**
- * Composable for tracking the user's own position on the map.
- *
- * Manages:
- *  - Geolocation watch (navigator.geolocation.watchPosition) for live lat/lng/accuracy
- *  - Compass heading via deviceorientationabsolute (Chrome/Android) or
- *    webkitCompassHeading (iOS Safari); handles iOS 13+ permission request
- *
- * Usage:
- *   const userLocation = useUserLocation();
- *   // Call start() from a user gesture (required for iOS compass permission):
- *   await userLocation.start();
- *   // Access reactive state:
- *   userLocation.active   // boolean
- *   userLocation.position // { lat, lng, accuracy } | null
- *   userLocation.heading  // degrees from true north | null
- *   userLocation.error    // error message | null
- *   // Stop tracking:
- *   userLocation.stop();
- */
-
 export interface UserPosition {
   lat: number;
   lng: number;
@@ -26,21 +5,13 @@ export interface UserPosition {
 }
 
 export interface UseUserLocationReturn {
-  /** Whether location tracking is currently active. */
   active: boolean;
-  /** Current user position, or null if not yet acquired. */
   position: UserPosition | null;
-  /** Compass heading in degrees from true north (0–360), or null if unavailable. */
+  /** Degrees from true north, or null if unavailable. */
   heading: number | null;
-  /** Human-readable error message, or null if no error. */
   error: string | null;
-  /**
-   * Start geolocation tracking and compass heading.
-   * Must be called from a user gesture (required for iOS compass permission).
-   * Returns a promise that resolves once the watch is started (first fix may come later).
-   */
+  /** Call from a user gesture (iOS compass permission); the first fix may come later. */
   start: () => Promise<void>;
-  /** Stop tracking and clean up all watchers/listeners. */
   stop: () => void;
 }
 
@@ -160,10 +131,6 @@ export function useUserLocation(): UseUserLocationReturn {
   return state;
 }
 
-// ---------------------------------------------------------------------------
-// Internal helpers
-// ---------------------------------------------------------------------------
-
 function geolocationErrorMessage(err: GeolocationPositionError): string {
   switch (err.code) {
     case err.PERMISSION_DENIED:
@@ -177,9 +144,7 @@ function geolocationErrorMessage(err: GeolocationPositionError): string {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Map layers for the user's position (accuracy circle, dot, compass cone)
-// ---------------------------------------------------------------------------
+// Map layers for the user's position: accuracy circle, dot, compass cone.
 
 type Leaflet = typeof import("leaflet");
 type LeafletMap = import("leaflet").Map;

@@ -154,7 +154,6 @@
 		await leafletMap.initialize(mapEl, {
 			center: [49.79, 9.95],
 			zoom: 6,
-			zoomControl: true,
 		});
 
 		await reloadDevices();

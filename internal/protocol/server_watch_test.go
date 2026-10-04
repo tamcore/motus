@@ -607,7 +607,7 @@ func TestWatchServer_RegistersConnectionForCommands(t *testing.T) {
 				t.Fatalf("registered=%v session=%+v (%v), want %+v", registry.IsOnline("4700186508"), session, ok, tt.session)
 			}
 
-			payload, err := NewWatchCommandEncoder(registry).EncodeCommand(&model.Command{Type: model.CommandPositionSingle}, "4700186508")
+			payload, err := NewEncoderRegistry(registry).Get("watch").EncodeCommand(&model.Command{Type: model.CommandPositionSingle}, "4700186508")
 			if err != nil {
 				t.Fatalf("encode: %v", err)
 			}

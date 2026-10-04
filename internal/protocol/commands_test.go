@@ -143,12 +143,8 @@ func TestH02CommandEncoder_FactoryReset(t *testing.T) {
 func TestEncoderRegistry(t *testing.T) {
 	reg := protocol.NewEncoderRegistry(nil)
 
-	enc := reg.Get("h02")
-	if enc == nil {
+	if _, ok := reg.Get("h02").(*protocol.H02CommandEncoder); !ok {
 		t.Fatal("expected h02 encoder to be registered")
-	}
-	if enc.Protocol() != "h02" {
-		t.Errorf("expected protocol 'h02', got %q", enc.Protocol())
 	}
 
 	if reg.Get("unknown") != nil {
@@ -186,7 +182,7 @@ func TestWatchCommandEncoder_Commands(t *testing.T) {
 		{"sos number with index", &model.Command{Type: model.CommandSosNumber, Attributes: map[string]any{"phoneNumber": "123", "index": 3}}, "[CS*8800000015*0008*SOS3,123]"},
 		{"custom", &model.Command{Type: model.CommandCustom, Attributes: map[string]any{"text": "LZ,1,+1"}}, "[CS*8800000015*0007*LZ,1,+1]"},
 	}
-	enc := protocol.NewWatchCommandEncoder(nil)
+	enc := protocol.NewEncoderRegistry(nil).Get("watch")
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			data, err := enc.EncodeCommand(tt.cmd, watchID)
@@ -201,7 +197,7 @@ func TestWatchCommandEncoder_Commands(t *testing.T) {
 }
 
 func TestWatchCommandEncoder_Errors(t *testing.T) {
-	enc := protocol.NewWatchCommandEncoder(nil)
+	enc := protocol.NewEncoderRegistry(nil).Get("watch")
 	for _, cmd := range []*model.Command{
 		{Type: model.CommandPositionPeriodic},
 		{Type: model.CommandSosNumber},
@@ -234,7 +230,7 @@ func TestWatchCommandEncoder_UsesConnectionSession(t *testing.T) {
 		registry.Register(watchID, make(chan []byte, 1))
 		registry.SetSession(watchID, tt.session)
 
-		data, err := protocol.NewWatchCommandEncoder(registry).EncodeCommand(&model.Command{Type: model.CommandPositionSingle}, watchID)
+		data, err := protocol.NewEncoderRegistry(registry).Get("watch").EncodeCommand(&model.Command{Type: model.CommandPositionSingle}, watchID)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -245,9 +241,8 @@ func TestWatchCommandEncoder_UsesConnectionSession(t *testing.T) {
 }
 
 func TestEncoderRegistry_Watch(t *testing.T) {
-	enc := protocol.NewEncoderRegistry(nil).Get("watch")
-	if enc == nil || enc.Protocol() != "watch" {
-		t.Fatalf("expected watch encoder, got %v", enc)
+	if _, ok := protocol.NewEncoderRegistry(nil).Get("watch").(*protocol.WatchCommandEncoder); !ok {
+		t.Fatal("expected watch encoder")
 	}
 }
 
@@ -288,7 +283,9 @@ func TestEncoders_SupportedCommandsMatchEncoding(t *testing.T) {
 		model.CommandCustom:           {"text": "CR"},
 		model.CommandSetSpeedAlarm:    {"speed": 80},
 	}
-	for _, enc := range []protocol.CommandEncoder{&protocol.H02CommandEncoder{}, protocol.NewWatchCommandEncoder(nil)} {
+	reg := protocol.NewEncoderRegistry(nil)
+	for _, name := range []string{"h02", "watch"} {
+		enc := reg.Get(name)
 		supported := map[string]bool{}
 		for _, typ := range enc.SupportedCommands() {
 			supported[typ] = true
@@ -296,10 +293,10 @@ func TestEncoders_SupportedCommandsMatchEncoding(t *testing.T) {
 		for _, typ := range model.SupportedCommandTypes() {
 			_, err := enc.EncodeCommand(&model.Command{Type: typ, Attributes: sample[typ]}, testIMEI)
 			if supported[typ] && err != nil {
-				t.Errorf("%s: advertised %s fails to encode: %v", enc.Protocol(), typ, err)
+				t.Errorf("%s: advertised %s fails to encode: %v", name, typ, err)
 			}
 			if !supported[typ] && err == nil {
-				t.Errorf("%s: %s encodes but is not advertised", enc.Protocol(), typ)
+				t.Errorf("%s: %s encodes but is not advertised", name, typ)
 			}
 		}
 	}

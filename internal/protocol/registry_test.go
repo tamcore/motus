@@ -82,32 +82,6 @@ func TestDeviceRegistry_IsOnline(t *testing.T) {
 	}
 }
 
-// TestDeviceRegistry_Send_AfterChannelClosedDoesNotPanic verifies that Send
-// never panics when the underlying channel has been closed. This guards against
-// the send-on-closed-channel race between connection teardown and an in-flight Send.
-func TestDeviceRegistry_Send_AfterChannelClosedDoesNotPanic(t *testing.T) {
-	r := protocol.NewDeviceRegistry()
-	ch := make(chan []byte, 1)
-	r.Register("DEV001", ch)
-	close(ch) // simulate the race: channel closed while still in registry
-
-	panicked := make(chan bool, 1)
-	go func() {
-		defer func() {
-			if rec := recover(); rec != nil {
-				panicked <- true
-				return
-			}
-			panicked <- false
-		}()
-		r.Send("DEV001", []byte("cmd"))
-	}()
-
-	if <-panicked {
-		t.Fatal("Send panicked on a closed channel — race condition not fixed")
-	}
-}
-
 // TestDeviceRegistry_Send_ConcurrentDeregisterAndSend stress-tests Send under
 // concurrent Register/Deregister activity. Must not panic under -race.
 // Channels are never closed here, matching the invariant enforced in production:

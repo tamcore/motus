@@ -13,7 +13,6 @@ import (
 // deviceID is the device's unique identifier (IMEI) required by some protocols.
 type CommandEncoder interface {
 	EncodeCommand(cmd *model.Command, deviceID string) ([]byte, error)
-	Protocol() string
 	// SupportedCommands lists the command types EncodeCommand accepts, in
 	// model.SupportedCommandTypes order.
 	SupportedCommands() []string
@@ -21,9 +20,6 @@ type CommandEncoder interface {
 
 // H02CommandEncoder encodes commands for the H02 GPS protocol.
 type H02CommandEncoder struct{}
-
-// Protocol returns the protocol name.
-func (e *H02CommandEncoder) Protocol() string { return "h02" }
 
 // SupportedCommands lists the command types the H02 encoder accepts.
 func (e *H02CommandEncoder) SupportedCommands() []string {
@@ -76,20 +72,12 @@ func (e *H02CommandEncoder) EncodeCommand(cmd *model.Command, deviceID string) (
 }
 
 // WatchCommandEncoder encodes commands for the WATCH GPS protocol, mirroring
-// Traccar's WatchProtocolEncoder.
+// Traccar's WatchProtocolEncoder. sessions supplies the manufacturer code and
+// frame indexing of each device's live connection; when nil or unknown, frames
+// use the "CS" manufacturer without an index.
 type WatchCommandEncoder struct {
 	sessions *DeviceRegistry
 }
-
-// NewWatchCommandEncoder creates a WATCH encoder. sessions supplies the
-// manufacturer code and frame indexing of each device's live connection; when
-// nil or unknown, frames use the "CS" manufacturer without an index.
-func NewWatchCommandEncoder(sessions *DeviceRegistry) *WatchCommandEncoder {
-	return &WatchCommandEncoder{sessions: sessions}
-}
-
-// Protocol returns the protocol name.
-func (e *WatchCommandEncoder) Protocol() string { return "watch" }
 
 // SupportedCommands lists the command types the WATCH encoder accepts.
 func (e *WatchCommandEncoder) SupportedCommands() []string {
@@ -179,11 +167,10 @@ type EncoderRegistry struct {
 // NewEncoderRegistry creates a registry with the H02 and WATCH encoders.
 // sessions is passed to the WATCH encoder and may be nil.
 func NewEncoderRegistry(sessions *DeviceRegistry) *EncoderRegistry {
-	r := &EncoderRegistry{encoders: make(map[string]CommandEncoder)}
-	for _, enc := range []CommandEncoder{&H02CommandEncoder{}, NewWatchCommandEncoder(sessions)} {
-		r.encoders[enc.Protocol()] = enc
-	}
-	return r
+	return &EncoderRegistry{encoders: map[string]CommandEncoder{
+		"h02":   &H02CommandEncoder{},
+		"watch": &WatchCommandEncoder{sessions: sessions},
+	}}
 }
 
 // Get returns the encoder for the given protocol, or nil if not found.

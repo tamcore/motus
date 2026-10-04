@@ -69,18 +69,28 @@ func (s *CommandSubmitter) Submit(ctx context.Context, device *model.Device, cmd
 		return nil, fmt.Errorf("store command: %w", err)
 	}
 
-	// Attempt immediate delivery if the device is connected here. The status
-	// is marked "sent" before the write so a fast device reply finds it, and
-	// reverted to "pending" if the write fails so the dispatcher retries.
+	// Attempt immediate delivery if the device is connected here.
 	online := s.Registry != nil && s.Registry.IsOnline(device.UniqueID)
 	if online && payload != nil {
-		if updErr := s.Commands.UpdateStatus(ctx, cmd.ID, model.CommandStatusSent); updErr == nil {
-			if s.Registry.Send(device.UniqueID, payload) {
-				cmd.Status = model.CommandStatusSent
-			} else {
-				_ = s.Commands.UpdateStatus(ctx, cmd.ID, model.CommandStatusPending)
-			}
+		if sent, _ := deliver(ctx, s.Commands, s.Registry, device.UniqueID, cmd.ID, payload); sent {
+			cmd.Status = model.CommandStatusSent
 		}
 	}
 	return cmd, nil
+}
+
+// deliver marks a command "sent" and writes payload to the device. The status
+// is set before the write so a fast device reply (SMS) finds the command; if
+// the write fails, it is reverted to "pending" so the dispatcher retries it.
+func deliver(ctx context.Context, cmds repository.CommandRepo, reg *DeviceRegistry, uniqueID string, cmdID int64, payload []byte) (bool, error) {
+	if err := cmds.UpdateStatus(ctx, cmdID, model.CommandStatusSent); err != nil {
+		return false, fmt.Errorf("mark command sent: %w", err)
+	}
+	if reg.Send(uniqueID, payload) {
+		return true, nil
+	}
+	if err := cmds.UpdateStatus(ctx, cmdID, model.CommandStatusPending); err != nil {
+		return false, fmt.Errorf("revert command to pending: %w", err)
+	}
+	return false, nil
 }

@@ -68,13 +68,7 @@ func (d *CommandDispatcher) dispatch(ctx context.Context) {
 	}
 }
 
-// sendCommand encodes and delivers a single command, then marks it "sent".
-//
-// The DB status is updated to "sent" BEFORE the payload is written to the TCP
-// connection. This prevents a race where the device responds (SMS) before the
-// status update completes, causing GetLatestSentByDevice to miss the command.
-// If registry.Send fails after the DB update, the status is reverted to
-// "pending" so the next dispatcher tick retries it.
+// sendCommand encodes and delivers a single command.
 func (d *CommandDispatcher) sendCommand(ctx context.Context, protocol, uniqueID string, cmd *model.Command) {
 	payload, err := d.encodePayload(protocol, uniqueID, cmd)
 	if err != nil {
@@ -89,25 +83,14 @@ func (d *CommandDispatcher) sendCommand(ctx context.Context, protocol, uniqueID 
 		return
 	}
 
-	// Mark "sent" in DB first so that the SMS response (which can arrive
-	// within milliseconds of the TCP write) finds the command.
-	if err := d.cmdRepo.UpdateStatus(ctx, cmd.ID, model.CommandStatusSent); err != nil {
-		d.logger.Warn("dispatcher: failed to update command status to sent",
+	sent, err := deliver(ctx, d.cmdRepo, d.registry, uniqueID, cmd.ID, payload)
+	if err != nil {
+		d.logger.Warn("dispatcher: command status update failed",
 			slog.Int64("commandId", cmd.ID),
 			slog.Any("error", err),
 		)
-		return
 	}
-
-	if !d.registry.Send(uniqueID, payload) {
-		// Device disconnected or channel full — revert to pending so the next
-		// tick picks it up again.
-		if revertErr := d.cmdRepo.UpdateStatus(ctx, cmd.ID, model.CommandStatusPending); revertErr != nil {
-			d.logger.Warn("dispatcher: failed to revert command status to pending",
-				slog.Int64("commandId", cmd.ID),
-				slog.Any("error", revertErr),
-			)
-		}
+	if !sent {
 		return
 	}
 

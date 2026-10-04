@@ -459,13 +459,13 @@ func handleCreateCalendar(ctx context.Context, req mcp.CallToolRequest, deps Dep
 
 	switch {
 	case startStr != "" && endStr != "":
-		start, err := time.Parse(time.RFC3339, startStr)
+		start, err := requireTime(req, "start_time")
 		if err != nil {
-			return mcp.NewToolResultError("invalid start_time: " + err.Error()), nil
+			return mcp.NewToolResultError(err.Error()), nil
 		}
-		end, err := time.Parse(time.RFC3339, endStr)
+		end, err := requireTime(req, "end_time")
 		if err != nil {
-			return mcp.NewToolResultError("invalid end_time: " + err.Error()), nil
+			return mcp.NewToolResultError(err.Error()), nil
 		}
 		spec.StartTime = &start
 		spec.EndTime = &end
@@ -670,6 +670,9 @@ func handleDeleteNotificationRule(ctx context.Context, req mcp.CallToolRequest, 
 
 // requireID reads a required integer argument (number or numeric string).
 func requireID(req mcp.CallToolRequest, key string) (int64, error) {
+	if req.GetArguments()[key] == nil {
+		return 0, fmt.Errorf("%s is required", key)
+	}
 	id, err := req.RequireInt(key)
 	if err != nil {
 		return 0, fmt.Errorf("invalid %s", key)
@@ -679,13 +682,23 @@ func requireID(req mcp.CallToolRequest, key string) (int64, error) {
 
 // parseRange reads the required RFC3339 from/to arguments.
 func parseRange(req mcp.CallToolRequest) (from, to time.Time, err error) {
-	if from, err = time.Parse(time.RFC3339, req.GetString("from", "")); err != nil {
-		return from, to, fmt.Errorf("invalid from: %w", err)
+	if from, err = requireTime(req, "from"); err != nil {
+		return from, to, err
 	}
-	if to, err = time.Parse(time.RFC3339, req.GetString("to", "")); err != nil {
-		return from, to, fmt.Errorf("invalid to: %w", err)
+	to, err = requireTime(req, "to")
+	return from, to, err
+}
+
+func requireTime(req mcp.CallToolRequest, key string) (time.Time, error) {
+	s := req.GetString(key, "")
+	if s == "" {
+		return time.Time{}, fmt.Errorf("%s is required", key)
 	}
-	return from, to, nil
+	t, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		return t, fmt.Errorf("invalid %s: %w", key, err)
+	}
+	return t, nil
 }
 
 func handleListEvents(ctx context.Context, req mcp.CallToolRequest, deps Deps) (*mcp.CallToolResult, error) {
@@ -807,7 +820,7 @@ func handleListTrailBookmarks(ctx context.Context, req mcp.CallToolRequest, deps
 
 // resolveDeviceID reads device_id (string int) or device_name from the request.
 func resolveDeviceID(ctx context.Context, req mcp.CallToolRequest, user *model.User, deps Deps) (int64, error) {
-	if v, ok := req.GetArguments()["device_id"]; ok && v != "" {
+	if v := req.GetArguments()["device_id"]; v != nil && v != "" {
 		return requireID(req, "device_id")
 	}
 	if name := req.GetString("device_name", ""); name != "" {

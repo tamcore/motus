@@ -268,7 +268,7 @@
 				model: formModel.trim() || undefined,
 				category: formCategory.trim() || undefined,
 				protocol: formProtocol.trim(),
-				mileage: mileageKm
+				mileage: mileageKm ?? (editingDevice ? null : undefined)
 			};
 
 			if (editingDevice) {

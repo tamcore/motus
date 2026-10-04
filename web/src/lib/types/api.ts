@@ -82,7 +82,6 @@ export interface DevicePayload {
   protocol?: string;
   disabled?: boolean;
   speedLimit?: number | null;
-  /** Not in the DeviceInput spec yet: the backend drops it until the spec adds it. */
   mileage?: number | null;
   attributes?: Record<string, unknown>;
 }

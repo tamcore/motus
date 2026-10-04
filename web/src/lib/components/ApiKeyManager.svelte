@@ -3,7 +3,7 @@
 	import { api } from '$lib/api/client';
 	import type { ApiKey } from '$lib/types/api';
 	import { formatDate } from '$lib/utils/formatting';
-	import { dateValue, hoursFromNow } from '$lib/utils/date-range';
+	import { dateValue, hoursFromNow, parseLocalBoundary } from '$lib/utils/date-range';
 	import Button from '$lib/components/Button.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import Input from '$lib/components/Input.svelte';
@@ -92,14 +92,14 @@
 			return;
 		}
 
-		// Validate custom date if selected.
-		if (newKeyExpiration === 'custom' && !newKeyCustomDate) {
-			createError = 'Please select an expiration date.';
-			return;
-		}
-		if (newKeyExpiration === 'custom' && newKeyCustomDate) {
-			const selected = new Date(newKeyCustomDate);
-			if (selected <= new Date()) {
+		const customExpiry =
+			newKeyExpiration === 'custom' ? parseLocalBoundary(newKeyCustomDate, '', 'end') : null;
+		if (newKeyExpiration === 'custom') {
+			if (!customExpiry) {
+				createError = 'Please select an expiration date.';
+				return;
+			}
+			if (customExpiry <= new Date()) {
 				createError = 'Expiration date must be in the future.';
 				return;
 			}
@@ -112,7 +112,7 @@
 			newKeyExpiration === 'never'
 				? null
 				: newKeyExpiration === 'custom'
-					? new Date(newKeyCustomDate).toISOString()
+					? customExpiry!.toISOString()
 					: hoursFromNow(parseInt(newKeyExpiration, 10));
 
 		try {

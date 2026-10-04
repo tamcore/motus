@@ -5,6 +5,7 @@ package calendar
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -137,40 +138,26 @@ func parseICalTime(prop *ics.IANAProperty) (time.Time, error) {
 		return time.Time{}, fmt.Errorf("nil property")
 	}
 
-	val := prop.Value
-
-	// Check for TZID parameter.
-	tzid := prop.ICalParameters["TZID"]
-	var loc *time.Location
-	if len(tzid) > 0 && tzid[0] != "" {
-		var err error
-		loc, err = time.LoadLocation(tzid[0])
-		if err != nil {
-			loc = time.UTC
+	t, err := ParseValue(prop.Value)
+	if err != nil {
+		return t, err
+	}
+	if tzid := prop.ICalParameters["TZID"]; len(tzid) > 0 && tzid[0] != "" && !strings.HasSuffix(prop.Value, "Z") {
+		if loc, err := time.LoadLocation(tzid[0]); err == nil {
+			t = time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), 0, loc)
 		}
 	}
+	return t, nil
+}
 
-	// Try various iCalendar date-time formats.
-	formats := []string{
-		"20060102T150405Z", // UTC
-		"20060102T150405",  // Local or TZID
-		"20060102",         // Date only (all-day)
-	}
-
-	for _, f := range formats {
-		parsed, err := time.Parse(f, val)
-		if err == nil {
-			if loc != nil && !strings.HasSuffix(val, "Z") {
-				parsed = time.Date(parsed.Year(), parsed.Month(), parsed.Day(),
-					parsed.Hour(), parsed.Minute(), parsed.Second(), 0, loc)
-			} else if !strings.HasSuffix(val, "Z") && loc == nil {
-				// No timezone specified; treat as UTC for consistency.
-				parsed = parsed.UTC()
-			}
-			return parsed, nil
+// ParseValue parses a bare iCalendar DATE-TIME or DATE value. Values without
+// a zone are returned as UTC.
+func ParseValue(val string) (time.Time, error) {
+	for _, layout := range []string{"20060102T150405Z", "20060102T150405", "20060102"} {
+		if t, err := time.Parse(layout, val); err == nil {
+			return t, nil
 		}
 	}
-
 	return time.Time{}, fmt.Errorf("cannot parse time value %q", val)
 }
 
@@ -207,13 +194,7 @@ func parseDuration(val string) (time.Duration, error) {
 
 	var d time.Duration
 
-	// Split on T for date/time parts.
-	parts := strings.SplitN(s, "T", 2)
-	datePart := parts[0]
-	timePart := ""
-	if len(parts) > 1 {
-		timePart = parts[1]
-	}
+	datePart, timePart, _ := strings.Cut(s, "T")
 
 	// Parse date part (W, D).
 	if datePart != "" {
@@ -242,24 +223,16 @@ func parseDuration(val string) (time.Duration, error) {
 // parseDurationSegments parses segments like "1H30M" using the given suffix->duration map.
 func parseDurationSegments(s string, suffixes map[byte]time.Duration) time.Duration {
 	var d time.Duration
-	numStr := ""
-
+	start := 0
 	for i := 0; i < len(s); i++ {
-		ch := s[i]
-		if ch >= '0' && ch <= '9' {
-			numStr += string(ch)
+		if s[i] >= '0' && s[i] <= '9' {
 			continue
 		}
-		if dur, ok := suffixes[ch]; ok && numStr != "" {
-			n := 0
-			for _, c := range numStr {
-				n = n*10 + int(c-'0')
-			}
-			d += time.Duration(n) * dur
-			numStr = ""
+		if n, err := strconv.Atoi(s[start:i]); err == nil {
+			d += time.Duration(n) * suffixes[s[i]]
 		}
+		start = i + 1
 	}
-
 	return d
 }
 
@@ -275,14 +248,8 @@ func isActiveInRecurrence(rrule string, dtstart, dtend time.Time, t time.Time) (
 	}
 
 	interval := 1
-	if v, ok := params["INTERVAL"]; ok {
-		n := 0
-		for _, c := range v {
-			n = n*10 + int(c-'0')
-		}
-		if n > 0 {
-			interval = n
-		}
+	if n, err := strconv.Atoi(params["INTERVAL"]); err == nil && n > 0 {
+		interval = n
 	}
 
 	// Determine the event duration.
@@ -292,21 +259,14 @@ func isActiveInRecurrence(rrule string, dtstart, dtend time.Time, t time.Time) (
 	var until *time.Time
 	maxCount := 0
 	if v, ok := params["UNTIL"]; ok {
-		parsed, err := time.Parse("20060102T150405Z", v)
+		parsed, err := ParseValue(v)
 		if err != nil {
-			parsed, err = time.Parse("20060102", v)
-			if err != nil {
-				return false, nil
-			}
+			return false, nil
 		}
 		until = &parsed
 	}
 	if v, ok := params["COUNT"]; ok {
-		n := 0
-		for _, c := range v {
-			n = n*10 + int(c-'0')
-		}
-		maxCount = n
+		maxCount, _ = strconv.Atoi(v)
 	}
 
 	// Parse BYDAY for WEEKLY frequency.
@@ -355,9 +315,8 @@ func isActiveInRecurrence(rrule string, dtstart, dtend time.Time, t time.Time) (
 func parseRRULE(rrule string) map[string]string {
 	result := make(map[string]string)
 	for part := range strings.SplitSeq(rrule, ";") {
-		kv := strings.SplitN(part, "=", 2)
-		if len(kv) == 2 {
-			result[kv[0]] = kv[1]
+		if k, v, ok := strings.Cut(part, "="); ok {
+			result[k] = v
 		}
 	}
 	return result

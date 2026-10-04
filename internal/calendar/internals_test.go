@@ -7,6 +7,19 @@ import (
 	ics "github.com/arran4/golang-ical"
 )
 
+func TestParseValue(t *testing.T) {
+	for in, wantErr := range map[string]bool{
+		"20260115T090000Z": false,
+		"20260115T090000":  false,
+		"20260115":         false,
+		"not-a-timestamp":  true,
+	} {
+		if _, err := ParseValue(in); (err != nil) != wantErr {
+			t.Errorf("ParseValue(%q) error = %v, wantErr %v", in, err, wantErr)
+		}
+	}
+}
+
 func TestIsDateOnly(t *testing.T) {
 	// nil property → false
 	if isDateOnly(nil) {

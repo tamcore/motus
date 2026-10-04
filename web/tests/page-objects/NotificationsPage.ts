@@ -144,10 +144,6 @@ export class NotificationsPage {
     return this.ruleCards.nth(index).locator('button:has-text("Test")');
   }
 
-  getRuleToggle(index: number) {
-    return this.ruleCards.nth(index).locator('.toggle-switch input');
-  }
-
   async expectLoaded() {
     await expect(this.title).toContainText('Notification Rules');
   }

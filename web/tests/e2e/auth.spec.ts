@@ -20,6 +20,15 @@ test.describe('Authentication', () => {
     await expect(loginPage.submitButton).toBeVisible();
   });
 
+  test('should mark email and password as required typed inputs', async ({ page }) => {
+    await expect(loginPage.emailInput).toHaveAttribute('type', 'email');
+    await expect(loginPage.emailInput).toHaveAttribute('required');
+    await expect(loginPage.passwordInput).toHaveAttribute('type', 'password');
+    await expect(loginPage.passwordInput).toHaveAttribute('required');
+    await expect(page.locator('label[for="email"] .required')).toBeVisible();
+    await expect(page.locator('label[for="password"] .required')).toBeVisible();
+  });
+
   test('should have correct page title', async ({ page }) => {
     await expect(page).toHaveTitle('Login - Motus', { timeout: 10000 });
   });

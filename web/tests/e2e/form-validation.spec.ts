@@ -1,62 +1,6 @@
 import { test, expect } from '../fixtures/auth-fixture';
 
 test.describe('Form Validation', () => {
-  test.describe('Login Form', () => {
-    // The default Playwright project loads a stored authenticated session,
-    // and the login page auto-redirects authenticated users to /. Drop the
-    // session for these tests so the login form actually renders.
-    test.beforeEach(async ({ context, page }) => {
-      await context.clearCookies();
-      await page.goto('/login');
-      await page.evaluate(() => {
-        localStorage.clear();
-        if (typeof indexedDB !== 'undefined') {
-          indexedDB.deleteDatabase('motus_auth');
-        }
-      });
-    });
-
-    test('should have required attribute on email input', async ({ page }) => {
-      await page.goto('/login');
-      await page.waitForSelector('input[name="email"]');
-      const required = await page.locator('input[name="email"]').getAttribute('required');
-      expect(required).not.toBeNull();
-    });
-
-    test('should have required attribute on password input', async ({ page }) => {
-      await page.goto('/login');
-      await page.waitForSelector('input[name="password"]');
-      const required = await page.locator('input[name="password"]').getAttribute('required');
-      expect(required).not.toBeNull();
-    });
-
-    test('should show required asterisk for email label', async ({ page }) => {
-      await page.goto('/login');
-      await page.waitForSelector('input[name="email"]');
-      const asterisk = page.locator('label[for="email"] .required');
-      await expect(asterisk).toBeVisible();
-    });
-
-    test('should show required asterisk for password label', async ({ page }) => {
-      await page.goto('/login');
-      await page.waitForSelector('input[name="password"]');
-      const asterisk = page.locator('label[for="password"] .required');
-      await expect(asterisk).toBeVisible();
-    });
-
-    test('should have email type on email input', async ({ page }) => {
-      await page.goto('/login');
-      const type = await page.locator('input[name="email"]').getAttribute('type');
-      expect(type).toBe('email');
-    });
-
-    test('should have password type on password input', async ({ page }) => {
-      await page.goto('/login');
-      const type = await page.locator('input[name="password"]').getAttribute('type');
-      expect(type).toBe('password');
-    });
-  });
-
   test.describe('Device Form', () => {
     test('should show error when name and identifier are empty', async ({ authedPage }) => {
       await authedPage.goto('/devices');

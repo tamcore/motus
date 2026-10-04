@@ -57,14 +57,6 @@ export class GeofencesPage {
     return this.page.locator('[role="dialog"] button:has-text("Cancel")');
   }
 
-  getFenceDeleteButton(index: number) {
-    return this.fenceItems.nth(index).locator('.fence-delete');
-  }
-
-  getFenceInfo(index: number) {
-    return this.fenceItems.nth(index).locator('.fence-info');
-  }
-
   async expectLoaded() {
     await expect(this.sidebarTitle).toContainText('Geofences');
     await expect(this.mapContainer).toBeVisible();

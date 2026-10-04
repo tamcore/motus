@@ -114,14 +114,6 @@ export class DevicesPage {
     return this.tableRows.filter({ hasText: deviceName }).locator('td.td-battery');
   }
 
-  getEditButton(rowIndex: number) {
-    return this.tableRows.nth(rowIndex).locator('button:has-text("Edit")');
-  }
-
-  getDeleteButton(rowIndex: number) {
-    return this.tableRows.nth(rowIndex).locator('button:has-text("Delete")');
-  }
-
   async expectLoaded() {
     await expect(this.title).toContainText('Devices');
     await expect(this.searchInput).toBeVisible();

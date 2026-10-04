@@ -34,10 +34,6 @@ export class LoginPage {
     await expect(this.page.locator(".error-message")).toContainText(message);
   }
 
-  async expectNoError() {
-    await expect(this.page.locator(".error-message")).toHaveCount(0);
-  }
-
   get emailInput() {
     return this.page.locator('input[name="email"]');
   }
@@ -56,10 +52,6 @@ export class LoginPage {
 
   async expectSSOButtonVisible() {
     await expect(this.ssoButton).toBeVisible();
-  }
-
-  async expectSSOButtonHidden() {
-    await expect(this.ssoButton).toHaveCount(0);
   }
 
   async clickSSO() {

@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("$app/environment", () => ({ browser: true }));
 
 vi.mock("$lib/stores/settings", async () => {
-  const { writable, get } = await import("svelte/store");
+  const { writable } = await import("svelte/store");
   const defaultSettings = {
     dateFormat: "iso" as const,
     timezone: "local",
@@ -19,7 +19,6 @@ vi.mock("$lib/stores/settings", async () => {
   const store = writable(defaultSettings);
   return {
     settings: store,
-    getSettings: () => get(store),
   };
 });
 

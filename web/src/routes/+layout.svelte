@@ -55,19 +55,13 @@
 		const urlToken = $page.url.searchParams.get('token');
 		if (urlToken && !$isAuthenticated) {
 			try {
-				const response = await fetch(`/api/session?token=${encodeURIComponent(urlToken)}`, {
-					credentials: 'include',
-				});
-				if (response.ok) {
-					const userData = await response.json();
-					currentUser.set(userData);
-					isAuthenticated.set(true);
-					wsManager.connect();
-					// Remove token from URL for security
-					window.history.replaceState({}, '', $page.url.pathname);
-					loading = false;
-					return;
-				}
+				currentUser.set(await api.loginWithToken(urlToken));
+				isAuthenticated.set(true);
+				wsManager.connect();
+				// Remove token from URL for security
+				window.history.replaceState({}, '', $page.url.pathname);
+				loading = false;
+				return;
 			} catch {
 				// Token login failed; continue to normal flow
 			}

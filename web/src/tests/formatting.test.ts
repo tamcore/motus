@@ -5,7 +5,7 @@ vi.mock("$app/environment", () => ({ browser: false }));
 
 // Use a shared reference for mock settings that the factory can capture
 vi.mock("$lib/stores/settings", async () => {
-  const { writable, get } = await import("svelte/store");
+  const { writable } = await import("svelte/store");
   const defaultSettings = {
     dateFormat: "iso" as "iso" | "locale" | "relative",
     timezone: "local",
@@ -21,7 +21,6 @@ vi.mock("$lib/stores/settings", async () => {
   const store = writable(defaultSettings);
   return {
     settings: store,
-    getSettings: () => get(store),
   };
 });
 

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { api, fetchDevices } from '$lib/api/client';
-	import { getSettings } from '$lib/stores/settings';
+	import { settings } from '$lib/stores/settings';
 	import { isAdmin } from '$lib/stores/auth';
 	import { refreshHandler } from '$lib/stores/refresh';
 	import type { Device, Position } from '$lib/types/api';
@@ -32,7 +32,7 @@
 	}
 
 	async function loadDashboard() {
-		const showAll = $isAdmin && getSettings().showAllDevices;
+		const showAll = $isAdmin && $settings.showAllDevices;
 		const todayStart = new Date();
 		todayStart.setHours(0, 0, 0, 0);
 		const [deviceList, latestPositions, todayCount] = await Promise.all([

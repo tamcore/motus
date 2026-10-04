@@ -1,29 +1,15 @@
-/**
- * TypeScript type definitions for the Motus API.
- *
- * These interfaces mirror the backend Go models and are used throughout
- * the frontend for type-safe API interactions.
- */
-
-// ---------------------------------------------------------------------------
-// User
-// ---------------------------------------------------------------------------
-
-/** A system user as returned by the API. */
 export interface User {
   id: number;
   email: string;
   name: string;
   createdAt: string;
 
-  /** Traccar-compatible fields (computed from role on the backend). */
   administrator: boolean;
   readonly: boolean;
   disabled: boolean;
   attributes?: Record<string, unknown>;
 }
 
-/** Payload for creating or updating a user (admin). Password is optional on update. */
 export interface UserPayload {
   email: string;
   name: string;
@@ -31,7 +17,6 @@ export interface UserPayload {
   role?: string;
 }
 
-/** Payload for updating the authenticated user's own profile. */
 export interface UpdateProfilePayload {
   name?: string;
   email?: string;
@@ -39,14 +24,9 @@ export interface UpdateProfilePayload {
   password?: string;
 }
 
-// ---------------------------------------------------------------------------
-// Device
-// ---------------------------------------------------------------------------
-
 /** Device connection state; "unknown" means it never connected. */
 export type DeviceStatus = "online" | "offline" | "unknown";
 
-/** A GPS tracking device. */
 export interface Device {
   id: number;
   uniqueId: string;
@@ -71,7 +51,6 @@ export interface Device {
   ownerName?: string;
 }
 
-/** Payload for creating or updating a device. */
 export interface DevicePayload {
   uniqueId: string;
   name: string;
@@ -86,18 +65,12 @@ export interface DevicePayload {
   attributes?: Record<string, unknown>;
 }
 
-// ---------------------------------------------------------------------------
-// Position
-// ---------------------------------------------------------------------------
-
-/** A GPS position report from a device. */
 export interface Position {
   id: number;
   deviceId: number;
   protocol?: string;
   serverTime?: string | null;
   deviceTime?: string | null;
-  /** The GPS fix time. Mapped from Go field `Timestamp` with JSON tag `fixTime`. */
   fixTime: string;
   valid: boolean;
   latitude: number;
@@ -124,15 +97,10 @@ export interface PositionPoint {
   altitude?: number;
 }
 
-// ---------------------------------------------------------------------------
-// Calendar
-// ---------------------------------------------------------------------------
-
 /** A time-based schedule stored in iCalendar (RFC 5545) format. */
 export interface Calendar {
   id: number;
   name: string;
-  /** iCalendar (RFC 5545) data string. */
   data: string;
   createdAt: string;
   updatedAt: string;
@@ -140,22 +108,15 @@ export interface Calendar {
   ownerName?: string;
 }
 
-/** Payload for creating or (fully) updating a calendar. */
 export interface CalendarPayload {
   name: string;
   data: string;
 }
 
-/** Response from checking if a calendar is currently active. */
 export interface CalendarCheckResponse {
   active: boolean;
-  /** Next time the schedule becomes active, when known. */
   nextTrigger?: string | null;
 }
-
-// ---------------------------------------------------------------------------
-// Trail bookmark
-// ---------------------------------------------------------------------------
 
 /** A named, saved time range of a device's trail (e.g. a hike). */
 export interface TrailBookmark {
@@ -165,15 +126,12 @@ export interface TrailBookmark {
   deviceName?: string;
   name: string;
   description: string;
-  /** ISO 8601 start of the range. */
   from: string;
-  /** ISO 8601 end of the range. */
   to: string;
   createdAt: string;
   updatedAt: string;
 }
 
-/** Payload for creating or (fully) updating a trail bookmark. */
 export interface TrailBookmarkPayload {
   deviceId: number;
   name: string;
@@ -182,11 +140,6 @@ export interface TrailBookmarkPayload {
   to: string;
 }
 
-// ---------------------------------------------------------------------------
-// Geofence
-// ---------------------------------------------------------------------------
-
-/** A geographic boundary with GeoJSON geometry. */
 export interface Geofence {
   id: number;
   name: string;
@@ -202,7 +155,6 @@ export interface Geofence {
   ownerName?: string;
 }
 
-/** Payload for creating a new geofence. */
 export interface CreateGeofencePayload {
   name: string;
   description?: string;
@@ -210,7 +162,6 @@ export interface CreateGeofencePayload {
   calendarId?: number | null;
 }
 
-/** Payload for updating an existing geofence. */
 export interface UpdateGeofencePayload {
   name?: string;
   description?: string;
@@ -218,27 +169,16 @@ export interface UpdateGeofencePayload {
   calendarId?: number | null;
 }
 
-// ---------------------------------------------------------------------------
-// Event
-// ---------------------------------------------------------------------------
-
-/** A system event (geofence enter/exit, alarm, etc). */
 export interface Event {
   id: number;
   deviceId: number;
   geofenceId?: number | null;
   type: string;
   positionId?: number | null;
-  /** The event time. Mapped from Go field `Timestamp` with JSON tag `eventTime`. */
   eventTime: string;
   attributes?: Record<string, unknown>;
 }
 
-// ---------------------------------------------------------------------------
-// Command
-// ---------------------------------------------------------------------------
-
-/** A control command sent to a device. */
 export interface Command {
   id: number;
   deviceId: number;
@@ -249,10 +189,6 @@ export interface Command {
   createdAt: string;
   executedAt?: string | null;
 }
-
-// ---------------------------------------------------------------------------
-// Notification
-// ---------------------------------------------------------------------------
 
 export interface NotificationConfigWebhook {
   channel: "webhook";
@@ -271,7 +207,6 @@ export interface NotificationConfigCommand {
 export type NotificationConfig = NotificationConfigWebhook | NotificationConfigCommand;
 export type NotificationChannel = NotificationConfig["channel"];
 
-/** A notification rule defining when and how to send notifications. */
 export interface NotificationRule {
   id: number;
   userId: number;
@@ -289,7 +224,6 @@ export interface NotificationRule {
   ownerName?: string;
 }
 
-/** Payload for creating or (fully) updating a notification rule. */
 export interface NotificationPayload {
   name: string;
   eventTypes: string[];
@@ -300,7 +234,6 @@ export interface NotificationPayload {
   geofenceIds?: number[];
 }
 
-/** A notification delivery log entry. */
 export interface NotificationLog {
   id: number;
   ruleId: number;
@@ -311,11 +244,6 @@ export interface NotificationLog {
   responseCode?: number;
 }
 
-// ---------------------------------------------------------------------------
-// Device Share
-// ---------------------------------------------------------------------------
-
-/** A shareable link for public device tracking. */
 export interface DeviceShare {
   id: number;
   deviceId: number;
@@ -325,11 +253,6 @@ export interface DeviceShare {
   createdAt: string;
 }
 
-// ---------------------------------------------------------------------------
-// Session / Auth
-// ---------------------------------------------------------------------------
-
-/** An active user session. */
 export interface Session {
   id: string;
   userId: number;
@@ -344,23 +267,16 @@ export interface Session {
   lastSeenUserAgent?: string | null;
 }
 
-/** Response from token generation (POST /api/session/token). */
 export interface TokenResponse {
   token: string;
 }
 
-/** Sudo status response (GET /api/admin/sudo). */
 export interface SudoStatusResponse {
   active: boolean;
   originalUserId?: number | null;
   targetUserId?: number | null;
 }
 
-// ---------------------------------------------------------------------------
-// Admin Statistics
-// ---------------------------------------------------------------------------
-
-/** Platform-wide aggregate statistics. */
 export interface PlatformStats {
   totalUsers: number;
   totalDevices: number;
@@ -372,7 +288,6 @@ export interface PlatformStats {
   activeUsers: number;
 }
 
-/** Statistics for a specific user. */
 export interface UserStats {
   userId: number;
   devicesOwned: number;
@@ -382,11 +297,6 @@ export interface UserStats {
   geofencesOwned: number;
 }
 
-// ---------------------------------------------------------------------------
-// Audit Log
-// ---------------------------------------------------------------------------
-
-/** A single audit log entry. */
 export interface AuditEntry {
   id: number;
   action: string;
@@ -399,17 +309,11 @@ export interface AuditEntry {
   createdAt: string;
 }
 
-/** Paginated response from the audit log endpoint. */
 export interface AuditLogResponse {
   entries: AuditEntry[];
   total: number;
 }
 
-// ---------------------------------------------------------------------------
-// API Keys
-// ---------------------------------------------------------------------------
-
-/** An API key for external integrations. */
 export interface ApiKey {
   id: number;
   userId: number;
@@ -418,13 +322,11 @@ export interface ApiKey {
   name: string;
   /** "full" or "readonly" */
   permissions: string;
-  /** ISO 8601 expiration date, or null/undefined for never-expiring keys. */
   expiresAt?: string | null;
   createdAt: string;
   lastUsedAt?: string | null;
 }
 
-/** Payload for creating a new API key. */
 export interface CreateApiKeyPayload {
   name: string;
   permissions: string;
@@ -432,11 +334,6 @@ export interface CreateApiKeyPayload {
   expiresAt?: string | null;
 }
 
-// ---------------------------------------------------------------------------
-// Passkeys (WebAuthn)
-// ---------------------------------------------------------------------------
-
-/** A registered WebAuthn passkey credential (metadata only, no secrets). */
 export interface PasskeyCredentialInfo {
   id: number;
   name: string;
@@ -444,25 +341,11 @@ export interface PasskeyCredentialInfo {
   lastUsedAt?: string | null;
 }
 
-// ---------------------------------------------------------------------------
-// WebSocket Messages
-// ---------------------------------------------------------------------------
-
-/**
- * A message received over the WebSocket connection.
- *
- * The server sends Traccar-compatible messages containing updated
- * devices, positions, and/or events.
- */
 export interface WebSocketMessage {
   devices?: Device[];
   positions?: Position[];
   events?: Event[];
 }
-
-// ---------------------------------------------------------------------------
-// Server Info
-// ---------------------------------------------------------------------------
 
 export interface ServerInfo {
   id: number;
@@ -479,10 +362,6 @@ export interface ServerInfo {
   openIdForce?: boolean;
   aiEnabled?: boolean;
 }
-
-// ---------------------------------------------------------------------------
-// AI Chat
-// ---------------------------------------------------------------------------
 
 export type ChatMessage =
   | { role: "user"; content: string }

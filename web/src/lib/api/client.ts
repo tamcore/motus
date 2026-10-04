@@ -24,6 +24,7 @@ import type {
   PlatformStats,
   Position,
   PositionPoint,
+  ServerInfo,
   Session,
   SudoStatusResponse,
   TokenResponse,
@@ -38,11 +39,13 @@ import type {
 import type { Trip } from "$lib/utils/trips";
 import type { Stop } from "$lib/utils/stops";
 import { currentUser, isAdmin } from "$lib/stores/auth";
-import * as svelteStore from "svelte/store";
-import { getAuthHeaders, setCsrfToken } from "./headers";
+import { settings } from "$lib/stores/settings";
+import { getStoredAuthToken } from "$lib/auth-token-store";
+import { get } from "svelte/store";
 
 const API_BASE = "/api";
 const KNOTS_TO_KMH = 1.852;
+const CSRF_METHODS = ["POST", "PUT", "DELETE", "PATCH"];
 
 /** Converts a position's speed from knots (Traccar API) to km/h (internal UI unit). */
 export function speedToKmh<T extends { speed?: number | null }>(pos: T): T {
@@ -58,6 +61,8 @@ export class APIError extends Error {
   }
 }
 
+let csrfToken: string | null = null;
+
 /** The `error` field of a JSON error body, else the raw body. */
 function errorMessage(body: string, status: number): string {
   try {
@@ -69,16 +74,15 @@ function errorMessage(body: string, status: number): string {
   return body || `Request failed (${status})`;
 }
 
-export async function request<T>(
-  endpoint: string,
-  options: RequestInit = {},
-): Promise<T> {
+/** Fetches an API endpoint with auth/CSRF headers; throws APIError on a non-2xx status. */
+export async function apiFetch(endpoint: string, options: RequestInit = {}): Promise<Response> {
   const method = (options.method || "GET").toUpperCase();
-  const authHeaders = await getAuthHeaders(method);
+  const authToken = await getStoredAuthToken();
   const headers: HeadersInit = {
     // The browser sets the multipart boundary for FormData bodies.
     ...(options.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
-    ...authHeaders,
+    ...(csrfToken && CSRF_METHODS.includes(method) ? { "X-CSRF-Token": csrfToken } : {}),
+    ...(authToken ? { "X-Auth-Token": authToken } : {}),
     ...options.headers,
   };
 
@@ -89,22 +93,36 @@ export async function request<T>(
   });
 
   const token = response.headers.get("X-CSRF-Token");
-  if (token) {
-    setCsrfToken(token);
-  }
+  if (token) csrfToken = token;
 
   if (!response.ok) {
     throw new APIError(response.status, errorMessage(await response.text(), response.status));
   }
+  return response;
+}
 
-  if (
-    response.status === 204 ||
-    response.headers.get("content-length") === "0"
-  ) {
+export async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const response = await apiFetch(endpoint, options);
+  if (response.status === 204 || response.headers.get("content-length") === "0") {
     return undefined as T;
   }
-
   return response.json();
+}
+
+const send = (method: string, body: unknown): RequestInit => ({ method, body: JSON.stringify(body) });
+
+type QueryValue = string | number | boolean | null | undefined;
+
+/** `?a=1&b=2` from the truthy values (arrays repeat the key); "" when none. */
+function query(params: Record<string, QueryValue | QueryValue[]>): string {
+  const q = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    for (const v of Array.isArray(value) ? value : [value]) {
+      if (v) q.append(key, String(v));
+    }
+  }
+  const qs = q.toString();
+  return qs ? `?${qs}` : "";
 }
 
 interface ReportParams {
@@ -113,170 +131,52 @@ interface ReportParams {
   to: string;
 }
 
-function reportQuery(params: ReportParams): URLSearchParams {
-  const query = new URLSearchParams({ from: params.from, to: params.to });
-  for (const id of params.deviceIds) query.append("deviceId", String(id));
-  return query;
-}
-
 export const api = {
-  // ---------------------------------------------------------------------------
-  // Server
-  // ---------------------------------------------------------------------------
+  getServerInfo: () => request<ServerInfo>("/server"),
 
-  /** Fetch server configuration including aiEnabled flag. */
-  getServerInfo: () => request<import("$lib/types/api").ServerInfo>("/server"),
-
-  // ---------------------------------------------------------------------------
-  // Auth
-  // ---------------------------------------------------------------------------
-
-  /** Authenticate with email and password. Returns the logged-in user. */
   login: (email: string, password: string, remember: boolean = false) =>
-    request<User>("/session", {
-      method: "POST",
-      body: JSON.stringify({ email, password, remember }),
-    }),
-
-  /** End the current session. */
+    request<User>("/session", send("POST", { email, password, remember })),
+  loginWithToken: (token: string) => request<User>(`/session${query({ token })}`),
   logout: () => request<void>("/session", { method: "DELETE" }),
-
-  /** Get the currently authenticated user. */
   getCurrentUser: () => request<User>("/session"),
+  generateToken: () => request<TokenResponse>("/session/token", { method: "POST" }),
 
-  /** Generate a new API token for the current user. */
-  generateToken: () =>
-    request<TokenResponse>("/session/token", { method: "POST" }),
-
-  // ---------------------------------------------------------------------------
-  // Passkeys (WebAuthn)
-  // ---------------------------------------------------------------------------
-
-  /**
-   * Begin passkey registration (authed). Returns the raw
-   * PublicKeyCredentialCreationOptions JSON to feed directly into
-   * @simplewebauthn/browser's startRegistration.
-   */
+  /** Returns the raw options JSON for @simplewebauthn/browser's startRegistration. */
   passkeyRegisterBegin: () =>
-    request<PublicKeyCredentialCreationOptionsJSON>(
-      "/session/passkey/register/begin",
-      { method: "POST" },
-    ),
-
-  /**
-   * Finish passkey registration (authed). Sends the raw attestation JSON
-   * produced by startRegistration and a human-readable label.
-   */
-  passkeyRegisterFinish: (
-    attestationJSON: RegistrationResponseJSON,
-    name: string,
-  ) =>
+    request<PublicKeyCredentialCreationOptionsJSON>("/session/passkey/register/begin", { method: "POST" }),
+  passkeyRegisterFinish: (attestationJSON: RegistrationResponseJSON, name: string) =>
     request<PasskeyCredentialInfo>(
-      `/session/passkey/register/finish?name=${encodeURIComponent(name)}`,
-      {
-        method: "POST",
-        body: JSON.stringify(attestationJSON),
-      },
+      `/session/passkey/register/finish${query({ name })}`,
+      send("POST", attestationJSON),
     ),
-
-  /**
-   * Begin passkey login (public). Returns the raw
-   * PublicKeyCredentialRequestOptions JSON to feed directly into
-   * @simplewebauthn/browser's startAuthentication.
-   */
+  /** Public. Returns the raw options JSON for @simplewebauthn/browser's startAuthentication. */
   passkeyLoginBegin: () =>
-    request<PublicKeyCredentialRequestOptionsJSON>(
-      "/session/passkey/login/begin",
-      { method: "POST" },
-    ),
-
-  /**
-   * Finish passkey login (public). Sends the raw assertion JSON produced by
-   * startAuthentication; on success the session cookie is set and the User
-   * is returned.
-   */
+    request<PublicKeyCredentialRequestOptionsJSON>("/session/passkey/login/begin", { method: "POST" }),
+  /** Public. On success the session cookie is set. */
   passkeyLoginFinish: (assertionJSON: AuthenticationResponseJSON) =>
-    request<User>("/session/passkey/login/finish", {
-      method: "POST",
-      body: JSON.stringify(assertionJSON),
-    }),
+    request<User>("/session/passkey/login/finish", send("POST", assertionJSON)),
+  listPasskeys: () => request<PasskeyCredentialInfo[]>("/session/passkey/credentials"),
+  deletePasskey: (id: number) => request<void>(`/session/passkey/credentials/${id}`, { method: "DELETE" }),
 
-  /** List all passkeys registered for the current user (authed). */
-  listPasskeys: () =>
-    request<PasskeyCredentialInfo[]>("/session/passkey/credentials"),
-
-  /** Delete a passkey by ID (authed). */
-  deletePasskey: (id: number) =>
-    request<void>(`/session/passkey/credentials/${id}`, {
-      method: "DELETE",
-    }),
-
-  // ---------------------------------------------------------------------------
-  // Devices
-  // ---------------------------------------------------------------------------
-
-  /** List all devices accessible to the current user. */
   getDevices: () => request<Device[]>("/devices"),
-
-  /** Create a new device. */
-  createDevice: (device: DevicePayload) =>
-    request<Device>("/devices", {
-      method: "POST",
-      body: JSON.stringify(device),
-    }),
-
-  /** Update an existing device. */
-  updateDevice: (id: number, device: DevicePayload) =>
-    request<Device>(`/devices/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(device),
-    }),
-
-  /** Delete a device by ID. */
-  deleteDevice: (id: number) =>
-    request<void>(`/devices/${id}`, { method: "DELETE" }),
-
-  /** Import a GPX track file into a device's position history. */
+  createDevice: (device: DevicePayload) => request<Device>("/devices", send("POST", device)),
+  updateDevice: (id: number, device: DevicePayload) => request<Device>(`/devices/${id}`, send("PUT", device)),
+  deleteDevice: (id: number) => request<void>(`/devices/${id}`, { method: "DELETE" }),
   importGPX: (deviceId: number, file: File) => {
     const body = new FormData();
     body.append("file", file);
-    return request<{ imported: number }>(`/devices/${deviceId}/gpx`, {
-      method: "POST",
-      body,
-    });
+    return request<{ imported: number }>(`/devices/${deviceId}/gpx`, { method: "POST", body });
   },
 
-  // ---------------------------------------------------------------------------
-  // Positions
-  // ---------------------------------------------------------------------------
-
-  /** Count positions in [from, to]; `all` counts every device (admin only). */
-  countPositions: (params: { from: string; to: string; all?: boolean }) => {
-    const query = new URLSearchParams({ from: params.from, to: params.to });
-    if (params.all) query.set("all", "true");
-    return request<{ count: number }>(`/positions/count?${query}`).then((r) => r.count);
-  },
-
-  /** Query positions with optional filters. */
-  getPositions: (params?: {
-    deviceId?: number;
-    from?: string;
-    to?: string;
-    limit?: number;
-  }) => {
-    const query = new URLSearchParams();
-    if (params?.deviceId) query.set("deviceId", String(params.deviceId));
-    if (params?.from) query.set("from", params.from);
-    if (params?.to) query.set("to", params.to);
-    if (params?.limit) query.set("limit", String(params.limit));
-
-    return request<Position[]>(`/positions?${query}`).then((positions) => positions.map(speedToKmh));
-  },
-
+  /** `all` counts every device (admin only). */
+  countPositions: (params: { from: string; to: string; all?: boolean }) =>
+    request<{ count: number }>(`/positions/count${query(params)}`).then((r) => r.count),
+  getPositions: (params: { deviceId?: number; from?: string; to?: string; limit?: number } = {}) =>
+    request<Position[]>(`/positions${query(params)}`).then((positions) => positions.map(speedToKmh)),
   /** Server-side trips and stops in one pass; trip speeds are converted from knots to km/h. */
-  getActivityReport: (params: ReportParams) =>
+  getActivityReport: ({ deviceIds, from, to }: ReportParams) =>
     request<{ trips: Omit<Trip, "id">[]; stops: Omit<Stop, "id">[] }>(
-      `/reports/activity?${reportQuery(params)}`,
+      `/reports/activity${query({ from, to, deviceId: deviceIds })}`,
     ).then(({ trips, stops }) => ({
       trips: trips.map((t, i): Trip => ({
         ...t,
@@ -286,339 +186,95 @@ export const api = {
       })),
       stops: stops.map((s, i): Stop => ({ ...s, id: `stop-${s.deviceId}-${i}` })),
     })),
+  /** Compact range points, sampled to `limit` by the server. */
+  getPositionPoints: (params: { deviceId: number; from: string; to: string; limit?: number }) =>
+    request<PositionPoint[]>(`/positions/points${query(params)}`).then((points) => points.map(speedToKmh)),
 
-  /** Compact range points (lat, lon, speed, fixTime), sampled to `limit` by the server. */
-  getPositionPoints: (params: {
-    deviceId: number;
-    from: string;
-    to: string;
-    limit?: number;
-  }) => {
-    const query = new URLSearchParams({
-      deviceId: String(params.deviceId),
-      from: params.from,
-      to: params.to,
-    });
-    if (params.limit) query.set("limit", String(params.limit));
-    return request<PositionPoint[]>(`/positions/points?${query}`).then((points) =>
-      points.map(speedToKmh),
-    );
-  },
-
-  // ---------------------------------------------------------------------------
-  // Commands
-  // ---------------------------------------------------------------------------
-
-  /** Get command types; with deviceId only those the device protocol supports. */
-  getCommandTypes: (deviceId?: number) =>
-    request<{ type: string }[]>(
-      deviceId === undefined ? "/commands/types" : `/commands/types?deviceId=${deviceId}`,
-    ),
-
-  /** Send a command to a device. */
-  sendCommand: (command: {
-    deviceId: number;
-    type: string;
-    attributes?: Record<string, unknown>;
-  }) =>
-    request<Command>("/commands/send", {
-      method: "POST",
-      body: JSON.stringify(command),
-    }),
-
-  /** List recent commands for a device. */
+  /** With deviceId, only the types the device protocol supports. */
+  getCommandTypes: (deviceId?: number) => request<{ type: string }[]>(`/commands/types${query({ deviceId })}`),
+  sendCommand: (command: { deviceId: number; type: string; attributes?: Record<string, unknown> }) =>
+    request<Command>("/commands/send", send("POST", command)),
   listCommands: (deviceId: number, limit: number = 10) =>
-    request<Command[]>(`/commands?deviceId=${deviceId}&limit=${limit}`),
+    request<Command[]>(`/commands${query({ deviceId, limit })}`),
 
-  // ---------------------------------------------------------------------------
-  // Geofences
-  // ---------------------------------------------------------------------------
-
-  /** List all geofences for the current user. */
   getGeofences: () => request<Geofence[]>("/geofences"),
-
-  /** Create a new geofence. */
-  createGeofence: (geofence: CreateGeofencePayload) =>
-    request<Geofence>("/geofences", {
-      method: "POST",
-      body: JSON.stringify(geofence),
-    }),
-
-  /** Update an existing geofence. */
+  createGeofence: (geofence: CreateGeofencePayload) => request<Geofence>("/geofences", send("POST", geofence)),
   updateGeofence: (id: number, geofence: UpdateGeofencePayload) =>
-    request<Geofence>(`/geofences/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(geofence),
-    }),
+    request<Geofence>(`/geofences/${id}`, send("PUT", geofence)),
+  deleteGeofence: (id: number) => request<void>(`/geofences/${id}`, { method: "DELETE" }),
 
-  /** Delete a geofence by ID. */
-  deleteGeofence: (id: number) =>
-    request<void>(`/geofences/${id}`, { method: "DELETE" }),
-
-  // ---------------------------------------------------------------------------
-  // Notifications
-  // ---------------------------------------------------------------------------
-
-  /** List all notification rules for the current user. */
   getNotifications: () => request<NotificationRule[]>("/notifications"),
-
-  /** Create a new notification rule. */
   createNotification: (rule: NotificationPayload) =>
-    request<NotificationRule>("/notifications", {
-      method: "POST",
-      body: JSON.stringify(rule),
-    }),
-
-  /** Update an existing notification rule. */
+    request<NotificationRule>("/notifications", send("POST", rule)),
   updateNotification: (id: number, rule: NotificationPayload) =>
-    request<NotificationRule>(`/notifications/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(rule),
-    }),
+    request<NotificationRule>(`/notifications/${id}`, send("PUT", rule)),
+  deleteNotification: (id: number) => request<void>(`/notifications/${id}`, { method: "DELETE" }),
+  testNotification: (id: number) => request<void>(`/notifications/${id}/test`, { method: "POST" }),
+  getNotificationLogs: (id: number) => request<NotificationLog[]>(`/notifications/${id}/logs`),
 
-  /** Delete a notification rule by ID. */
-  deleteNotification: (id: number) =>
-    request<void>(`/notifications/${id}`, { method: "DELETE" }),
+  updateProfile: (data: UpdateProfilePayload) => request<User>("/profile", send("PUT", data)),
 
-  /** Send a test notification for the given rule. Returns void (204 No Content). */
-  testNotification: (id: number) =>
-    request<void>(`/notifications/${id}/test`, {
-      method: "POST",
-    }),
-
-  /** Get delivery logs for a notification rule. */
-  getNotificationLogs: (id: number) =>
-    request<NotificationLog[]>(`/notifications/${id}/logs`),
-
-  // ---------------------------------------------------------------------------
-  // Users (admin only)
-  // ---------------------------------------------------------------------------
-
-  /** Update the authenticated user's own profile (name, email, password). */
-  updateProfile: (data: UpdateProfilePayload) =>
-    request<User>("/profile", {
-      method: "PUT",
-      body: JSON.stringify(data),
-    }),
-
-  /** List all users (admin only). */
   getUsers: () => request<User[]>("/users"),
-
-  /** Create a new user (admin only). */
-  createUser: (user: UserPayload) =>
-    request<User>("/users", {
-      method: "POST",
-      body: JSON.stringify(user),
-    }),
-
-  /** Update an existing user (admin only). */
-  updateUser: (id: number, user: UserPayload) =>
-    request<User>(`/users/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(user),
-    }),
-
-  /** Delete a user by ID (admin only). */
-  deleteUser: (id: number) =>
-    request<void>(`/users/${id}`, { method: "DELETE" }),
-
-  /** List all devices in the system (admin only). */
+  createUser: (user: UserPayload) => request<User>("/users", send("POST", user)),
+  updateUser: (id: number, user: UserPayload) => request<User>(`/users/${id}`, send("PUT", user)),
+  deleteUser: (id: number) => request<void>(`/users/${id}`, { method: "DELETE" }),
   getAllDevices: () => request<Device[]>("/admin/devices"),
-
-  /** List all geofences in the system (admin only). */
   getAllGeofences: () => request<Geofence[]>("/admin/geofences"),
-
-  /** List all calendars in the system (admin only). */
   getAllCalendars: () => request<Calendar[]>("/admin/calendars"),
-
-  /** List all notification rules in the system (admin only). */
   getAllNotifications: () => request<NotificationRule[]>("/admin/notifications"),
-
-  /**
-   * Query positions across every device (admin only).
-   * Without params: latest position per device.
-   * With from/to/limit: positions across all devices in the window.
-   */
-  getAllPositions: (params?: { from?: string; to?: string; limit?: number }) => {
-    const query = new URLSearchParams();
-    if (params?.from) query.set("from", params.from);
-    if (params?.to) query.set("to", params.to);
-    if (params?.limit) query.set("limit", String(params.limit));
-    const qs = query.toString();
-    const path = qs ? `/admin/positions?${qs}` : "/admin/positions";
-    return request<Position[]>(path).then((positions) => positions.map(speedToKmh));
-  },
-
-  /** Get devices assigned to a user (admin only). */
+  /** Without params: latest position per device; with from/to/limit: all devices in the window. */
+  getAllPositions: (params: { from?: string; to?: string; limit?: number } = {}) =>
+    request<Position[]>(`/admin/positions${query(params)}`).then((positions) => positions.map(speedToKmh)),
   getUserDevices: (id: number) => request<Device[]>(`/users/${id}/devices`),
-
-  /** Assign a device to a user (admin only). */
   assignDevice: (userId: number, deviceId: number) =>
     request<void>(`/users/${userId}/devices/${deviceId}`, { method: "POST" }),
-
-  /** Unassign a device from a user (admin only). */
   unassignDevice: (userId: number, deviceId: number) =>
-    request<void>(`/users/${userId}/devices/${deviceId}`, {
-      method: "DELETE",
-    }),
+    request<void>(`/users/${userId}/devices/${deviceId}`, { method: "DELETE" }),
 
-  // ---------------------------------------------------------------------------
-  // Admin: Sudo
-  // ---------------------------------------------------------------------------
-
-  /** Start impersonating a user (admin only). */
-  startSudo: (userId: number) =>
-    request<void>(`/admin/sudo/${userId}`, { method: "POST" }),
-
-  /** End impersonation session. */
-  endSudo: () =>
-    request<void>("/admin/sudo", { method: "DELETE" }),
-
-  /** Get current sudo/impersonation status. */
+  startSudo: (userId: number) => request<void>(`/admin/sudo/${userId}`, { method: "POST" }),
+  endSudo: () => request<void>("/admin/sudo", { method: "DELETE" }),
   getSudoStatus: () => request<SudoStatusResponse>("/admin/sudo"),
 
-  // ---------------------------------------------------------------------------
-  // Admin: Statistics
-  // ---------------------------------------------------------------------------
-
-  /** Get platform-wide aggregate statistics (admin only). */
   getPlatformStatistics: () => request<PlatformStats>("/admin/statistics"),
+  getUserStatistics: (userId: number) => request<UserStats>(`/admin/statistics/users/${userId}`),
 
-  /** Get statistics for a specific user (admin only). */
-  getUserStatistics: (userId: number) =>
-    request<UserStats>(`/admin/statistics/users/${userId}`),
-
-  // ---------------------------------------------------------------------------
-  // Admin: Audit log
-  // ---------------------------------------------------------------------------
-
-  /** Query paginated audit log entries (admin only). */
-  getAuditLog: (filters?: {
+  getAuditLog: (filters: {
     action?: string;
     userId?: string;
     resourceType?: string;
     limit?: number;
     offset?: number;
-  }) => {
-    const params = new URLSearchParams();
-    if (filters?.action) params.set("action", filters.action);
-    if (filters?.userId) params.set("userId", filters.userId);
-    if (filters?.resourceType) params.set("resourceType", filters.resourceType);
-    params.set("limit", String(filters?.limit || 50));
-    if (filters?.offset) params.set("offset", String(filters.offset));
-    return request<AuditLogResponse>(`/admin/audit?${params}`);
-  },
+  } = {}) => request<AuditLogResponse>(`/admin/audit${query({ ...filters, limit: filters.limit || 50 })}`),
 
-  // ---------------------------------------------------------------------------
-  // API Keys
-  // ---------------------------------------------------------------------------
-
-  /** List all API keys for the current user. Tokens are redacted. */
+  /** Tokens are redacted. */
   getApiKeys: () => request<ApiKey[]>("/keys"),
+  /** Returns the full token (shown once). */
+  createApiKey: (payload: CreateApiKeyPayload) => request<ApiKey>("/keys", send("POST", payload)),
+  deleteApiKey: (id: number) => request<void>(`/keys/${id}`, { method: "DELETE" }),
 
-  /** Create a new API key. Returns the full token (shown once). */
-  createApiKey: (payload: CreateApiKeyPayload) =>
-    request<ApiKey>("/keys", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    }),
-
-  /** Revoke (delete) an API key by ID. */
-  deleteApiKey: (id: number) =>
-    request<void>(`/keys/${id}`, { method: "DELETE" }),
-
-  // ---------------------------------------------------------------------------
-  // Sessions
-  // ---------------------------------------------------------------------------
-
-  /** List all active sessions for the current user. */
   getSessions: () => request<Session[]>("/sessions"),
+  revokeSession: (id: string) => request<void>(`/sessions/${id}`, { method: "DELETE" }),
+  /** Revokes all sessions except the active one. */
+  revokeAllOtherSessions: () => request<void>("/sessions", { method: "DELETE" }),
 
-  /** Revoke (delete) a session by ID. */
-  revokeSession: (id: string) =>
-    request<void>(`/sessions/${id}`, { method: "DELETE" }),
-
-  /** Revoke all sessions for the current user except the active one. */
-  revokeAllOtherSessions: () =>
-    request<void>("/sessions", { method: "DELETE" }),
-
-  // ---------------------------------------------------------------------------
-  // Device sharing
-  // ---------------------------------------------------------------------------
-
-  /** Create a new share link for a device. */
   createDeviceShare: (deviceId: number, expiresAt?: string | null) =>
-    request<DeviceShare>(`/devices/${deviceId}/share`, {
-      method: "POST",
-      body: JSON.stringify(expiresAt ? { expiresAt } : {}),
-    }),
+    request<DeviceShare>(`/devices/${deviceId}/share`, send("POST", expiresAt ? { expiresAt } : {})),
+  listDeviceShares: (deviceId: number) => request<DeviceShare[]>(`/devices/${deviceId}/shares`),
+  deleteShare: (shareId: number) => request<void>(`/shares/${shareId}`, { method: "DELETE" }),
 
-  /** List all active shares for a device. */
-  listDeviceShares: (deviceId: number) =>
-    request<DeviceShare[]>(`/devices/${deviceId}/shares`),
-
-  /** Revoke a share link by ID. */
-  deleteShare: (shareId: number) =>
-    request<void>(`/shares/${shareId}`, { method: "DELETE" }),
-
-  // ---------------------------------------------------------------------------
-  // Calendars
-  // ---------------------------------------------------------------------------
-
-  /** List all calendars for the current user. */
   getCalendars: () => request<Calendar[]>("/calendars"),
-
-  /** Create a new calendar. */
-  createCalendar: (payload: CalendarPayload) =>
-    request<Calendar>("/calendars", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    }),
-
-  /** Update an existing calendar. */
+  createCalendar: (payload: CalendarPayload) => request<Calendar>("/calendars", send("POST", payload)),
   updateCalendar: (id: number, payload: CalendarPayload) =>
-    request<Calendar>(`/calendars/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(payload),
-    }),
+    request<Calendar>(`/calendars/${id}`, send("PUT", payload)),
+  deleteCalendar: (id: number) => request<void>(`/calendars/${id}`, { method: "DELETE" }),
+  checkCalendar: (id: number) => request<CalendarCheckResponse>(`/calendars/${id}/check`),
 
-  /** Delete a calendar by ID. */
-  deleteCalendar: (id: number) =>
-    request<void>(`/calendars/${id}`, { method: "DELETE" }),
-
-  /** Check if a calendar is currently active. */
-  checkCalendar: (id: number) =>
-    request<CalendarCheckResponse>(`/calendars/${id}/check`),
-
-  // ---------------------------------------------------------------------------
-  // Trail bookmarks
-  // ---------------------------------------------------------------------------
-
-  /** List the current user's trail bookmarks, optionally for one device. */
-  getTrailBookmarks: (deviceId?: number) =>
-    request<TrailBookmark[]>(
-      deviceId != null
-        ? `/trail-bookmarks?${new URLSearchParams({ deviceId: String(deviceId) })}`
-        : "/trail-bookmarks",
-    ),
-
-  /** Save a trail range as a bookmark. */
+  getTrailBookmarks: (deviceId?: number) => request<TrailBookmark[]>(`/trail-bookmarks${query({ deviceId })}`),
   createTrailBookmark: (payload: TrailBookmarkPayload) =>
-    request<TrailBookmark>("/trail-bookmarks", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    }),
-
-  /** Replace a trail bookmark's device, name, description and range. */
+    request<TrailBookmark>("/trail-bookmarks", send("POST", payload)),
   updateTrailBookmark: (id: number, payload: TrailBookmarkPayload) =>
-    request<TrailBookmark>(`/trail-bookmarks/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(payload),
-    }),
-
-  /** Delete a trail bookmark. */
-  deleteTrailBookmark: (id: number) =>
-    request<void>(`/trail-bookmarks/${id}`, { method: "DELETE" }),
+    request<TrailBookmark>(`/trail-bookmarks/${id}`, send("PUT", payload)),
+  deleteTrailBookmark: (id: number) => request<void>(`/trail-bookmarks/${id}`, { method: "DELETE" }),
 };
 
 /**
@@ -630,8 +286,7 @@ async function fetchScoped<T extends object>(
   all: () => Promise<T[]>,
   own: () => Promise<T[]>,
 ): Promise<T[]> {
-  const { getSettings } = await import("$lib/stores/settings");
-  if (svelteStore.get(isAdmin) && getSettings().showAllDevices) {
+  if (get(isAdmin) && get(settings).showAllDevices) {
     return stripOwnOwnerName(await all());
   }
   return own();
@@ -650,7 +305,7 @@ export const fetchNotifications = () =>
 
 /** Clear ownerName on items that belong to the current user so they don't get highlighted. */
 function stripOwnOwnerName<T extends object>(items: T[]): T[] {
-  const myName = svelteStore.get(currentUser)?.name || "";
+  const myName = get(currentUser)?.name || "";
   if (!myName) return items;
   return items.map((item) =>
     "ownerName" in item && item.ownerName === myName ? { ...item, ownerName: undefined } : item

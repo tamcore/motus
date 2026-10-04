@@ -1,4 +1,3 @@
-import { get } from "svelte/store";
 import { persisted } from "./persisted";
 
 export interface UserSettings {
@@ -40,10 +39,3 @@ export const settings = {
   ...store,
   reset: () => store.set(defaultSettings),
 };
-
-/**
- * Get a snapshot of current settings (for use outside reactive contexts).
- */
-export function getSettings(): UserSettings {
-  return get(settings);
-}

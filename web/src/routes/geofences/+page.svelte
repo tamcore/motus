@@ -2,7 +2,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { api, fetchGeofences, fetchCalendars } from '$lib/api/client';
 	import { refreshHandler } from '$lib/stores/refresh';
-	import { getSettings } from '$lib/stores/settings';
+	import { settings } from '$lib/stores/settings';
 	import { useUserLocation, userLocationLayers } from '$lib/composables/useUserLocation';
 	import { useLeaflet } from '$lib/composables/useLeaflet';
 	import { buildPopupElement, type PopupRow } from '$lib/utils/popup';
@@ -145,7 +145,7 @@
 
 	async function getInitialCenter(): Promise<{ center: [number, number]; zoom: number }> {
 		// Priority 1: User's explicitly configured default location from settings
-		const s = getSettings();
+		const s = $settings;
 		if (s.mapLocationSet) {
 			return { center: [s.defaultMapLat, s.defaultMapLng], zoom: s.defaultMapZoom || DEFAULT_ZOOM };
 		}

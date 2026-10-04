@@ -582,6 +582,14 @@ func TestStartSubscriber_SubscribeError(t *testing.T) {
 	}
 }
 
+func TestHubSetLoggerNilKeepsLogger(t *testing.T) {
+	hub := NewHub(nil, nil, dummyExtractor)
+	hub.SetLogger(nil)
+	if hub.logger == nil {
+		t.Fatal("SetLogger(nil) cleared the logger")
+	}
+}
+
 func TestSetAdminChecker(t *testing.T) {
 	hub := NewHub(nil, nil, dummyExtractor)
 	if hub.adminChecker != nil {

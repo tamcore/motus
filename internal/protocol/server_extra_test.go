@@ -254,6 +254,7 @@ func TestServer_SetLogger_BindsProtocolAttrs(t *testing.T) {
 	var buf bytes.Buffer
 	srv := NewH02Server("5014", nil, nil)
 	srv.SetLogger(slog.New(slog.NewTextHandler(&buf, nil)))
+	srv.SetLogger(nil)
 	srv.log().Info("x")
 	if got := buf.String(); strings.Count(got, "protocol=h02") != 1 || !strings.Contains(got, "type=gps") {
 		t.Errorf("log line = %q, want type=gps and protocol=h02 once", got)

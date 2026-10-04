@@ -121,6 +121,9 @@ func (h *Hub) SetDevelopmentMode(dev bool) {
 
 // SetLogger configures the structured logger for this hub.
 func (h *Hub) SetLogger(l *slog.Logger) {
+	if l == nil {
+		return
+	}
 	h.logger = l
 }
 

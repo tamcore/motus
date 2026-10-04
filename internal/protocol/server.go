@@ -130,6 +130,9 @@ func NewWatchServer(port string, devices repository.DeviceRepo, handler *Positio
 // SetLogger configures the structured logger for this server and binds the
 // type and protocol attributes to it.
 func (s *Server) SetLogger(l *slog.Logger) {
+	if l == nil {
+		return
+	}
 	s.logger = l.With(slog.String("type", "gps"), slog.String("protocol", s.name))
 }
 

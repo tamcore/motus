@@ -116,7 +116,7 @@
 		if (!ctx) return;
 
 		const { labels, datasets } = buildDatasets(positions, selectedMetrics);
-		const scales = buildScales(selectedMetrics, dark);
+		const scales = buildScales(selectedMetrics, dark, labels[labels.length - 1] - labels[0]);
 		const colors = chartColors(dark);
 
 		chartInstance = new Chart(ctx, {

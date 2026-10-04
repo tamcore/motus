@@ -22,8 +22,10 @@ import {
   buildDatasets,
   buildScales,
   formatTimeTick,
+  timeStep,
   exportChartDataToCSV,
 } from "$lib/utils/chart-metrics";
+import { settings } from "$lib/stores/settings";
 
 const getMetricById = (id: string) => METRICS.find((m) => m.id === id);
 
@@ -294,6 +296,48 @@ describe("Chart Metrics", () => {
       expect(sameDay).not.toMatch(/15/);
       expect(multiDay).toMatch(/15/);
       expect(multiDay).toMatch(/09.05/);
+    });
+
+    it("shows seconds only when the axis spans under ten minutes", () => {
+      const t = new Date(2026, 0, 15, 9, 5, 30).getTime();
+      expect(formatTimeTick.call({ min: t, max: t + 5 * 60_000 }, t)).toMatch(/09.05.30/);
+      expect(formatTimeTick.call({ min: t, max: t + 20 * 60_000 }, t)).not.toMatch(/30/);
+    });
+
+    it("formats ticks in the user's timezone", () => {
+      const t = Date.UTC(2026, 0, 15, 9, 5);
+      settings.update((s) => ({ ...s, timezone: "Asia/Tokyo" }));
+      try {
+        expect(formatTimeTick.call({ min: t, max: t + 3_600_000 }, t)).toMatch(/(18|06).05/);
+      } finally {
+        settings.update((s) => ({ ...s, timezone: "local" }));
+      }
+    });
+
+    it("picks round tick steps from the axis span", () => {
+      const min = 60_000;
+      const hour = 60 * min;
+      for (const [span, step] of [
+        [0, 10_000],
+        [2 * min, 30_000],
+        [8 * min, min],
+        [30 * min, 5 * min],
+        [90 * min, 15 * min],
+        [3 * hour, 30 * min],
+        [7 * hour, hour],
+        [20 * hour, 3 * hour],
+        [40 * hour, 6 * hour],
+        [4 * 24 * hour, 12 * hour],
+        [7 * 24 * hour, 24 * hour],
+        [30 * 24 * hour, 4 * 24 * hour],
+      ]) {
+        expect(timeStep(span), `span ${span}`).toBe(step);
+      }
+    });
+
+    it("sets the x tick step from the span", () => {
+      const scales = buildScales(["speed"], true, 3 * 3_600_000) as Record<string, any>;
+      expect(scales.x.ticks.stepSize).toBe(30 * 60_000);
     });
 
     it("includes y axis for each unique axisId", () => {

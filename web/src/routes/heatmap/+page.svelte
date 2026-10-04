@@ -333,7 +333,7 @@
 				id="date-range"
 				bind:value={dateRange}
 				on:change={handleDateRangeChange}
-				class="field-sm"
+				class="field-sm field-full"
 			>
 				<option value="day">Last 24 Hours</option>
 				<option value="week">Last 7 Days</option>
@@ -349,14 +349,14 @@
 						id="date-from"
 						type="date"
 						bind:value={customFrom}
-						class="field-sm"
+						class="field-sm field-full"
 					/>
 					<label for="date-to" class="sub-label">To</label>
 					<input
 						id="date-to"
 						type="date"
 						bind:value={customTo}
-						class="field-sm"
+						class="field-sm field-full"
 					/>
 					<Button size="sm" on:click={applyCustomRange}>Apply</Button>
 				</div>
@@ -370,7 +370,7 @@
 				id="device-filter"
 				bind:value={selectedDeviceId}
 				on:change={handleDeviceChange}
-				class="field-sm"
+				class="field-sm field-full"
 			>
 				<option value="">All Devices</option>
 				{#each devices as device}
@@ -387,7 +387,7 @@
 			<select
 				id="intensity-mode"
 				bind:value={intensityMode}
-				class="field-sm"
+				class="field-sm field-full"
 			>
 				<option value="density">Position Density</option>
 				<option value="speed">Speed</option>
@@ -636,10 +636,6 @@
 		flex-direction: column;
 		gap: var(--space-1);
 		margin-top: var(--space-1);
-	}
-
-	.field-sm {
-		width: 100%;
 	}
 
 	.controls-divider {

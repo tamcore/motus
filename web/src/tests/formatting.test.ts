@@ -25,7 +25,7 @@ vi.mock("$lib/stores/settings", async () => {
 });
 
 import { settings } from "$lib/stores/settings";
-import { formatDate, formatMileage, mileageToDisplay, mileageFromDisplay } from "$lib/utils/formatting";
+import { formatDate, formatRelative, formatMileage, mileageToDisplay, mileageFromDisplay } from "$lib/utils/formatting";
 
 function updateSettings(overrides: Record<string, unknown>) {
   settings.update((s) => ({ ...s, ...overrides }));
@@ -117,6 +117,12 @@ describe("formatDate timezone handling", () => {
       const result = formatDate("not-a-date");
       expect(result).toBe("not-a-date");
     });
+  });
+});
+
+describe("formatRelative", () => {
+  it("returns Unknown for an invalid date", () => {
+    expect(formatRelative(new Date("not-a-date"))).toBe("Unknown");
   });
 });
 

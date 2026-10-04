@@ -502,51 +502,6 @@
 			border-color: var(--border-hover);
 		}
 
-		.settings-page .session-badge,
-		.settings-page .permission-badge {
-			display: inline-flex;
-			align-items: center;
-			padding: var(--space-1) var(--space-2);
-			border-radius: var(--radius-sm);
-			font-size: var(--text-xs);
-			font-weight: var(--font-medium);
-			text-transform: uppercase;
-			letter-spacing: 0.05em;
-		}
-
-		.settings-page .badge-current,
-		.settings-page .badge-full {
-			background-color: rgba(0, 212, 255, 0.15);
-			color: var(--accent-primary);
-			border: 1px solid rgba(0, 212, 255, 0.3);
-		}
-
-		.settings-page .badge-temporary,
-		.settings-page .badge-readonly {
-			background-color: rgba(255, 170, 0, 0.15);
-			color: var(--warning);
-			border: 1px solid rgba(255, 170, 0, 0.3);
-		}
-
-		.settings-page .badge-apikey {
-			background-color: rgba(168, 85, 247, 0.15);
-			color: #a855f7;
-			border: 1px solid rgba(168, 85, 247, 0.3);
-			text-transform: none;
-		}
-
-		.settings-page .badge-persistent {
-			background-color: rgba(0, 255, 136, 0.15);
-			color: var(--success);
-			border: 1px solid rgba(0, 255, 136, 0.3);
-		}
-
-		.settings-page .badge-expired {
-			background-color: rgba(255, 68, 68, 0.15);
-			color: var(--error);
-			border: 1px solid rgba(255, 68, 68, 0.3);
-		}
-
 		.settings-page .form-error {
 			padding: var(--space-3) var(--space-4);
 		}

@@ -3,6 +3,7 @@ import type { Position } from "$lib/types/api";
 import { haversineDistance, pathDistance } from "$lib/utils/trips";
 import { downloadCSV } from "$lib/utils/download";
 import { dateValue } from "$lib/utils/date-range";
+import { userTimeZone } from "$lib/utils/formatting";
 
 /**
  * Metric definitions for device analytics charts.
@@ -148,18 +149,35 @@ export function chartColors(isDark: boolean) {
     : { grid: "#e0e0e0", tick: "#666666", tooltipBg: "#ffffff", tooltipText: "#1a1a1a", tooltipBorder: "#e0e0e0" };
 }
 
-const DAY_MS = 86_400_000;
-const TIME_FORMAT = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" });
-const DATE_TIME_FORMAT = new Intl.DateTimeFormat(undefined, {
-  month: "short",
-  day: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-});
+const MINUTE_MS = 60_000;
+const HOUR_MS = 60 * MINUTE_MS;
+const DAY_MS = 24 * HOUR_MS;
+const SECONDS_SPAN_MS = 10 * MINUTE_MS;
+const MAX_TICKS = 8;
+// ponytail: steps align to UTC multiples, so in zones with a non-hour offset hour+ ticks land off the hour.
+const TICK_STEPS_MS = [
+  10_000, 30_000, MINUTE_MS, 5 * MINUTE_MS, 15 * MINUTE_MS, 30 * MINUTE_MS,
+  HOUR_MS, 3 * HOUR_MS, 6 * HOUR_MS, 12 * HOUR_MS, DAY_MS,
+];
 
-/** Tick label for a ms timestamp; adds the date when the axis spans more than a day. */
+/** Round x-axis tick step (ms) that gives at most MAX_TICKS ticks over spanMs. */
+export function timeStep(spanMs: number): number {
+  return (
+    TICK_STEPS_MS.find((step) => spanMs / step <= MAX_TICKS) ??
+    Math.ceil(spanMs / MAX_TICKS / DAY_MS) * DAY_MS
+  );
+}
+
+/** Tick label for a ms timestamp in the user's timezone; seconds on short spans, date on multi-day spans. */
 export function formatTimeTick(this: Pick<Scale, "min" | "max">, value: string | number): string {
-  return (this.max - this.min > DAY_MS ? DATE_TIME_FORMAT : TIME_FORMAT).format(Number(value));
+  const span = this.max - this.min;
+  return new Intl.DateTimeFormat(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+    ...(span < SECONDS_SPAN_MS && { second: "2-digit" }),
+    ...(span > DAY_MS && { month: "short", day: "numeric" }),
+    timeZone: userTimeZone(),
+  }).format(Number(value));
 }
 
 /**
@@ -169,13 +187,14 @@ export function formatTimeTick(this: Pick<Scale, "min" | "max">, value: string |
 export function buildScales(
   selectedMetricIds: string[],
   isDark: boolean,
+  spanMs = 0,
 ): Record<string, object> {
   const { grid: gridColor, tick: tickColor } = chartColors(isDark);
 
   const scales: Record<string, object> = {
     x: {
       type: "linear" as const,
-      ticks: { color: tickColor, maxRotation: 45, autoSkip: true, callback: formatTimeTick },
+      ticks: { color: tickColor, maxRotation: 45, autoSkip: true, stepSize: timeStep(spanMs), callback: formatTimeTick },
       grid: { color: gridColor },
       title: { display: true, text: "Time", color: tickColor },
     },

@@ -207,7 +207,7 @@
 								<tr>
 									<th>User</th>
 									<th>Role</th>
-									<th>Details</th>
+									<th class="text-right">Details</th>
 								</tr>
 							</thead>
 							<tbody>

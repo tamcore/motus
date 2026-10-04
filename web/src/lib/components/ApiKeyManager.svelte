@@ -359,7 +359,7 @@
 						<input
 							id="keyCustomDate"
 							type="date"
-							class="field-sm"
+							class="field-sm field-full"
 							bind:value={newKeyCustomDate}
 							min={getMinDate()}
 						/>
@@ -432,7 +432,6 @@
 	}
 
 	.field-sm {
-		width: 100%;
 		padding: var(--space-3) var(--space-4);
 		font-size: var(--text-base);
 		transition: border-color var(--transition-fast);

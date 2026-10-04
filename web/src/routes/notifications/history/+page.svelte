@@ -4,7 +4,7 @@
 	import { api, fetchNotifications } from '$lib/api/client';
 	import { refreshHandler } from '$lib/stores/refresh';
 	import { formatDate } from '$lib/utils/formatting';
-	import { EVENT_TYPES } from '$lib/utils/notificationRules';
+	import { getEventLabel } from '$lib/utils/notificationRules';
 	import type { NotificationRule, NotificationLog } from '$lib/types/api';
 	import Button from '$lib/components/Button.svelte';
 	import StatusIndicator from '$lib/components/StatusIndicator.svelte';
@@ -27,10 +27,6 @@
 			(statusFilter === 'all' || l.status === statusFilter) &&
 			(ruleFilter === 'all' || String(l.ruleId) === ruleFilter)
 	);
-
-	function getEventLabel(eventType: string): string {
-		return EVENT_TYPES.find((e) => e.value === eventType)?.label || eventType;
-	}
 
 	async function loadHistory() {
 		loading = true;

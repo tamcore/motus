@@ -14,6 +14,10 @@ export const EVENT_TYPES = [
   { value: "tripCompleted", label: "Trip Completed" },
 ];
 
+export function getEventLabel(eventType: string): string {
+  return EVENT_TYPES.find((e) => e.value === eventType)?.label || eventType;
+}
+
 export const CHANNELS = [
   { value: "webhook", label: "Webhook" },
   { value: "command", label: "Device Command" },

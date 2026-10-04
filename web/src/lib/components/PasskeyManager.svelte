@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { api } from '$lib/api/client';
 	import type { PasskeyCredentialInfo } from '$lib/types/api';
-	import { formatDate } from '$lib/utils/formatting';
+	import { formatDate, formatLastUsed } from '$lib/utils/formatting';
 	import {
 		isPasskeySupported,
 		registerPasskey,
@@ -91,11 +91,6 @@
 		} catch (e: unknown) {
 			actionError = e instanceof Error ? e.message : 'Please try again.';
 		}
-	}
-
-	function formatLastUsed(lastUsedAt: string | null | undefined): string {
-		if (!lastUsedAt) return 'Never';
-		return formatDate(lastUsedAt);
 	}
 
 </script>

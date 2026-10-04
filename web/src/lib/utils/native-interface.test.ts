@@ -2,8 +2,6 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   isNativeEnvironment,
   nativePostMessage,
-  handleLoginTokenListeners,
-  initNativeTokenHandler,
   notifyNativeLogout,
   generateLoginToken,
   changeServerUrl,
@@ -19,7 +17,6 @@ describe("native-interface", () => {
       delete (window as unknown as Record<string, unknown>).appInterface;
       delete (window as unknown as Record<string, unknown>).handleLoginToken;
     }
-    handleLoginTokenListeners.clear();
   });
 
   afterEach(() => {
@@ -119,37 +116,6 @@ describe("native-interface", () => {
 
       notifyNativeLogout();
       expect(mockPostMessage).toHaveBeenCalledWith("logout");
-    });
-  });
-
-  describe("initNativeTokenHandler", () => {
-    it("registers window.handleLoginToken", () => {
-      expect(window.handleLoginToken).toBeUndefined();
-      initNativeTokenHandler();
-      expect(typeof window.handleLoginToken).toBe("function");
-    });
-
-    it("calls registered listeners when token is received", () => {
-      initNativeTokenHandler();
-
-      const listener = vi.fn();
-      handleLoginTokenListeners.add(listener);
-
-      window.handleLoginToken!("mytoken");
-      expect(listener).toHaveBeenCalledWith("mytoken");
-    });
-
-    it("calls multiple listeners", () => {
-      initNativeTokenHandler();
-
-      const listener1 = vi.fn();
-      const listener2 = vi.fn();
-      handleLoginTokenListeners.add(listener1);
-      handleLoginTokenListeners.add(listener2);
-
-      window.handleLoginToken!("token");
-      expect(listener1).toHaveBeenCalledWith("token");
-      expect(listener2).toHaveBeenCalledWith("token");
     });
   });
 

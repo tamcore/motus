@@ -13,6 +13,7 @@ declare global {
     appInterface?: {
       postMessage: (message: string) => void;
     };
+    /** Called when the native app answers an "authentication" message with its stored token. */
     handleLoginToken?: (token: string) => void;
   }
 }
@@ -30,15 +31,6 @@ export function nativePostMessage(message: string): void {
   } else if (window.appInterface) {
     window.appInterface.postMessage(message);
   }
-}
-
-/** Called when the native app answers an "authentication" message with its stored token. */
-export const handleLoginTokenListeners = new Set<(token: string) => void>();
-
-export function initNativeTokenHandler(): void {
-  window.handleLoginToken = (token: string) => {
-    handleLoginTokenListeners.forEach((listener) => listener(token));
-  };
 }
 
 /** Hands the native app a login token for auto-login on its next launch. */

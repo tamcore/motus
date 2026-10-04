@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { api } from '$lib/api/client';
 	import type { ApiKey } from '$lib/types/api';
-	import { formatDate } from '$lib/utils/formatting';
+	import { formatDate, formatLastUsed, isExpired } from '$lib/utils/formatting';
 	import { dateValue, hoursFromNow, parseLocalBoundary } from '$lib/utils/date-range';
 	import Button from '$lib/components/Button.svelte';
 	import Modal from '$lib/components/Modal.svelte';
@@ -155,18 +155,8 @@
 		qrToken = '';
 	}
 
-	function formatLastUsed(lastUsedAt: string | null | undefined): string {
-		if (!lastUsedAt) return 'Never';
-		return formatDate(lastUsedAt);
-	}
-
 	function getPermissionLabel(perm: string): string {
 		return perm === 'full' ? 'Full Access' : 'Read-Only';
-	}
-
-	function isExpired(expiresAt: string | null | undefined): boolean {
-		if (!expiresAt) return false;
-		return new Date(expiresAt) < new Date();
 	}
 
 	function formatExpiration(expiresAt: string | null | undefined): string {

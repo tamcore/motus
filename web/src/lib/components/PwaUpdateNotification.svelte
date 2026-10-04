@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Button from '$lib/components/Button.svelte';
 	import { fly } from 'svelte/transition';
 	import { pwa } from '$lib/stores/pwa';
 
@@ -23,9 +24,7 @@
 			</svg>
 			<span class="update-text">A new version of Motus is available</span>
 		</div>
-		<button class="update-btn" on:click={handleUpdate}>
-			Update now
-		</button>
+		<Button size="sm" on:click={handleUpdate}>Update now</Button>
 	</div>
 {/if}
 
@@ -62,27 +61,6 @@
 		color: var(--text-primary);
 		font-size: var(--text-sm);
 		white-space: nowrap;
-	}
-
-	.update-btn {
-		padding: var(--space-2) var(--space-3);
-		background-color: var(--accent-primary);
-		color: var(--text-inverse);
-		border: none;
-		border-radius: var(--radius-md);
-		font-size: var(--text-sm);
-		font-weight: var(--font-medium);
-		cursor: pointer;
-		transition: background-color var(--transition-fast);
-		white-space: nowrap;
-	}
-
-	.update-btn:hover {
-		background-color: var(--accent-hover);
-	}
-
-	.update-btn:active {
-		background-color: var(--accent-active);
 	}
 
 	@media (max-width: 480px) {

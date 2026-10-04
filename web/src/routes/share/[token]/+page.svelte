@@ -7,7 +7,7 @@
 	import type { Device, WebSocketMessage } from '$lib/types/api';
 	import { WebSocketManager } from '$lib/stores/websocket';
 	import { persisted } from '$lib/stores/persisted';
-	import { formatSpeed, getCardinalDirection } from '$lib/utils/formatting';
+	import { formatRelative, formatSpeed, getCardinalDirection } from '$lib/utils/formatting';
 	import { speedToKmh } from '$lib/api/client';
 
 	const API_BASE = '/api';
@@ -58,10 +58,10 @@
 
 	$: token = $page.params.token || '';
 	$: position = positions.length > 0 ? positions[0] : null;
-	$: formattedSpeed = position?.speed == null ? '--' : formatSpeed(position.speed, $units);
+	$: formattedSpeed = formatSpeedText(position?.speed, $units);
 	$: formattedCourse = position?.course != null ? `${Math.round(position.course)}` : '--';
 	$: courseDirection = position?.course != null ? getCardinalDirection(position.course) : '';
-	$: lastUpdateText = position ? formatTimeAgo(position.fixTime) : 'No data';
+	$: lastUpdateText = position ? formatRelative(new Date(position.fixTime)) : 'No data';
 
 	function toggleUnits() {
 		units.update((u) => (u === 'metric' ? 'imperial' : 'metric'));
@@ -71,23 +71,8 @@
 		}
 	}
 
-	function formatSpeedText(speed: number | null | undefined): string {
-		return speed == null ? '--' : formatSpeed(speed, $units);
-	}
-
-	function formatTimeAgo(dateStr: string): string {
-		const d = new Date(dateStr);
-		if (isNaN(d.getTime())) return dateStr;
-		const now = new Date();
-		const diff = now.getTime() - d.getTime();
-		const seconds = Math.floor(diff / 1000);
-		const minutes = Math.floor(seconds / 60);
-		const hours = Math.floor(minutes / 60);
-		if (seconds < 0) return 'just now';
-		if (seconds < 60) return 'just now';
-		if (minutes < 60) return `${minutes}m ago`;
-		if (hours < 24) return `${hours}h ${minutes % 60}m ago`;
-		return d.toLocaleString();
+	function formatSpeedText(speed: number | null | undefined, unit = $units): string {
+		return speed == null ? '--' : formatSpeed(speed, unit);
 	}
 
 	// --- API ---

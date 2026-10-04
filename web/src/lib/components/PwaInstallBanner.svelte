@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Button from '$lib/components/Button.svelte';
 	import { fade, fly } from 'svelte/transition';
 	import { pwa, showInstallBanner } from '$lib/stores/pwa';
 
@@ -26,9 +27,7 @@
 			</div>
 		</div>
 		<div class="install-actions">
-			<button class="install-btn" on:click={handleInstall}>
-				Install
-			</button>
+			<Button size="sm" on:click={handleInstall}>Install</Button>
 			<button
 				class="dismiss-btn"
 				on:click={handleDismiss}
@@ -99,27 +98,6 @@
 		align-items: center;
 		gap: var(--space-2);
 		flex-shrink: 0;
-	}
-
-	.install-btn {
-		padding: var(--space-2) var(--space-4);
-		background-color: var(--accent-primary);
-		color: var(--text-inverse);
-		border: none;
-		border-radius: var(--radius-md);
-		font-size: var(--text-sm);
-		font-weight: var(--font-medium);
-		cursor: pointer;
-		transition: background-color var(--transition-fast);
-		white-space: nowrap;
-	}
-
-	.install-btn:hover {
-		background-color: var(--accent-hover);
-	}
-
-	.install-btn:active {
-		background-color: var(--accent-active);
 	}
 
 	.dismiss-btn {

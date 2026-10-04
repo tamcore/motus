@@ -12,7 +12,6 @@
 	import { buildLoginUrl } from '$lib/utils/returnTo';
 	import PullToRefresh from '$lib/components/PullToRefresh.svelte';
 	import {
-		initNativeTokenHandler,
 		generateLoginToken,
 		notifyNativeLogout,
 		isNativeEnvironment,
@@ -59,11 +58,6 @@
 
 		// Check if running in Traccar Manager native app
 		isNative = isNativeEnvironment();
-
-		// Initialize the native token handler for Traccar Manager app.
-		// This registers a global callback so the native app can send
-		// stored login tokens for auto-authentication.
-		initNativeTokenHandler();
 
 		// Check for ?token= parameter (QR code / API key login)
 		const urlToken = $page.url.searchParams.get('token');

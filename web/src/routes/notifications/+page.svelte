@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { api, fetchNotifications } from '$lib/api/client';
-	import { currentUser, isAdmin } from '$lib/stores/auth';
+	import { api, fetchNotifications, stripOwnOwnerName } from '$lib/api/client';
+	import { isAdmin } from '$lib/stores/auth';
 	import { refreshHandler } from '$lib/stores/refresh';
 	import Button from '$lib/components/Button.svelte';
 	import Input from '$lib/components/Input.svelte';
@@ -28,6 +28,7 @@
 		describeCommandAction,
 		describeGeofenceFilter,
 		geofenceFilterOptions,
+		getEventLabel,
 		hasGeofenceEvent
 	} from '$lib/utils/notificationRules';
 
@@ -79,10 +80,7 @@
 			if ($isAdmin) {
 				// Full lookup regardless of the "All users" toggle; the owner is
 				// shown only for other users' geofences.
-				const myName = $currentUser?.name || '';
-				geofences = (await api.getAllGeofences()).map((g) =>
-					g.ownerName && g.ownerName === myName ? { ...g, ownerName: undefined } : g
-				);
+				geofences = stripOwnOwnerName(await api.getAllGeofences());
 			} else {
 				geofences = await api.getGeofences();
 			}
@@ -287,10 +285,6 @@
 
 	function getChannelLabel(channel: string): string {
 		return CHANNELS.find((c) => c.value === channel)?.label || channel;
-	}
-
-	function getEventLabel(eventType: string): string {
-		return EVENT_TYPES.find((e) => e.value === eventType)?.label || eventType;
 	}
 
 	function getDestination(rule: NotificationRule): string {

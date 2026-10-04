@@ -8,7 +8,6 @@
 	import {
 		isNativeEnvironment,
 		nativePostMessage,
-		handleLoginTokenListeners,
 		generateLoginToken,
 		changeServerUrl,
 	} from '$lib/utils/native-interface';
@@ -133,13 +132,13 @@
 		// Request the stored login token from the native app.
 		// If the app has one, handleTokenLogin will be called.
 		if (isNativeEnvironment()) {
-			handleLoginTokenListeners.add(handleTokenLogin);
+			window.handleLoginToken = handleTokenLogin;
 			nativePostMessage('authentication');
 		}
 	});
 
 	onDestroy(() => {
-		handleLoginTokenListeners.delete(handleTokenLogin);
+		delete window.handleLoginToken;
 	});
 
 	async function handleLogin() {

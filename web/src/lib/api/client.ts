@@ -304,7 +304,7 @@ export const fetchNotifications = () =>
   fetchScoped<NotificationRule>(api.getAllNotifications, api.getNotifications);
 
 /** Clear ownerName on items that belong to the current user so they don't get highlighted. */
-function stripOwnOwnerName<T extends object>(items: T[]): T[] {
+export function stripOwnOwnerName<T extends object>(items: T[]): T[] {
   const myName = get(currentUser)?.name || "";
   if (!myName) return items;
   return items.map((item) =>

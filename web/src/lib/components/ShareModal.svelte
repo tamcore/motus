@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, createEventDispatcher } from 'svelte';
 	import { api } from '$lib/api/client';
-	import { formatDate } from '$lib/utils/formatting';
+	import { formatDate, isExpired } from '$lib/utils/formatting';
 	import { hoursFromNow } from '$lib/utils/date-range';
 	import { copyText } from '$lib/utils/clipboard';
 	import type { DeviceShare } from '$lib/types/api';
@@ -92,11 +92,6 @@
 		const date = new Date(expiresAt);
 		if (date < new Date()) return 'Expired';
 		return formatDate(expiresAt);
-	}
-
-	function isExpired(expiresAt?: string | null): boolean {
-		if (!expiresAt) return false;
-		return new Date(expiresAt) < new Date();
 	}
 </script>
 

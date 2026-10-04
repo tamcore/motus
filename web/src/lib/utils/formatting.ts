@@ -52,6 +52,14 @@ export function formatRelative(date: Date): string {
   return date.toLocaleDateString();
 }
 
+export function formatLastUsed(lastUsedAt: string | null | undefined): string {
+  return lastUsedAt ? formatDate(lastUsedAt) : "Never";
+}
+
+export function isExpired(expiresAt: string | null | undefined): boolean {
+  return !!expiresAt && new Date(expiresAt) < new Date();
+}
+
 /** Input speed is always in km/h. */
 export function formatSpeed(
   kmh: number | undefined | null,

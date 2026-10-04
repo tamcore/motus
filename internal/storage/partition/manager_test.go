@@ -44,6 +44,27 @@ func TestPartitionName(t *testing.T) {
 	}
 }
 
+func TestPartitionNameParse(t *testing.T) {
+	jan := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	for _, tc := range []struct {
+		name    string
+		want    time.Time
+		wantErr bool
+	}{
+		{PartitionName(jan), jan, false},
+		{"positions_y2025m12", time.Date(2025, 12, 1, 0, 0, 0, 0, time.UTC), false},
+		{"positions_y2026m13", time.Time{}, true},
+		{"positions_y2026m1", time.Time{}, true},
+		{"positions_2026_01", time.Time{}, true},
+		{"positions_legacy", time.Time{}, true},
+	} {
+		got, err := time.Parse(partitionNameLayout, tc.name)
+		if (err != nil) != tc.wantErr || !got.Equal(tc.want) {
+			t.Errorf("parse %q = %v, %v; want %v, err=%v", tc.name, got, err, tc.want, tc.wantErr)
+		}
+	}
+}
+
 func TestNewManager_DefaultsLogger(t *testing.T) {
 	if mgr := NewManager(nil, 0, time.Hour, nil); mgr.logger != slog.Default() {
 		t.Error("nil logger should default to slog.Default()")

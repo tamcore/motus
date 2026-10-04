@@ -269,7 +269,7 @@ func (m *Manager) ListPartitions(ctx context.Context) ([]PartitionInfo, error) {
 		}
 		start, err := time.Parse(partitionNameLayout, name)
 		if err != nil {
-			m.logger.Warn("cannot parse partition name",
+			m.logger.Debug("skipping non-canonical partition",
 				slog.String("partition", name),
 				slog.Any("error", err),
 			)

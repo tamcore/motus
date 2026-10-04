@@ -59,5 +59,3 @@ dockers_v2:
       "org.opencontainers.image.version": "{{.Version}}"
       "org.opencontainers.image.source": "https://github.com/tamcore/motus"
       "org.opencontainers.image.description": "Motus GPS Tracking System"
-    extra_files:
-      - migrations

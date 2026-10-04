@@ -8,12 +8,9 @@ FROM gcr.io/distroless/static-debian12:nonroot
 
 ARG TARGETPLATFORM
 
-LABEL org.opencontainers.image.source="https://github.com/tamcore/motus"
-LABEL org.opencontainers.image.description="Motus GPS Tracking System"
 LABEL org.opencontainers.image.licenses="MIT"
 
 COPY ${TARGETPLATFORM}/motus /motus
-COPY migrations /migrations
 
 EXPOSE 8080 5013 5093 5055
 

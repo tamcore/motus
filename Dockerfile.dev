@@ -30,7 +30,7 @@ COPY migrations ./migrations/
 
 # Copy frontend build into web/build/ so //go:embed picks it up
 COPY --from=frontend /app/web/build ./web/build/
-RUN CGO_ENABLED=0 go build -a \
+RUN CGO_ENABLED=0 go build \
     -ldflags "-s -w \
       -X github.com/tamcore/motus/internal/version.Version=${VERSION} \
       -X github.com/tamcore/motus/internal/version.Commit=${COMMIT} \
@@ -42,8 +42,7 @@ RUN CGO_ENABLED=0 go build -a \
 FROM alpine:latest
 RUN apk add --no-cache ca-certificates tzdata curl
 COPY --from=backend /bin/motus /motus
-COPY migrations /migrations
-COPY data /data
+COPY data/demo /data/demo
 EXPOSE 8080 5013 5093
 ENTRYPOINT ["/motus"]
 CMD ["serve"]

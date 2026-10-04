@@ -13,6 +13,10 @@ export class GeofencesPage {
     await this.page.waitForTimeout(500);
   }
 
+  get locateButton() {
+    return this.page.locator('.locate-me-btn');
+  }
+
   get sidebarTitle() {
     return this.page.locator('.sidebar-title');
   }

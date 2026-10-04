@@ -46,6 +46,46 @@ test.describe('Map Interactions', () => {
     expect(tileCount).toBeGreaterThan(0);
   });
 
+  test('should place the round locate button below the live indicator', async () => {
+    const pill = (await mapPage.wsIndicator.boundingBox())!;
+    const dot = (await mapPage.wsIndicator.locator('.ws-dot').boundingBox())!;
+    const locate = (await mapPage.locateButton.boundingBox())!;
+    expect(dot.width).toBeCloseTo(8, 0);
+    expect(dot.y).toBeGreaterThan(pill.y);
+    expect(dot.y + dot.height).toBeLessThan(pill.y + pill.height);
+    expect(locate.width).toBeCloseTo(36, 0);
+    expect(locate.height).toBeCloseTo(36, 0);
+    expect(Math.abs(locate.x - pill.x)).toBeLessThan(1);
+    expect(locate.y).toBeGreaterThan(pill.y + pill.height);
+    const radius = await mapPage.locateButton.evaluate((el) => getComputedStyle(el).borderTopLeftRadius);
+    expect(parseFloat(radius)).toBeGreaterThanOrEqual(18);
+  });
+
+  test('should list map overlays as stacked native radios', async () => {
+    await mapPage.layerToggle.click();
+    const radios = mapPage.overlayRadios;
+    expect(await radios.count()).toBeGreaterThan(1);
+    await expect(radios.first()).toBeChecked();
+
+    const panel = (await mapPage.layerPanel.boundingBox())!;
+    const first = (await radios.nth(0).boundingBox())!;
+    const second = (await radios.nth(1).boundingBox())!;
+    expect(second.y).toBeGreaterThan(first.y + first.height);
+    expect(Math.abs(second.x - first.x)).toBeLessThan(1);
+    expect(first.x - panel.x).toBeLessThan(24);
+
+    const name = (await mapPage.layerPanel.locator('.overlay-name').first().boundingBox())!;
+    expect(name.x).toBeGreaterThan(first.x + first.width);
+    expect(Math.abs(name.y + name.height / 2 - (first.y + first.height / 2))).toBeLessThan(3);
+
+    const opacity = mapPage.layerPanel.locator('#overlay-opacity');
+    await radios.nth(1).check();
+    await expect(radios.nth(1)).toBeChecked();
+    await expect(opacity).toBeVisible();
+    await radios.nth(0).check();
+    await expect(opacity).toHaveCount(0);
+  });
+
   test('should show sidebar with Devices title', async () => {
     await expect(mapPage.sidebarTitle).toContainText('Devices');
   });

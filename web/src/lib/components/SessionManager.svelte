@@ -167,96 +167,7 @@
 </section>
 
 <style>
-	.sessions-section {
-		margin-top: var(--space-6);
-	}
-
-	.section-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: flex-start;
-		gap: var(--space-4);
-		margin-bottom: var(--space-4);
-	}
-
-	.section-title {
-		font-size: var(--text-xl);
-		font-weight: var(--font-semibold);
-		color: var(--text-primary);
-		margin-bottom: var(--space-1);
-	}
-
-	.section-description {
-		font-size: var(--text-sm);
-		color: var(--text-tertiary);
-	}
-
-	.settings-section {
-		padding: var(--space-6);
-		background-color: var(--bg-secondary);
-		border: 1px solid var(--border-color);
-		border-radius: var(--radius-lg);
-	}
-
-	.loading-text {
-		color: var(--text-secondary);
-		font-size: var(--text-sm);
-	}
-
-	/* Empty state */
-	.empty-state {
-		text-align: center;
-		padding: var(--space-8) var(--space-4);
-	}
-
-	.empty-title {
-		font-size: var(--text-lg);
-		font-weight: var(--font-semibold);
-		color: var(--text-primary);
-		margin-bottom: var(--space-2);
-	}
-
-	.empty-description {
-		font-size: var(--text-sm);
-		color: var(--text-tertiary);
-		max-width: 400px;
-		margin: 0 auto;
-		line-height: 1.5;
-	}
-
-	/* Sessions list */
-	.sessions-list {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-3);
-	}
-
-	.session-card {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		gap: var(--space-4);
-		padding: var(--space-4);
-		background-color: var(--bg-primary);
-		border: 1px solid var(--border-color);
-		border-radius: var(--radius-md);
-		transition: border-color var(--transition-fast);
-	}
-
-	.session-card:hover {
-		border-color: var(--border-hover);
-	}
-
-	.session-info {
-		flex: 1;
-		min-width: 0;
-	}
-
 	.session-header {
-		display: flex;
-		align-items: center;
-		gap: var(--space-3);
-		margin-bottom: var(--space-2);
 		flex-wrap: wrap;
 	}
 
@@ -303,19 +214,6 @@
 		border: 1px solid rgba(255, 170, 0, 0.3);
 	}
 
-	.session-meta {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-		font-size: var(--text-sm);
-		color: var(--text-tertiary);
-		flex-wrap: wrap;
-	}
-
-	.meta-separator {
-		color: var(--border-color);
-	}
-
 	.session-last-seen {
 		display: flex;
 		align-items: center;
@@ -338,49 +236,9 @@
 		cursor: default;
 	}
 
-	.session-actions {
-		flex-shrink: 0;
-	}
-
 	.current-hint {
 		font-size: var(--text-xs);
 		color: var(--text-tertiary);
 		font-style: italic;
-	}
-
-	/* Messages */
-	.message {
-		padding: var(--space-3) var(--space-4);
-		border-radius: var(--radius-md);
-		font-size: var(--text-sm);
-	}
-
-	.message.error {
-		background-color: rgba(255, 68, 68, 0.1);
-		color: var(--error);
-		border: 1px solid var(--error);
-	}
-
-	/* Responsive */
-	@media (max-width: 768px) {
-		.session-card {
-			flex-direction: column;
-			align-items: stretch;
-		}
-
-		.session-actions {
-			display: flex;
-			justify-content: flex-end;
-		}
-
-		.session-meta {
-			flex-direction: column;
-			align-items: flex-start;
-			gap: var(--space-1);
-		}
-
-		.meta-separator {
-			display: none;
-		}
 	}
 </style>

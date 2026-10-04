@@ -54,8 +54,6 @@
 	}
 
 	.form-label {
-		font-size: var(--text-sm);
-		font-weight: var(--font-medium);
 		color: var(--text-secondary);
 	}
 

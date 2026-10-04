@@ -1072,12 +1072,6 @@
 		position: relative;
 	}
 
-	.map-container :global(.leaflet-container) {
-		height: 100%;
-		width: 100%;
-		background-color: var(--bg-tertiary);
-	}
-
 	.map-loading {
 		position: absolute;
 		inset: 0;
@@ -1087,7 +1081,6 @@
 		background-color: var(--bg-primary);
 		z-index: 500;
 	}
-
 
 	/* WebSocket connection indicator */
 	.ws-indicator {
@@ -1107,57 +1100,11 @@
 		box-shadow: var(--shadow-md);
 	}
 
-	.ws-dot {
-		width: 8px;
-		height: 8px;
-		border-radius: 50%;
-		background-color: #ff4444;
-		flex-shrink: 0;
-	}
-
-	.ws-indicator.connected .ws-dot {
-		background-color: #00ff88;
-		animation: pulse-dot 2s ease-in-out infinite;
-	}
-
-	.ws-indicator.connected .ws-label {
-		color: #00ff88;
-	}
-
-	@keyframes pulse-dot {
-		0%, 100% { opacity: 1; }
-		50% { opacity: 0.5; }
-	}
-
 	/* Locate Me button — sits below the ws-indicator pill (~28px) */
 	.locate-me-btn {
 		position: absolute;
 		top: calc(var(--space-3) + 28px + var(--space-2));
 		left: var(--space-3);
-		z-index: 500;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 36px;
-		height: 36px;
-		background-color: var(--bg-secondary);
-		border: 1px solid var(--border-color);
-		border-radius: var(--radius-full);
-		color: var(--text-secondary);
-		cursor: pointer;
-		box-shadow: var(--shadow-md);
-		transition: all var(--transition-fast);
-	}
-
-	.locate-me-btn:hover {
-		color: var(--text-primary);
-		border-color: var(--accent-primary);
-	}
-
-	.locate-me-btn.active {
-		color: #4285F4;
-		border-color: #4285F4;
-		background-color: rgba(66, 133, 244, 0.1);
 	}
 
 	.locate-error {
@@ -1172,61 +1119,6 @@
 		border-radius: var(--radius-md);
 		font-size: var(--text-xs);
 		color: var(--error);
-	}
-
-	/* User location dot (injected into Leaflet as divIcon) */
-	.map-container :global(.user-location-marker) {
-		background: none !important;
-		border: none !important;
-	}
-
-	.map-container :global(.user-heading-marker) {
-		background: none !important;
-		border: none !important;
-	}
-
-	.map-container :global(.user-location-dot) {
-		position: relative;
-		width: 16px;
-		height: 16px;
-	}
-
-	.map-container :global(.user-location-dot::before) {
-		content: '';
-		position: absolute;
-		inset: 0;
-		border-radius: 50%;
-		background: #4285F4;
-		opacity: 0.4;
-		animation: user-location-pulse 1.8s ease-out infinite;
-	}
-
-	.map-container :global(.user-location-dot-inner) {
-		width: 16px;
-		height: 16px;
-		background: #4285F4;
-		border: 2.5px solid white;
-		border-radius: 50%;
-		box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
-		position: relative;
-		z-index: 1;
-	}
-
-	@keyframes user-location-pulse {
-		0% { transform: scale(1); opacity: 0.4; }
-		100% { transform: scale(2.5); opacity: 0; }
-	}
-
-	/* Leaflet popup override */
-	.map-container :global(.leaflet-popup-content-wrapper) {
-		background-color: var(--bg-secondary);
-		color: var(--text-primary);
-		border-radius: var(--radius-lg);
-		box-shadow: var(--shadow-lg);
-	}
-
-	.map-container :global(.leaflet-popup-tip) {
-		background-color: var(--bg-secondary);
 	}
 
 	@media (max-width: 768px) {
@@ -1253,13 +1145,8 @@
 	}
 
 	.owner-badge {
-		display: inline-block;
 		font-size: 0.6rem;
 		padding: 0.05rem 0.3rem;
 		border-radius: 0.2rem;
-		background: color-mix(in srgb, var(--color-warning, #f59e0b) 15%, transparent);
-		color: var(--text-secondary, #666);
-		line-height: 1.2;
-		white-space: nowrap;
 	}
 </style>

@@ -163,18 +163,8 @@
 		padding: var(--space-6) 0;
 	}
 
-	.container {
-		max-width: 1200px;
-		margin: 0 auto;
-		padding: 0 var(--space-4);
-	}
-
 	.page-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
 		gap: var(--space-3);
-		margin-bottom: var(--space-6);
 	}
 
 	.page-title-row {
@@ -200,23 +190,6 @@
 	.bookmark-search:focus {
 		outline: none;
 		border-color: var(--accent-primary);
-	}
-
-	.dismiss-btn {
-		background: none;
-		border: none;
-		color: var(--error);
-		cursor: pointer;
-		font-weight: var(--font-bold);
-		padding: var(--space-1) var(--space-2);
-	}
-
-	.loading-state {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		padding: var(--space-16) var(--space-4);
-		gap: var(--space-4);
 	}
 
 	.loading-state p,

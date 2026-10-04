@@ -3,10 +3,7 @@
 	import { isAdmin } from '$lib/stores/auth';
 	import { createEventDispatcher } from 'svelte';
 
-	export let label = 'All users';
-
 	const dispatch = createEventDispatcher<{ change: boolean }>();
-
 
 	function toggle() {
 		settings.update((s) => ({ ...s, showAllDevices: !s.showAllDevices }));
@@ -17,7 +14,7 @@
 {#if $isAdmin}
 	<label class="admin-toggle" title="Include resources from all users">
 		<input type="checkbox" checked={$settings.showAllDevices} on:change={toggle} />
-		<span class="toggle-label">{label}</span>
+		<span class="toggle-label">All users</span>
 	</label>
 {/if}
 

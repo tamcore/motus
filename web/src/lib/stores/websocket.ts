@@ -5,13 +5,16 @@ import { speedToKmh } from "$lib/api/client";
 /** Maximum length of raw message content included in warning logs. */
 const LOG_TRUNCATE_LENGTH = 200;
 
-class WebSocketManager {
+export class WebSocketManager {
   private ws: WebSocket | null = null;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private pingInterval: ReturnType<typeof setInterval> | null = null;
 
   public connected = writable(false);
   public lastMessage = writable<WebSocketMessage | null>(null);
+
+  /** @param query appended to /api/socket, e.g. "?shareToken=..." */
+  constructor(private query = "") {}
 
   private startPingInterval() {
     this.stopPingInterval();
@@ -56,7 +59,7 @@ class WebSocketManager {
     this.detach();
 
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const url = `${protocol}//${window.location.host}/api/socket`;
+    const url = `${protocol}//${window.location.host}/api/socket${this.query}`;
     const ws = new WebSocket(url);
     this.ws = ws;
 

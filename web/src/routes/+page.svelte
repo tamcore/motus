@@ -103,7 +103,7 @@
 					<button class="retry-btn" on:click={() => { loading = true; loadDashboardWithErrorState(); }}>
 						Retry
 					</button>
-					<button class="dismiss-btn" on:click={() => (loadError = '')} aria-label="Dismiss error">
+					<button class="dismiss-icon" on:click={() => (loadError = '')} aria-label="Dismiss error">
 						&#x2715;
 					</button>
 				</div>
@@ -294,7 +294,7 @@
 		font-size: var(--text-sm);
 	}
 
-	.dismiss-btn {
+	.dismiss-icon {
 		background: none;
 		border: none;
 		color: var(--error);
@@ -490,13 +490,8 @@
 	}
 
 	.owner-badge {
-		display: inline-block;
 		font-size: 0.6rem;
 		padding: 0.05rem 0.3rem;
 		border-radius: 0.2rem;
-		background: color-mix(in srgb, var(--color-warning, #f59e0b) 15%, transparent);
-		color: var(--text-secondary, #666);
-		line-height: 1.2;
-		white-space: nowrap;
 	}
 </style>

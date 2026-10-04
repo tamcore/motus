@@ -10,7 +10,7 @@
 	import AllDevicesToggle from '$lib/components/AllDevicesToggle.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import Input from '$lib/components/Input.svelte';
-	import ReportingIntervalPicker from '$lib/components/ReportingIntervalPicker.svelte';
+	import CommandParamFields from '$lib/components/CommandParamFields.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import ShareModal from '$lib/components/ShareModal.svelte';
 	import StatusIndicator from '$lib/components/StatusIndicator.svelte';
@@ -535,9 +535,8 @@
 										{/if}
 									</div>
 
-									<!-- svelte-ignore a11y-click-events-have-key-events a11y-no-noninteractive-element-interactions -->
-									<div class="detail-actions" on:click|stopPropagation role="group" aria-label="Device actions">
-										<a href="/map?device={device.id}" class="action-link" on:click|stopPropagation>
+									<div class="detail-actions" role="group" aria-label="Device actions">
+										<a href="/map?device={device.id}" class="action-link">
 											<Button variant="primary" size="sm">
 												<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 													<polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon>
@@ -547,7 +546,7 @@
 												Map
 											</Button>
 										</a>
-										<a href="/reports?device={device.id}" class="action-link" on:click|stopPropagation>
+										<a href="/reports?device={device.id}" class="action-link">
 											<Button variant="secondary" size="sm">
 												<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 													<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -559,7 +558,7 @@
 												Reports
 											</Button>
 										</a>
-										<a href="/reports/charts?device={device.id}" class="action-link" on:click|stopPropagation>
+										<a href="/reports/charts?device={device.id}" class="action-link">
 											<Button variant="secondary" size="sm">
 												<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 													<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
@@ -567,55 +566,45 @@
 												Charts
 											</Button>
 										</a>
-										<div on:click|stopPropagation on:keydown|stopPropagation role="presentation">
-											<Button variant="secondary" size="sm" on:click={() => openShareModal(device)}>
-												<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-													<circle cx="18" cy="5" r="3"></circle>
-													<circle cx="6" cy="12" r="3"></circle>
-													<circle cx="18" cy="19" r="3"></circle>
-													<line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
-													<line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
-												</svg>
-												Share
-											</Button>
-										</div>
-										<div on:click|stopPropagation on:keydown|stopPropagation role="presentation">
-											<Button variant="secondary" size="sm" on:click={() => openEditModal(device)}>
-												<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-													<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-													<path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-												</svg>
-												Edit
-											</Button>
-										</div>
-										<div on:click|stopPropagation on:keydown|stopPropagation role="presentation">
-											<Button variant="secondary" size="sm" on:click={() => openCommandModal(device)}>
-												<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-													<polyline points="4 17 10 11 4 5"></polyline>
-													<line x1="12" y1="19" x2="20" y2="19"></line>
-												</svg>
-												Commands
-											</Button>
-										</div>
-										<div on:click|stopPropagation on:keydown|stopPropagation role="presentation">
-											<Button variant="secondary" size="sm" loading={gpxImportingIds.has(device.id)} on:click={() => openGPXImport(device)}>
-												<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-													<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-													<polyline points="17 8 12 3 7 8"></polyline>
-													<line x1="12" y1="3" x2="12" y2="15"></line>
-												</svg>
-												Import GPX
-											</Button>
-										</div>
-										<div on:click|stopPropagation on:keydown|stopPropagation role="presentation">
-											<Button variant="danger" size="sm" on:click={() => deleteDevice(device)}>
-												<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-													<polyline points="3 6 5 6 21 6"></polyline>
-													<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-												</svg>
-												Delete
-											</Button>
-										</div>
+										<Button variant="secondary" size="sm" on:click={() => openShareModal(device)}>
+											<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+												<circle cx="18" cy="5" r="3"></circle>
+												<circle cx="6" cy="12" r="3"></circle>
+												<circle cx="18" cy="19" r="3"></circle>
+												<line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+												<line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+											</svg>
+											Share
+										</Button>
+										<Button variant="secondary" size="sm" on:click={() => openEditModal(device)}>
+											<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+												<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+												<path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+											</svg>
+											Edit
+										</Button>
+										<Button variant="secondary" size="sm" on:click={() => openCommandModal(device)}>
+											<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+												<polyline points="4 17 10 11 4 5"></polyline>
+												<line x1="12" y1="19" x2="20" y2="19"></line>
+											</svg>
+											Commands
+										</Button>
+										<Button variant="secondary" size="sm" loading={gpxImportingIds.has(device.id)} on:click={() => openGPXImport(device)}>
+											<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+												<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+												<polyline points="17 8 12 3 7 8"></polyline>
+												<line x1="12" y1="3" x2="12" y2="15"></line>
+											</svg>
+											Import GPX
+										</Button>
+										<Button variant="danger" size="sm" on:click={() => deleteDevice(device)}>
+											<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+												<polyline points="3 6 5 6 21 6"></polyline>
+												<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+											</svg>
+											Delete
+										</Button>
 									</div>
 									{#if gpxToast && gpxToast.deviceId === device.id}
 										<div class="gpx-toast" class:gpx-toast-ok={gpxToast.ok} class:gpx-toast-err={!gpxToast.ok}>
@@ -713,23 +702,13 @@
 			</div>
 		{/if}
 
-		{#if commandType === 'positionPeriodic'}
-			<div class="form-group">
-				<ReportingIntervalPicker bind:value={commandFrequency} />
-			</div>
-		{:else if commandType === 'sosNumber'}
-			<div class="form-group">
-				<Input name="sosNumber" label="SOS Phone Number" placeholder="+1234567890" bind:value={commandSosNumber} />
-			</div>
-		{:else if commandType === 'setSpeedAlarm'}
-			<div class="form-group">
-				<Input name="speed" label="Speed Limit (km/h, 0 = disable)" placeholder="80" bind:value={commandSpeed} />
-			</div>
-		{:else if commandType === 'custom'}
-			<div class="form-group">
-				<Input name="text" label="Raw Command" placeholder="rconf" bind:value={commandText} />
-			</div>
-		{/if}
+		<CommandParamFields
+			type={commandType}
+			bind:frequency={commandFrequency}
+			bind:sosNumber={commandSosNumber}
+			bind:speed={commandSpeed}
+			bind:text={commandText}
+		/>
 
 		{#if commandError}
 			<div class="form-error" role="alert">{commandError}</div>
@@ -786,13 +765,6 @@
 		padding: var(--space-6) 0;
 	}
 
-	.page-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		margin-bottom: var(--space-6);
-	}
-
 	.toolbar {
 		display: flex;
 		align-items: center;
@@ -819,31 +791,6 @@
 	.result-count {
 		font-size: var(--text-sm);
 		color: var(--text-secondary);
-	}
-
-	.list-skeleton {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-2);
-	}
-
-	/* ---- Responsive view toggle ---- */
-	.desktop-view {
-		display: block;
-	}
-
-	.mobile-view {
-		display: none;
-	}
-
-	@media (max-width: 768px) {
-		.desktop-view {
-			display: none;
-		}
-
-		.mobile-view {
-			display: block;
-		}
 	}
 
 	/* ==== DESKTOP TABLE VIEW ==== */
@@ -889,14 +836,6 @@
 
 	.device-table tbody tr:last-child td {
 		border-bottom: none;
-	}
-
-	.table-row {
-		transition: background-color var(--transition-fast);
-	}
-
-	.table-row:hover {
-		background-color: var(--bg-hover);
 	}
 
 	.td-status {
@@ -996,14 +935,6 @@
 		border-radius: var(--radius-lg);
 	}
 
-	.summary-main {
-		flex: 1;
-		min-width: 0;
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-1);
-	}
-
 	.summary-name-status {
 		display: flex;
 		align-items: center;
@@ -1039,46 +970,10 @@
 		white-space: nowrap;
 	}
 
-	.chevron {
-		flex-shrink: 0;
-		color: var(--text-tertiary);
-		transition: transform var(--transition-fast);
-	}
-
-	.chevron-open {
-		transform: rotate(180deg);
-	}
-
 	.device-detail {
 		border-top: 1px solid var(--border-color);
 		background-color: var(--bg-secondary);
 		padding: var(--space-3);
-	}
-
-	.detail-grid {
-		display: grid;
-		grid-template-columns: repeat(2, 1fr);
-		gap: var(--space-3);
-		margin-bottom: var(--space-4);
-	}
-
-	.detail-item {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-1);
-	}
-
-	.detail-label {
-		font-size: var(--text-xs);
-		font-weight: var(--font-semibold);
-		color: var(--text-tertiary);
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-	}
-
-	.detail-value {
-		font-size: var(--text-sm);
-		color: var(--text-primary);
 	}
 
 	.uid {
@@ -1091,34 +986,12 @@
 		width: fit-content;
 	}
 
-	.detail-actions {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-2);
-		padding-top: var(--space-3);
-		border-top: 1px solid var(--border-color);
-	}
-
 	.action-link {
 		text-decoration: none;
 		width: 100%;
 	}
 
-	.detail-actions :global(.btn) {
-		width: 100%;
-		justify-content: center;
-	}
-
 	.action-link :global(.btn) {
-		width: 100%;
-		justify-content: center;
-	}
-
-	.detail-actions > div {
-		width: 100%;
-	}
-
-	.detail-actions > div :global(.btn) {
 		width: 100%;
 		justify-content: center;
 	}
@@ -1150,12 +1023,6 @@
 		font-size: var(--text-sm);
 	}
 
-	.modal-actions {
-		display: flex;
-		justify-content: flex-end;
-		gap: var(--space-3);
-	}
-
 	/* ---- GPX import toast ---- */
 	.gpx-toast {
 		margin-top: var(--space-2);
@@ -1185,13 +1052,10 @@
 	}
 
 	.form-group {
-		display: flex;
-		flex-direction: column;
 		gap: var(--space-1);
 	}
 
 	.form-label {
-		font-size: var(--text-sm);
 		font-weight: var(--font-semibold);
 		color: var(--text-secondary);
 	}
@@ -1395,14 +1259,6 @@
 	}
 
 	.owner-badge {
-		display: inline-block;
-		font-size: 0.65rem;
-		padding: 0.1rem 0.35rem;
-		border-radius: 0.25rem;
-		background: color-mix(in srgb, var(--color-warning, #f59e0b) 15%, transparent);
-		color: var(--text-secondary, #666);
-		line-height: 1.2;
-		white-space: nowrap;
 		vertical-align: middle;
 	}
 </style>

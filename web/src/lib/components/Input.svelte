@@ -6,7 +6,6 @@
 	export let label: string = '';
 	export let error: string = '';
 	export let required: boolean = false;
-	export let disabled: boolean = false;
 	export let name: string = '';
 </script>
 
@@ -24,13 +23,9 @@
 		{name}
 		{placeholder}
 		{required}
-		{disabled}
 		class="input"
 		class:has-error={!!error}
 		bind:value
-		on:input
-		on:change
-		on:blur
 		aria-invalid={error ? 'true' : undefined}
 		aria-describedby={error ? `${name}-error` : undefined}
 	/>
@@ -67,10 +62,6 @@
 		transition: all var(--transition-fast);
 	}
 
-	.input:hover:not(:disabled) {
-		border-color: var(--border-hover);
-	}
-
 	.input:focus {
 		outline: none;
 		border-color: var(--accent-primary);
@@ -81,9 +72,8 @@
 		border-color: var(--error);
 	}
 
-	.input:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
+	.input:hover {
+		border-color: var(--border-hover);
 	}
 
 	.error-text {

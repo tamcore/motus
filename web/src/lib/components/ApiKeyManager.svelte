@@ -8,6 +8,7 @@
 	import Modal from '$lib/components/Modal.svelte';
 	import Input from '$lib/components/Input.svelte';
 	import QrCodeDialog from '$lib/components/QrCodeDialog.svelte';
+	import { copyText } from '$lib/utils/clipboard';
 
 	/** Show Home Assistant usage instructions below the key list */
 	export let showUsageInstructions: boolean = true;
@@ -63,8 +64,7 @@
 	// ---------------------------------------------------------------------------
 	// Create
 	// ---------------------------------------------------------------------------
-	function openCreateModal() {
-		showCreateModal = true;
+	function resetCreateForm() {
 		newKeyName = '';
 		newKeyPermissions = 'full';
 		newKeyExpiration = '168';
@@ -74,15 +74,14 @@
 		tokenCopied = false;
 	}
 
+	function openCreateModal() {
+		resetCreateForm();
+		showCreateModal = true;
+	}
+
 	function closeCreateModal() {
 		showCreateModal = false;
-		newKeyName = '';
-		newKeyPermissions = 'full';
-		newKeyExpiration = '168';
-		newKeyCustomDate = '';
-		createdToken = '';
-		createError = '';
-		tokenCopied = false;
+		resetCreateForm();
 	}
 
 	async function handleCreate() {
@@ -151,25 +150,9 @@
 	// Copy token
 	// ---------------------------------------------------------------------------
 	async function copyToken() {
-		if (!createdToken) return;
-
-		try {
-			await navigator.clipboard.writeText(createdToken);
-			tokenCopied = true;
-			setTimeout(() => {
-				tokenCopied = false;
-			}, 2000);
-		} catch {
-			// Fallback: select text for manual copy
-			if (tokenInputEl) {
-				tokenInputEl.select();
-				document.execCommand('copy');
-				tokenCopied = true;
-				setTimeout(() => {
-					tokenCopied = false;
-				}, 2000);
-			}
-		}
+		if (!createdToken || !(await copyText(createdToken, tokenInputEl))) return;
+		tokenCopied = true;
+		setTimeout(() => (tokenCopied = false), 2000);
 	}
 
 	// ---------------------------------------------------------------------------
@@ -474,104 +457,6 @@
 />
 
 <style>
-	.api-keys-section {
-		margin-top: var(--space-6);
-	}
-
-	.section-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: flex-start;
-		gap: var(--space-4);
-		margin-bottom: var(--space-4);
-	}
-
-	.section-title {
-		font-size: var(--text-xl);
-		font-weight: var(--font-semibold);
-		color: var(--text-primary);
-		margin-bottom: var(--space-1);
-	}
-
-	.section-description {
-		font-size: var(--text-sm);
-		color: var(--text-tertiary);
-	}
-
-	.settings-section {
-		padding: var(--space-6);
-		background-color: var(--bg-secondary);
-		border: 1px solid var(--border-color);
-		border-radius: var(--radius-lg);
-	}
-
-	.loading-text {
-		color: var(--text-secondary);
-		font-size: var(--text-sm);
-	}
-
-	/* Empty state */
-	.empty-state {
-		text-align: center;
-		padding: var(--space-8) var(--space-4);
-	}
-
-	.empty-title {
-		font-size: var(--text-lg);
-		font-weight: var(--font-semibold);
-		color: var(--text-primary);
-		margin-bottom: var(--space-2);
-	}
-
-	.empty-description {
-		font-size: var(--text-sm);
-		color: var(--text-tertiary);
-		max-width: 400px;
-		margin: 0 auto;
-		line-height: 1.5;
-	}
-
-	/* Keys list */
-	.keys-list {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-3);
-	}
-
-	.key-card {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		gap: var(--space-4);
-		padding: var(--space-4);
-		background-color: var(--bg-primary);
-		border: 1px solid var(--border-color);
-		border-radius: var(--radius-md);
-		transition: border-color var(--transition-fast);
-	}
-
-	.key-card:hover {
-		border-color: var(--border-hover);
-	}
-
-	.key-info {
-		flex: 1;
-		min-width: 0;
-	}
-
-	.key-header {
-		display: flex;
-		align-items: center;
-		gap: var(--space-3);
-		margin-bottom: var(--space-2);
-	}
-
-	.key-name {
-		font-weight: var(--font-semibold);
-		color: var(--text-primary);
-		font-size: var(--text-base);
-	}
-
 	.permission-badge {
 		display: inline-flex;
 		align-items: center;
@@ -601,7 +486,7 @@
 		border: 1px solid rgba(255, 68, 68, 0.3);
 	}
 
-	.key-expired {
+	.key-card.key-expired {
 		opacity: 0.6;
 		border-color: var(--error);
 	}
@@ -611,72 +496,10 @@
 		font-weight: var(--font-medium);
 	}
 
-	.key-meta {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-		font-size: var(--text-sm);
-		color: var(--text-tertiary);
-		flex-wrap: wrap;
-	}
-
 	.key-token {
 		font-family: 'SF Mono', 'Fira Code', 'Fira Mono', 'Roboto Mono', 'Courier New', monospace;
 		color: var(--text-secondary);
 		font-size: var(--text-xs);
-	}
-
-	.meta-separator {
-		color: var(--border-color);
-	}
-
-	.key-actions {
-		flex-shrink: 0;
-	}
-
-	/* Create modal form */
-	.create-form {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-4);
-	}
-
-	.form-row {
-		display: flex;
-		flex-direction: column;
-	}
-
-	.form-group {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-2);
-	}
-
-	.form-label {
-		font-size: var(--text-sm);
-		font-weight: var(--font-medium);
-		color: var(--text-primary);
-	}
-
-	.select {
-		width: 100%;
-		padding: var(--space-3) var(--space-4);
-		background-color: var(--bg-primary);
-		border: 1px solid var(--border-color);
-		border-radius: var(--radius-md);
-		color: var(--text-primary);
-		font-size: var(--text-base);
-		transition: border-color var(--transition-fast);
-	}
-
-	.select:hover {
-		border-color: var(--border-hover);
-	}
-
-	.select:focus {
-		outline: none;
-		border-color: var(--accent-primary);
-		box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
 	}
 
 	.date-input {
@@ -800,26 +623,6 @@
 		font-weight: var(--font-medium);
 	}
 
-	/* Modal footer actions */
-	.modal-actions {
-		display: flex;
-		justify-content: flex-end;
-		gap: var(--space-3);
-	}
-
-	/* Messages */
-	.message {
-		padding: var(--space-3) var(--space-4);
-		border-radius: var(--radius-md);
-		font-size: var(--text-sm);
-	}
-
-	.message.error {
-		background-color: rgba(255, 68, 68, 0.1);
-		color: var(--error);
-		border: 1px solid var(--error);
-	}
-
 	/* Security notice */
 	.security-notice {
 		padding: var(--space-3) var(--space-4);
@@ -914,32 +717,6 @@
 	}
 
 	/* Responsive */
-	@media (max-width: 768px) {
-		.section-header {
-			flex-direction: column;
-			align-items: stretch;
-		}
-
-		.key-card {
-			flex-direction: column;
-			align-items: stretch;
-		}
-
-		.key-actions {
-			display: flex;
-			justify-content: flex-end;
-		}
-
-		.key-meta {
-			flex-direction: column;
-			align-items: flex-start;
-			gap: var(--space-1);
-		}
-
-		.meta-separator {
-			display: none;
-		}
-	}
 
 	@media (max-width: 480px) {
 		.token-field {

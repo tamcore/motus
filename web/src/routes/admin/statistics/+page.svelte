@@ -6,34 +6,7 @@
 	import { api } from '$lib/api/client';
 	import { formatDate } from '$lib/utils/formatting';
 	import Button from '$lib/components/Button.svelte';
-
-	interface PlatformStats {
-		totalUsers: number;
-		totalDevices: number;
-		totalPositions: number;
-		totalEvents: number;
-		notificationsSent: number;
-		devicesByStatus: Record<string, number>;
-		positionsToday: number;
-		activeUsers: number;
-	}
-
-	interface UserStats {
-		userId: number;
-		devicesOwned: number;
-		totalPositions: number;
-		lastLogin: string | null;
-		eventsTriggered: number;
-		geofencesOwned: number;
-	}
-
-	interface User {
-		id: number;
-		email: string;
-		name: string;
-		administrator: boolean;
-		readonly: boolean;
-	}
+	import type { PlatformStats, User, UserStats } from '$lib/types/api';
 
 	let loading = true;
 	let error = '';
@@ -42,7 +15,6 @@
 	let selectedUserId: number | null = null;
 	let userStats: UserStats | null = null;
 	let loadingUserStats = false;
-
 
 	onMount(() => {
 		if (!$isAdmin) {
@@ -63,8 +35,8 @@
 				api.getPlatformStatistics(),
 				api.getUsers()
 			]);
-			stats = platformStats as PlatformStats;
-			users = userList as User[];
+			stats = platformStats;
+			users = userList;
 		} catch (err: any) {
 			error = err.status === 403
 				? 'Access denied. Admin privileges required.'
@@ -80,7 +52,7 @@
 		loadingUserStats = true;
 		userStats = null;
 		try {
-			userStats = await api.getUserStatistics(userId) as UserStats;
+			userStats = await api.getUserStatistics(userId);
 		} catch (err: any) {
 			console.error('Failed to load user statistics:', err);
 		} finally {
@@ -94,11 +66,6 @@
 			case 'offline': return 'var(--status-offline)';
 			default: return 'var(--text-secondary)';
 		}
-	}
-
-	function getUserName(userId: number): string {
-		const user = users.find(u => u.id === userId);
-		return user?.name || user?.email || `User #${userId}`;
 	}
 
 	$: deviceStatusEntries = stats?.devicesByStatus
@@ -316,47 +283,10 @@
 		padding: var(--space-6) 0;
 	}
 
-	.container {
-		max-width: 1200px;
-		margin: 0 auto;
-		padding: 0 var(--space-4);
-	}
-
-	/* Header */
-	.page-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		margin-bottom: var(--space-6);
-	}
-
 	.page-header-left {
 		display: flex;
 		align-items: baseline;
 		gap: var(--space-3);
-	}
-
-	/* Error */
-	.dismiss-btn {
-		background: none;
-		border: none;
-		color: var(--error);
-		cursor: pointer;
-		font-weight: var(--font-bold);
-		padding: var(--space-1) var(--space-2);
-	}
-
-	/* Loading */
-	.loading-state {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		padding: var(--space-16) var(--space-4);
-		gap: var(--space-4);
-	}
-
-	.loading-state p {
-		color: var(--text-secondary);
 	}
 
 	/* Stats Grid */
@@ -555,13 +485,6 @@
 		text-align: right;
 	}
 
-	/* User cell */
-	.user-cell {
-		display: flex;
-		align-items: center;
-		gap: var(--space-3);
-	}
-
 	.user-avatar {
 		width: 32px;
 		height: 32px;
@@ -576,49 +499,9 @@
 		flex-shrink: 0;
 	}
 
-	.user-details {
-		display: flex;
-		flex-direction: column;
-		min-width: 0;
-	}
-
 	.user-name {
 		font-weight: var(--font-medium);
 		color: var(--text-primary);
-	}
-
-	.user-email {
-		font-size: var(--text-xs);
-		color: var(--text-secondary);
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-
-	/* Role badges */
-	.role-badge {
-		display: inline-block;
-		padding: var(--space-1) var(--space-3);
-		border-radius: var(--radius-full);
-		font-size: var(--text-xs);
-		font-weight: var(--font-semibold);
-		text-transform: uppercase;
-		letter-spacing: 0.5px;
-	}
-
-	.role-admin {
-		background-color: rgba(255, 59, 48, 0.15);
-		color: #ff3b30;
-	}
-
-	.role-user {
-		background-color: rgba(0, 122, 255, 0.15);
-		color: #007aff;
-	}
-
-	.role-readonly {
-		background-color: rgba(142, 142, 147, 0.15);
-		color: #8e8e93;
 	}
 
 	/* Stats detail row */

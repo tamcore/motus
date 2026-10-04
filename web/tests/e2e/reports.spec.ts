@@ -33,6 +33,25 @@ test.describe('Reports Page', () => {
     await expect(reportsPage.presetButtons).toHaveCount(5);
   });
 
+  test('should lay out the date range filter in one row', async ({ authedPage }) => {
+    const buttons = reportsPage.presetButtons;
+    const first = (await buttons.first().boundingBox())!;
+    const last = (await buttons.last().boundingBox())!;
+    expect(Math.abs(first.y - last.y)).toBeLessThan(1);
+    expect(last.x).toBeGreaterThan(first.x + first.width);
+
+    await reportsPage.selectPreset('Custom');
+    const from = (await reportsPage.customFromInput.boundingBox())!;
+    const to = (await reportsPage.customToInput.boundingBox())!;
+    expect(Math.abs(from.y - to.y)).toBeLessThan(1);
+    expect(to.x).toBeGreaterThan(from.x + from.width);
+
+    const bar = (await authedPage.locator('.filters-bar').boundingBox())!;
+    const apply = (await reportsPage.applyButton.boundingBox())!;
+    expect(apply.y + apply.height).toBeLessThanOrEqual(bar.y + bar.height);
+    expect(to.y + to.height).toBeLessThanOrEqual(bar.y + bar.height);
+  });
+
   test('should highlight Last 7d as default preset', async ({ authedPage }) => {
     const weekBtn = authedPage.locator('.preset-btn:has-text("Last 7d")');
     await expect(weekBtn).toHaveClass(/active/);

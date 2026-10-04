@@ -220,6 +220,17 @@ authTest.describe('Geofences Page', () => {
     await expect(tiles.first()).toBeVisible({ timeout: 10000 });
   });
 
+  authTest('should place the round locate button left of the zoom control', async ({ authedPage }) => {
+    const zoom = (await authedPage.locator('.leaflet-control-zoom').boundingBox())!;
+    const locate = (await geofencesPage.locateButton.boundingBox())!;
+    expect(locate.width).toBeCloseTo(36, 0);
+    expect(locate.height).toBeCloseTo(36, 0);
+    expect(locate.x + locate.width).toBeLessThan(zoom.x);
+    expect(Math.abs(locate.y - zoom.y)).toBeLessThan(4);
+    const radius = await geofencesPage.locateButton.evaluate((el) => getComputedStyle(el).borderTopLeftRadius);
+    expect(parseFloat(radius)).toBeGreaterThanOrEqual(18);
+  });
+
   authTest('should show zoom controls on map', async ({ authedPage }) => {
     await expect(authedPage.locator('.leaflet-control-zoom')).toBeVisible();
   });

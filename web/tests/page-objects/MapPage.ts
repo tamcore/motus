@@ -73,6 +73,26 @@ export class MapPage {
     return this.page.locator('.leaflet-tile');
   }
 
+  get wsIndicator() {
+    return this.page.locator('.ws-indicator');
+  }
+
+  get locateButton() {
+    return this.page.locator('.locate-me-btn');
+  }
+
+  get layerToggle() {
+    return this.page.getByRole('button', { name: 'Map layers' });
+  }
+
+  get layerPanel() {
+    return this.page.locator('.layer-panel');
+  }
+
+  get overlayRadios() {
+    return this.layerPanel.getByRole('radio');
+  }
+
   get hideTrailButton() {
     return this.page.locator('button:has-text("Hide Trail")');
   }

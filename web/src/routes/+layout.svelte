@@ -34,6 +34,20 @@
 
 	$: isCurrentUserAdmin = $currentUser?.administrator === true;
 
+	$: navLinks = [
+		{ href: '/', label: 'Dashboard' },
+		{ href: '/devices', label: 'Devices' },
+		{ href: '/map', label: 'Map' },
+		{ href: '/heatmap', label: 'Heatmap' },
+		{ href: '/bookmarks', label: 'Bookmarks' },
+		{ href: '/reports', label: 'Reports', prefix: '/reports' },
+		{ href: '/geofences', label: 'Geofences' },
+		{ href: '/calendars', label: 'Calendars' },
+		...($serverInfo?.aiEnabled ? [{ href: '/chat', label: 'Chat' }] : []),
+		{ href: '/notifications', label: 'Notifications', prefix: '/notifications' },
+		...(isCurrentUserAdmin ? [{ href: '/admin/users', label: 'Admin', prefix: '/admin' }] : []),
+	];
+
 	$: isPublicRoute = $page.url.pathname.startsWith('/share/') || $page.url.pathname === '/login';
 
 	onMount(async () => {
@@ -169,43 +183,15 @@
 				</div>
 
 				<div class="nav-center" class:open={menuOpen}>
-					<a href="/" class="nav-link" class:active={$page.url.pathname === '/'}>
-						Dashboard
-					</a>
-					<a href="/devices" class="nav-link" class:active={$page.url.pathname === '/devices'}>
-						Devices
-					</a>
-					<a href="/map" class="nav-link" class:active={$page.url.pathname === '/map'}>
-						Map
-					</a>
-					<a href="/heatmap" class="nav-link" class:active={$page.url.pathname === '/heatmap'}>
-						Heatmap
-					</a>
-					<a href="/bookmarks" class="nav-link" class:active={$page.url.pathname === '/bookmarks'}>
-						Bookmarks
-					</a>
-					<a href="/reports" class="nav-link" class:active={$page.url.pathname.startsWith('/reports')}>
-						Reports
-					</a>
-					<a href="/geofences" class="nav-link" class:active={$page.url.pathname === '/geofences'}>
-						Geofences
-					</a>
-					<a href="/calendars" class="nav-link" class:active={$page.url.pathname === '/calendars'}>
-						Calendars
-					</a>
-					{#if $serverInfo?.aiEnabled}
-						<a href="/chat" class="nav-link" class:active={$page.url.pathname === '/chat'}>
-							Chat
+					{#each navLinks as link (link.href)}
+						<a
+							href={link.href}
+							class="nav-link"
+							class:active={link.prefix ? $page.url.pathname.startsWith(link.prefix) : $page.url.pathname === link.href}
+						>
+							{link.label}
 						</a>
-					{/if}
-					<a href="/notifications" class="nav-link" class:active={$page.url.pathname.startsWith('/notifications')}>
-						Notifications
-					</a>
-					{#if isCurrentUserAdmin}
-						<a href="/admin/users" class="nav-link" class:active={$page.url.pathname.startsWith('/admin')}>
-							Admin
-						</a>
-					{/if}
+					{/each}
 				</div>
 
 				<div class="nav-right">

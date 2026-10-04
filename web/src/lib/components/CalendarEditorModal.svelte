@@ -621,18 +621,6 @@
 		gap: var(--space-4);
 	}
 
-	.form-group {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-2);
-	}
-
-	.form-label {
-		font-size: var(--text-sm);
-		font-weight: var(--font-medium);
-		color: var(--text-primary);
-	}
-
 	/* Mode Tabs */
 	.mode-tabs {
 		display: flex;

@@ -102,8 +102,8 @@
 			</div>
 
 			<div class="header-actions">
-				<div class="filter-group">
-					<label for="rule-filter" class="filter-label">Rule:</label>
+				<div class="history-filter">
+					<label for="rule-filter" class="history-filter-label">Rule:</label>
 					<select id="rule-filter" bind:value={ruleFilter} class="select">
 						<option value="all">All</option>
 						{#each rules as rule (rule.id)}
@@ -111,8 +111,8 @@
 						{/each}
 					</select>
 				</div>
-				<div class="filter-group">
-					<label for="status-filter" class="filter-label">Status:</label>
+				<div class="history-filter">
+					<label for="status-filter" class="history-filter-label">Status:</label>
 					<select id="status-filter" bind:value={statusFilter} class="select">
 						<option value="all">All</option>
 						<option value="sent">Sent</option>
@@ -209,17 +209,8 @@
 		padding: var(--space-6) 0;
 	}
 
-	.container {
-		max-width: 1200px;
-		margin: 0 auto;
-		padding: 0 var(--space-4);
-	}
-
 	.page-header {
-		display: flex;
-		justify-content: space-between;
 		align-items: flex-end;
-		margin-bottom: var(--space-6);
 		gap: var(--space-4);
 		flex-wrap: wrap;
 	}
@@ -250,13 +241,13 @@
 		gap: var(--space-3);
 	}
 
-	.filter-group {
+	.history-filter {
 		display: flex;
 		align-items: center;
 		gap: var(--space-2);
 	}
 
-	.filter-label {
+	.history-filter-label {
 		font-size: var(--text-sm);
 		color: var(--text-secondary);
 		white-space: nowrap;
@@ -264,40 +255,7 @@
 
 	.select {
 		padding: var(--space-2) var(--space-3);
-		background-color: var(--bg-secondary);
-		border: 1px solid var(--border-color);
-		border-radius: var(--radius-md);
-		color: var(--text-primary);
 		font-size: var(--text-sm);
-	}
-
-	.select:focus {
-		outline: none;
-		border-color: var(--accent-primary);
-		box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
-	}
-
-	/* Error banner */
-	.dismiss-btn {
-		background: none;
-		border: none;
-		color: var(--error);
-		cursor: pointer;
-		font-weight: var(--font-bold);
-		padding: var(--space-1) var(--space-2);
-	}
-
-	/* Loading */
-	.loading-state {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		padding: var(--space-16) var(--space-4);
-		gap: var(--space-4);
-	}
-
-	.loading-state p {
-		color: var(--text-secondary);
 	}
 
 	/* Empty */

@@ -318,17 +318,8 @@
 		padding: var(--space-6) 0;
 	}
 
-	.container {
-		max-width: 1200px;
-		margin: 0 auto;
-		padding: 0 var(--space-4);
-	}
-
 	/* Header */
 	.page-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
 		margin-bottom: var(--space-4);
 	}
 
@@ -375,40 +366,8 @@
 	.select {
 		padding: var(--space-2) var(--space-3);
 		background-color: var(--bg-primary);
-		border: 1px solid var(--border-color);
-		border-radius: var(--radius-md);
-		color: var(--text-primary);
 		font-size: var(--text-sm);
 		min-width: 160px;
-	}
-
-	.select:focus {
-		outline: none;
-		border-color: var(--accent-primary);
-		box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
-	}
-
-	/* Error */
-	.dismiss-btn {
-		background: none;
-		border: none;
-		color: var(--error);
-		cursor: pointer;
-		font-weight: var(--font-bold);
-		padding: var(--space-1) var(--space-2);
-	}
-
-	/* Loading */
-	.loading-state {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		padding: var(--space-16) var(--space-4);
-		gap: var(--space-4);
-	}
-
-	.loading-state p {
-		color: var(--text-secondary);
 	}
 
 	/* Empty state */
@@ -613,10 +572,6 @@
 			flex-direction: column;
 			align-items: flex-start;
 			gap: var(--space-2);
-		}
-
-		.filters-bar {
-			flex-direction: column;
 		}
 
 		.audit-table th:nth-child(4),

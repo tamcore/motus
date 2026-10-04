@@ -3,6 +3,7 @@
 	import { api } from '$lib/api/client';
 	import { formatDate } from '$lib/utils/formatting';
 	import { hoursFromNow } from '$lib/utils/date-range';
+	import { copyText } from '$lib/utils/clipboard';
 	import type { DeviceShare } from '$lib/types/api';
 	import Button from './Button.svelte';
 	import Modal from './Modal.svelte';
@@ -65,20 +66,9 @@
 	}
 
 	async function copyLink() {
-		try {
-			await navigator.clipboard.writeText(shareLink);
-			copied = true;
-			setTimeout(() => { copied = false; }, 2000);
-		} catch {
-			// Fallback: select the input text
-			const input = document.querySelector('.share-link-input') as HTMLInputElement;
-			if (input) {
-				input.select();
-				document.execCommand('copy');
-				copied = true;
-				setTimeout(() => { copied = false; }, 2000);
-			}
-		}
+		if (!(await copyText(shareLink, document.querySelector<HTMLInputElement>('.share-link-input')))) return;
+		copied = true;
+		setTimeout(() => { copied = false; }, 2000);
 	}
 
 	async function revokeShare(shareId: number) {
@@ -192,22 +182,7 @@
 	}
 
 	.form-group {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-2);
 		flex: 1;
-	}
-
-	.form-label {
-		font-size: var(--text-sm);
-		font-weight: var(--font-medium);
-		color: var(--text-primary);
-	}
-
-	.select:focus {
-		outline: none;
-		border-color: var(--accent-primary);
-		box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
 	}
 
 	.form-action {

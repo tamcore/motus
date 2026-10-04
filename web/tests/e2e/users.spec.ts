@@ -1,5 +1,6 @@
 import { test, expect } from '../fixtures/auth-fixture';
 import { mockFetch } from '../helpers/mock-fetch';
+import { UsersPage } from '../page-objects/UsersPage';
 
 test.describe('Admin User Management', () => {
   test.beforeEach(async ({ authedPage }) => {
@@ -129,5 +130,36 @@ test.describe('Sudo bar', () => {
     await authedPage.goto('/');
     await expect(authedPage.locator('h1:has-text("Dashboard")')).toBeVisible();
     await expect(authedPage.locator('.sudo-bar')).toHaveCount(0);
+  });
+});
+
+test.describe('Admin users mobile cards', () => {
+  test('stacks full-width actions in an expanded card', async ({ authedPage }) => {
+    await authedPage.setViewportSize({ width: 390, height: 844 });
+    const users = new UsersPage(authedPage);
+    await users.goto();
+    await expect(users.table).toBeHidden();
+
+    await users.cardSummaries.first().click();
+    await expect(users.cardSummaries.first()).toHaveAttribute('aria-expanded', 'true');
+
+    const items = users.detailGrid.locator('.detail-item');
+    const a = (await items.nth(0).boundingBox())!;
+    const b = (await items.nth(1).boundingBox())!;
+    expect(Math.abs(a.y - b.y)).toBeLessThan(1);
+    expect(b.x).toBeGreaterThan(a.x + a.width - 1);
+
+    const actions = users.detailActions;
+    const box = (await actions.boundingBox())!;
+    const buttons = actions.locator('.btn');
+    expect(await buttons.count()).toBeGreaterThan(1);
+    const first = (await buttons.nth(0).boundingBox())!;
+    const second = (await buttons.nth(1).boundingBox())!;
+    expect(Math.abs(first.width - box.width)).toBeLessThan(1);
+    expect(second.y).toBeGreaterThan(first.y + first.height);
+
+    await actions.locator('.btn:has-text("Devices")').click();
+    await expect(authedPage.locator('.modal[role="dialog"]')).toBeVisible();
+    await expect(users.cardSummaries.first()).toHaveAttribute('aria-expanded', 'true');
   });
 });

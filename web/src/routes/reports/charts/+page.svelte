@@ -450,10 +450,7 @@
 
 	/* Header */
 	.page-header {
-		display: flex;
-		justify-content: space-between;
 		align-items: flex-start;
-		margin-bottom: var(--space-6);
 	}
 
 	.page-title-group {
@@ -503,29 +500,12 @@
 		border-top: 1px solid var(--border-color);
 	}
 
-	.filter-group {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-2);
-	}
-
 	.filter-group-action {
 		align-self: flex-end;
 	}
 
-	.filter-label {
-		font-size: var(--text-sm);
-		font-weight: var(--font-medium);
-		color: var(--text-secondary);
-	}
-
 	.select {
-		padding: var(--space-3) var(--space-4);
 		background-color: var(--bg-primary);
-		border: 1px solid var(--border-color);
-		border-radius: var(--radius-md);
-		color: var(--text-primary);
-		font-size: var(--text-base);
 		min-width: 180px;
 	}
 
@@ -533,15 +513,6 @@
 		padding: var(--space-2) var(--space-3);
 		font-size: var(--text-sm);
 		min-width: 120px;
-	}
-
-	.date-input {
-		padding: var(--space-2) var(--space-3);
-		background-color: var(--bg-primary);
-		border: 1px solid var(--border-color);
-		border-radius: var(--radius-md);
-		color: var(--text-primary);
-		font-size: var(--text-sm);
 	}
 
 	/* Metric chips */
@@ -681,10 +652,6 @@
 		.config-row {
 			flex-direction: column;
 			align-items: stretch;
-		}
-
-		.filter-group {
-			width: 100%;
 		}
 
 		.filter-group-action {

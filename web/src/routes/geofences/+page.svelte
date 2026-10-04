@@ -513,7 +513,7 @@
 
 		<div class="fence-list">
 			{#if loading}
-				<div class="loading-state">
+				<div class="fence-loading">
 					<div class="spinner small"></div>
 					<span>Loading geofences...</span>
 				</div>
@@ -811,7 +811,7 @@
 		overflow-y: auto;
 	}
 
-	.loading-state {
+	.fence-loading {
 		display: flex;
 		align-items: center;
 		gap: var(--space-3);
@@ -964,12 +964,6 @@
 		position: relative;
 	}
 
-	.map-container :global(.leaflet-container) {
-		height: 100%;
-		width: 100%;
-		background-color: var(--bg-tertiary);
-	}
-
 	.map-loading {
 		position: absolute;
 		inset: 0;
@@ -979,7 +973,6 @@
 		background-color: var(--bg-primary);
 		z-index: 500;
 	}
-
 
 	.spinner.small {
 		width: 20px;
@@ -1007,17 +1000,6 @@
 		transition: all var(--transition-fast);
 	}
 
-	.locate-me-btn:hover {
-		color: var(--text-primary);
-		border-color: var(--accent-primary);
-	}
-
-	.locate-me-btn.active {
-		color: #4285F4;
-		border-color: #4285F4;
-		background-color: rgba(66, 133, 244, 0.1);
-	}
-
 	.locate-error {
 		position: absolute;
 		top: calc(var(--space-3) + 36px + var(--space-2));
@@ -1032,63 +1014,10 @@
 		color: var(--error);
 	}
 
-	/* User location dot */
-	.map-container :global(.user-location-marker) {
-		background: none !important;
-		border: none !important;
-	}
-
-	.map-container :global(.user-heading-marker) {
-		background: none !important;
-		border: none !important;
-	}
-
-	.map-container :global(.user-location-dot) {
-		position: relative;
-		width: 16px;
-		height: 16px;
-	}
-
-	.map-container :global(.user-location-dot::before) {
-		content: '';
-		position: absolute;
-		inset: 0;
-		border-radius: 50%;
-		background: #4285F4;
-		opacity: 0.4;
-		animation: user-location-pulse 1.8s ease-out infinite;
-	}
-
-	.map-container :global(.user-location-dot-inner) {
-		width: 16px;
-		height: 16px;
-		background: #4285F4;
-		border: 2.5px solid white;
-		border-radius: 50%;
-		box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
-		position: relative;
-		z-index: 1;
-	}
-
-	@keyframes user-location-pulse {
-		0% { transform: scale(1); opacity: 0.4; }
-		100% { transform: scale(2.5); opacity: 0; }
-	}
-
 	/* Override Leaflet Draw toolbar for dark theme */
 	.map-container :global(.leaflet-draw-toolbar a) {
 		background-color: var(--bg-secondary);
 		border-color: var(--border-color);
-	}
-
-	.map-container :global(.leaflet-popup-content-wrapper) {
-		background-color: var(--bg-secondary);
-		color: var(--text-primary);
-		border-radius: var(--radius-lg);
-	}
-
-	.map-container :global(.leaflet-popup-tip) {
-		background-color: var(--bg-secondary);
 	}
 
 	/* Modal form styles */
@@ -1098,16 +1027,7 @@
 		gap: var(--space-4);
 	}
 
-	.form-group {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-2);
-	}
-
 	.form-label {
-		font-size: var(--text-sm);
-		font-weight: var(--font-medium);
-		color: var(--text-primary);
 		display: flex;
 		align-items: center;
 		gap: var(--space-2);
@@ -1134,22 +1054,8 @@
 		font-style: italic;
 	}
 
-	.select:hover:not(:disabled) {
+	.select:hover:not(:disabled, :focus) {
 		border-color: var(--border-hover);
-	}
-
-	.select:focus {
-		outline: none;
-		border-color: var(--accent-primary);
-		box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
-	}
-
-
-
-	.modal-actions {
-		display: flex;
-		justify-content: flex-end;
-		gap: var(--space-3);
 	}
 
 	.modal-actions--edit {
@@ -1204,16 +1110,5 @@
 	.fence-item.other-user {
 		border-left: 3px solid var(--color-warning, #f59e0b);
 		background: color-mix(in srgb, var(--color-warning, #f59e0b) 4%, transparent);
-	}
-
-	.owner-badge {
-		display: inline-block;
-		font-size: 0.65rem;
-		padding: 0.1rem 0.35rem;
-		border-radius: 0.25rem;
-		background: color-mix(in srgb, var(--color-warning, #f59e0b) 15%, transparent);
-		color: var(--text-secondary, #666);
-		line-height: 1.2;
-		white-space: nowrap;
 	}
 </style>

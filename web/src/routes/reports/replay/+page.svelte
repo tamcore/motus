@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { RELATIVE_DATE_PRESETS, dateValue, resolveDatePreset, type DatePreset } from '$lib/utils/date-range';
+	import { dateValue, resolveDatePreset, type DatePreset } from '$lib/utils/date-range';
 	import { onMount, onDestroy, tick } from 'svelte';
 	import { page } from '$app/stores';
 	import { api, fetchDevices } from '$lib/api/client';
@@ -16,6 +16,7 @@
 	import Skeleton from '$lib/components/Skeleton.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import AllDevicesToggle from '$lib/components/AllDevicesToggle.svelte';
+	import DateRangeFilter from '$lib/components/DateRangeFilter.svelte';
 
 	Chart.register(...registerables);
 
@@ -769,24 +770,7 @@
 						{/if}
 					</div>
 
-					<div class="filter-group">
-						<span class="filter-label">Date Range</span>
-						<div class="preset-buttons">
-							{#each RELATIVE_DATE_PRESETS as p (p.value)}
-								<button class="preset-btn" class:active={datePreset === p.value}
-									on:click={() => (datePreset = p.value)}>{p.label}</button>
-							{/each}
-						</div>
-					</div>
-
-					{#if datePreset === 'custom'}
-						<div class="filter-group date-inputs">
-							<label for="replay-from" class="filter-label">From</label>
-							<input id="replay-from" type="date" bind:value={customFrom} class="date-input" />
-							<label for="replay-to" class="filter-label">To</label>
-							<input id="replay-to" type="date" bind:value={customTo} class="date-input" />
-						</div>
-					{/if}
+					<DateRangeFilter bind:preset={datePreset} bind:from={customFrom} bind:to={customTo} idPrefix="replay" />
 
 					<Button on:click={handleLoad} loading={fetching}>Load Drive</Button>
 				</div>
@@ -1043,13 +1027,6 @@
 		padding: var(--space-6) 0;
 	}
 
-	.container {
-		max-width: 1200px;
-		margin: 0 auto;
-		padding: 0 var(--space-4);
-	}
-
-
 	.page-subtitle {
 		color: var(--text-secondary);
 		font-size: var(--text-base);
@@ -1067,66 +1044,9 @@
 		border-radius: var(--radius-lg);
 	}
 
-	.filter-group {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-2);
-	}
-
-	.filter-label {
-		font-size: var(--text-sm);
-		font-weight: var(--font-medium);
-		color: var(--text-secondary);
-	}
-
 	.select {
-		padding: var(--space-3) var(--space-4);
 		background-color: var(--bg-primary);
-		border: 1px solid var(--border-color);
-		border-radius: var(--radius-md);
-		color: var(--text-primary);
-		font-size: var(--text-base);
 		min-width: 200px;
-	}
-
-	.preset-buttons {
-		display: flex;
-		gap: var(--space-1);
-	}
-
-	.preset-btn {
-		padding: var(--space-2) var(--space-3);
-		background-color: var(--bg-primary);
-		border: 1px solid var(--border-color);
-		border-radius: var(--radius-md);
-		color: var(--text-primary);
-		font-size: var(--text-sm);
-		cursor: pointer;
-		transition: all var(--transition-fast);
-	}
-
-	.preset-btn:hover {
-		background-color: var(--bg-hover);
-	}
-
-	.preset-btn.active {
-		background-color: var(--accent-primary);
-		color: var(--text-inverse);
-		border-color: var(--accent-primary);
-	}
-
-	.date-inputs {
-		flex-direction: row;
-		align-items: center;
-	}
-
-	.date-input {
-		padding: var(--space-2) var(--space-3);
-		background-color: var(--bg-primary);
-		border: 1px solid var(--border-color);
-		border-radius: var(--radius-md);
-		color: var(--text-primary);
-		font-size: var(--text-sm);
 	}
 
 	.error-message {
@@ -1526,15 +1446,6 @@
 
 	/* Responsive */
 	@media (max-width: 768px) {
-		.filters-bar {
-			flex-direction: column;
-			align-items: stretch;
-		}
-
-		.filter-group {
-			width: 100%;
-		}
-
 		.select {
 			width: 100%;
 		}

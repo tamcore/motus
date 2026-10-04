@@ -10,7 +10,7 @@
 	import Input from '$lib/components/Input.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import Skeleton from '$lib/components/Skeleton.svelte';
-	import type { User } from '$lib/types/api';
+	import type { Device, User } from '$lib/types/api';
 
 	// Helper to get role string from user object
 	function getRoleFromUser(user: User): string {
@@ -19,16 +19,10 @@
 		return 'user';
 	}
 
-	interface Device {
-		id: number;
-		name: string;
-		uniqueId: string;
-	}
-
 	const ROLES = [
-		{ value: 'admin', label: 'Admin', color: 'role-admin' },
-		{ value: 'user', label: 'User', color: 'role-user' },
-		{ value: 'readonly', label: 'Read Only', color: 'role-readonly' }
+		{ value: 'admin', label: 'Admin' },
+		{ value: 'user', label: 'User' },
+		{ value: 'readonly', label: 'Read Only' }
 	];
 
 	let loading = true;
@@ -200,7 +194,7 @@
 				api.getUserDevices(user.id)
 			]);
 			allDevices = devices;
-			assignedDeviceIds = new Set(userDevices.map((d: Device) => d.id));
+			assignedDeviceIds = new Set(userDevices.map((d) => d.id));
 		} catch (err: any) {
 			error = 'Failed to load devices';
 			console.error(err);
@@ -257,11 +251,6 @@
 		}
 	}
 
-	function getRoleClass(role: string): string {
-		const found = ROLES.find((r) => r.value === role);
-		return found ? found.color : 'role-user';
-	}
-
 	function getRoleLabel(role: string): string {
 		const found = ROLES.find((r) => r.value === role);
 		return found ? found.label : role;
@@ -285,7 +274,7 @@
 				{#each ROLES as role}
 					{#if roleCounts[role.value]}
 						<div class="role-stat">
-							<span class="role-badge {role.color}">{role.label}</span>
+							<span class="role-badge role-{role.value}">{role.label}</span>
 							<span class="role-count">{roleCounts[role.value]}</span>
 						</div>
 					{/if}
@@ -353,7 +342,7 @@
 										</div>
 									</td>
 									<td>
-										<span class="role-badge {getRoleClass(getRoleFromUser(user))}">{getRoleLabel(getRoleFromUser(user))}</span>
+										<span class="role-badge role-{getRoleFromUser(user)}">{getRoleLabel(getRoleFromUser(user))}</span>
 									</td>
 									<td class="date-cell">
 										{formatDate(user.createdAt)}
@@ -424,7 +413,7 @@
 												<span class="you-badge">you</span>
 											{/if}
 										</span>
-										<span class="role-badge {getRoleClass(userRole)}">{getRoleLabel(userRole)}</span>
+										<span class="role-badge role-{userRole}">{getRoleLabel(userRole)}</span>
 									</div>
 									<span class="summary-email">{user.email}</span>
 								</div>
@@ -469,7 +458,7 @@
 										<div class="detail-item">
 											<span class="detail-label">Role</span>
 											<span class="detail-value">
-												<span class="role-badge {getRoleClass(userRole)}">{getRoleLabel(userRole)}</span>
+												<span class="role-badge role-{userRole}">{getRoleLabel(userRole)}</span>
 											</span>
 										</div>
 										<div class="detail-item">
@@ -478,55 +467,46 @@
 										</div>
 									</div>
 
-									<!-- svelte-ignore a11y-click-events-have-key-events a11y-no-noninteractive-element-interactions -->
-									<div class="detail-actions" on:click|stopPropagation role="group" aria-label="User actions">
-										<div on:click|stopPropagation on:keydown|stopPropagation role="presentation">
-											<Button
-												size="sm"
-												variant="secondary"
-												disabled={user.id === currentUserId || sudoLoading === user.id}
-												loading={sudoLoading === user.id}
-												on:click={() => startSudo(user)}
-											>
-												<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-													<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-													<circle cx="12" cy="7" r="4" />
-												</svg>
-												Sudo
-											</Button>
-										</div>
-										<div on:click|stopPropagation on:keydown|stopPropagation role="presentation">
-											<Button size="sm" variant="secondary" on:click={() => openDevices(user)}>
-												<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-													<rect x="5" y="2" width="14" height="20" rx="2" />
-													<line x1="12" y1="18" x2="12" y2="18.01" stroke-width="2" />
-												</svg>
-												Devices
-											</Button>
-										</div>
-										<div on:click|stopPropagation on:keydown|stopPropagation role="presentation">
-											<Button size="sm" variant="secondary" on:click={() => openEditUser(user)}>
-												<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-													<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-													<path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-												</svg>
-												Edit
-											</Button>
-										</div>
-										<div on:click|stopPropagation on:keydown|stopPropagation role="presentation">
-											<Button
-												size="sm"
-												variant="danger"
-												disabled={user.id === currentUserId}
-												on:click={() => deleteUser(user)}
-											>
-												<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-													<polyline points="3 6 5 6 21 6"></polyline>
-													<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-												</svg>
-												Delete
-											</Button>
-										</div>
+									<div class="detail-actions" role="group" aria-label="User actions">
+										<Button
+											size="sm"
+											variant="secondary"
+											disabled={user.id === currentUserId || sudoLoading === user.id}
+											loading={sudoLoading === user.id}
+											on:click={() => startSudo(user)}
+										>
+											<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+												<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+												<circle cx="12" cy="7" r="4" />
+											</svg>
+											Sudo
+										</Button>
+										<Button size="sm" variant="secondary" on:click={() => openDevices(user)}>
+											<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+												<rect x="5" y="2" width="14" height="20" rx="2" />
+												<line x1="12" y1="18" x2="12" y2="18.01" stroke-width="2" />
+											</svg>
+											Devices
+										</Button>
+										<Button size="sm" variant="secondary" on:click={() => openEditUser(user)}>
+											<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+												<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+												<path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+											</svg>
+											Edit
+										</Button>
+										<Button
+											size="sm"
+											variant="danger"
+											disabled={user.id === currentUserId}
+											on:click={() => deleteUser(user)}
+										>
+											<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+												<polyline points="3 6 5 6 21 6"></polyline>
+												<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+											</svg>
+											Delete
+										</Button>
 									</div>
 								</div>
 							{/if}
@@ -655,20 +635,6 @@
 		padding: var(--space-6) 0;
 	}
 
-	.container {
-		max-width: 1200px;
-		margin: 0 auto;
-		padding: 0 var(--space-4);
-	}
-
-	/* Header */
-	.page-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		margin-bottom: var(--space-6);
-	}
-
 	.page-header-left {
 		display: flex;
 		align-items: baseline;
@@ -707,82 +673,12 @@
 		color: var(--text-primary);
 	}
 
-	/* Role badges */
-	.role-badge {
-		display: inline-block;
-		padding: var(--space-1) var(--space-3);
-		border-radius: var(--radius-full);
-		font-size: var(--text-xs);
-		font-weight: var(--font-semibold);
-		text-transform: uppercase;
-		letter-spacing: 0.5px;
-	}
-
-	.role-admin {
-		background-color: rgba(255, 59, 48, 0.15);
-		color: #ff3b30;
-	}
-
-	.role-user {
-		background-color: rgba(0, 122, 255, 0.15);
-		color: #007aff;
-	}
-
-	.role-readonly {
-		background-color: rgba(142, 142, 147, 0.15);
-		color: #8e8e93;
-	}
-
-	/* Error banner */
-	.dismiss-btn {
-		background: none;
-		border: none;
-		color: var(--error);
-		cursor: pointer;
-		font-weight: var(--font-bold);
-		padding: var(--space-1) var(--space-2);
-	}
-
-	/* Loading */
-	.loading-state {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		padding: var(--space-16) var(--space-4);
-		gap: var(--space-4);
-	}
-
 	.loading-state p,
 	.devices-loading p {
 		color: var(--text-secondary);
 	}
 
-	.list-skeleton {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-2);
-	}
-
 	/* Empty state */
-
-	/* ---- Responsive view toggle ---- */
-	.desktop-view {
-		display: block;
-	}
-
-	.mobile-view {
-		display: none;
-	}
-
-	@media (max-width: 768px) {
-		.desktop-view {
-			display: none;
-		}
-
-		.mobile-view {
-			display: block;
-		}
-	}
 
 	/* ==== DESKTOP TABLE VIEW ==== */
 	.table-wrapper {
@@ -822,14 +718,6 @@
 		border-bottom: none;
 	}
 
-	.table-row {
-		transition: background-color var(--transition-fast);
-	}
-
-	.table-row:hover {
-		background-color: var(--bg-hover);
-	}
-
 	.users-table tr.is-self,
 	.table-row.is-self {
 		background-color: rgba(0, 212, 255, 0.04);
@@ -837,13 +725,6 @@
 
 	.actions-col {
 		text-align: right;
-	}
-
-	/* User cell */
-	.user-cell {
-		display: flex;
-		align-items: center;
-		gap: var(--space-3);
 	}
 
 	.user-avatar {
@@ -860,26 +741,12 @@
 		flex-shrink: 0;
 	}
 
-	.user-details {
-		display: flex;
-		flex-direction: column;
-		min-width: 0;
-	}
-
 	.user-name {
 		font-weight: var(--font-medium);
 		color: var(--text-primary);
 		display: flex;
 		align-items: center;
 		gap: var(--space-2);
-	}
-
-	.user-email {
-		font-size: var(--text-xs);
-		color: var(--text-secondary);
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
 	}
 
 	.you-badge {
@@ -951,14 +818,6 @@
 		border-radius: var(--radius-lg);
 	}
 
-	.summary-main {
-		flex: 1;
-		min-width: 0;
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-1);
-	}
-
 	.summary-name-row {
 		display: flex;
 		align-items: center;
@@ -997,46 +856,10 @@
 		white-space: nowrap;
 	}
 
-	.chevron {
-		flex-shrink: 0;
-		color: var(--text-tertiary);
-		transition: transform var(--transition-fast);
-	}
-
-	.chevron-open {
-		transform: rotate(180deg);
-	}
-
 	.user-detail {
 		border-top: 1px solid var(--border-color);
 		background-color: var(--bg-secondary);
 		padding: var(--space-3);
-	}
-
-	.detail-grid {
-		display: grid;
-		grid-template-columns: repeat(2, 1fr);
-		gap: var(--space-3);
-		margin-bottom: var(--space-4);
-	}
-
-	.detail-item {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-1);
-	}
-
-	.detail-label {
-		font-size: var(--text-xs);
-		font-weight: var(--font-semibold);
-		color: var(--text-tertiary);
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-	}
-
-	.detail-value {
-		font-size: var(--text-sm);
-		color: var(--text-primary);
 	}
 
 	.detail-email {
@@ -1045,51 +868,11 @@
 		white-space: nowrap;
 	}
 
-	.detail-actions {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-2);
-		padding-top: var(--space-3);
-		border-top: 1px solid var(--border-color);
-	}
-
-	.detail-actions :global(.btn) {
-		width: 100%;
-		justify-content: center;
-	}
-
-	.detail-actions > div {
-		width: 100%;
-	}
-
-	.detail-actions > div :global(.btn) {
-		width: 100%;
-		justify-content: center;
-	}
-
 	/* Form */
 	.user-form {
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-4);
-	}
-
-	.form-group {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-2);
-	}
-
-	.form-label {
-		font-size: var(--text-sm);
-		font-weight: var(--font-medium);
-		color: var(--text-primary);
-	}
-
-	.select:focus {
-		outline: none;
-		border-color: var(--accent-primary);
-		box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
 	}
 
 	.role-descriptions {

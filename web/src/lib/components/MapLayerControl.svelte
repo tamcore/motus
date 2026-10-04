@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
 	import { MAP_OVERLAYS } from '$lib/utils/map-overlays';
-	import type { MapOverlay } from '$lib/utils/map-overlays';
 
 	export let selectedOverlayId: string = 'none';
 	export let opacity: number = 80;
@@ -12,11 +11,10 @@
 
 	let expanded = false;
 
-	$: selectedOverlay = MAP_OVERLAYS.find((o) => o.id === selectedOverlayId) || MAP_OVERLAYS[0];
 	$: hasActiveOverlay = selectedOverlayId !== 'none';
 
-	function selectOverlay(overlay: MapOverlay) {
-		selectedOverlayId = overlay.id;
+	function selectOverlay(id: string) {
+		selectedOverlayId = id;
 		dispatch('change', { overlayId: selectedOverlayId, opacity });
 	}
 
@@ -63,16 +61,15 @@
 
 			<div class="overlay-list" role="radiogroup" aria-label="Map overlay">
 				{#each MAP_OVERLAYS as overlay (overlay.id)}
-					<button
-						class="overlay-option"
-						class:selected={selectedOverlayId === overlay.id}
-						on:click={() => selectOverlay(overlay)}
-						role="radio"
-						aria-checked={selectedOverlayId === overlay.id}
-					>
-						<span class="overlay-radio" class:checked={selectedOverlayId === overlay.id}></span>
+					<label class="overlay-option" class:selected={selectedOverlayId === overlay.id}>
+						<input
+							type="radio"
+							name="map-overlay"
+							checked={selectedOverlayId === overlay.id}
+							on:change={() => selectOverlay(overlay.id)}
+						/>
 						<span class="overlay-name">{overlay.name}</span>
-					</button>
+					</label>
 				{/each}
 			</div>
 
@@ -161,12 +158,8 @@
 		display: flex;
 		align-items: center;
 		gap: var(--space-3);
-		width: 100%;
 		padding: var(--space-2) var(--space-4);
-		background: none;
-		border: none;
 		cursor: pointer;
-		text-align: left;
 		color: var(--text-secondary);
 		font-size: var(--text-sm);
 		transition: all var(--transition-fast);
@@ -181,29 +174,8 @@
 		color: var(--accent-primary);
 	}
 
-	.overlay-radio {
-		width: 14px;
-		height: 14px;
-		border: 2px solid var(--border-color);
-		border-radius: 50%;
-		flex-shrink: 0;
-		position: relative;
-		transition: border-color var(--transition-fast);
-	}
-
-	.overlay-radio.checked {
-		border-color: var(--accent-primary);
-	}
-
-	.overlay-radio.checked::after {
-		content: '';
-		position: absolute;
-		top: 2px;
-		left: 2px;
-		width: 6px;
-		height: 6px;
-		border-radius: 50%;
-		background-color: var(--accent-primary);
+	.overlay-option input {
+		accent-color: var(--accent-primary);
 	}
 
 	.overlay-name {

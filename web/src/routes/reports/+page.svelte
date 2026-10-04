@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { RELATIVE_DATE_PRESETS, resolveDatePreset, type DatePreset } from '$lib/utils/date-range';
+	import { resolveDatePreset, type DatePreset } from '$lib/utils/date-range';
 	import type { Device } from '$lib/types/api';
 	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/stores';
@@ -16,6 +16,7 @@
 	import Skeleton from '$lib/components/Skeleton.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import AllDevicesToggle from '$lib/components/AllDevicesToggle.svelte';
+	import DateRangeFilter from '$lib/components/DateRangeFilter.svelte';
 
 	Chart.register(...registerables);
 
@@ -271,23 +272,7 @@
 					</select>
 				{/if}
 			</div>
-			<div class="filter-group">
-				<span class="filter-label">Date Range</span>
-				<div class="preset-buttons">
-					{#each RELATIVE_DATE_PRESETS as p (p.value)}
-						<button class="preset-btn" class:active={datePreset === p.value}
-							on:click={() => (datePreset = p.value)}>{p.label}</button>
-					{/each}
-				</div>
-			</div>
-			{#if datePreset === 'custom'}
-				<div class="filter-group date-inputs">
-					<label for="date-from" class="filter-label">From</label>
-					<input id="date-from" type="date" bind:value={customFrom} class="date-input" />
-					<label for="date-to" class="filter-label">To</label>
-					<input id="date-to" type="date" bind:value={customTo} class="date-input" />
-				</div>
-			{/if}
+			<DateRangeFilter bind:preset={datePreset} bind:from={customFrom} bind:to={customTo} />
 			<Button on:click={fetchReports} loading={fetchingTrips}>Apply</Button>
 		</div>
 
@@ -304,7 +289,7 @@
 		</div>
 
 		{#if fetchingTrips || fetchingStops}
-			<div class="loading-state"><Skeleton width="100%" height="200px" variant="rect" /></div>
+			<div class="trips-loading"><Skeleton width="100%" height="200px" variant="rect" /></div>
 		{:else if activeTab === 'trips' && trips.length === 0}
 			<div class="empty-state">
 				<svg viewBox="0 0 24 24" width="64" height="64" fill="none" stroke="var(--text-tertiary)" stroke-width="1">
@@ -471,10 +456,6 @@
 
 <style>
 	.reports-page { padding: var(--space-6) 0; }
-	.page-header {
-		display: flex; justify-content: space-between; align-items: center;
-		margin-bottom: var(--space-6);
-	}
 	.chart-container {
 		height: 300px; margin-bottom: var(--space-6); padding: var(--space-4);
 		background-color: var(--bg-secondary); border: 1px solid var(--border-color);
@@ -486,30 +467,9 @@
 		border: 1px solid var(--border-color); border-radius: var(--radius-lg);
 		margin-bottom: var(--space-6);
 	}
-	.filter-group { display: flex; flex-direction: column; gap: var(--space-2); }
-	.filter-label { font-size: var(--text-sm); font-weight: var(--font-medium); color: var(--text-secondary); }
 	.select {
-		padding: var(--space-3) var(--space-4); background-color: var(--bg-primary);
-		border: 1px solid var(--border-color); border-radius: var(--radius-md);
-		color: var(--text-primary); font-size: var(--text-base); min-width: 180px;
-	}
-	.preset-buttons { display: flex; gap: var(--space-1); }
-	.preset-btn {
-		padding: var(--space-2) var(--space-3); background-color: var(--bg-primary);
-		border: 1px solid var(--border-color); border-radius: var(--radius-md);
-		color: var(--text-primary); font-size: var(--text-sm); cursor: pointer;
-		transition: all var(--transition-fast);
-	}
-	.preset-btn:hover { background-color: var(--bg-hover); }
-	.preset-btn.active {
-		background-color: var(--accent-primary); color: var(--text-inverse);
-		border-color: var(--accent-primary);
-	}
-	.date-inputs { flex-direction: row; align-items: center; }
-	.date-input {
-		padding: var(--space-2) var(--space-3); background-color: var(--bg-primary);
-		border: 1px solid var(--border-color); border-radius: var(--radius-md);
-		color: var(--text-primary); font-size: var(--text-sm);
+		background-color: var(--bg-primary);
+		min-width: 180px;
 	}
 	.tabs {
 		display: flex; gap: var(--space-1); margin-bottom: var(--space-6);
@@ -601,7 +561,7 @@
 		max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 	}
 	.empty-hint { font-size: var(--text-sm); color: var(--text-tertiary); }
-	.loading-state { padding: var(--space-4); }
+	.trips-loading { padding: var(--space-4); }
 
 	/* Ongoing trip highlight */
 	tr.ongoing > td:first-child { border-left: 3px solid var(--success); }
@@ -644,8 +604,6 @@
 	.scroll-sentinel { height: 1px; }
 
 	@media (max-width: 768px) {
-		.filters-bar { flex-direction: column; align-items: stretch; }
-		.filter-group { width: 100%; }
 		.select { width: 100%; }
 	}
 </style>

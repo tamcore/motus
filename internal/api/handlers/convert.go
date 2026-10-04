@@ -2,8 +2,8 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/go-faster/jx"
@@ -621,32 +621,18 @@ func buildAuditMetadata(action string, details map[string]any) oas.OptAuditMetad
 
 // auditEntryToOAS converts an audit.Entry to oas.AuditEntry.
 func auditEntryToOAS(e audit.Entry) oas.AuditEntry {
-	var (
-		userID       int64
-		resourceType oas.OptString
-		resourceID   oas.OptString
-		ipAddress    oas.OptString
-	)
-	if e.UserID != nil {
-		userID = *e.UserID
-	}
-	if e.ResourceType != nil {
-		resourceType = oas.OptString{Value: *e.ResourceType, Set: true}
-	}
+	var resourceID oas.OptString
 	if e.ResourceID != nil {
-		resourceID = oas.OptString{Value: fmt.Sprintf("%d", *e.ResourceID), Set: true}
-	}
-	if e.IPAddress != nil {
-		ipAddress = oas.OptString{Value: *e.IPAddress, Set: true}
+		resourceID = optStr(strconv.FormatInt(*e.ResourceID, 10))
 	}
 	return oas.AuditEntry{
 		ID:           e.ID,
 		Action:       e.Action,
-		UserId:       userID,
-		ResourceType: resourceType,
+		UserId:       deref(e.UserID),
+		ResourceType: optStr(deref(e.ResourceType)),
 		ResourceId:   resourceID,
 		Metadata:     buildAuditMetadata(e.Action, e.Details),
-		IpAddress:    ipAddress,
+		IpAddress:    optStr(deref(e.IPAddress)),
 		CreatedAt:    e.Timestamp,
 	}
 }

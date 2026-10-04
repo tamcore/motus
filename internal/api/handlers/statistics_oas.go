@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"maps"
 
 	oas "github.com/tamcore/motus/internal/api/oas"
 )
@@ -19,7 +18,7 @@ func (h *Handler) AdminGetStatistics(ctx context.Context) (oas.AdminGetStatistic
 		return &oas.AdminGetStatisticsForbidden{Error: "failed to get statistics"}, nil
 	}
 
-	result := &oas.PlatformStats{
+	return &oas.PlatformStats{
 		TotalUsers:        stats.TotalUsers,
 		TotalDevices:      stats.TotalDevices,
 		TotalPositions:    stats.TotalPositions,
@@ -27,13 +26,8 @@ func (h *Handler) AdminGetStatistics(ctx context.Context) (oas.AdminGetStatistic
 		NotificationsSent: stats.NotificationsSent,
 		PositionsToday:    stats.PositionsToday,
 		ActiveUsers:       stats.ActiveUsers,
-	}
-
-	devsByStatus := make(oas.PlatformStatsDevicesByStatus, len(stats.DevicesByStatus))
-	maps.Copy(devsByStatus, stats.DevicesByStatus)
-	result.DevicesByStatus = devsByStatus
-
-	return result, nil
+		DevicesByStatus:   oas.PlatformStatsDevicesByStatus(stats.DevicesByStatus),
+	}, nil
 }
 
 // AdminGetUserStatistics returns statistics for a specific user.

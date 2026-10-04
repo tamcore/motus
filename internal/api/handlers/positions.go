@@ -21,15 +21,6 @@ const positionQueryTimeout = 120 * time.Second
 // built in memory, so an unbounded all-time range can OOM the process.
 const maxPositionsPerResponse = 10000
 
-// positionLimit returns the sampling limit for a range query: the requested
-// limit, or maxPositionsPerResponse when it is omitted or larger.
-func positionLimit(requested int) int {
-	if requested <= 0 || requested > maxPositionsPerResponse {
-		return maxPositionsPerResponse
-	}
-	return requested
-}
-
 // kmhToKnotsRatio converts a speed value from km/h to knots.
 // Traccar's REST API contract specifies speed in knots; internal storage uses km/h.
 const kmhToKnotsRatio = 1.0 / 1.852
@@ -79,7 +70,7 @@ func (h *Handler) GetPositions(ctx context.Context, params oas.GetPositionsParam
 		return &oas.Error{Error: "unauthorized"}, nil
 	}
 
-	limit := positionLimit(params.Limit.Or(0))
+	limit := min(params.Limit.Or(maxPositionsPerResponse), maxPositionsPerResponse)
 
 	// No deviceId, no time range: latest position per user device.
 	if !params.DeviceId.Set && !params.From.Set && !params.To.Set {

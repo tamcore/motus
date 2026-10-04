@@ -52,7 +52,7 @@ func (h *Handler) ImportGPX(ctx context.Context, req oas.ImportGPXReq, params oa
 		return &oas.ImportGPXBadRequest{Error: "invalid GPX file"}, nil
 	}
 
-	imported, _, lastPos := processGPXPoints(ctx, h.cfg.Positions, params.ID, &gpxFile)
+	imported, lastPos := processGPXPoints(ctx, h.cfg.Positions, params.ID, &gpxFile)
 	if imported == 0 {
 		return &oas.ImportGPXBadRequest{Error: "no timed positions found in GPX file"}, nil
 	}
@@ -78,11 +78,11 @@ func (h *Handler) ImportGPX(ctx context.Context, req oas.ImportGPXReq, params oa
 }
 
 // processGPXPoints iterates all GPX trackpoints, inserts timed ones as
-// positions, and returns the imported count, skipped count, and the last
+// positions, and returns the imported count and the last
 // inserted position. Speed is stored in km/h (internal unit) and calculated
 // from haversine distance divided by elapsed time between consecutive timed
 // points.
-func processGPXPoints(ctx context.Context, positions repository.PositionRepo, deviceID int64, gpxFile *demo.GPXFile) (imported, skipped int, lastPos *model.Position) {
+func processGPXPoints(ctx context.Context, positions repository.PositionRepo, deviceID int64, gpxFile *demo.GPXFile) (imported int, lastPos *model.Position) {
 	var prevLat, prevLon float64
 	var prevUnix int64
 
@@ -90,7 +90,6 @@ func processGPXPoints(ctx context.Context, positions repository.PositionRepo, de
 		for _, seg := range track.Segments {
 			for _, pt := range seg.Points {
 				if pt.Time.IsZero() {
-					skipped++
 					continue
 				}
 
@@ -119,7 +118,6 @@ func processGPXPoints(ctx context.Context, positions repository.PositionRepo, de
 				}
 
 				if err := positions.Create(ctx, pos); err != nil {
-					skipped++
 					continue
 				}
 

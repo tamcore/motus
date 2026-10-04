@@ -24,7 +24,7 @@ func (h *Handler) GetPositionPoints(ctx context.Context, params oas.GetPositionP
 	now := time.Now()
 	from := params.From.Or(now.Add(-24 * time.Hour))
 	to := params.To.Or(now)
-	limit := positionLimit(params.Limit.Or(0))
+	limit := min(params.Limit.Or(maxPositionsPerResponse), maxPositionsPerResponse)
 
 	queryCtx, cancel := context.WithTimeout(ctx, positionQueryTimeout)
 	defer cancel()

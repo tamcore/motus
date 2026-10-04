@@ -14,22 +14,14 @@ func (h *Handler) AdminGetAuditLog(ctx context.Context, params oas.AdminGetAudit
 		return &oas.AdminGetAuditLogForbidden{Error: "admin access required"}, nil
 	}
 
-	qp := audit.QueryParams{}
-
-	if action, ok := params.Action.Get(); ok {
-		qp.Action = action
-	}
-	if resourceType, ok := params.ResourceType.Get(); ok {
-		qp.ResourceType = resourceType
+	qp := audit.QueryParams{
+		Action:       params.Action.Or(""),
+		ResourceType: params.ResourceType.Or(""),
+		Limit:        params.Limit.Or(0),
+		Offset:       params.Offset.Or(0),
 	}
 	if userID, ok := params.UserId.Get(); ok {
 		qp.UserID = &userID
-	}
-	if limit, ok := params.Limit.Get(); ok {
-		qp.Limit = limit
-	}
-	if offset, ok := params.Offset.Get(); ok {
-		qp.Offset = offset
 	}
 
 	entries, total, err := h.cfg.AuditLogger.Query(ctx, qp)

@@ -11,7 +11,7 @@ package handlers_test
 //     ByID_AccessControl, ByID_NonExistent): the live GET /api/positions has
 //     no id parameter.
 //   - invalid deviceId transport test: ogen owns query-param parsing.
-//   - explicit limit tests: limit is clamped by positionLimit
+//   - explicit limit tests: limit is clamped to maxPositionsPerResponse
 //     (positions_limit_test.go); sampling is tested in the repository.
 //   - AdminGetAllPositions time-range mode: the live AdminListPositions
 //     returns the latest position per device only.

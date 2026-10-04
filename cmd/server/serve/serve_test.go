@@ -1,7 +1,10 @@
 package serve
 
 import (
+	"bytes"
 	"encoding/hex"
+	"log/slog"
+	"strings"
 	"testing"
 
 	"github.com/tamcore/motus/internal/config"
@@ -42,4 +45,31 @@ func TestLoadCSRFSecret_EmptyProductionPanics(t *testing.T) {
 		}
 	}()
 	loadCSRFSecret(config.SecurityConfig{Env: "production"})
+}
+
+func TestNewLogger(t *testing.T) {
+	for _, tc := range []struct {
+		level, format, env string
+		wantFormat         string
+		wantDebug          bool
+	}{
+		{"debug", "", "development", "text", true},
+		{"INFO", "", "production", "json", false},
+		{"bogus", "TEXT", "production", "text", false},
+		{"warn", "", "Development", "text", false},
+	} {
+		cfg := &config.Config{Log: config.LogConfig{Level: tc.level, Format: tc.format}, Security: config.SecurityConfig{Env: tc.env}}
+		var buf bytes.Buffer
+		l, format := newLogger(&buf, cfg)
+		if format != tc.wantFormat {
+			t.Errorf("%+v: format = %q, want %q", tc, format, tc.wantFormat)
+		}
+		if got := l.Enabled(t.Context(), slog.LevelDebug); got != tc.wantDebug {
+			t.Errorf("%+v: debug enabled = %v, want %v", tc, got, tc.wantDebug)
+		}
+		l.Info("x")
+		if isJSON := strings.HasPrefix(buf.String(), "{"); isJSON != (tc.wantFormat == "json") {
+			t.Errorf("%+v: output %q does not match format %q", tc, buf.String(), tc.wantFormat)
+		}
+	}
 }

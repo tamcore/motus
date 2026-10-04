@@ -6,12 +6,14 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/pprof"
 	"os"
 	"os/signal"
 	"runtime"
+	"strings"
 	"syscall"
 	"time"
 
@@ -29,7 +31,6 @@ import (
 	"github.com/tamcore/motus/internal/config"
 	"github.com/tamcore/motus/internal/demo"
 	"github.com/tamcore/motus/internal/geocoding"
-	"github.com/tamcore/motus/internal/logger"
 	"github.com/tamcore/motus/internal/notification"
 	"github.com/tamcore/motus/internal/protocol"
 	"github.com/tamcore/motus/internal/pubsub"
@@ -48,17 +49,7 @@ func Run() {
 		os.Exit(1)
 	}
 
-	// Initialize structured logger and set as the process-wide default.
-	// This ensures any code using slog.Info/slog.Error/etc. picks up our
-	// format and level configuration.
-	logFormat := cfg.Log.Format
-	if logFormat == "" {
-		logFormat = logger.FormatForEnv(cfg.Security.Env)
-	}
-	appLogger := logger.New(logger.Options{
-		Level:  cfg.Log.Level,
-		Format: logFormat,
-	})
+	appLogger, logFormat := newLogger(os.Stderr, cfg)
 	slog.SetDefault(appLogger)
 
 	slog.Info("logger initialized",
@@ -623,6 +614,24 @@ func Run() {
 		os.Exit(1)
 	}
 	slog.Info("server stopped")
+}
+
+// newLogger builds the process logger: unknown levels fall back to INFO, and
+// the format defaults to text in development and JSON otherwise.
+func newLogger(w io.Writer, cfg *config.Config) (*slog.Logger, string) {
+	var level slog.Level
+	if err := level.UnmarshalText([]byte(cfg.Log.Level)); err != nil {
+		level = slog.LevelInfo
+	}
+	opts := &slog.HandlerOptions{Level: level}
+	format := strings.ToLower(cfg.Log.Format)
+	if format == "" && cfg.Security.IsDevelopment() {
+		format = "text"
+	}
+	if format == "text" {
+		return slog.New(slog.NewTextHandler(w, opts)), format
+	}
+	return slog.New(slog.NewJSONHandler(w, opts)), "json"
 }
 
 // loadCSRFSecret returns the 32-byte CSRF secret. In non-development

@@ -37,13 +37,6 @@ type Stop struct {
 	Duration                   float64
 }
 
-func speedOf(p *model.Position) float64 {
-	if p.Speed == nil {
-		return 0
-	}
-	return *p.Speed
-}
-
 // tripAcc accumulates the aggregates of the trip in progress.
 type tripAcc struct {
 	count              int
@@ -55,7 +48,7 @@ type tripAcc struct {
 }
 
 func (a *tripAcc) add(p *model.Position) {
-	s := speedOf(p)
+	s := p.SpeedOrZero()
 	if a.count == 0 {
 		a.start, a.maxSpeed = p.Timestamp, s
 	} else {
@@ -87,7 +80,7 @@ func (d *TripDetector) Add(p *model.Position) {
 	}
 	d.last = &t
 
-	if speedOf(p) > tripSpeedThreshold {
+	if p.SpeedOrZero() > tripSpeedThreshold {
 		d.stopStart = nil
 		d.cur.add(p)
 		return
@@ -145,7 +138,7 @@ type StopDetector struct {
 
 // Add feeds the next position.
 func (d *StopDetector) Add(p *model.Position) {
-	if speedOf(p) < stopSpeedThreshold {
+	if p.SpeedOrZero() < stopSpeedThreshold {
 		if d.count == 0 {
 			d.start = p.Timestamp
 		}

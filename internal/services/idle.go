@@ -98,12 +98,7 @@ func (s *IdleService) CheckIdle(ctx context.Context) error {
 		}
 
 		// Check if the device is stationary.
-		speed := 0.0
-		if position.Speed != nil {
-			speed = *position.Speed
-		}
-
-		if speed >= IdleSpeedThreshold {
+		if position.SpeedOrZero() >= IdleSpeedThreshold {
 			continue // Device is moving; not idle.
 		}
 

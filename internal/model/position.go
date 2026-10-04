@@ -27,6 +27,14 @@ type Position struct {
 	Attributes  map[string]any `json:"attributes"`
 }
 
+// SpeedOrZero returns the speed in km/h, or 0 when it is unknown.
+func (p *Position) SpeedOrZero() float64 {
+	if p.Speed == nil {
+		return 0
+	}
+	return *p.Speed
+}
+
 // PositionPoint is the subset of a position map views need. Speed is in km/h.
 type PositionPoint struct {
 	Lat      float64

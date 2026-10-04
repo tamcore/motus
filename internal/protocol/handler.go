@@ -186,7 +186,7 @@ func (h *PositionHandler) address(pos *model.Position) *string {
 // HandlePosition stores a position and broadcasts it via WebSocket.
 func (h *PositionHandler) HandlePosition(ctx context.Context, pos *model.Position) error {
 	// Determine motion state from position speed.
-	isMoving := pos.Speed != nil && *pos.Speed >= model.MotionThreshold
+	isMoving := pos.SpeedOrZero() >= model.MotionThreshold
 
 	// Set the Traccar-compatible "motion" attribute on the position BEFORE
 	// storing it so the attribute is persisted in the database. Home Assistant

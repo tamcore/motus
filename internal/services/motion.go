@@ -46,15 +46,8 @@ func (s *MotionService) CheckMotion(ctx context.Context, position *model.Positio
 		return nil // No previous position to compare; skip.
 	}
 
-	prevSpeed := 0.0
-	if prev.Speed != nil {
-		prevSpeed = *prev.Speed
-	}
-
-	currSpeed := 0.0
-	if position.Speed != nil {
-		currSpeed = *position.Speed
-	}
+	prevSpeed := prev.SpeedOrZero()
+	currSpeed := position.SpeedOrZero()
 
 	// Motion started: previous speed was below threshold, current speed meets or exceeds it.
 	if prevSpeed < model.MotionThreshold && currSpeed >= model.MotionThreshold {

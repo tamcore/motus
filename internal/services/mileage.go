@@ -66,18 +66,13 @@ func (s *MileageService) ProcessPosition(ctx context.Context, pos *model.Positio
 		return nil
 	}
 
-	currSpeed := 0.0
-	if pos.Speed != nil {
-		currSpeed = *pos.Speed
-	}
-
 	prev, err := s.positionRepo.GetPreviousByDevice(ctx, pos.DeviceID, pos.Timestamp)
 	if err != nil || prev == nil {
 		return nil // No previous position; nothing to accumulate.
 	}
 
 	// Accumulate distance when moving.
-	if currSpeed >= MileageSpeedThreshold {
+	if pos.SpeedOrZero() >= MileageSpeedThreshold {
 		dist := geo.HaversineDistance(
 			prev.Latitude, prev.Longitude,
 			pos.Latitude, pos.Longitude,

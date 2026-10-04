@@ -357,6 +357,20 @@ func TestImportGeofences_Integration(t *testing.T) {
 		t.Errorf("geofences count = %d, want 2", count)
 	}
 
+	// Stored geometries are lon,lat: each must contain its real location.
+	for name, lonLat := range map[string][2]float64{"Home Base": {10.015, 52.005}, "Workshop": {13.40, 52.50}} {
+		var contains bool
+		if err := pool.QueryRow(ctx,
+			"SELECT ST_Contains(geometry, ST_SetSRID(ST_MakePoint($2, $3), 4326)) FROM geofences WHERE name = $1",
+			name, lonLat[0], lonLat[1],
+		).Scan(&contains); err != nil {
+			t.Fatalf("query %s geometry: %v", name, err)
+		}
+		if !contains {
+			t.Errorf("%s geometry does not contain lon/lat %v", name, lonLat)
+		}
+	}
+
 	// Verify calendar link on Workshop geofence.
 	var linkedCalID *int64
 	if err := pool.QueryRow(ctx, "SELECT calendar_id FROM geofences WHERE name = 'Workshop'").Scan(&linkedCalID); err != nil {

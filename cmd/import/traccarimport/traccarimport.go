@@ -1169,7 +1169,7 @@ func importGeofences(ctx context.Context, pool *pgxpool.Pool, geofences []Tracca
 			}
 			err = pool.QueryRow(ctx, `
 				INSERT INTO geofences (name, description, geometry, created_at, updated_at)
-				VALUES ($1, $2, ST_FlipCoordinates(ST_Buffer(ST_MakePoint($3, $4)::geography, $5)::geometry), NOW(), NOW())
+				VALUES ($1, $2, ST_Buffer(ST_MakePoint($3, $4)::geography, $5)::geometry, NOW(), NOW())
 				RETURNING id
 			`, g.Name, g.Description, lon, lat, radius).Scan(&geofenceID)
 		} else {

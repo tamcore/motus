@@ -324,24 +324,7 @@
 		}
 	}
 
-	// React to user position changes
-	$: if (userLocation.position) {
-		userLayers.updatePosition(userLocation.position);
-	}
-
-	// React to heading changes
-	$: if (userLocation.heading !== null || userLocation.position) {
-		userLayers.updateHeading(userLocation.position, userLocation.heading, userLocation.active);
-	}
-
-	async function toggleLocateMe() {
-		if (userLocation.active) {
-			userLocation.stop();
-			userLayers.remove();
-		} else {
-			await userLocation.start();
-		}
-	}
+	$: userLayers.sync(userLocation);
 
 	// --- Update timer for "last update" display ---
 	let updateTimer: ReturnType<typeof setInterval> | null = null;
@@ -505,7 +488,7 @@
 			<button
 				class="control-btn"
 				class:active={userLocation.active}
-				on:click={toggleLocateMe}
+				on:click={() => userLayers.toggle(userLocation)}
 				title={userLocation.active ? 'Hide my location' : 'Show my location'}
 				aria-label={userLocation.active ? 'Hide my location' : 'Show my location'}
 			>

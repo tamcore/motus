@@ -150,9 +150,8 @@ type Leaflet = typeof import("leaflet");
 type LeafletMap = import("leaflet").Map;
 
 export interface UserLocationLayers {
-  updatePosition: (pos: UserPosition | null) => void;
-  updateHeading: (pos: UserPosition | null, heading: number | null, active: boolean) => void;
-  remove: () => void;
+  sync: (location: UseUserLocationReturn) => void;
+  toggle: (location: UseUserLocationReturn) => Promise<void>;
 }
 
 export function userLocationLayers(
@@ -242,5 +241,19 @@ export function userLocationLayers(
     accuracyCircle = dotMarker = headingMarker = null;
   }
 
-  return { updatePosition, updateHeading, remove };
+  function sync(location: UseUserLocationReturn): void {
+    updatePosition(location.position);
+    updateHeading(location.position, location.heading, location.active);
+  }
+
+  async function toggle(location: UseUserLocationReturn): Promise<void> {
+    if (location.active) {
+      location.stop();
+      remove();
+    } else {
+      await location.start();
+    }
+  }
+
+  return { sync, toggle };
 }

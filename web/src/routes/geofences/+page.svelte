@@ -181,24 +181,7 @@
 		return { center: DEFAULT_CENTER, zoom: DEFAULT_ZOOM };
 	}
 
-	// React to user position changes
-	$: if (userLocation.position) {
-		userLayers.updatePosition(userLocation.position);
-	}
-
-	// React to heading changes
-	$: if (userLocation.heading !== null || userLocation.position) {
-		userLayers.updateHeading(userLocation.position, userLocation.heading, userLocation.active);
-	}
-
-	async function toggleLocateMe() {
-		if (userLocation.active) {
-			userLocation.stop();
-			userLayers.remove();
-		} else {
-			await userLocation.start();
-		}
-	}
+	$: userLayers.sync(userLocation);
 
 	onMount(async () => {
 		await leafletMap.initialize(mapContainer, await getInitialCenter());
@@ -604,7 +587,7 @@
 		<button
 			class="locate-me-btn"
 			class:active={userLocation.active}
-			on:click={toggleLocateMe}
+			on:click={() => userLayers.toggle(userLocation)}
 			title={userLocation.active ? 'Stop locating me' : 'Show my location'}
 			aria-label={userLocation.active ? 'Stop locating me' : 'Show my location'}
 		>

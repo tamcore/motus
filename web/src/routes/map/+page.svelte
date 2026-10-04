@@ -105,24 +105,7 @@
 
 	$: if (selectedDeviceId !== bookmarksDeviceId) void loadDeviceBookmarks(selectedDeviceId);
 
-	// React to user position changes
-	$: if (userLocation.position) {
-		userLayers.updatePosition(userLocation.position);
-	}
-
-	// React to heading changes
-	$: if (userLocation.heading !== null || userLocation.position) {
-		userLayers.updateHeading(userLocation.position, userLocation.heading, userLocation.active);
-	}
-
-	async function toggleLocateMe() {
-		if (userLocation.active) {
-			userLocation.stop();
-			userLayers.remove();
-		} else {
-			await userLocation.start();
-		}
-	}
+	$: userLayers.sync(userLocation);
 
 	onMount(async () => {
 		// Subscribe to WebSocket connection state IMMEDIATELY (before any async work)
@@ -852,7 +835,7 @@
 		<button
 			class="locate-me-btn"
 			class:active={userLocation.active}
-			on:click={toggleLocateMe}
+			on:click={() => userLayers.toggle(userLocation)}
 			title={userLocation.active ? 'Stop locating me' : 'Show my location'}
 			aria-label={userLocation.active ? 'Stop locating me' : 'Show my location'}
 		>

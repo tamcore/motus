@@ -36,7 +36,7 @@ func TestSortDevices(t *testing.T) {
 	for _, tt := range tests {
 		d := make([]model.Device, len(devices))
 		copy(d, devices)
-		sortDevices(d, tt.field)
+		sortList(d, tt.field, deviceSorts)
 		for i, want := range tt.wantIDs {
 			if d[i].ID != want {
 				t.Errorf("sortDevices(%q)[%d]: got ID %d, want %d", tt.field, i, d[i].ID, want)
@@ -74,7 +74,7 @@ func TestSortUsers(t *testing.T) {
 	for _, tt := range tests {
 		u := make([]*model.User, len(users))
 		copy(u, users)
-		sortUsers(u, tt.field)
+		sortList(u, tt.field, userSorts)
 		for i, want := range tt.wantIDs {
 			if u[i].ID != want {
 				t.Errorf("sortUsers(%q)[%d]: got ID %d, want %d", tt.field, i, u[i].ID, want)
@@ -202,7 +202,7 @@ func TestFilterDevices(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		got := filterDevices(devices, tt.filter)
+		got := filterList(devices, tt.filter, deviceFilters)
 		if len(got) != len(tt.wantIDs) {
 			t.Errorf("filterDevices(%q): got %d results, want %d", tt.filter, len(got), len(tt.wantIDs))
 			continue
@@ -221,7 +221,7 @@ func TestFilterDevices_BadFormat(t *testing.T) {
 	fatalFn = func(msg string, args ...any) { fatalCalled = true }
 	defer func() { fatalFn = orig }()
 
-	filterDevices([]model.Device{{ID: 1}}, "no-equals-sign")
+	filterList([]model.Device{{ID: 1}}, "no-equals-sign", deviceFilters)
 	if !fatalCalled {
 		t.Error("expected fatalFn to be called for bad filter format")
 	}
@@ -233,7 +233,7 @@ func TestFilterDevices_UnknownField(t *testing.T) {
 	fatalFn = func(msg string, args ...any) { fatalCalled = true }
 	defer func() { fatalFn = orig }()
 
-	filterDevices([]model.Device{{ID: 1, Name: "x"}}, "unknownfield=x")
+	filterList([]model.Device{{ID: 1, Name: "x"}}, "unknownfield=x", deviceFilters)
 	if !fatalCalled {
 		t.Error("expected fatalFn to be called for unknown filter field")
 	}
@@ -261,7 +261,7 @@ func TestFilterUsers(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		got := filterUsers(users, tt.filter)
+		got := filterList(users, tt.filter, userFilters)
 		if len(got) != len(tt.wantIDs) {
 			t.Errorf("filterUsers(%q): got %d results, want %d", tt.filter, len(got), len(tt.wantIDs))
 			continue
@@ -280,7 +280,7 @@ func TestFilterUsers_BadFormat(t *testing.T) {
 	fatalFn = func(msg string, args ...any) { fatalCalled = true }
 	defer func() { fatalFn = orig }()
 
-	filterUsers([]*model.User{{ID: 1}}, "noequalssign")
+	filterList([]*model.User{{ID: 1}}, "noequalssign", userFilters)
 	if !fatalCalled {
 		t.Error("expected fatalFn to be called for bad filter format")
 	}
@@ -292,7 +292,7 @@ func TestFilterUsers_UnknownField(t *testing.T) {
 	fatalFn = func(msg string, args ...any) { fatalCalled = true }
 	defer func() { fatalFn = orig }()
 
-	filterUsers([]*model.User{{ID: 1, Email: "x@x.com"}}, "unknownfield=x")
+	filterList([]*model.User{{ID: 1, Email: "x@x.com"}}, "unknownfield=x", userFilters)
 	if !fatalCalled {
 		t.Error("expected fatalFn to be called for unknown filter field")
 	}

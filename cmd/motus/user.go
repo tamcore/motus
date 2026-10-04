@@ -1,12 +1,10 @@
 package main
 
 import (
-	"cmp"
 	"context"
 	"fmt"
 	"log/slog"
 	"os"
-	"slices"
 	"strings"
 	"time"
 
@@ -105,14 +103,14 @@ func newUserListCmd() *cobra.Command {
 				}
 
 				if filter != "" {
-					users = filterUsers(users, filter)
+					users = filterList(users, filter, userFilters)
 					if len(users) == 0 {
 						fmt.Println("No users match the filter.")
 						return
 					}
 				}
 
-				sortUsers(users, sortField)
+				sortList(users, sortField, userSorts)
 
 				items := make([]map[string]any, len(users))
 				rows := make([][]string, len(users))
@@ -276,42 +274,16 @@ func newUserSetPasswordCmd() *cobra.Command {
 	return cmd
 }
 
-// filterUsers returns users matching the given field=value filter.
-func filterUsers(users []*model.User, filter string) []*model.User {
-	field, value, ok := strings.Cut(filter, "=")
-	if !ok {
-		fatalFn("invalid filter format (expected field=value)", slog.String("filter", filter))
-		return nil
-	}
-	field, value = strings.ToLower(field), strings.ToLower(value)
-
-	var keep func(*model.User) bool
-	switch field {
-	case "role":
-		keep = func(u *model.User) bool { return strings.ToLower(u.Role) == value }
-	case "email":
-		keep = func(u *model.User) bool { return strings.Contains(strings.ToLower(u.Email), value) }
-	case "name":
-		keep = func(u *model.User) bool { return strings.Contains(strings.ToLower(u.Name), value) }
-	default:
-		fatalFn("unknown filter field (supported: role, email, name)", slog.String("field", field))
-		return nil
-	}
-	return slices.DeleteFunc(slices.Clone(users), func(u *model.User) bool { return !keep(u) })
+var userFilters = map[string]listFilter[*model.User]{
+	"role":  {exact: true, get: func(u *model.User) string { return u.Role }},
+	"email": {get: func(u *model.User) string { return u.Email }},
+	"name":  {get: func(u *model.User) string { return u.Name }},
 }
 
-// sortUsers sorts users in-place by the given field.
-func sortUsers(users []*model.User, field string) {
-	switch strings.ToLower(field) {
-	case "email":
-		slices.SortFunc(users, func(a, b *model.User) int { return cmp.Compare(a.Email, b.Email) })
-	case "name":
-		slices.SortFunc(users, func(a, b *model.User) int { return cmp.Compare(a.Name, b.Name) })
-	case "role":
-		slices.SortFunc(users, func(a, b *model.User) int { return cmp.Compare(a.Role, b.Role) })
-	case "created":
-		slices.SortFunc(users, func(a, b *model.User) int { return a.CreatedAt.Compare(b.CreatedAt) })
-	default:
-		slices.SortFunc(users, func(a, b *model.User) int { return cmp.Compare(a.ID, b.ID) })
-	}
+var userSorts = map[string]func(a, b *model.User) int{
+	"id":      by(func(u *model.User) int64 { return u.ID }),
+	"email":   by(func(u *model.User) string { return u.Email }),
+	"name":    by(func(u *model.User) string { return u.Name }),
+	"role":    by(func(u *model.User) string { return u.Role }),
+	"created": func(a, b *model.User) int { return a.CreatedAt.Compare(b.CreatedAt) },
 }

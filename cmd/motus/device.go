@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"slices"
 	"strings"
 	"time"
 
@@ -109,14 +108,14 @@ func newDeviceListCmd() *cobra.Command {
 				}
 
 				if filter != "" {
-					devices = filterDevices(devices, filter)
+					devices = filterList(devices, filter, deviceFilters)
 					if len(devices) == 0 {
 						fmt.Println("No devices match the filter.")
 						return
 					}
 				}
 
-				sortDevices(devices, sortField)
+				sortList(devices, sortField, deviceSorts)
 
 				isCSV := output == "csv"
 				items := make([]map[string]any, len(devices))
@@ -250,45 +249,19 @@ func newDeviceUpdateCmd() *cobra.Command {
 	return cmd
 }
 
-// filterDevices returns devices matching the given field=value filter.
-func filterDevices(devices []model.Device, filter string) []model.Device {
-	field, value, ok := strings.Cut(filter, "=")
-	if !ok {
-		fatalFn("invalid filter format (expected field=value)", slog.String("filter", filter))
-		return nil
-	}
-	field, value = strings.ToLower(field), strings.ToLower(value)
-
-	var keep func(model.Device) bool
-	switch field {
-	case "status":
-		keep = func(d model.Device) bool { return strings.ToLower(d.Status) == value }
-	case "protocol":
-		keep = func(d model.Device) bool { return strings.ToLower(d.Protocol) == value }
-	case "name":
-		keep = func(d model.Device) bool { return strings.Contains(strings.ToLower(d.Name), value) }
-	case "unique-id", "uniqueid":
-		keep = func(d model.Device) bool { return strings.Contains(strings.ToLower(d.UniqueID), value) }
-	default:
-		fatalFn("unknown filter field (supported: status, protocol, name, unique-id)",
-			slog.String("field", field))
-		return nil
-	}
-	return slices.DeleteFunc(slices.Clone(devices), func(d model.Device) bool { return !keep(d) })
+var deviceFilters = map[string]listFilter[model.Device]{
+	"status":    {exact: true, get: func(d model.Device) string { return d.Status }},
+	"protocol":  {exact: true, get: func(d model.Device) string { return d.Protocol }},
+	"name":      {get: func(d model.Device) string { return d.Name }},
+	"unique-id": {get: func(d model.Device) string { return d.UniqueID }},
+	"uniqueid":  {get: func(d model.Device) string { return d.UniqueID }},
 }
 
-// sortDevices sorts devices in-place by the given field.
-func sortDevices(devices []model.Device, field string) {
-	switch strings.ToLower(field) {
-	case "name":
-		slices.SortFunc(devices, func(a, b model.Device) int { return cmp.Compare(a.Name, b.Name) })
-	case "unique-id", "uniqueid":
-		slices.SortFunc(devices, func(a, b model.Device) int { return cmp.Compare(a.UniqueID, b.UniqueID) })
-	case "status":
-		slices.SortFunc(devices, func(a, b model.Device) int { return cmp.Compare(a.Status, b.Status) })
-	case "protocol":
-		slices.SortFunc(devices, func(a, b model.Device) int { return cmp.Compare(a.Protocol, b.Protocol) })
-	default:
-		slices.SortFunc(devices, func(a, b model.Device) int { return cmp.Compare(a.ID, b.ID) })
-	}
+var deviceSorts = map[string]func(a, b model.Device) int{
+	"id":        by(func(d model.Device) int64 { return d.ID }),
+	"name":      by(func(d model.Device) string { return d.Name }),
+	"unique-id": by(func(d model.Device) string { return d.UniqueID }),
+	"uniqueid":  by(func(d model.Device) string { return d.UniqueID }),
+	"status":    by(func(d model.Device) string { return d.Status }),
+	"protocol":  by(func(d model.Device) string { return d.Protocol }),
 }

@@ -14,7 +14,7 @@ import (
 type Deps struct {
 	Devices           repository.DeviceRepo
 	Positions         repository.PositionRepo
-	Events            repository.EventRepo
+	Events            *repository.EventRepository
 	Geofences         repository.GeofenceRepo
 	GeofenceService   *services.GeofenceService
 	Calendars         repository.CalendarRepo

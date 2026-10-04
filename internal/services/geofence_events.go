@@ -34,7 +34,7 @@ type GeofenceEventService struct {
 // NewGeofenceEventService creates a new geofence event detection service.
 func NewGeofenceEventService(
 	geofenceRepo repository.GeofenceRepo,
-	eventRepo repository.EventRepo,
+	eventRepo eventStore,
 	positionRepo repository.PositionRepo,
 	calendarRepo repository.CalendarRepo,
 	hub *websocket.Hub,

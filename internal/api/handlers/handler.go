@@ -23,15 +23,15 @@ type HandlerConfig struct {
 	Positions      repository.PositionRepo
 	Commands       repository.CommandRepo
 	Geofences      repository.GeofenceRepo
-	Events         repository.EventRepo
+	Events         *repository.EventRepository
 	Notifications  repository.NotificationRepo
-	Shares         repository.DeviceShareRepo
+	Shares         *repository.DeviceShareRepository
 	ApiKeys        repository.ApiKeyRepo
 	Calendars      repository.CalendarRepo
 	TrailBookmarks repository.TrailBookmarkRepo
 	Stats          repository.StatisticsRepo
 	OIDCStateRepo  repository.OIDCStateRepo
-	Passkeys       repository.PasskeyRepo
+	Passkeys       *repository.PasskeyRepository
 
 	// WebAuthn is the passkey ceremony engine. Nil when passkeys are disabled
 	// or misconfigured; handlers then respond 501.

@@ -103,15 +103,6 @@ type GeofenceRepo interface {
 	CheckContainmentForDevice(ctx context.Context, deviceID int64, lat, lon float64) ([]int64, error)
 }
 
-// EventRepo defines the operations on the events table used by handlers
-// and event detection services.
-type EventRepo interface {
-	Create(ctx context.Context, e *model.Event) error
-	GetRecentByDeviceAndType(ctx context.Context, deviceID int64, eventType string, limit int) ([]*model.Event, error)
-	GetByFilters(ctx context.Context, userID int64, deviceIDs []int64, eventTypes []string, from, to time.Time) ([]*model.Event, error)
-	SumTripDistance(ctx context.Context, deviceIDs []int64, from, to time.Time) ([]DeviceTripTotal, float64, error)
-}
-
 // CommandRepo defines the operations on the commands table.
 type CommandRepo interface {
 	Create(ctx context.Context, cmd *model.Command) error
@@ -136,15 +127,6 @@ type NotificationRepo interface {
 	GetLogsByRule(ctx context.Context, ruleID int64, limit int) ([]*model.NotificationLog, error)
 }
 
-// DeviceShareRepo defines the operations on the device_shares table.
-type DeviceShareRepo interface {
-	Create(ctx context.Context, share *model.DeviceShare) error
-	GetByToken(ctx context.Context, token string) (*model.DeviceShare, error)
-	ListByDevice(ctx context.Context, deviceID int64) ([]*model.DeviceShare, error)
-	GetByID(ctx context.Context, id int64) (*model.DeviceShare, error)
-	Delete(ctx context.Context, id int64) error
-}
-
 // ApiKeyRepo defines the operations on the api_keys table used by auth
 // middleware and API key management handlers.
 type ApiKeyRepo interface {
@@ -154,16 +136,6 @@ type ApiKeyRepo interface {
 	ListByUser(ctx context.Context, userID int64) ([]*model.ApiKey, error)
 	Delete(ctx context.Context, id int64) error
 	UpdateLastUsed(ctx context.Context, id int64) error
-}
-
-// PasskeyRepo defines the operations on the passkey_credentials table used by
-// the WebAuthn registration/login handlers and the demo reset routine.
-type PasskeyRepo interface {
-	Create(ctx context.Context, c *model.PasskeyCredential) error
-	ListByUser(ctx context.Context, userID int64) ([]*model.PasskeyCredential, error)
-	GetByCredentialID(ctx context.Context, credID []byte) (*model.PasskeyCredential, error)
-	UpdateSignCount(ctx context.Context, id int64, count uint32) error
-	Delete(ctx context.Context, id, userID int64) error
 }
 
 // CalendarRepo defines the operations on the calendars table used by
@@ -206,14 +178,11 @@ var (
 	_ SessionRepo       = (*SessionRepository)(nil)
 	_ PositionRepo      = (*PositionRepository)(nil)
 	_ GeofenceRepo      = (*GeofenceRepository)(nil)
-	_ EventRepo         = (*EventRepository)(nil)
 	_ CommandRepo       = (*CommandRepository)(nil)
 	_ NotificationRepo  = (*NotificationRepository)(nil)
-	_ DeviceShareRepo   = (*DeviceShareRepository)(nil)
 	_ ApiKeyRepo        = (*ApiKeyRepository)(nil)
 	_ StatisticsRepo    = (*StatisticsRepository)(nil)
 	_ CalendarRepo      = (*CalendarRepository)(nil)
 	_ TrailBookmarkRepo = (*TrailBookmarkRepository)(nil)
 	_ OIDCStateRepo     = (*OIDCStateRepository)(nil)
-	_ PasskeyRepo       = (*PasskeyRepository)(nil)
 )

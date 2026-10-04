@@ -43,7 +43,7 @@ type IdleService struct {
 func NewIdleService(
 	deviceRepo repository.DeviceRepo,
 	positionRepo repository.PositionRepo,
-	eventRepo repository.EventRepo,
+	eventRepo eventStore,
 	hub *websocket.Hub,
 	notificationService *NotificationService,
 	mileageService *MileageService,

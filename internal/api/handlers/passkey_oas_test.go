@@ -119,16 +119,3 @@ func TestChallengeCookieWrongKeyRejected(t *testing.T) {
 		t.Fatal("expected cookie signed with a different key to be rejected")
 	}
 }
-
-func TestLocalPart(t *testing.T) {
-	cases := map[string]string{
-		"demo@motus.local":  "demo",
-		"admin@motus.local": "admin",
-		"nolocal":           "nolocal",
-	}
-	for in, want := range cases {
-		if got := localPart(in); got != want {
-			t.Errorf("localPart(%q) = %q, want %q", in, got, want)
-		}
-	}
-}

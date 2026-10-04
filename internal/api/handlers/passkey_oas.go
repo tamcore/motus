@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -51,14 +52,8 @@ func (h *Handler) PasskeyRegisterBegin(ctx context.Context) (oas.PasskeyRegister
 		return &oas.PasskeyRegisterBeginUnauthorized{Error: "failed to load user"}, nil
 	}
 
-	exclusions := make([]protocol.CredentialDescriptor, 0, len(wu.creds))
-	for _, c := range wu.creds {
-		wc := toWebauthnCredential(c)
-		exclusions = append(exclusions, wc.Descriptor())
-	}
-
 	creation, sessionData, err := h.cfg.WebAuthn.BeginRegistration(wu,
-		webauthn.WithExclusions(exclusions),
+		webauthn.WithExclusions(webauthn.Credentials(wu.WebAuthnCredentials()).CredentialDescriptors()),
 		webauthn.WithResidentKeyRequirement(protocol.ResidentKeyRequirementRequired),
 	)
 	if err != nil {
@@ -241,7 +236,8 @@ func (h *Handler) createPasskeySession(ctx context.Context, user *model.User) (*
 	expiry := time.Now().Add(sessionExpiryRememberMe)
 
 	if demo.IsEnabled() && demo.IsDemoAccount(user.Email) {
-		apiKey, err := h.cfg.ApiKeys.GetByToken(ctx, localPart(user.Email))
+		token, _, _ := strings.Cut(user.Email, "@")
+		apiKey, err := h.cfg.ApiKeys.GetByToken(ctx, token)
 		if err != nil || apiKey == nil {
 			return nil, errPasskeyDemoUnavailable
 		}
@@ -285,19 +281,14 @@ func (h *Handler) DeletePasskey(ctx context.Context, params oas.DeletePasskeyPar
 // Helpers
 // ---------------------------------------------------------------------------
 
-// passkeyError is a small internal error type for passkey-specific failures.
-type passkeyError struct{ msg string }
-
-func (e *passkeyError) Error() string { return e.msg }
-
 var (
 	// errPasskeyDemoUnavailable is returned when a demo account has no read-only
 	// API key to bind the session to. Failing closed prevents a full-access
 	// demo session.
-	errPasskeyDemoUnavailable = &passkeyError{"demo passkey login is temporarily unavailable"}
-	errPasskeyNoWriter        = &passkeyError{"no response writer in context"}
-	errPasskeyNoRequest       = &passkeyError{"no request in context"}
-	errPasskeyBadCookie       = &passkeyError{"invalid challenge cookie"}
+	errPasskeyDemoUnavailable = errors.New("demo passkey login is temporarily unavailable")
+	errPasskeyNoWriter        = errors.New("no response writer in context")
+	errPasskeyNoRequest       = errors.New("no request in context")
+	errPasskeyBadCookie       = errors.New("invalid challenge cookie")
 )
 
 // loadWebauthnUser builds a webauthn.User adapter for the given user with all
@@ -328,14 +319,6 @@ func passkeyToOAS(c *model.PasskeyCredential) oas.PasskeyCredentialInfo {
 		CreatedAt:  c.CreatedAt,
 		LastUsedAt: ptrToOptTime(c.LastUsedAt),
 	}
-}
-
-// localPart returns the part of an email before the '@'.
-func localPart(email string) string {
-	if idx := strings.Index(email, "@"); idx > 0 {
-		return email[:idx]
-	}
-	return email
 }
 
 // setChallengeCookie serializes and signs the WebAuthn SessionData into a

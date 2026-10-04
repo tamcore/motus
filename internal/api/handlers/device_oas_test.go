@@ -319,6 +319,63 @@ func TestUpdateDevice_Success_OAS(t *testing.T) {
 	}
 }
 
+func TestDeviceMileage_RoundTrip_OAS(t *testing.T) {
+	var stored model.Device
+	mock := &mockDeviceRepo{
+		createFn: func(_ context.Context, d *model.Device, _ int64) error {
+			d.ID = 5
+			stored = *d
+			return nil
+		},
+		userHasAccessFn: func(context.Context, *model.User, int64) bool { return true },
+		getByIDFn: func(context.Context, int64) (*model.Device, error) {
+			d := stored
+			return &d, nil
+		},
+		updateFn: func(_ context.Context, d *model.Device) error {
+			stored = *d
+			return nil
+		},
+	}
+	h := newDeviceTestHandler(mock)
+	ctx := deviceTestUserCtx(1)
+	mileage := func() any {
+		if stored.Mileage == nil {
+			return nil
+		}
+		return *stored.Mileage
+	}
+
+	res, err := h.CreateDevice(ctx, &oas.DeviceInput{UniqueId: "mil-001", Name: "Car", Mileage: oas.NewOptNilFloat64(1234.5)})
+	if err != nil {
+		t.Fatalf("CreateDevice: %v", err)
+	}
+	if d, ok := res.(*oas.Device); !ok || d.Mileage.Value != 1234.5 || mileage() != 1234.5 {
+		t.Fatalf("create: response %#v, stored %v; want mileage 1234.5", res, mileage())
+	}
+
+	update := func(in oas.OptNilFloat64) {
+		t.Helper()
+		if _, err := h.UpdateDevice(ctx, &oas.DeviceInput{UniqueId: "mil-001", Name: "Car", Mileage: in}, oas.UpdateDeviceParams{ID: 5}); err != nil {
+			t.Fatalf("UpdateDevice: %v", err)
+		}
+	}
+	update(oas.OptNilFloat64{})
+	if mileage() != 1234.5 {
+		t.Errorf("absent mileage: stored %v, want 1234.5 kept", mileage())
+	}
+	update(oas.NewOptNilFloat64(2000))
+	if mileage() != 2000.0 {
+		t.Errorf("set mileage: stored %v, want 2000", mileage())
+	}
+	var null oas.OptNilFloat64
+	null.SetToNull()
+	update(null)
+	if mileage() != nil {
+		t.Errorf("null mileage: stored %v, want cleared", mileage())
+	}
+}
+
 func TestUpdateDevice_UniqueIDChangeKeepsIgnitionState_OAS(t *testing.T) {
 	lastIgnition := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
 	var persisted model.Device

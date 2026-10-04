@@ -257,6 +257,13 @@ func applyDeviceInputFields(d *model.Device, req *oas.DeviceInput) *model.Device
 	if v, ok := req.Disabled.Get(); ok {
 		clone.Disabled = v
 	}
+	if req.Mileage.Set {
+		if v, ok := req.Mileage.Get(); ok {
+			clone.Mileage = &v
+		} else {
+			clone.Mileage = nil
+		}
+	}
 	if req.Attributes.Set {
 		clone.Attributes = rawToAttrs(map[string]jx.Raw(req.Attributes.Value))
 	}

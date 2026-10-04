@@ -3267,16 +3267,18 @@ func (*Device) updateDeviceRes()    {}
 
 // Ref: #/components/schemas/DeviceInput
 type DeviceInput struct {
-	Name       string        `json:"name"`
-	UniqueId   string        `json:"uniqueId"`
-	Phone      OptString     `json:"phone"`
-	Model      OptString     `json:"model"`
-	Contact    OptString     `json:"contact"`
-	Category   OptString     `json:"category"`
-	Protocol   OptString     `json:"protocol"`
-	CalendarId OptNilInt64   `json:"calendarId"`
-	SpeedLimit OptFloat64    `json:"speedLimit"`
-	Disabled   OptBool       `json:"disabled"`
+	Name       string      `json:"name"`
+	UniqueId   string      `json:"uniqueId"`
+	Phone      OptString   `json:"phone"`
+	Model      OptString   `json:"model"`
+	Contact    OptString   `json:"contact"`
+	Category   OptString   `json:"category"`
+	Protocol   OptString   `json:"protocol"`
+	CalendarId OptNilInt64 `json:"calendarId"`
+	SpeedLimit OptFloat64  `json:"speedLimit"`
+	Disabled   OptBool     `json:"disabled"`
+	// Odometer in km; absent keeps the stored value.
+	Mileage    OptNilFloat64 `json:"mileage"`
 	Attributes OptAttributes `json:"attributes"`
 }
 
@@ -3328,6 +3330,11 @@ func (s *DeviceInput) GetSpeedLimit() OptFloat64 {
 // GetDisabled returns the value of Disabled.
 func (s *DeviceInput) GetDisabled() OptBool {
 	return s.Disabled
+}
+
+// GetMileage returns the value of Mileage.
+func (s *DeviceInput) GetMileage() OptNilFloat64 {
+	return s.Mileage
 }
 
 // GetAttributes returns the value of Attributes.
@@ -3383,6 +3390,11 @@ func (s *DeviceInput) SetSpeedLimit(val OptFloat64) {
 // SetDisabled sets the value of Disabled.
 func (s *DeviceInput) SetDisabled(val OptBool) {
 	s.Disabled = val
+}
+
+// SetMileage sets the value of Mileage.
+func (s *DeviceInput) SetMileage(val OptNilFloat64) {
+	s.Mileage = val
 }
 
 // SetAttributes sets the value of Attributes.

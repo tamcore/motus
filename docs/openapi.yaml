@@ -533,6 +533,7 @@ components:
         calendarId: { type: integer, format: int64, nullable: true }
         speedLimit: { type: number, format: double }
         disabled: { type: boolean }
+        mileage: { type: number, format: double, nullable: true, minimum: 0, description: Odometer in km; absent keeps the stored value, null disables mileage tracking }
         attributes:
           $ref: '#/components/schemas/Attributes'
 

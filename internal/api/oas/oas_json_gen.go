@@ -10092,6 +10092,12 @@ func (s *DeviceInput) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.Mileage.Set {
+			e.FieldStart("mileage")
+			s.Mileage.Encode(e)
+		}
+	}
+	{
 		if s.Attributes.Set {
 			e.FieldStart("attributes")
 			s.Attributes.Encode(e)
@@ -10099,7 +10105,7 @@ func (s *DeviceInput) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfDeviceInput = [11]string{
+var jsonFieldsNameOfDeviceInput = [12]string{
 	0:  "name",
 	1:  "uniqueId",
 	2:  "phone",
@@ -10110,7 +10116,8 @@ var jsonFieldsNameOfDeviceInput = [11]string{
 	7:  "calendarId",
 	8:  "speedLimit",
 	9:  "disabled",
-	10: "attributes",
+	10: "mileage",
+	11: "attributes",
 }
 
 // Decode decodes DeviceInput from json.
@@ -10225,6 +10232,16 @@ func (s *DeviceInput) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"disabled\"")
+			}
+		case "mileage":
+			if err := func() error {
+				s.Mileage.Reset()
+				if err := s.Mileage.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"mileage\"")
 			}
 		case "attributes":
 			if err := func() error {

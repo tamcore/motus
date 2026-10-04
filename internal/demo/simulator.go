@@ -193,10 +193,11 @@ func (s *Simulator) runConnection(
 		return err
 	case err := <-readerErr:
 		connCancel()
-		if err != nil {
-			return err
+		// Wait for the route loop: it writes progress, which the caller reads.
+		if routeErr := <-routeErr; err == nil {
+			return routeErr
 		}
-		return <-routeErr
+		return err
 	}
 }
 

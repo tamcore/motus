@@ -16,6 +16,13 @@ jobs:
       fail-fast: false
       matrix:
         mode: [regular, oidc]
+        include:
+          - mode: regular
+            compose: -f docker-compose.yaml -f docker-compose.dev.yaml
+            projects: --project=setup --project=chromium --project=auth
+          - mode: oidc
+            compose: -f docker-compose.yaml -f docker-compose.dev.yaml -f docker-compose.oidc.yaml
+            projects: --project=oidc
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -24,20 +31,11 @@ jobs:
         run: echo "127.0.0.1 keycloak" | sudo tee -a /etc/hosts
 
       - name: Start app stack
-        if: matrix.mode == 'regular'
-        run: docker compose -f docker-compose.yaml -f docker-compose.dev.yaml up -d --build --wait
-
-      - name: Start app stack with OIDC
-        if: matrix.mode == 'oidc'
-        run: docker compose -f docker-compose.yaml -f docker-compose.dev.yaml -f docker-compose.oidc.yaml up -d --build --wait
+        run: docker compose ${{ matrix.compose }} up -d --build --wait
 
       - name: Show container logs
         if: failure()
-        run: |
-          docker compose -f docker-compose.yaml -f docker-compose.dev.yaml logs
-          if [ "${{ matrix.mode }}" = "oidc" ]; then
-            docker compose -f docker-compose.yaml -f docker-compose.dev.yaml -f docker-compose.oidc.yaml logs keycloak
-          fi
+        run: docker compose ${{ matrix.compose }} logs
 
       - name: Setup Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -69,14 +67,8 @@ jobs:
         run: npx playwright install chromium
 
       - name: Run E2E tests
-        if: matrix.mode == 'regular'
         working-directory: ./web
-        run: npx playwright test --project=setup --project=chromium --project=auth
-
-      - name: Run OIDC E2E tests
-        if: matrix.mode == 'oidc'
-        working-directory: ./web
-        run: npx playwright test --project=oidc
+        run: npx playwright test ${{ matrix.projects }}
 
       - name: Upload test results
         if: always()

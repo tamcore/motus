@@ -1063,7 +1063,7 @@
 	}
 
 	.fence-item.other-user {
-		border-left: 3px solid var(--color-warning, #f59e0b);
-		background: color-mix(in srgb, var(--color-warning, #f59e0b) 4%, transparent);
+		border-left: 3px solid var(--warning);
+		background: color-mix(in srgb, var(--warning) 4%, transparent);
 	}
 </style>

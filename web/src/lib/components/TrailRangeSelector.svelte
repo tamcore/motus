@@ -175,7 +175,7 @@
 
 	.trail-range-error {
 		font-size: var(--text-xs);
-		color: var(--error, #ff4444);
+		color: var(--error);
 	}
 
 	.trail-apply {

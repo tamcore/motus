@@ -38,7 +38,7 @@
 	.battery {
 		display: inline-flex;
 		align-items: center;
-		gap: var(--space-1, 4px);
+		gap: var(--space-1);
 		font-size: var(--text-sm);
 		color: var(--text-secondary);
 		white-space: nowrap;
@@ -51,6 +51,6 @@
 	}
 
 	.battery-unknown {
-		color: var(--text-tertiary, var(--text-secondary));
+		color: var(--text-tertiary);
 	}
 </style>

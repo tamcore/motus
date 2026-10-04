@@ -104,7 +104,7 @@
 	}
 
 	.trail-bookmarks-error {
-		color: var(--error, #ff4444);
+		color: var(--error);
 	}
 
 	.trail-bookmark-list {
@@ -178,6 +178,6 @@
 	}
 
 	.trail-bookmark-action--danger:hover {
-		color: var(--error, #ff4444);
+		color: var(--error);
 	}
 </style>

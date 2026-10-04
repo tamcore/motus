@@ -22,22 +22,22 @@
 	.admin-toggle {
 		display: inline-flex;
 		align-items: center;
-		gap: var(--space-1, 0.25rem);
+		gap: var(--space-1);
 		cursor: pointer;
-		font-size: var(--text-xs, 0.75rem);
-		color: var(--text-secondary, #666);
+		font-size: var(--text-xs);
+		color: var(--text-secondary);
 		user-select: none;
 		white-space: nowrap;
 	}
 
 	.admin-toggle:hover {
-		color: var(--text-primary, #333);
+		color: var(--text-primary);
 	}
 
 	input[type="checkbox"] {
 		width: 0.85rem;
 		height: 0.85rem;
-		accent-color: var(--color-primary, #3b82f6);
+		accent-color: var(--accent-primary);
 		cursor: pointer;
 		margin: 0;
 	}

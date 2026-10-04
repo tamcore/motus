@@ -185,8 +185,8 @@ body {
 }
 
 .channel-command {
-  background-color: color-mix(in srgb, var(--color-warning, #f59e0b) 15%, transparent);
-  color: var(--color-warning, #f59e0b);
+  background-color: color-mix(in srgb, var(--warning) 15%, transparent);
+  color: var(--warning);
 }
 
 .modal-actions {
@@ -200,8 +200,8 @@ body {
   font-size: 0.65rem;
   padding: 0.1rem 0.35rem;
   border-radius: 0.25rem;
-  background: color-mix(in srgb, var(--color-warning, #f59e0b) 15%, transparent);
-  color: var(--text-secondary, #666);
+  background: color-mix(in srgb, var(--warning) 15%, transparent);
+  color: var(--text-secondary);
   line-height: 1.2;
   white-space: nowrap;
 }

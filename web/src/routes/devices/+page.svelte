@@ -1175,7 +1175,7 @@
 
 	.cmd-history-status {
 		padding: 1px var(--space-2);
-		border-radius: var(--radius-full, 9999px);
+		border-radius: var(--radius-full);
 		font-size: 10px;
 		font-weight: var(--font-semibold);
 		text-transform: uppercase;
@@ -1243,8 +1243,8 @@
 
 	.table-row.other-user,
 	.device-card.other-user {
-		border-left: 3px solid var(--color-warning, #f59e0b);
-		background: color-mix(in srgb, var(--color-warning, #f59e0b) 4%, transparent);
+		border-left: 3px solid var(--warning);
+		background: color-mix(in srgb, var(--warning) 4%, transparent);
 	}
 
 	.owner-badge {

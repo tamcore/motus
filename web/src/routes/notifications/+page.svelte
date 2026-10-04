@@ -767,7 +767,7 @@
 		background: none;
 		border: none;
 		color: var(--accent-primary);
-		font-size: var(--text-xs, 0.75rem);
+		font-size: var(--text-xs);
 		cursor: pointer;
 		padding: 0;
 	}
@@ -778,14 +778,14 @@
 	.event-type-grid {
 		display: grid;
 		grid-template-columns: repeat(2, 1fr);
-		gap: var(--space-1, 0.25rem) var(--space-3, 0.75rem);
+		gap: var(--space-1) var(--space-3);
 	}
 
 	.event-type-checkbox {
 		display: flex;
 		align-items: center;
-		gap: var(--space-2, 0.5rem);
-		font-size: var(--text-sm, 0.875rem);
+		gap: var(--space-2);
+		font-size: var(--text-sm);
 		color: var(--text-primary);
 		cursor: pointer;
 		user-select: none;
@@ -794,33 +794,33 @@
 	.event-type-checkbox input[type="checkbox"] {
 		width: 0.9rem;
 		height: 0.9rem;
-		accent-color: var(--accent-primary, #3b82f6);
+		accent-color: var(--accent-primary);
 		cursor: pointer;
 		margin: 0;
 	}
 
 	.form-hint {
-		font-size: var(--text-xs, 0.75rem);
+		font-size: var(--text-xs);
 		color: var(--text-secondary);
 	}
 	.form-hint--error {
-		font-size: var(--text-xs, 0.75rem);
-		color: var(--error, #ef4444);
+		font-size: var(--text-xs);
+		color: var(--error);
 	}
 	.form-error {
 		padding: var(--space-2) var(--space-3);
 		border-radius: var(--radius-md);
-		background-color: color-mix(in srgb, var(--error, #ef4444) 12%, transparent);
-		color: var(--error, #ef4444);
+		background-color: color-mix(in srgb, var(--error) 12%, transparent);
+		color: var(--error);
 		font-size: var(--text-sm);
 	}
 	.form-hint--warning {
-		font-size: var(--text-xs, 0.75rem);
-		color: var(--warning, #f59e0b);
+		font-size: var(--text-xs);
+		color: var(--warning);
 	}
 	.geofence-unavailable span {
 		font-style: italic;
-		color: var(--warning, #f59e0b);
+		color: var(--warning);
 	}
 
 	/* Headers */
@@ -899,7 +899,7 @@
 	}
 
 	.rule-card.other-user {
-		border-left: 3px solid var(--color-warning, #f59e0b);
-		background: color-mix(in srgb, var(--color-warning, #f59e0b) 4%, transparent);
+		border-left: 3px solid var(--warning);
+		background: color-mix(in srgb, var(--warning) 4%, transparent);
 	}
 </style>

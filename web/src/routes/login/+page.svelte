@@ -441,7 +441,7 @@
 		align-items: center;
 		gap: var(--space-3);
 		margin-top: var(--space-4);
-		color: var(--text-muted, var(--text-secondary));
+		color: var(--text-secondary);
 		font-size: var(--text-sm);
 	}
 
@@ -450,7 +450,7 @@
 		content: '';
 		flex: 1;
 		height: 1px;
-		background-color: var(--border-color, var(--bg-hover));
+		background-color: var(--border-color);
 	}
 
 	.sso-button {
@@ -461,8 +461,8 @@
 		width: 100%;
 		margin-top: var(--space-3);
 		padding: var(--space-3) var(--space-4);
-		background-color: var(--bg-tertiary, var(--bg-hover));
-		border: 1px solid var(--border-color, transparent);
+		background-color: var(--bg-tertiary);
+		border: 1px solid var(--border-color);
 		border-radius: var(--radius-md);
 		color: var(--text-primary);
 		font-size: var(--text-sm);

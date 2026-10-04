@@ -149,14 +149,14 @@
 	}
 
 	.chat-title {
-		font-weight: var(--font-semibold, 600);
-		font-size: var(--text-lg, 1.125rem);
+		font-weight: var(--font-semibold);
+		font-size: var(--text-lg);
 		color: var(--text-primary);
 	}
 
 	.new-chat-btn {
 		padding: 0.35rem 0.85rem;
-		border: 1px solid var(--color-border, #d1d5db);
+		border: 1px solid var(--border-color);
 		border-radius: 6px;
 		background: none;
 		cursor: pointer;
@@ -199,15 +199,15 @@
 
 	.user-bubble {
 		max-width: 80%;
-		background: var(--color-primary, #2563eb);
-		color: #fff;
+		background: var(--accent-primary);
+		color: var(--text-inverse);
 		white-space: pre-wrap;
 	}
 
 	.assistant-bubble {
 		max-width: min(85%, 720px);
-		background: var(--color-surface-alt, #f3f4f6);
-		color: var(--color-text, #111);
+		background: var(--bg-tertiary);
+		color: var(--text-primary);
 	}
 
 	@media (max-width: 640px) {
@@ -234,7 +234,7 @@
 
 	.tool-card {
 		margin-bottom: 0.4rem;
-		border: 1px solid var(--color-border, #e5e7eb);
+		border: 1px solid var(--border-color);
 		border-radius: 6px;
 		padding: 0.25rem 0.5rem;
 		font-size: 0.85rem;
@@ -251,17 +251,17 @@
 	}
 
 	.tool-error {
-		color: var(--color-danger, #dc2626);
+		color: var(--error);
 	}
 
 	.tool-pending {
 		font-size: 0.75rem;
-		color: var(--color-muted, #6b7280);
+		color: var(--text-secondary);
 	}
 
 	.chat-error {
-		background: var(--color-danger-light, #fee2e2);
-		color: var(--color-danger, #dc2626);
+		background: color-mix(in srgb, var(--error) 15%, transparent);
+		color: var(--error);
 		padding: 0.5rem 0.75rem;
 		border-radius: 6px;
 		font-size: 0.875rem;
@@ -277,17 +277,19 @@
 		flex: 1;
 		resize: none;
 		padding: 0.6rem 0.75rem;
-		border: 1px solid var(--color-border, #d1d5db);
+		border: 1px solid var(--border-color);
 		border-radius: 8px;
 		font-family: inherit;
 		font-size: 0.95rem;
+		background: var(--bg-secondary);
+		color: var(--text-primary);
 	}
 
 	.input-area button {
 		padding: 0.6rem 1.2rem;
 		border-radius: 8px;
-		background: var(--color-primary, #2563eb);
-		color: #fff;
+		background: var(--accent-primary);
+		color: var(--text-inverse);
 		border: none;
 		cursor: pointer;
 		font-size: 0.95rem;

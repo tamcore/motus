@@ -97,10 +97,10 @@
 		border-left: 3px solid rgba(0, 0, 0, 0.2);
 		margin: 0.4em 0;
 		padding: 0.1em 0.7em;
-		color: var(--color-muted, #6b7280);
+		color: var(--text-secondary);
 	}
 	.markdown-body :global(a) {
-		color: var(--color-primary, #2563eb);
+		color: var(--accent-primary);
 		text-decoration: underline;
 	}
 	.markdown-body :global(hr) {

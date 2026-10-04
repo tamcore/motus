@@ -206,7 +206,7 @@
 
 	.status-hint {
 		font-size: var(--text-sm) !important;
-		color: var(--text-muted, var(--text-secondary));
+		color: var(--text-secondary);
 	}
 
 	.status-message.error {
@@ -216,7 +216,7 @@
 	.spinner {
 		width: 2rem;
 		height: 2rem;
-		border: 3px solid var(--border-primary);
+		border: 3px solid var(--border-color);
 		border-top-color: var(--accent-primary);
 		border-radius: 50%;
 		animation: spin 0.8s linear infinite;

@@ -240,7 +240,7 @@
 	}
 
 	.bookmark-count--over {
-		color: var(--error, #ff4444);
+		color: var(--error);
 	}
 
 	.bookmark-hint {
@@ -250,7 +250,7 @@
 
 	.bookmark-error {
 		font-size: var(--text-sm);
-		color: var(--error, #ff4444);
+		color: var(--error);
 	}
 
 	.bookmark-actions {

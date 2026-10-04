@@ -3,6 +3,8 @@ package validation
 import (
 	"strings"
 	"testing"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 func TestValidateEmail(t *testing.T) {
@@ -118,6 +120,19 @@ func TestValidatePassword(t *testing.T) {
 				t.Errorf("ValidatePassword(%q) error = %v, wantErr %v", tt.pw, err, tt.wantErr)
 			}
 		})
+	}
+}
+
+func TestHashPassword(t *testing.T) {
+	if _, err := HashPassword("short"); err == nil {
+		t.Error("expected validation error for short password")
+	}
+	hash, err := HashPassword("password123")
+	if err != nil {
+		t.Fatalf("HashPassword: %v", err)
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte("password123")); err != nil {
+		t.Errorf("hash does not match password: %v", err)
 	}
 }
 

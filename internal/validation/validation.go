@@ -10,6 +10,8 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 const (
@@ -117,4 +119,16 @@ func ValidatePassword(password string) error {
 		return fmt.Errorf("password must be at most %d characters", maxPasswordLength)
 	}
 	return nil
+}
+
+// HashPassword validates password and returns its bcrypt hash.
+func HashPassword(password string) (string, error) {
+	if err := ValidatePassword(password); err != nil {
+		return "", err
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", fmt.Errorf("hash password: %w", err)
+	}
+	return string(hash), nil
 }

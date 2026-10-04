@@ -38,7 +38,7 @@ Frontend dev server: http://localhost:5173 (proxies API to :8080).
 ### Creating an admin user
 
 ```bash
-./bin/motus user add --email admin@motus.local --name "Admin" --password admin --role admin
+./bin/motus user add --email admin@motus.local --name "Admin" --password adminadmin --role admin
 ```
 
 ## Project Structure

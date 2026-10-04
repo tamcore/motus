@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/tamcore/motus/internal/model"
 )
 
@@ -163,6 +164,31 @@ func TestNewUserCmd(t *testing.T) {
 	cmd := newUserCmd()
 	if cmd.Use != "user" {
 		t.Errorf("Use = %q", cmd.Use)
+	}
+}
+
+func TestUserAdd_RejectsInvalidInput(t *testing.T) {
+	origFatal, origConnect := fatalFn, connectDBFn
+	defer func() { fatalFn, connectDBFn = origFatal, origConnect }()
+	connectDBFn = func() (*pgxpool.Pool, error) {
+		t.Fatal("database must not be reached for invalid input")
+		return nil, nil
+	}
+
+	for _, tc := range []struct{ email, password string }{
+		{"not-an-email", "Password1!"},
+		{"ok@example.com", "short"},
+	} {
+		var fatalCalled bool
+		fatalFn = func(msg string, args ...any) { fatalCalled = true }
+		cmd := newUserAddCmd()
+		_ = cmd.Flags().Set("email", tc.email)
+		_ = cmd.Flags().Set("name", "Name")
+		_ = cmd.Flags().Set("password", tc.password)
+		cmd.Run(cmd, nil)
+		if !fatalCalled {
+			t.Errorf("email=%q password=%q: expected rejection", tc.email, tc.password)
+		}
 	}
 }
 

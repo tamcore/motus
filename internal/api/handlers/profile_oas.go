@@ -61,14 +61,11 @@ func (h *Handler) UpdateProfile(ctx context.Context, req *oas.UpdateProfileReque
 		if err := bcrypt.CompareHashAndPassword([]byte(existing.PasswordHash), []byte(currentPw)); err != nil {
 			return &oas.UpdateProfileBadRequest{Error: "current password is incorrect"}, nil
 		}
-		if err := validation.ValidatePassword(pw); err != nil {
+		hash, err := validation.HashPassword(pw)
+		if err != nil {
 			return &oas.UpdateProfileBadRequest{Error: err.Error()}, nil
 		}
-		hash, err := bcrypt.GenerateFromPassword([]byte(pw), bcrypt.DefaultCost)
-		if err != nil {
-			return &oas.UpdateProfileBadRequest{Error: "failed to hash password"}, nil
-		}
-		if err := h.cfg.Users.UpdatePassword(ctx, existing.ID, string(hash)); err != nil {
+		if err := h.cfg.Users.UpdatePassword(ctx, existing.ID, hash); err != nil {
 			return &oas.UpdateProfileBadRequest{Error: "failed to update password"}, nil
 		}
 		changes["passwordChanged"] = true

@@ -1,6 +1,6 @@
 export const TEST_CREDENTIALS = {
   email: 'admin@motus.local',
-  password: 'admin',
+  password: 'adminadmin',
 };
 
 export const INVALID_CREDENTIALS = {

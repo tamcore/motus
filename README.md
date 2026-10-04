@@ -26,7 +26,7 @@ docker compose -f docker-compose.yaml -f docker-compose.dev.yaml up -d --build -
 Starts the full stack: PostGIS → migrations → admin user seed → Motus server.
 
 Visit: http://localhost:8080
-Credentials: `admin@motus.local` / `admin`
+Credentials: `admin@motus.local` / `adminadmin`
 
 ### Kubernetes (Helm)
 

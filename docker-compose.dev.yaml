@@ -14,6 +14,6 @@ services:
 
   seed:
     <<: *motus-dev
-    command: ["user", "add", "--email", "admin@motus.local", "--name", "Admin User", "--password", "admin", "--role", "admin"]
+    command: ["user", "add", "--email", "admin@motus.local", "--name", "Admin User", "--password", "adminadmin", "--role", "admin"]
 
   motus: *motus-dev

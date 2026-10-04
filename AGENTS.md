@@ -254,7 +254,7 @@ Starts: `db` (PostGIS) → `migrate` (oneshot) → `seed` (oneshot, creates admi
 `docker-compose.dev.yaml` overrides the base file to build `Dockerfile.dev` instead of pulling the image.
 Rate limits are set high (1000/10000) for testing.
 
-Default credentials: `admin@motus.local` / `admin`
+Default credentials: `admin@motus.local` / `adminadmin`
 
 ### Kubernetes deployment
 

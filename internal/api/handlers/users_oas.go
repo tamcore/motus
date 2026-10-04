@@ -8,7 +8,6 @@ import (
 	"github.com/tamcore/motus/internal/demo"
 	"github.com/tamcore/motus/internal/model"
 	"github.com/tamcore/motus/internal/validation"
-	"golang.org/x/crypto/bcrypt"
 )
 
 // AdminListUsers returns all users in the system.
@@ -51,14 +50,11 @@ func (h *Handler) AdminCreateUser(ctx context.Context, req *oas.UserInput) (oas.
 
 	var passwordHash string
 	if pw, ok := req.Password.Get(); ok && pw != "" {
-		if err := validation.ValidatePassword(pw); err != nil {
+		hash, err := validation.HashPassword(pw)
+		if err != nil {
 			return &oas.AdminCreateUserBadRequest{Error: err.Error()}, nil
 		}
-		hash, err := bcrypt.GenerateFromPassword([]byte(pw), bcrypt.DefaultCost)
-		if err != nil {
-			return &oas.AdminCreateUserForbidden{Error: "failed to hash password"}, nil
-		}
-		passwordHash = string(hash)
+		passwordHash = hash
 	}
 
 	user := &model.User{
@@ -137,14 +133,11 @@ func (h *Handler) AdminUpdateUser(ctx context.Context, req *oas.UserInput, param
 	}
 
 	if pw, ok := req.Password.Get(); ok && pw != "" {
-		if err := validation.ValidatePassword(pw); err != nil {
+		hash, err := validation.HashPassword(pw)
+		if err != nil {
 			return &oas.AdminUpdateUserBadRequest{Error: err.Error()}, nil
 		}
-		hash, err := bcrypt.GenerateFromPassword([]byte(pw), bcrypt.DefaultCost)
-		if err != nil {
-			return &oas.AdminUpdateUserForbidden{Error: "failed to hash password"}, nil
-		}
-		if err := h.cfg.Users.UpdatePassword(ctx, existing.ID, string(hash)); err != nil {
+		if err := h.cfg.Users.UpdatePassword(ctx, existing.ID, hash); err != nil {
 			return &oas.AdminUpdateUserForbidden{Error: "failed to update password"}, nil
 		}
 		changes["passwordChanged"] = true

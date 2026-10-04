@@ -3,7 +3,10 @@ import { mockFetch } from '../helpers/mock-fetch';
 
 test.describe('Error Handling', () => {
   test('should show error on dashboard when API returns 500', async ({ authedPage }) => {
-    await mockFetch(authedPage, [{ path: '/api/devices', status: 500, text: 'Internal Server Error' }]);
+    await mockFetch(authedPage, [
+      { path: '/api/devices', status: 500, text: 'Internal Server Error' },
+      { match: '/api/positions', status: 503, text: 'Service Unavailable' },
+    ]);
     await authedPage.goto('/');
     // App should not crash - dashboard should still render
     await expect(authedPage.locator('h1:has-text("Dashboard")')).toBeVisible();
@@ -22,7 +25,7 @@ test.describe('Error Handling', () => {
       await mockFetch(authedPage, [{ path: '/api/devices', ...route }]);
       await authedPage.goto('/devices');
       await expect(authedPage.locator('h1:has-text("Devices")')).toBeVisible();
-      await expect(authedPage.locator('.empty-state')).toBeVisible();
+      await expect(authedPage.locator('.list-skeleton')).toHaveCount(0);
     });
   }
 

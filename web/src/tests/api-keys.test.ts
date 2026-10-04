@@ -43,7 +43,7 @@ describe("ApiKeyManager create modal", () => {
   async function createViaModal(expiration: string) {
     mockGetApiKeys.mockResolvedValue([]);
     mockCreateApiKey.mockResolvedValue(createdKey);
-    render(ApiKeyManager, { props: { showUsageInstructions: false } });
+    render(ApiKeyManager);
     await fireEvent.click(await screen.findByRole("button", { name: "Create API Key" }));
     await fireEvent.input(screen.getByLabelText(/Key Name/), { target: { value: "HA" } });
     await fireEvent.change(screen.getByLabelText("Expiration"), { target: { value: expiration } });

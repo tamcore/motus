@@ -10,9 +10,6 @@
 	import QrCodeDialog from '$lib/components/QrCodeDialog.svelte';
 	import { copyText } from '$lib/utils/clipboard';
 
-	/** Show Home Assistant usage instructions below the key list */
-	export let showUsageInstructions: boolean = true;
-
 	// ---------------------------------------------------------------------------
 	// List state
 	// ---------------------------------------------------------------------------
@@ -277,26 +274,24 @@
 	{/if}
 
 	<!-- Home Assistant usage instructions -->
-	{#if showUsageInstructions}
-		<details class="usage-details">
-			<summary class="usage-summary">Usage instructions for Home Assistant</summary>
-			<div class="usage-content">
-				<p>To connect Motus with Home Assistant using the Traccar integration:</p>
-				<ol class="usage-steps">
-					<li>Create a <strong>Full Access</strong> API key above (or use a Read-Only key if you only need tracking data).</li>
-					<li>In Home Assistant, go to <strong>Settings &rarr; Devices & Services</strong>.</li>
-					<li>Click <strong>Add Integration</strong> and search for <strong>Traccar Server</strong>.</li>
-					<li>Enter the Motus server URL (e.g., <code>https://your-motus-server.com</code>).</li>
-					<li>Paste the API key token into the token field.</li>
-					<li>Your tracked devices will appear as entities in Home Assistant.</li>
-				</ol>
-				<p class="usage-note">
-					The API key authenticates via the <code>GET /api/session?token=...</code> endpoint,
-					which is compatible with the Traccar protocol used by Home Assistant.
-				</p>
-			</div>
-		</details>
-	{/if}
+	<details class="usage-details">
+		<summary class="usage-summary">Usage instructions for Home Assistant</summary>
+		<div class="usage-content">
+			<p>To connect Motus with Home Assistant using the Traccar integration:</p>
+			<ol class="usage-steps">
+				<li>Create a <strong>Full Access</strong> API key above (or use a Read-Only key if you only need tracking data).</li>
+				<li>In Home Assistant, go to <strong>Settings &rarr; Devices & Services</strong>.</li>
+				<li>Click <strong>Add Integration</strong> and search for <strong>Traccar Server</strong>.</li>
+				<li>Enter the Motus server URL (e.g., <code>https://your-motus-server.com</code>).</li>
+				<li>Paste the API key token into the token field.</li>
+				<li>Your tracked devices will appear as entities in Home Assistant.</li>
+			</ol>
+			<p class="usage-note">
+				The API key authenticates via the <code>GET /api/session?token=...</code> endpoint,
+				which is compatible with the Traccar protocol used by Home Assistant.
+			</p>
+		</div>
+	</details>
 
 	{#if actionError}
 		<div class="message error" role="alert">{actionError}</div>

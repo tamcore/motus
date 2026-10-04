@@ -1,11 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-// Mock $app/environment before any imports that depend on it
-vi.mock("$app/environment", () => ({
-  browser: true,
-}));
-
-// Mock stores that depend on $app/environment
 vi.mock("$lib/stores/settings", () => ({
   settings: {
     subscribe: vi.fn((fn: (value: unknown) => void) => {

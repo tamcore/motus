@@ -3,7 +3,6 @@ package websocket
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -28,13 +27,6 @@ func (m *mockAccessChecker) GetUserIDs(_ context.Context, deviceID int64) ([]int
 		return nil, m.err
 	}
 	return m.deviceUsers[deviceID], nil
-}
-
-// errShareValidator implements ShareTokenValidator but always returns an error.
-type errShareValidator struct{}
-
-func (e *errShareValidator) ValidateShareToken(_ context.Context, _ string) (int64, error) {
-	return 0, errors.New("validator error")
 }
 
 // errPubSub implements pubsub.PubSub but Publish always returns an error.
@@ -360,29 +352,6 @@ func TestGetAllowedUserIDs_CacheEmptyResult(t *testing.T) {
 	}
 }
 
-func TestHub_SetLogger(t *testing.T) {
-	hub := &Hub{logger: slog.Default()}
-	initial := hub.logger
-	hub.SetLogger(nil) // nil should not change logger
-	if hub.logger != initial {
-		t.Error("SetLogger(nil) should not change logger")
-	}
-	custom := slog.New(slog.Default().Handler())
-	hub.SetLogger(custom)
-	if hub.logger != custom {
-		t.Error("SetLogger(custom) should replace logger")
-	}
-}
-
-func TestHub_Log_NilLogger(t *testing.T) {
-	// Hub with nil logger should fall back to slog.Default().
-	hub := &Hub{} // logger field is nil
-	l := hub.log()
-	if l == nil {
-		t.Fatal("log() should never return nil")
-	}
-}
-
 func TestGetAllowedUserIDs_Error(t *testing.T) {
 	checker := &mockAccessChecker{
 		err: errors.New("db error"),
@@ -397,7 +366,9 @@ func TestGetAllowedUserIDs_Error(t *testing.T) {
 
 func TestValidateShareToken_Error(t *testing.T) {
 	hub := NewHub(nil, nil, dummyExtractor)
-	hub.SetShareTokenValidator(&errShareValidator{})
+	hub.SetShareTokenValidator(func(context.Context, string) (int64, error) {
+		return 0, errors.New("validator error")
+	})
 
 	deviceID := hub.validateShareToken(context.Background(), "some-token")
 	if deviceID != 0 {

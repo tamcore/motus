@@ -3,7 +3,6 @@ package websocket
 import (
 	"context"
 	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -47,9 +46,7 @@ type AdminChecker func(ctx context.Context, userID int64) bool
 
 // ShareTokenValidator validates a share token and returns the associated device ID.
 // Returns deviceID > 0 if valid, 0 if invalid/expired.
-type ShareTokenValidator interface {
-	ValidateShareToken(ctx context.Context, token string) (deviceID int64, err error)
-}
+type ShareTokenValidator func(ctx context.Context, token string) (deviceID int64, err error)
 
 // Client represents a connected WebSocket user.
 type Client struct {
@@ -106,7 +103,7 @@ func NewHub(allowedOrigins []string, accessChecker DeviceAccessChecker, extractU
 		allowedOrigins: allowedOrigins,
 		accessChecker:  accessChecker,
 		extractUserID:  extractUserID,
-		podID:          generatePodID(),
+		podID:          rand.Text(),
 		accessCache:    newDeviceAccessCache(),
 		logger:         slog.Default(),
 	}
@@ -122,30 +119,9 @@ func (h *Hub) SetDevelopmentMode(dev bool) {
 	h.isDevelopment = dev
 }
 
-// generatePodID creates a random 8-byte hex string to uniquely identify this
-// pod instance. Used to prevent Redis pub/sub self-echo.
-func generatePodID() string {
-	b := make([]byte, 8)
-	if _, err := rand.Read(b); err != nil {
-		// Fallback: this should never happen but avoids a panic on startup.
-		return "unknown"
-	}
-	return hex.EncodeToString(b)
-}
-
 // SetLogger configures the structured logger for this hub.
 func (h *Hub) SetLogger(l *slog.Logger) {
-	if l != nil {
-		h.logger = l
-	}
-}
-
-// log returns the hub's logger, falling back to slog.Default() if nil.
-func (h *Hub) log() *slog.Logger {
-	if h.logger != nil {
-		return h.logger
-	}
-	return slog.Default()
+	h.logger = l
 }
 
 // SetPubSub configures cross-pod broadcasting via Redis pub/sub. When set,
@@ -170,7 +146,7 @@ func (h *Hub) SetInvalidationPubSub(ps pubsub.PubSub) {
 // no-op that blocks until the context is done.
 func (h *Hub) StartInvalidationSubscriber(ctx context.Context) {
 	h.subscribe(ctx, h.invalidationPubSub, "cache-invalidation", func(env redisEnvelope) {
-		h.log().Debug("cache invalidation from remote pod",
+		h.logger.Debug("cache invalidation from remote pod",
 			slog.Int64("deviceID", env.DeviceID),
 			slog.String("fromPod", env.OriginPodID),
 		)
@@ -198,7 +174,7 @@ func (h *Hub) SetAdminChecker(fn AdminChecker) {
 // that blocks until the context is done.
 func (h *Hub) StartSubscriber(ctx context.Context) {
 	h.subscribe(ctx, h.pubsub, "redis", func(env redisEnvelope) {
-		h.log().Debug("redis: relaying remote message",
+		h.logger.Debug("redis: relaying remote message",
 			slog.Int64("deviceID", env.DeviceID),
 			slog.String("fromPod", env.OriginPodID),
 		)
@@ -215,12 +191,12 @@ func (h *Hub) subscribe(ctx context.Context, ps pubsub.PubSub, name string, fn f
 		return
 	}
 
-	h.log().Info("starting "+name+" subscriber", slog.String("podID", h.podID))
+	h.logger.Info("starting "+name+" subscriber", slog.String("podID", h.podID))
 
 	err := ps.Subscribe(ctx, func(data []byte) {
 		var env redisEnvelope
 		if err := json.Unmarshal(data, &env); err != nil {
-			h.log().Error(name+" unmarshal error", slog.Any("error", err))
+			h.logger.Error(name+" unmarshal error", slog.Any("error", err))
 			return
 		}
 		if env.OriginPodID == h.podID {
@@ -229,7 +205,7 @@ func (h *Hub) subscribe(ctx context.Context, ps pubsub.PubSub, name string, fn f
 		fn(env)
 	})
 	if err != nil {
-		h.log().Error(name+" subscribe error", slog.Any("error", err))
+		h.logger.Error(name+" subscribe error", slog.Any("error", err))
 	}
 
 	<-ctx.Done()
@@ -262,7 +238,7 @@ func (h *Hub) checkOrigin(r *http.Request) bool {
 		}
 	}
 
-	h.log().Warn("WebSocket connection rejected: origin not allowed",
+	h.logger.Warn("WebSocket connection rejected: origin not allowed",
 		slog.String("origin", origin),
 	)
 	return false
@@ -274,7 +250,7 @@ func (h *Hub) checkOrigin(r *http.Request) bool {
 //  2. Share token: unauthenticated clients provide ?shareToken=xxx to receive
 //     updates for a single shared device.
 func (h *Hub) HandleConnect(w http.ResponseWriter, r *http.Request) {
-	h.log().Debug("HandleConnect called",
+	h.logger.Debug("HandleConnect called",
 		slog.String("method", r.Method),
 		slog.String("upgrade", r.Header.Get("Upgrade")),
 		slog.String("connection", r.Header.Get("Connection")),
@@ -288,18 +264,18 @@ func (h *Hub) HandleConnect(w http.ResponseWriter, r *http.Request) {
 	if shareToken != "" {
 		sharedDeviceID = h.validateShareToken(r.Context(), shareToken)
 		if sharedDeviceID == 0 {
-			h.log().Warn("invalid or expired share token")
+			h.logger.Warn("invalid or expired share token")
 			http.Error(w, "Invalid or expired share token", http.StatusUnauthorized)
 			return
 		}
-		h.log().Debug("share token validated", slog.Int64("deviceID", sharedDeviceID))
+		h.logger.Debug("share token validated", slog.Int64("deviceID", sharedDeviceID))
 	} else {
 		// Standard user authentication.
 		userID = h.extractUserID(r)
-		h.log().Debug("extracted userID", slog.Int64("userID", userID))
+		h.logger.Debug("extracted userID", slog.Int64("userID", userID))
 
 		if userID == 0 {
-			h.log().Debug("auth failed: returning 401")
+			h.logger.Debug("auth failed: returning 401")
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
@@ -308,7 +284,7 @@ func (h *Hub) HandleConnect(w http.ResponseWriter, r *http.Request) {
 	// nosemgrep: go.gorilla.security.audit.websocket-missing-origin-check.websocket-missing-origin-check -- CheckOrigin is configured on the Upgrader (see newUpgrader)
 	conn, err := h.upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		h.log().Error("WebSocket upgrade error", slog.Any("error", err))
+		h.logger.Error("WebSocket upgrade error", slog.Any("error", err))
 		return
 	}
 
@@ -332,13 +308,13 @@ func (h *Hub) HandleConnect(w http.ResponseWriter, r *http.Request) {
 	metrics.WebSocketConnectionsByPod.WithLabelValues(h.podID).Inc()
 
 	if sharedDeviceID > 0 {
-		h.log().Info("share client connected",
+		h.logger.Info("share client connected",
 			slog.Int64("deviceID", sharedDeviceID),
 			slog.Int("totalClients", clientCount),
 			slog.String("podID", h.podID),
 		)
 	} else {
-		h.log().Info("client connected",
+		h.logger.Info("client connected",
 			slog.Int64("userID", userID),
 			slog.Int("totalClients", clientCount),
 			slog.String("podID", h.podID),
@@ -367,7 +343,7 @@ func (h *Hub) HandleConnect(w http.ResponseWriter, r *http.Request) {
 				err := conn.WriteMessage(websocket.PingMessage, nil)
 				client.mu.Unlock()
 				if err != nil {
-					h.log().Warn("ping failed",
+					h.logger.Warn("ping failed",
 						slog.Int64("userID", userID),
 						slog.Any("error", err),
 					)
@@ -392,12 +368,12 @@ func (h *Hub) HandleConnect(w http.ResponseWriter, r *http.Request) {
 			metrics.WebSocketConnections.Dec()
 			metrics.WebSocketConnectionsByPod.WithLabelValues(h.podID).Dec()
 			if sharedDeviceID > 0 {
-				h.log().Info("share client disconnected",
+				h.logger.Info("share client disconnected",
 					slog.Int64("deviceID", sharedDeviceID),
 					slog.Int("remaining", remaining),
 				)
 			} else {
-				h.log().Info("client disconnected",
+				h.logger.Info("client disconnected",
 					slog.Int64("userID", userID),
 					slog.Int("remaining", remaining),
 				)
@@ -406,7 +382,7 @@ func (h *Hub) HandleConnect(w http.ResponseWriter, r *http.Request) {
 		for {
 			if _, _, err := conn.ReadMessage(); err != nil {
 				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseNormalClosure) {
-					h.log().Warn("read error",
+					h.logger.Warn("read error",
 						slog.Int64("userID", userID),
 						slog.Any("error", err),
 					)
@@ -419,7 +395,7 @@ func (h *Hub) HandleConnect(w http.ResponseWriter, r *http.Request) {
 
 // BroadcastPosition sends a position update to users who have access to the device.
 func (h *Hub) BroadcastPosition(position *model.Position) {
-	h.log().Debug("BroadcastPosition",
+	h.logger.Debug("BroadcastPosition",
 		slog.Int64("deviceID", position.DeviceID),
 		slog.Int64("positionID", position.ID),
 		slog.Float64("lat", position.Latitude),
@@ -472,7 +448,7 @@ func (h *Hub) publishAndBroadcast(deviceID int64, msg TraccarMessage) {
 			Message:     msg,
 		}
 		if err := h.pubsub.Publish(context.Background(), env); err != nil {
-			h.log().Error("redis publish error",
+			h.logger.Error("redis publish error",
 				slog.Int64("deviceID", deviceID),
 				slog.Any("error", err),
 			)
@@ -489,9 +465,9 @@ func (h *Hub) validateShareToken(ctx context.Context, token string) int64 {
 	if h.shareValidator == nil {
 		return 0
 	}
-	deviceID, err := h.shareValidator.ValidateShareToken(ctx, token)
+	deviceID, err := h.shareValidator(ctx, token)
 	if err != nil {
-		h.log().Warn("share token validation error", slog.Any("error", err))
+		h.logger.Warn("share token validation error", slog.Any("error", err))
 		return 0
 	}
 	return deviceID
@@ -518,7 +494,7 @@ func clientCanReceive(client *Client, deviceID int64, allowedUserIDs []int64) bo
 func (h *Hub) broadcastForDevice(deviceID int64, msg TraccarMessage) {
 	data, err := json.Marshal(msg)
 	if err != nil {
-		h.log().Error("marshal error", slog.Any("error", err))
+		h.logger.Error("marshal error", slog.Any("error", err))
 		return
 	}
 
@@ -542,7 +518,7 @@ func (h *Hub) broadcastForDevice(deviceID int64, msg TraccarMessage) {
 		client.mu.Unlock()
 
 		if writeErr != nil {
-			h.log().Warn("write error",
+			h.logger.Warn("write error",
 				slog.Int64("userID", client.UserID),
 				slog.Any("error", writeErr),
 			)
@@ -552,7 +528,7 @@ func (h *Hub) broadcastForDevice(deviceID int64, msg TraccarMessage) {
 	}
 	h.mu.RUnlock()
 
-	h.log().Debug("broadcast complete",
+	h.logger.Debug("broadcast complete",
 		slog.Int64("deviceID", deviceID),
 		slog.Int("totalClients", clientCount),
 		slog.Int("allowedUsers", len(allowedUserIDs)),
@@ -586,7 +562,7 @@ func (h *Hub) getAllowedUserIDs(deviceID int64) []int64 {
 	// Cache miss: query the database.
 	userIDs, err := h.accessChecker.GetUserIDs(context.Background(), deviceID)
 	if err != nil {
-		h.log().Error("failed to get user IDs for device",
+		h.logger.Error("failed to get user IDs for device",
 			slog.Int64("deviceID", deviceID),
 			slog.Any("error", err),
 		)
@@ -607,7 +583,7 @@ func (h *Hub) InvalidateDevice(deviceID int64) {
 	if h.invalidationPubSub != nil {
 		env := redisEnvelope{OriginPodID: h.podID, DeviceID: deviceID}
 		if err := h.invalidationPubSub.Publish(context.Background(), env); err != nil {
-			h.log().Error("cache invalidation publish error",
+			h.logger.Error("cache invalidation publish error",
 				slog.Int64("deviceID", deviceID),
 				slog.Any("error", err),
 			)

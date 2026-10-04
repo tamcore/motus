@@ -1,10 +1,12 @@
 package protocol
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"log/slog"
 	"net"
+	"strings"
 	"testing"
 	"time"
 
@@ -248,13 +250,13 @@ func TestTruncate_AdditionalCases(t *testing.T) {
 	}
 }
 
-func TestServer_SetLogger(t *testing.T) {
+func TestServer_SetLogger_BindsProtocolAttrs(t *testing.T) {
+	var buf bytes.Buffer
 	srv := NewH02Server("5014", nil, nil)
-	srv.SetLogger(nil) // nil should not change the logger
-	custom := slog.Default()
-	srv.SetLogger(custom)
-	if srv.logger != custom {
-		t.Error("expected logger to be set")
+	srv.SetLogger(slog.New(slog.NewTextHandler(&buf, nil)))
+	srv.log().Info("x")
+	if got := buf.String(); strings.Count(got, "protocol=h02") != 1 || !strings.Contains(got, "type=gps") {
+		t.Errorf("log line = %q, want type=gps and protocol=h02 once", got)
 	}
 }
 

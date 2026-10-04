@@ -6,7 +6,6 @@ import (
 	"cmp"
 	"context"
 	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"log/slog"
@@ -103,11 +102,11 @@ func NewH02Server(port string, devices repository.DeviceRepo, handler *PositionH
 		port:           port,
 		devices:        devices,
 		handler:        handler,
-		logger:         slog.Default(),
 		maxConnections: defaultMaxConnections,
 		scannerSplit:   h02SplitFunc,
 	}
 	s.decoder = s.decodeH02
+	s.SetLogger(slog.Default())
 	return s
 }
 
@@ -118,21 +117,20 @@ func NewWatchServer(port string, devices repository.DeviceRepo, handler *Positio
 		port:           port,
 		devices:        devices,
 		handler:        handler,
-		logger:         slog.Default(),
 		maxConnections: defaultMaxConnections,
 		scannerSplit:   watch.SplitFunc,
 		maxFrameSize:   watchMaxFrameSize,
 		rawFrames:      true,
 	}
 	s.decoder = s.decodeWatch
+	s.SetLogger(slog.Default())
 	return s
 }
 
-// SetLogger configures the structured logger for this server.
+// SetLogger configures the structured logger for this server and binds the
+// type and protocol attributes to it.
 func (s *Server) SetLogger(l *slog.Logger) {
-	if l != nil {
-		s.logger = l
-	}
+	s.logger = l.With(slog.String("type", "gps"), slog.String("protocol", s.name))
 }
 
 // log returns the server's logger, falling back to slog.Default() if nil.
@@ -205,8 +203,6 @@ func (s *Server) lookupOrCreateDevice(ctx context.Context, uniqueID string) (*mo
 		if device.Protocol != s.name {
 			if upErr := s.devices.UpdateProtocol(ctx, device.ID, s.name); upErr != nil {
 				s.log().Warn("failed to resync device protocol",
-					slog.String("type", "gps"),
-					slog.String("protocol", s.name),
 					slog.String("uniqueID", uniqueID),
 					slog.String("oldProtocol", device.Protocol),
 					slog.Any("error", upErr),
@@ -241,8 +237,6 @@ func (s *Server) lookupOrCreateDevice(ctx context.Context, uniqueID string) (*mo
 	}
 
 	s.log().Info("auto-created device",
-		slog.String("type", "gps"),
-		slog.String("protocol", s.name),
 		slog.String("uniqueID", uniqueID),
 		slog.Int64("assignedToUser", userID),
 	)
@@ -291,8 +285,6 @@ func (s *Server) Start(ctx context.Context) error {
 	}
 
 	s.log().Info("GPS protocol server listening",
-		slog.String("type", "gps"),
-		slog.String("protocol", s.name),
 		slog.String("port", s.port),
 	)
 
@@ -314,11 +306,9 @@ func (s *Server) Start(ctx context.Context) error {
 
 	select {
 	case <-done:
-		s.log().Info("all connections drained", slog.String("type", "gps"), slog.String("protocol", s.name))
+		s.log().Info("all connections drained")
 	case <-time.After(10 * time.Second):
 		s.log().Warn("shutdown timeout, connections still active",
-			slog.String("type", "gps"),
-			slog.String("protocol", s.name),
 			slog.Int64("activeConnections", s.connCount.Load()),
 		)
 	}
@@ -336,8 +326,6 @@ func (s *Server) acceptLoop(ctx context.Context) {
 			default:
 				// Transient error, log and continue.
 				s.log().Error("accept error",
-					slog.String("type", "gps"),
-					slog.String("protocol", s.name),
 					slog.Any("error", err),
 				)
 				continue
@@ -347,8 +335,6 @@ func (s *Server) acceptLoop(ctx context.Context) {
 		// Enforce connection limit to prevent resource exhaustion.
 		if s.maxConnections > 0 && s.connCount.Load() >= s.maxConnections {
 			s.log().Warn("connection rejected: limit reached",
-				slog.String("type", "gps"),
-				slog.String("protocol", s.name),
 				slog.Int64("current", s.connCount.Load()),
 				slog.Int64("max", s.maxConnections),
 			)
@@ -366,13 +352,6 @@ func (s *Server) acceptLoop(ctx context.Context) {
 	}
 }
 
-// connID generates a short random hex ID to correlate log lines for a single connection.
-func connID() string {
-	b := make([]byte, 4)
-	_, _ = rand.Read(b)
-	return hex.EncodeToString(b)
-}
-
 // handleConnection processes a single GPS device connection.
 func (s *Server) handleConnection(ctx context.Context, conn net.Conn) {
 	defer func() { _ = conn.Close() }()
@@ -380,11 +359,9 @@ func (s *Server) handleConnection(ctx context.Context, conn net.Conn) {
 	// reachable and reconnects to another one.
 	defer context.AfterFunc(ctx, func() { _ = conn.Close() })()
 
-	id := connID()
+	id := rand.Text()
 	remoteAddr := conn.RemoteAddr().String()
 	s.log().Info("new connection",
-		slog.String("type", "gps"),
-		slog.String("protocol", s.name),
 		slog.String("conn", id),
 		slog.String("remoteAddr", remoteAddr),
 	)
@@ -413,8 +390,6 @@ func (s *Server) handleConnection(ctx context.Context, conn net.Conn) {
 				_ = conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
 				if _, err := conn.Write(data); err != nil {
 					s.log().Warn("write to device failed",
-						slog.String("type", "gps"),
-						slog.String("protocol", s.name),
 						slog.String("conn", id),
 						slog.Any("error", err),
 					)
@@ -425,8 +400,6 @@ func (s *Server) handleConnection(ctx context.Context, conn net.Conn) {
 				// calls are not affected by this per-command deadline.
 				_ = conn.SetWriteDeadline(time.Time{})
 				s.log().Debug("tx (command)",
-					slog.String("type", "gps"),
-					slog.String("protocol", s.name),
 					slog.String("conn", id),
 					slog.String("data", truncate(string(data), 200)),
 				)
@@ -439,7 +412,7 @@ func (s *Server) handleConnection(ctx context.Context, conn net.Conn) {
 	// on a nil pointer.
 	var relay *relayClient
 	if s.relayTarget != "" {
-		relay = &relayClient{target: s.relayTarget, protocol: s.name, logger: s.log(), raw: s.rawFrames}
+		relay = &relayClient{target: s.relayTarget, logger: s.log(), raw: s.rawFrames}
 		defer relay.close()
 	}
 
@@ -492,8 +465,6 @@ func (s *Server) handleConnection(ctx context.Context, conn net.Conn) {
 		relay.send(line)
 
 		s.log().Debug("rx",
-			slog.String("type", "gps"),
-			slog.String("protocol", s.name),
 			slog.String("conn", id),
 			slog.String("remoteAddr", remoteAddr),
 			slog.String("device", deviceID),
@@ -503,8 +474,6 @@ func (s *Server) handleConnection(ctx context.Context, conn net.Conn) {
 		position, devID, response, err := s.decoder(decodeCtx, line)
 		if err != nil {
 			s.log().Warn("decode error",
-				slog.String("type", "gps"),
-				slog.String("protocol", s.name),
 				slog.String("conn", id),
 				slog.String("remoteAddr", remoteAddr),
 				slog.Any("error", err),
@@ -534,8 +503,6 @@ func (s *Server) handleConnection(ctx context.Context, conn net.Conn) {
 		if position != nil {
 			if err := s.handler.HandlePosition(ctx, position); err != nil {
 				s.log().Error("handle position error",
-					slog.String("type", "gps"),
-					slog.String("protocol", s.name),
 					slog.String("conn", id),
 					slog.String("device", deviceID),
 					slog.Any("error", err),
@@ -550,16 +517,12 @@ func (s *Server) handleConnection(ctx context.Context, conn net.Conn) {
 			}
 			if _, err := io.WriteString(conn, response); err != nil {
 				s.log().Error("write response error",
-					slog.String("type", "gps"),
-					slog.String("protocol", s.name),
 					slog.String("conn", id),
 					slog.Any("error", err),
 				)
 				return
 			}
 			s.log().Debug("tx",
-				slog.String("type", "gps"),
-				slog.String("protocol", s.name),
 				slog.String("conn", id),
 				slog.String("remoteAddr", remoteAddr),
 				slog.String("device", deviceID),
@@ -572,8 +535,6 @@ func (s *Server) handleConnection(ctx context.Context, conn net.Conn) {
 		// Don't log expected errors on shutdown.
 		if !strings.Contains(err.Error(), "use of closed network connection") {
 			s.log().Warn("scanner error",
-				slog.String("type", "gps"),
-				slog.String("protocol", s.name),
 				slog.String("remoteAddr", remoteAddr),
 				slog.Any("error", err),
 			)
@@ -583,8 +544,6 @@ func (s *Server) handleConnection(ctx context.Context, conn net.Conn) {
 	// Mark device offline on disconnect.
 	if deviceID != "" {
 		s.log().Info("device disconnected",
-			slog.String("type", "gps"),
-			slog.String("protocol", s.name),
 			slog.String("conn", id),
 			slog.String("device", deviceID),
 			slog.String("remoteAddr", remoteAddr),
@@ -592,8 +551,6 @@ func (s *Server) handleConnection(ctx context.Context, conn net.Conn) {
 		s.markDeviceOffline(ctx, deviceID)
 	} else {
 		s.log().Debug("connection closed without device identification",
-			slog.String("type", "gps"),
-			slog.String("protocol", s.name),
 			slog.String("remoteAddr", remoteAddr),
 		)
 	}
@@ -721,8 +678,6 @@ func (s *Server) decodeWatch(ctx context.Context, line string) (*model.Position,
 
 	if msg.PositionErr != nil {
 		s.log().Warn("watch position decode error",
-			slog.String("type", "gps"),
-			slog.String("protocol", s.name),
 			slog.String("device", msg.DeviceID),
 			slog.String("messageType", msg.Type),
 			slog.Any("error", msg.PositionErr),
@@ -781,8 +736,6 @@ func (s *Server) recordWatchCommandReply(ctx context.Context, device *model.Devi
 	cmds, err := s.commands.ListByDevice(ctx, device.ID, watchReplyLookback)
 	if err != nil {
 		s.log().Warn("command reply: cannot list commands",
-			slog.String("type", "gps"),
-			slog.String("protocol", s.name),
 			slog.String("device", msg.DeviceID),
 			slog.Any("error", err),
 		)
@@ -799,16 +752,12 @@ func (s *Server) recordWatchCommandReply(ctx context.Context, device *model.Devi
 		}
 		if err := s.commands.AppendResult(ctx, cmd.ID, result); err != nil {
 			s.log().Warn("command reply: failed to store result",
-				slog.String("type", "gps"),
-				slog.String("protocol", s.name),
 				slog.Int64("commandID", cmd.ID),
 				slog.Any("error", err),
 			)
 			return
 		}
 		s.log().Debug("command reply recorded",
-			slog.String("type", "gps"),
-			slog.String("protocol", s.name),
 			slog.String("device", msg.DeviceID),
 			slog.Int64("commandID", cmd.ID),
 			slog.String("result", truncate(result, maxLoggedFrame)),
@@ -897,8 +846,6 @@ func (s *Server) markDeviceOffline(ctx context.Context, uniqueID string) {
 	device, err := s.devices.GetByUniqueID(ctx, uniqueID)
 	if err != nil {
 		s.log().Error("cannot mark device offline",
-			slog.String("type", "gps"),
-			slog.String("protocol", s.name),
 			slog.String("uniqueID", uniqueID),
 			slog.Any("error", err),
 		)
@@ -910,8 +857,6 @@ func (s *Server) markDeviceOffline(ctx context.Context, uniqueID string) {
 	device.LastUpdate = &now
 	if err := s.devices.Update(ctx, device); err != nil {
 		s.log().Error("failed to mark device offline",
-			slog.String("type", "gps"),
-			slog.String("protocol", s.name),
 			slog.String("uniqueID", uniqueID),
 			slog.Any("error", err),
 		)
@@ -940,10 +885,9 @@ const relayWriteTimeout = 3 * time.Second
 // continues. Not safe for concurrent use; one instance per connection
 // goroutine.
 type relayClient struct {
-	target   string
-	protocol string
-	logger   *slog.Logger
-	conn     net.Conn
+	target string
+	logger *slog.Logger
+	conn   net.Conn
 	// raw forwards frames verbatim, without appending CRLF.
 	raw bool
 }
@@ -974,7 +918,6 @@ func (r *relayClient) send(line string) {
 	conn, err := net.DialTimeout("tcp", r.target, relayDialTimeout)
 	if err != nil {
 		r.logger.Warn("relay dial failed",
-			slog.String("protocol", r.protocol),
 			slog.String("target", r.target),
 			slog.Any("error", err),
 		)
@@ -983,7 +926,6 @@ func (r *relayClient) send(line string) {
 	_ = conn.SetWriteDeadline(time.Now().Add(relayWriteTimeout))
 	if _, err := conn.Write(data); err != nil {
 		r.logger.Warn("relay write failed after redial",
-			slog.String("protocol", r.protocol),
 			slog.String("target", r.target),
 			slog.Any("error", err),
 		)

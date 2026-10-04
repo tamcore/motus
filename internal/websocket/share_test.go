@@ -13,7 +13,7 @@ import (
 	"github.com/tamcore/motus/internal/model"
 )
 
-// mockShareValidator implements ShareTokenValidator for testing.
+// mockShareValidator provides a ShareTokenValidator for testing.
 // It returns a device ID for known tokens, 0 for unknown ones.
 type mockShareValidator struct {
 	tokens map[string]int64 // token -> deviceID
@@ -52,7 +52,7 @@ func TestHandleConnect_ShareToken_Valid(t *testing.T) {
 	}
 
 	hub := NewHub(nil, checker, dummyExtractor)
-	hub.SetShareTokenValidator(validator)
+	hub.SetShareTokenValidator(validator.ValidateShareToken)
 
 	conn, _ := connectShareClient(t, hub, "valid-token")
 	if conn == nil {
@@ -81,7 +81,7 @@ func TestHandleConnect_ShareToken_Invalid(t *testing.T) {
 	}
 
 	hub := NewHub(nil, nil, dummyExtractor)
-	hub.SetShareTokenValidator(validator)
+	hub.SetShareTokenValidator(validator.ValidateShareToken)
 
 	conn, _ := connectShareClient(t, hub, "invalid-token")
 	if conn != nil {
@@ -110,7 +110,7 @@ func TestBroadcastPosition_ShareTokenClient_ReceivesOwnDevice(t *testing.T) {
 	}
 
 	hub := NewHub(nil, checker, dummyExtractor)
-	hub.SetShareTokenValidator(validator)
+	hub.SetShareTokenValidator(validator.ValidateShareToken)
 
 	conn, _ := connectShareClient(t, hub, "token-for-10")
 	if conn == nil {
@@ -149,7 +149,7 @@ func TestBroadcastPosition_ShareTokenClient_DoesNotReceiveOtherDevices(t *testin
 	}
 
 	hub := NewHub(nil, checker, dummyExtractor)
-	hub.SetShareTokenValidator(validator)
+	hub.SetShareTokenValidator(validator.ValidateShareToken)
 
 	conn, _ := connectShareClient(t, hub, "token-for-10")
 	if conn == nil {
@@ -176,7 +176,7 @@ func TestBroadcastDeviceStatus_ShareTokenClient(t *testing.T) {
 	}
 
 	hub := NewHub(nil, checker, dummyExtractor)
-	hub.SetShareTokenValidator(validator)
+	hub.SetShareTokenValidator(validator.ValidateShareToken)
 
 	conn, _ := connectShareClient(t, hub, "token-42")
 	if conn == nil {
@@ -208,7 +208,7 @@ func TestBroadcastEvent_ShareTokenClient(t *testing.T) {
 	}
 
 	hub := NewHub(nil, checker, dummyExtractor)
-	hub.SetShareTokenValidator(validator)
+	hub.SetShareTokenValidator(validator.ValidateShareToken)
 
 	conn, _ := connectShareClient(t, hub, "token-42")
 	if conn == nil {
@@ -249,7 +249,7 @@ func TestBroadcast_MixedClients(t *testing.T) {
 		}
 		return 0 // Subsequent calls: unauthenticated (share token path)
 	})
-	hub.SetShareTokenValidator(validator)
+	hub.SetShareTokenValidator(validator.ValidateShareToken)
 
 	// Connect authenticated user.
 	authConn := connectClient(t, hub)
@@ -289,7 +289,7 @@ func TestBroadcast_ShareClient_ViaRedis(t *testing.T) {
 	mock := &mockPubSub{}
 
 	hub := NewHub(nil, checker, dummyExtractor)
-	hub.SetShareTokenValidator(validator)
+	hub.SetShareTokenValidator(validator.ValidateShareToken)
 	hub.SetPubSub(mock)
 
 	ctx := t.Context()

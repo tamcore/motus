@@ -39,21 +39,6 @@ import (
 	"github.com/tamcore/motus/internal/websocket"
 )
 
-// shareTokenAdapter wraps a DeviceShareRepository to implement
-// websocket.ShareTokenValidator. This adapter avoids an import cycle between
-// the websocket and repository packages.
-type shareTokenAdapter struct {
-	shares *repository.DeviceShareRepository
-}
-
-func (a *shareTokenAdapter) ValidateShareToken(ctx context.Context, token string) (int64, error) {
-	share, err := a.shares.GetByToken(ctx, token)
-	if err != nil || share == nil {
-		return 0, err
-	}
-	return share.DeviceID, nil
-}
-
 // Run starts the Motus server (HTTP API, GPS protocol listeners, background
 // services) and blocks until a SIGINT or SIGTERM is received.
 func Run() {
@@ -216,13 +201,15 @@ func Run() {
 
 		return session.UserID
 	})
-	if redisPubSub != nil {
-		hub.SetPubSub(redisPubSub)
-	}
-	if redisInvalidationPubSub != nil {
-		hub.SetInvalidationPubSub(redisInvalidationPubSub)
-	}
-	hub.SetShareTokenValidator(&shareTokenAdapter{shares: shareRepo})
+	hub.SetPubSub(redisPubSub)
+	hub.SetInvalidationPubSub(redisInvalidationPubSub)
+	hub.SetShareTokenValidator(func(ctx context.Context, token string) (int64, error) {
+		share, err := shareRepo.GetByToken(ctx, token)
+		if err != nil || share == nil {
+			return 0, err
+		}
+		return share.DeviceID, nil
+	})
 	hub.SetAdminChecker(func(ctx context.Context, userID int64) bool {
 		user, err := userRepo.GetByID(ctx, userID)
 		if err != nil || user == nil {
@@ -463,7 +450,7 @@ func Run() {
 		h02Server.SetRelay(cfg.GPS.H02RelayTarget)
 		slog.Info("H02 relay enabled", slog.String("target", cfg.GPS.H02RelayTarget))
 	}
-	h02Server.SetLogger(protoLogger.With(slog.String("protocol", "h02")))
+	h02Server.SetLogger(protoLogger)
 	go func() {
 		if err := h02Server.Start(gpsCtx); err != nil {
 			slog.Error("H02 server error", slog.Any("error", err))
@@ -478,7 +465,7 @@ func Run() {
 		watchServer.SetRelay(cfg.GPS.WatchRelayTarget)
 		slog.Info("WATCH relay enabled", slog.String("target", cfg.GPS.WatchRelayTarget))
 	}
-	watchServer.SetLogger(protoLogger.With(slog.String("protocol", "watch")))
+	watchServer.SetLogger(protoLogger)
 	go func() {
 		if err := watchServer.Start(gpsCtx); err != nil {
 			slog.Error("WATCH server error", slog.Any("error", err))
@@ -488,7 +475,7 @@ func Run() {
 	// OsmAnd / Traccar Client HTTP protocol (Android/iOS tracking apps).
 	osmandServer := protocol.NewOsmAndServer(cfg.GPS.OsmAndPort, deviceRepo, gpsHandler)
 	osmandServer.SetAutoCreate(autoCreateCfg, userRepo)
-	osmandServer.SetLogger(protoLogger.With(slog.String("protocol", "osmand")))
+	osmandServer.SetLogger(protoLogger)
 	go func() {
 		if err := osmandServer.Start(gpsCtx); err != nil {
 			slog.Error("OsmAnd server error", slog.Any("error", err))

@@ -33,13 +33,9 @@ type OsmAndServer struct {
 
 // NewOsmAndServer creates an HTTP server for the OsmAnd protocol.
 func NewOsmAndServer(port string, devices repository.DeviceRepo, handler *PositionHandler) *OsmAndServer {
-	return &OsmAndServer{&Server{
-		name:    "osmand",
-		port:    port,
-		devices: devices,
-		handler: handler,
-		logger:  slog.Default(),
-	}}
+	s := &Server{name: "osmand", port: port, devices: devices, handler: handler}
+	s.SetLogger(slog.Default())
+	return &OsmAndServer{s}
 }
 
 // Start listens for OsmAnd HTTP reports. It blocks until ctx is cancelled and
@@ -61,8 +57,6 @@ func (s *OsmAndServer) Start(ctx context.Context) error {
 	}
 
 	s.log().Info("GPS protocol server listening",
-		slog.String("type", "gps"),
-		slog.String("protocol", s.name),
 		slog.String("port", s.port),
 	)
 
@@ -79,8 +73,6 @@ func (s *OsmAndServer) Start(ctx context.Context) error {
 	defer cancel()
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		s.log().Warn("shutdown timeout, connections still active",
-			slog.String("type", "gps"),
-			slog.String("protocol", s.name),
 			slog.Any("error", err),
 		)
 	}
@@ -125,8 +117,6 @@ func (s *OsmAndServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		s.log().Warn("decode error",
-			slog.String("type", "gps"),
-			slog.String("protocol", s.name),
 			slog.String("remoteAddr", r.RemoteAddr),
 			slog.Any("error", err),
 		)
@@ -140,8 +130,6 @@ func (s *OsmAndServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	device, err := s.resolveOrCreateDevice(ctx, msg.DeviceID)
 	if err != nil {
 		s.log().Warn("unknown device",
-			slog.String("type", "gps"),
-			slog.String("protocol", s.name),
 			slog.String("remoteAddr", r.RemoteAddr),
 			slog.String("device", msg.DeviceID),
 			slog.Any("error", err),
@@ -157,8 +145,6 @@ func (s *OsmAndServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if position := s.position(ctx, device, msg); position != nil {
 		if err := s.handler.HandlePosition(ctx, position); err != nil {
 			s.log().Error("handle position error",
-				slog.String("type", "gps"),
-				slog.String("protocol", s.name),
 				slog.String("device", msg.DeviceID),
 				slog.Any("error", err),
 			)

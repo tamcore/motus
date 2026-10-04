@@ -84,8 +84,8 @@ dev-deploy-k8s: dev-docker-build ## Build dev image, push to IMAGE_REGISTRY, and
 	@kubectl get pods -n motion -l app=motus
 	@echo ""
 	@echo "Access at: https://motus.example.com (set in values-dev.yaml)"
-	@echo "Demo login: demo / demo"
-	@echo "Admin login: admin / admin"
+	@echo "Demo login: demo@motus.local / demo"
+	@echo "Admin login: admin@motus.local / admin"
 
 DUMP ?= traccar_dump_20260215.sql
 EMAIL ?= admin@motus.local
@@ -121,7 +121,7 @@ dev-reset-database:
 	@kubectl exec -n motion statefulset/motus-postgres -- psql -U motus -d motus -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public; GRANT ALL ON SCHEMA public TO motus; CREATE EXTENSION postgis;"
 	@echo "Database reset complete"
 
-dev-full-deploy: dev-reset-database dev-deploy-k8s ## Full dev deployment with data import
+dev-full-deploy: dev-reset-database dev-deploy-k8s ## Reset the dev database and redeploy
 	@echo "Full development deployment complete!"
 
 clean: ## Clean build artifacts

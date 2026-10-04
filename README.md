@@ -96,10 +96,13 @@ motus serve                                     # Start HTTP + GPS servers
 motus db-migrate [up|down|status]               # Run database migrations
 motus user add --email --name --password --role  # Create user
 motus user list                                  # List users
+motus user keys [list|add|delete]                # Manage API keys
+motus user sessions [list|revoke]                # Manage sessions
 motus device add --unique-id --name [--user]     # Register device (assigned to --user)
 motus wait-for-db                                # Block until DB is reachable
-motus import --dump=... --target-host=...        # Import from Traccar dump
+motus import --source-dump=... --target-host=... # Import from Traccar dump
 motus replay --input=... --host=... --port=...   # Simulate GPS traffic from logs
+motus reset-demo                                 # Reset the demo environment (cleanup + re-seed)
 motus version                                    # Print version
 ```
 

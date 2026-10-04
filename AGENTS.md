@@ -345,22 +345,13 @@ make lint                     # All linters
 
 ### Makefile targets
 
-| Target | Description |
-|--------|-------------|
-| `build` | Build motus binary |
-| `generate` | Regenerate `internal/api/oas/` from `docs/openapi.yaml` (ogen) |
-| `lint` | Run all linters (golangci-lint, frontend check) |
-| `test` | Run all tests (includes lint) |
-| `dev-deploy-k8s` | Build dev image, push, deploy to K8s |
-| `dev-reset-database` | Reset database (delete all data) |
-| `dev-full-deploy` | Full dev deployment with data import |
-| `clean` | Clean build artifacts |
+Run `make help` to list all targets.
 
 ## CI Workflows
 
 | Workflow | Trigger | What it does |
 |----------|---------|--------------|
-| `test.yaml` (Unit Tests) | push to master, PRs | `go test -race ./...` + Codecov |
+| `test.yaml` (Unit Tests) | push to master, PRs | `go test -race ./...` |
 | `e2e.yaml` (E2E Tests) | push to master, PRs | Docker Compose stack → Playwright |
 | `commit-lint.yaml` | PRs only | Commitlint on PR commits |
 | `security.yaml` (Security) | push to master, PRs | gosec, govulncheck, semgrep |
@@ -445,21 +436,12 @@ Located in `web/tests/page-objects/`. Use these rather than inline selectors.
 
 ## CLI Commands
 
-```
-motus serve                          # Start HTTP + GPS servers
-motus db-migrate [up|down|status]    # Run database migrations (goose)
-motus user add --email --name --password --role  # Create user
-motus user list                      # List users
-motus device add --unique-id --name [--user]  # Register device, assigned to --user (default: MOTUS_DEVICE_AUTO_CREATE_USER)
-motus wait-for-db                    # Block until DB is reachable
-motus import                         # Import from Traccar dump
-motus version                        # Print version
-```
+See the CLI section in `README.md`.
 
 ## Database
 
 - PostgreSQL with PostGIS extension
-- 35 goose migrations (embedded via `//go:embed`)
+- Goose migrations (embedded via `//go:embed`)
 - Positions table is partitioned (`00022_partition_positions.sql`)
 - Key tables: users, devices, positions, geofences, notification_rules, api_keys, sessions
 - `users` table has NO `updated_at` column (don't add one in INSERT queries)

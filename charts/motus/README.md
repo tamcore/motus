@@ -99,7 +99,7 @@ The chart automatically configures nginx annotations for WebSocket support (3600
 | Parameter | Description | Default |
 |---|---|---|
 | `postgres.enabled` | Deploy a PostgreSQL StatefulSet | `false` |
-| `postgres.image` | PostgreSQL image with PostGIS | `postgis/postgis:16-3.4` |
+| `postgres.image` | PostgreSQL image with PostGIS | `postgis/postgis:17-3.4` |
 | `postgres.storage` | PVC storage size | `10Gi` |
 | `postgres.storageClass` | Storage class name | `""` |
 | `postgres.database` | Database name | `motus` |

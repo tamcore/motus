@@ -225,18 +225,7 @@ func (h *Handler) PasskeyLoginFinish(ctx context.Context, req oas.WebAuthnAssert
 		return &oas.PasskeyLoginFinishUnauthorized{Error: err.Error()}, nil
 	}
 
-	if w := api.ResponseWriterFromContext(ctx); w != nil {
-		http.SetCookie(w, &http.Cookie{
-			Name:     "session_id",
-			Value:    session.ID,
-			Path:     "/",
-			Expires:  session.ExpiresAt,
-			MaxAge:   int(time.Until(session.ExpiresAt).Seconds()),
-			HttpOnly: true,
-			SameSite: http.SameSiteLaxMode,
-			Secure:   isSecureEnvironment(),
-		})
-	}
+	setSessionCookie(ctx, session.ID, session.ExpiresAt)
 
 	h.cfg.AuditLogger.Log(ctx, &user.ID, audit.ActionSessionLogin, audit.ResourceSession, nil,
 		map[string]any{"method": "passkey"}, "", "")

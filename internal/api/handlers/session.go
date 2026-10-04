@@ -31,6 +31,24 @@ func isSecureEnvironment() bool {
 	return os.Getenv("MOTUS_ENV") != "development"
 }
 
+// setSessionCookie writes the session_id cookie; a past expiry clears it.
+func setSessionCookie(ctx context.Context, id string, expires time.Time) {
+	w := api.ResponseWriterFromContext(ctx)
+	if w == nil {
+		return
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session_id",
+		Value:    id,
+		Path:     "/",
+		Expires:  expires,
+		MaxAge:   int(time.Until(expires).Seconds()),
+		HttpOnly: true,
+		Secure:   isSecureEnvironment(),
+		SameSite: http.SameSiteLaxMode,
+	})
+}
+
 // ---------------------------------------------------------------------------
 // Ogen *Handler session/auth methods
 // ---------------------------------------------------------------------------
@@ -92,18 +110,7 @@ func (h *Handler) Login(ctx context.Context, req oas.LoginReq) (oas.LoginRes, er
 		return &oas.LoginUnauthorized{Error: "failed to create session"}, nil
 	}
 
-	if w := api.ResponseWriterFromContext(ctx); w != nil {
-		http.SetCookie(w, &http.Cookie{
-			Name:     "session_id",
-			Value:    session.ID,
-			Path:     "/",
-			Expires:  session.ExpiresAt,
-			MaxAge:   int(time.Until(session.ExpiresAt).Seconds()),
-			HttpOnly: true,
-			Secure:   isSecureEnvironment(),
-			SameSite: http.SameSiteLaxMode,
-		})
-	}
+	setSessionCookie(ctx, session.ID, session.ExpiresAt)
 
 	h.cfg.AuditLogger.Log(ctx, &user.ID, audit.ActionSessionLogin, audit.ResourceSession, nil,
 		map[string]any{"email": user.Email}, "", "")
@@ -125,18 +132,7 @@ func (h *Handler) Logout(ctx context.Context) (oas.LogoutRes, error) {
 		_ = h.cfg.Sessions.Delete(ctx, session.ID)
 	}
 
-	if w := api.ResponseWriterFromContext(ctx); w != nil {
-		http.SetCookie(w, &http.Cookie{
-			Name:     "session_id",
-			Value:    "",
-			Path:     "/",
-			MaxAge:   -1,
-			Expires:  time.Unix(0, 0),
-			HttpOnly: true,
-			Secure:   isSecureEnvironment(),
-			SameSite: http.SameSiteLaxMode,
-		})
-	}
+	setSessionCookie(ctx, "", time.Unix(0, 0))
 
 	return &oas.LogoutNoContent{}, nil
 }
@@ -205,17 +201,7 @@ func (h *Handler) tokenLogin(ctx context.Context, token string) (oas.GetSessionR
 		return &oas.Error{Error: "failed to create session"}, nil
 	}
 
-	if w := api.ResponseWriterFromContext(ctx); w != nil {
-		http.SetCookie(w, &http.Cookie{
-			Name:     "session_id",
-			Value:    session.ID,
-			Path:     "/",
-			Expires:  session.ExpiresAt,
-			HttpOnly: true,
-			SameSite: http.SameSiteLaxMode,
-			Secure:   isSecureEnvironment(),
-		})
-	}
+	setSessionCookie(ctx, session.ID, session.ExpiresAt)
 
 	details := map[string]any{"method": "token"}
 	if apiKey != nil {

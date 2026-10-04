@@ -32,15 +32,3 @@ type Device struct {
 	// OwnerName is populated only in admin list-all responses.
 	OwnerName string `json:"ownerName,omitempty"`
 }
-
-// ApplyUniqueIDPrefix prepends prefix to the device's UniqueID.
-// Used in API responses to avoid ID collisions when running alongside
-// another Traccar-compatible server (e.g. in Home Assistant).
-func ApplyUniqueIDPrefix(devices []*Device, prefix string) {
-	if prefix == "" {
-		return
-	}
-	for _, d := range devices {
-		d.UniqueID = prefix + d.UniqueID
-	}
-}

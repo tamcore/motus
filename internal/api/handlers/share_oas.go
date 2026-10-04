@@ -105,9 +105,5 @@ func (h *Handler) GetSharedDevice(ctx context.Context, params oas.GetSharedDevic
 		return &oas.Error{Error: "device not found"}, nil
 	}
 
-	prefix := effectivePrefixCtx(ctx, h.cfg.UniqueIDPrefix)
-	model.ApplyUniqueIDPrefix([]*model.Device{device}, prefix)
-
-	result := deviceToOAS(device)
-	return &result, nil
+	return new(h.deviceOut(ctx, device)), nil
 }

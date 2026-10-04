@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/go-faster/jx"
+	"github.com/tamcore/motus/internal/api"
 	oas "github.com/tamcore/motus/internal/api/oas"
 	"github.com/tamcore/motus/internal/audit"
 	"github.com/tamcore/motus/internal/model"
@@ -21,6 +22,22 @@ func TestMapSlice(t *testing.T) {
 	empty := mapSlice[oas.GetCommandTypesOKApplicationJSON](nil, func(s string) oas.CommandType { return oas.CommandType{} })
 	if empty == nil || len(empty) != 0 {
 		t.Errorf("nil input must yield a non-nil empty slice, got %#v", empty)
+	}
+}
+
+func TestDeviceOut_PrefixOnlyForApiKey(t *testing.T) {
+	h := NewHandler(HandlerConfig{UniqueIDPrefix: "m-"})
+	d := &model.Device{UniqueID: "123"}
+
+	if got := h.deviceOut(t.Context(), d).UniqueId; got != "123" {
+		t.Errorf("session request: UniqueId = %q, want 123", got)
+	}
+	keyCtx := api.ContextWithApiKey(t.Context(), &model.ApiKey{ID: 1})
+	if got := h.deviceOut(keyCtx, d).UniqueId; got != "m-123" {
+		t.Errorf("api key request: UniqueId = %q, want m-123", got)
+	}
+	if d.UniqueID != "123" {
+		t.Errorf("model mutated: %q", d.UniqueID)
 	}
 }
 

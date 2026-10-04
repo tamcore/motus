@@ -154,46 +154,6 @@ func TestLoadRoutes_NonexistentDir(t *testing.T) {
 	}
 }
 
-func TestBearing(t *testing.T) {
-	tests := []struct {
-		name    string
-		lat1    float64
-		lon1    float64
-		lat2    float64
-		lon2    float64
-		wantMin float64
-		wantMax float64
-	}{
-		{
-			name: "due north",
-			lat1: 48.0, lon1: 11.0,
-			lat2: 49.0, lon2: 11.0,
-			wantMin: 0, wantMax: 1,
-		},
-		{
-			name: "due east",
-			lat1: 48.0, lon1: 11.0,
-			lat2: 48.0, lon2: 12.0,
-			wantMin: 89, wantMax: 91,
-		},
-		{
-			name: "due south",
-			lat1: 49.0, lon1: 11.0,
-			lat2: 48.0, lon2: 11.0,
-			wantMin: 179, wantMax: 181,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			b := bearing(tt.lat1, tt.lon1, tt.lat2, tt.lon2)
-			if b < tt.wantMin || b > tt.wantMax {
-				t.Errorf("bearing = %.1f, want [%.0f, %.0f]", b, tt.wantMin, tt.wantMax)
-			}
-		})
-	}
-}
-
 func TestLoadRealRoutes(t *testing.T) {
 	// Test loading the actual demo routes from the repo.
 	dir := filepath.Join(findProjectRoot(t), "data", "demo")

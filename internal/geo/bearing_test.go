@@ -1,11 +1,11 @@
-package handlers
+package geo
 
 import (
 	"math"
 	"testing"
 )
 
-func TestGPXBearing(t *testing.T) {
+func TestBearing(t *testing.T) {
 	tests := []struct {
 		name         string
 		lat1, lon1   float64
@@ -45,14 +45,14 @@ func TestGPXBearing(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			bearing := gpxBearing(tt.lat1, tt.lon1, tt.lat2, tt.lon2)
+			bearing := Bearing(tt.lat1, tt.lon1, tt.lat2, tt.lon2)
 			// Handle wrap-around for north (0/360).
 			diff := math.Abs(bearing - tt.wantApprox)
 			if diff > 180 {
 				diff = 360 - diff
 			}
 			if diff > tt.toleranceDeg {
-				t.Errorf("gpxBearing(%f,%f,%f,%f) = %.2f°, want ~%.2f° (±%.2f°)",
+				t.Errorf("Bearing(%f,%f,%f,%f) = %.2f°, want ~%.2f° (±%.2f°)",
 					tt.lat1, tt.lon1, tt.lat2, tt.lon2, bearing, tt.wantApprox, tt.toleranceDeg)
 			}
 		})

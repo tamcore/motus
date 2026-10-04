@@ -7,7 +7,6 @@ package demo
 import (
 	"encoding/xml"
 	"fmt"
-	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -144,7 +143,7 @@ func gpxToRoute(track GPXTrack) *Route {
 			if i > 0 {
 				prev := seg.Points[i-1]
 				rp.Distance = geo.HaversineDistance(prev.Lat, prev.Lon, pt.Lat, pt.Lon) * 1000
-				rp.Course = bearing(prev.Lat, prev.Lon, pt.Lat, pt.Lon)
+				rp.Course = geo.Bearing(prev.Lat, prev.Lon, pt.Lat, pt.Lon)
 			}
 
 			route.Points = append(route.Points, rp)
@@ -152,25 +151,4 @@ func gpxToRoute(track GPXTrack) *Route {
 	}
 
 	return route
-}
-
-// bearing returns the initial bearing from point 1 to point 2 in degrees (0-360).
-func bearing(lat1, lon1, lat2, lon2 float64) float64 {
-	dLon := toRadians(lon2 - lon1)
-	lat1R := toRadians(lat1)
-	lat2R := toRadians(lat2)
-
-	y := math.Sin(dLon) * math.Cos(lat2R)
-	x := math.Cos(lat1R)*math.Sin(lat2R) - math.Sin(lat1R)*math.Cos(lat2R)*math.Cos(dLon)
-
-	b := math.Atan2(y, x)
-	return math.Mod(toDegrees(b)+360, 360)
-}
-
-func toRadians(deg float64) float64 {
-	return deg * math.Pi / 180.0
-}
-
-func toDegrees(rad float64) float64 {
-	return rad * 180.0 / math.Pi
 }

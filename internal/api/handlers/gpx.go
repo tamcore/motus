@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/xml"
 	"io"
-	"math"
 
 	"github.com/tamcore/motus/internal/api"
 	oas "github.com/tamcore/motus/internal/api/oas"
@@ -102,7 +101,7 @@ func processGPXPoints(ctx context.Context, positions repository.PositionRepo, de
 						distM := geo.HaversineDistance(prevLat, prevLon, pt.Lat, pt.Lon) * 1000
 						spd = (distM / float64(dt)) * 3.6 // m/s → km/h
 					}
-					crs = gpxBearing(prevLat, prevLon, pt.Lat, pt.Lon)
+					crs = geo.Bearing(prevLat, prevLon, pt.Lat, pt.Lon)
 				}
 
 				alt := pt.Ele
@@ -133,14 +132,4 @@ func processGPXPoints(ctx context.Context, positions repository.PositionRepo, de
 		}
 	}
 	return
-}
-
-// gpxBearing returns the initial bearing from (lat1,lon1) to (lat2,lon2) in degrees [0,360).
-func gpxBearing(lat1, lon1, lat2, lon2 float64) float64 {
-	dLon := (lon2 - lon1) * math.Pi / 180.0
-	lat1R := lat1 * math.Pi / 180.0
-	lat2R := lat2 * math.Pi / 180.0
-	y := math.Sin(dLon) * math.Cos(lat2R)
-	x := math.Cos(lat1R)*math.Sin(lat2R) - math.Sin(lat1R)*math.Cos(lat2R)*math.Cos(dLon)
-	return math.Mod(math.Atan2(y, x)*180.0/math.Pi+360, 360)
 }

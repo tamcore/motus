@@ -1,4 +1,7 @@
 import "@testing-library/jest-dom/vitest";
+import { vi } from "vitest";
+
+vi.mock("$app/environment", () => ({ browser: true }));
 
 // jsdom lacks the modal dialog API.
 HTMLDialogElement.prototype.showModal ??= function (this: HTMLDialogElement) {

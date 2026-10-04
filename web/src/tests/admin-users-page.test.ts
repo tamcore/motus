@@ -4,7 +4,6 @@ import { writable } from "svelte/store";
 
 const mocks = vi.hoisted(() => ({ getUsers: vi.fn() }));
 
-vi.mock("$app/environment", () => ({ browser: true }));
 vi.mock("$app/navigation", () => ({ goto: vi.fn() }));
 vi.mock("$lib/api/client", () => ({ api: { getUsers: mocks.getUsers } }));
 vi.mock("$lib/stores/auth", () => ({

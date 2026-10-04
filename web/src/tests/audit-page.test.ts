@@ -4,7 +4,6 @@ import { writable } from "svelte/store";
 
 const mocks = vi.hoisted(() => ({ getAuditLog: vi.fn() }));
 
-vi.mock("$app/environment", () => ({ browser: true }));
 vi.mock("$app/navigation", () => ({ goto: vi.fn() }));
 vi.mock("$lib/api/client", () => ({ api: { getAuditLog: mocks.getAuditLog } }));
 vi.mock("$lib/stores/auth", () => ({ isAdmin: writable(true) }));

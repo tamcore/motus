@@ -1,10 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-// Mock $app/environment before any imports that depend on it
-vi.mock("$app/environment", () => ({
-  browser: true,
-}));
-
 // Mock window.matchMedia for theme store
 Object.defineProperty(window, "matchMedia", {
   writable: true,

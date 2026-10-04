@@ -16,7 +16,6 @@ Object.defineProperty(window, "matchMedia", {
 
 const pageUrl ={ current: new URL("http://localhost/reports/replay") };
 
-vi.mock("$app/environment", () => ({ browser: true }));
 vi.mock("$app/stores", () => ({
   page: { subscribe: (fn: (v: unknown) => void) => readable({ url: pageUrl.current }).subscribe(fn) },
 }));

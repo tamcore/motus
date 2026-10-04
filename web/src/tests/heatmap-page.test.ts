@@ -7,7 +7,6 @@ const mocks = vi.hoisted(() => ({
   getPositionPoints: vi.fn(),
 }));
 
-vi.mock("$app/environment", () => ({ browser: true }));
 vi.mock("$lib/api/client", () => ({
   api: { getPositionPoints: mocks.getPositionPoints },
   fetchDevices: mocks.fetchDevices,

@@ -5,7 +5,8 @@
 	import { api, fetchDevices } from '$lib/api/client';
 	import { refreshHandler } from '$lib/stores/refresh';
 	import { useLeaflet } from '$lib/composables/useLeaflet';
-	import { theme } from '$lib/stores/theme';
+	import { isDark } from '$lib/stores/theme';
+	import { chartColors } from '$lib/utils/chart-metrics';
 	import { pathDistance } from '$lib/utils/trips';
 	import { interpolatePosition } from '$lib/utils/replay';
 	import { toRoutePositions, type RoutePosition as Position } from '$lib/utils/route-points';
@@ -21,50 +22,23 @@
 
 	Chart.register(...registerables);
 
-	// ---------------------------------------------------------------------------
-	// Theme tracking
-	// ---------------------------------------------------------------------------
-	let isDark = true;
-	const unsubscribeTheme = theme.subscribe((t) => {
-		if (t === 'auto' && typeof window !== 'undefined') {
-			isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-		} else {
-			isDark = t !== 'light';
-		}
-	});
-
-	// ---------------------------------------------------------------------------
-	// Leaflet composable
-	// ---------------------------------------------------------------------------
 	const leafletMap = useLeaflet();
 
-	// ---------------------------------------------------------------------------
-	// DOM refs
-	// ---------------------------------------------------------------------------
 	let mapEl: HTMLDivElement;
 	let chartCanvas: HTMLCanvasElement;
 	let containerEl: HTMLDivElement;
 
-	// ---------------------------------------------------------------------------
-	// State: data
-	// ---------------------------------------------------------------------------
 	let devices: Device[] = [];
 	let positions: Position[] = [];
 	let loading = true;
 	let fetching = false;
 	let errorMessage = '';
 
-	// ---------------------------------------------------------------------------
-	// State: filters (from query params or user input)
-	// ---------------------------------------------------------------------------
 	let selectedDeviceId = '';
 	let datePreset: DatePreset = 'week';
 	let customFrom = '';
 	let customTo = '';
 
-	// ---------------------------------------------------------------------------
-	// State: playback
-	// ---------------------------------------------------------------------------
 	let currentIndex = 0;
 	let playing = false;
 	let playbackSpeed = 1;
@@ -75,20 +49,13 @@
 
 	const PLAYBACK_SPEEDS = [1, 2, 5, 10, 25, 50];
 
-	// ---------------------------------------------------------------------------
-	// State: chart
-	// ---------------------------------------------------------------------------
 	let chartInstance: Chart | null = null;
 	let chartPanelOpen = true;
 	let chartMetric: 'speed' | 'altitude' | 'course' = 'speed';
 	let hasAltitudeData = false;
 	let chartPanelHeight = 250;
 	let isDraggingSeparator = false;
-	let chartCursorColor = '#ffffff';
 
-	// ---------------------------------------------------------------------------
-	// State: map layers (Leaflet objects)
-	// ---------------------------------------------------------------------------
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	let marker: any = null;
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -102,9 +69,6 @@
 
 	let isFullscreen = false;
 
-	// ---------------------------------------------------------------------------
-	// Derived values
-	// ---------------------------------------------------------------------------
 	$: currentPosition = positions.length > 0 ? positions[currentIndex] : null;
 	$: totalDistance = positions.length > 1 ? pathDistance(positions) : 0;
 	$: traveledDistance = currentIndex > 0
@@ -131,9 +95,6 @@
 	$: qFrom = normalizeTimeParam($page.url.searchParams.get('from'));
 	$: qTo = normalizeTimeParam($page.url.searchParams.get('to'));
 
-	// ---------------------------------------------------------------------------
-	// Lifecycle
-	// ---------------------------------------------------------------------------
 	onMount(async () => {
 		await leafletMap.initialize(mapEl, {
 			center: [49.79, 9.95],
@@ -160,7 +121,6 @@
 		stopPlayback();
 		destroyChart();
 		leafletMap.cleanup();
-		unsubscribeTheme();
 	});
 
 	async function reloadDevices() {
@@ -171,9 +131,6 @@
 		}
 	}
 
-	// ---------------------------------------------------------------------------
-	// Data loading
-	// ---------------------------------------------------------------------------
 	async function handleLoad() {
 		if (!selectedDeviceId) {
 			errorMessage = 'Please select a device.';
@@ -236,9 +193,6 @@
 		}
 	}
 
-	// ---------------------------------------------------------------------------
-	// Map drawing
-	// ---------------------------------------------------------------------------
 	function clearMapLayers() {
 		const map = leafletMap.getMap();
 		if (marker && map) { map.removeLayer(marker); marker = null; }
@@ -352,9 +306,6 @@
 		}
 	}
 
-	// ---------------------------------------------------------------------------
-	// Playback engine using requestAnimationFrame
-	// ---------------------------------------------------------------------------
 	function startPlayback() {
 		if (positions.length < 2) return;
 		if (currentIndex >= positions.length - 1) {
@@ -473,10 +424,6 @@
 		playbackSpeed = newSpeed;
 	}
 
-	// ---------------------------------------------------------------------------
-	// Chart
-	// ---------------------------------------------------------------------------
-
 	function getChartData(): { labels: string[]; data: number[]; label: string; color: string } {
 		const labels = positions.map((p) => {
 			const d = new Date(p.fixTime);
@@ -518,13 +465,7 @@
 
 		const chartData = getChartData();
 
-		// Theme-aware colors (matching reports/charts page)
-		const gridColor = isDark ? '#3a3a3a' : '#e0e0e0';
-		const tickColor = isDark ? '#a0a0a0' : '#666666';
-		const tooltipBg = isDark ? '#2d2d2d' : '#ffffff';
-		const tooltipText = isDark ? '#ffffff' : '#1a1a1a';
-		const tooltipBorder = isDark ? '#404040' : '#e0e0e0';
-		const cursorPointBg = isDark ? '#ffffff' : '#1a1a1a';
+		const { grid: gridColor, tick: tickColor, tooltipBg, tooltipText, tooltipBorder } = chartColors($isDark);
 
 		chartInstance = new Chart(ctx, {
 			type: 'line',
@@ -598,8 +539,6 @@
 			},
 		});
 
-		// Store cursorPointBg for updateChartCursor to use
-		chartCursorColor = cursorPointBg;
 		updateChartCursor();
 	}
 
@@ -619,6 +558,7 @@
 
 		// Use the current metric's color for the cursor border ring
 		const chartData = getChartData();
+		const chartCursorColor = chartColors($isDark).tooltipText;
 
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const cursorDataset: any = {
@@ -658,19 +598,11 @@
 		if (wasPlaying) startPlayback();
 	}
 
-	// Rebuild chart when metric or theme changes
 	$: if (chartMetric && positions.length > 0 && chartCanvas) {
-		rebuildChartWithTheme(isDark);
-	}
-
-	// Wrapper to make isDark a dependency so chart rebuilds on theme change
-	function rebuildChartWithTheme(_isDark: boolean) {
+		$isDark;
 		buildChart();
 	}
 
-	// ---------------------------------------------------------------------------
-	// Separator drag for chart panel resize
-	// ---------------------------------------------------------------------------
 	function handleSeparatorMouseDown(e: MouseEvent) {
 		e.preventDefault();
 		isDraggingSeparator = true;
@@ -695,9 +627,6 @@
 		}
 	}
 
-	// ---------------------------------------------------------------------------
-	// Fullscreen toggle
-	// ---------------------------------------------------------------------------
 	function toggleFullscreen() {
 		if (!containerEl) return;
 		if (!document.fullscreenElement) {

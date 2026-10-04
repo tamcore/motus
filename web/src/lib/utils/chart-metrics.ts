@@ -1,4 +1,4 @@
-import type { ChartDataset } from "chart.js";
+import type { ChartDataset, Scale } from "chart.js";
 import type { Position } from "$lib/types/api";
 import { haversineDistance, pathDistance } from "$lib/utils/trips";
 import { downloadCSV } from "$lib/utils/download";
@@ -123,8 +123,8 @@ export function getAvailableMetrics(
 export function buildDatasets(
   positions: Position[],
   selectedMetricIds: string[],
-): { labels: string[]; datasets: LineDataset[] } {
-  const labels = positions.map((p) => p.fixTime);
+): { labels: number[]; datasets: LineDataset[] } {
+  const labels = positions.map((p) => new Date(p.fixTime).getTime());
 
   const datasets = selectedMetrics(selectedMetricIds).map((metric): LineDataset => ({
     label: `${metric.label} (${metric.unit})`,
@@ -142,6 +142,25 @@ export function buildDatasets(
   return { labels, datasets };
 }
 
+export function chartColors(isDark: boolean) {
+  return isDark
+    ? { grid: "#3a3a3a", tick: "#a0a0a0", tooltipBg: "#2d2d2d", tooltipText: "#ffffff", tooltipBorder: "#404040" }
+    : { grid: "#e0e0e0", tick: "#666666", tooltipBg: "#ffffff", tooltipText: "#1a1a1a", tooltipBorder: "#e0e0e0" };
+}
+
+const DAY_MS = 86_400_000;
+const TIME_FORMAT = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" });
+const DATE_TIME_FORMAT = new Intl.DateTimeFormat(undefined, {
+  month: "short",
+  day: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+/** Tick label for a ms timestamp; adds the date when the axis spans more than a day. */
+export function formatTimeTick(this: Pick<Scale, "min" | "max">, value: string | number): string {
+  return (this.max - this.min > DAY_MS ? DATE_TIME_FORMAT : TIME_FORMAT).format(Number(value));
+}
 
 /**
  * Build Chart.js scales config for selected metrics.
@@ -151,22 +170,12 @@ export function buildScales(
   selectedMetricIds: string[],
   isDark: boolean,
 ): Record<string, object> {
-  const gridColor = isDark ? "#3a3a3a" : "#e0e0e0";
-  const tickColor = isDark ? "#a0a0a0" : "#666666";
+  const { grid: gridColor, tick: tickColor } = chartColors(isDark);
 
   const scales: Record<string, object> = {
     x: {
-      type: "time" as const,
-      time: {
-        tooltipFormat: "MMM d, HH:mm:ss",
-        displayFormats: {
-          second: "HH:mm:ss",
-          minute: "HH:mm",
-          hour: "MMM d, HH:mm",
-          day: "MMM d",
-        },
-      },
-      ticks: { color: tickColor, maxRotation: 45, autoSkip: true },
+      type: "linear" as const,
+      ticks: { color: tickColor, maxRotation: 45, autoSkip: true, callback: formatTimeTick },
       grid: { color: gridColor },
       title: { display: true, text: "Time", color: tickColor },
     },

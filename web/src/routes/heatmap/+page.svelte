@@ -3,7 +3,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { api, fetchDevices } from '$lib/api/client';
 	import { refreshHandler } from '$lib/stores/refresh';
-	import { theme } from '$lib/stores/theme';
+	import { isDark } from '$lib/stores/theme';
 	import { useLeaflet } from '$lib/composables/useLeaflet';
 	import type { Device, PositionPoint } from '$lib/types/api';
 	import { pointStats } from '$lib/utils/point-stats';
@@ -62,18 +62,9 @@
 		1.0: '#ff3333'
 	};
 
-	let currentTheme: string = 'dark';
 	let mapReady = false;
 
-	const unsubscribeTheme = theme.subscribe((t) => {
-		if (t === 'auto' && typeof window !== 'undefined') {
-			currentTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-		} else {
-			currentTheme = t === 'light' ? 'light' : 'dark';
-		}
-	});
-
-	$: gradient = currentTheme === 'dark' ? darkGradient : lightGradient;
+	$: gradient = $isDark ? darkGradient : lightGradient;
 
 	onMount(async () => {
 		// Initialize map via composable
@@ -104,7 +95,6 @@
 
 	onDestroy(() => {
 		$refreshHandler = null;
-		unsubscribeTheme();
 		leafletMap.cleanup();
 	});
 
@@ -538,7 +528,7 @@
 
 	<!-- Map -->
 	<div class="map-wrapper">
-		<div class="map-container" class:dark-tiles={currentTheme === 'dark'} bind:this={mapContainer}></div>
+		<div class="map-container" class:dark-tiles={$isDark} bind:this={mapContainer}></div>
 
 		<!-- On-map floating legend -->
 		{#if showHeatmap && positions.length > 0 && !loading}

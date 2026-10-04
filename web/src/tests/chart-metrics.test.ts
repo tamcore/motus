@@ -21,6 +21,7 @@ import {
   getAvailableMetrics,
   buildDatasets,
   buildScales,
+  formatTimeTick,
   exportChartDataToCSV,
 } from "$lib/utils/chart-metrics";
 
@@ -224,9 +225,9 @@ describe("Chart Metrics", () => {
       expect(result.datasets).toHaveLength(1);
     });
 
-    it("labels match position fixTime values", () => {
+    it("labels are position fixTime values in ms", () => {
       const result = buildDatasets(positions, ["speed"]);
-      expect(result.labels).toEqual(positions.map((p) => p.fixTime));
+      expect(result.labels).toEqual(positions.map((p) => Date.parse(p.fixTime)));
     });
 
     it("creates one dataset per selected metric", () => {
@@ -279,9 +280,20 @@ describe("Chart Metrics", () => {
   });
 
   describe("buildScales", () => {
-    it("always includes x axis", () => {
-      const scales = buildScales(["speed"], true);
-      expect(scales).toHaveProperty("x");
+    it("always includes a linear ms-timestamp x axis", () => {
+      const scales = buildScales(["speed"], true) as Record<string, any>;
+      expect(scales.x.type).toBe("linear");
+      expect(scales.x.ticks.callback).toBe(formatTimeTick);
+    });
+
+    it("formats ticks as time, adding the date when the axis spans days", () => {
+      const t = new Date(2026, 0, 15, 9, 5).getTime();
+      const sameDay = formatTimeTick.call({ min: t, max: t + 3_600_000 }, t);
+      const multiDay = formatTimeTick.call({ min: t, max: t + 3 * 86_400_000 }, t);
+      expect(sameDay).toMatch(/09.05/);
+      expect(sameDay).not.toMatch(/15/);
+      expect(multiDay).toMatch(/15/);
+      expect(multiDay).toMatch(/09.05/);
     });
 
     it("includes y axis for each unique axisId", () => {

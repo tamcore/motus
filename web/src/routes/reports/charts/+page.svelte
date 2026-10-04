@@ -5,13 +5,14 @@
 	import { page } from '$app/stores';
 	import { api, fetchDevices } from '$lib/api/client';
 	import { refreshHandler } from '$lib/stores/refresh';
-	import { theme } from '$lib/stores/theme';
+	import { isDark } from '$lib/stores/theme';
 	import { formatDate } from '$lib/utils/formatting';
 	import {
 		METRICS,
 		getAvailableMetrics,
 		buildDatasets,
 		buildScales,
+		chartColors,
 		exportChartDataToCSV,
 	} from '$lib/utils/chart-metrics';
 	import type { Device, Position } from '$lib/types/api';
@@ -20,13 +21,8 @@
 	import Button from '$lib/components/Button.svelte';
 	import AllDevicesToggle from '$lib/components/AllDevicesToggle.svelte';
 	import { Chart, registerables } from 'chart.js';
-	import 'chartjs-adapter-date-fns';
 
 	Chart.register(...registerables);
-
-	// ---------------------------------------------------------------------------
-	// State
-	// ---------------------------------------------------------------------------
 
 	let loading = true;
 	let fetching = false;
@@ -47,24 +43,9 @@
 	let chartCanvas: HTMLCanvasElement;
 	let chartInstance: Chart | null = null;
 
-	// Theme
-	let isDark = true;
-	const unsubscribeTheme = theme.subscribe((t) => {
-		if (t === 'auto' && typeof window !== 'undefined') {
-			isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-		} else {
-			isDark = t !== 'light';
-		}
-	});
-
-	// Rebuild chart when theme changes
 	$: if (chartCanvas && positions.length > 0 && selectedMetrics.length > 0) {
-		rebuildChart(isDark);
+		rebuildChart($isDark);
 	}
-
-	// ---------------------------------------------------------------------------
-	// Metric Selection
-	// ---------------------------------------------------------------------------
 
 	function toggleMetric(metricId: string) {
 		if (selectedMetrics.includes(metricId)) {
@@ -77,10 +58,6 @@
 	function isMetricSelected(metricId: string, _metrics: string[]): boolean {
 		return _metrics.includes(metricId);
 	}
-
-	// ---------------------------------------------------------------------------
-	// Data Fetching
-	// ---------------------------------------------------------------------------
 
 	async function fetchData() {
 		if (!selectedDeviceId) {
@@ -119,8 +96,6 @@
 			availableMetrics = getAvailableMetrics(positions);
 			const availableIds = new Set(availableMetrics.map((m) => m.id));
 			selectedMetrics = selectedMetrics.filter((id) => availableIds.has(id));
-
-			rebuildChart(isDark);
 		} catch (err) {
 			console.error('Failed to fetch positions:', err);
 			errorMsg = 'Failed to fetch data. Please try again.';
@@ -129,11 +104,7 @@
 		}
 	}
 
-	// ---------------------------------------------------------------------------
-	// Chart Building
-	// ---------------------------------------------------------------------------
-
-	function rebuildChart(_isDark: boolean) {
+	function rebuildChart(dark: boolean) {
 		if (!chartCanvas || positions.length === 0 || selectedMetrics.length === 0) return;
 
 		if (chartInstance) {
@@ -145,12 +116,8 @@
 		if (!ctx) return;
 
 		const { labels, datasets } = buildDatasets(positions, selectedMetrics);
-		const scales = buildScales(selectedMetrics, _isDark);
-
-		const legendColor = _isDark ? '#a0a0a0' : '#666666';
-		const tooltipBg = _isDark ? '#2d2d2d' : '#ffffff';
-		const tooltipText = _isDark ? '#ffffff' : '#1a1a1a';
-		const tooltipBorder = _isDark ? '#404040' : '#e0e0e0';
+		const scales = buildScales(selectedMetrics, dark);
+		const colors = chartColors(dark);
 
 		chartInstance = new Chart(ctx, {
 			type: 'line',
@@ -168,26 +135,20 @@
 				plugins: {
 					legend: {
 						labels: {
-							color: legendColor,
+							color: colors.tick,
 							usePointStyle: true,
 							padding: 16,
 						},
 					},
 					tooltip: {
-						backgroundColor: tooltipBg,
-						titleColor: tooltipText,
-						bodyColor: tooltipText,
-						borderColor: tooltipBorder,
+						backgroundColor: colors.tooltipBg,
+						titleColor: colors.tooltipText,
+						bodyColor: colors.tooltipText,
+						borderColor: colors.tooltipBorder,
 						borderWidth: 1,
 						padding: 12,
 						callbacks: {
-							title: (items) => {
-								if (items.length > 0) {
-									const raw = items[0].label;
-									return formatDate(raw);
-								}
-								return '';
-							},
+							title: (items) => (items.length > 0 ? formatDate(new Date(items[0].parsed.x ?? NaN)) : ''),
 							label: (item) => {
 								const value = item.parsed.y;
 								if (value === null || value === undefined) return '';
@@ -200,10 +161,6 @@
 			},
 		});
 	}
-
-	// ---------------------------------------------------------------------------
-	// Export
-	// ---------------------------------------------------------------------------
 
 	function handleExportCSV() {
 		if (positions.length === 0) return;
@@ -220,10 +177,6 @@
 		link.click();
 	}
 
-	// ---------------------------------------------------------------------------
-	// Lifecycle
-	// ---------------------------------------------------------------------------
-
 	onMount(async () => {
 		await reloadDevices();
 		// Pre-select device from query param (?device=ID)
@@ -237,7 +190,6 @@
 
 	onDestroy(() => {
 		$refreshHandler = null;
-		unsubscribeTheme();
 		if (chartInstance) {
 			chartInstance.destroy();
 			chartInstance = null;

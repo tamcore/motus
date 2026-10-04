@@ -23,7 +23,7 @@ export const RELATIVE_DATE_PRESETS: { value: DatePreset; label: string }[] = [
   { value: "custom", label: "Custom" },
 ];
 
-const pad2 = (n: number) => String(n).padStart(2, "0");
+export const pad2 = (n: number) => String(n).padStart(2, "0");
 /** Local `yyyy-mm-dd` of a date, as used by native date inputs. */
 export const dateValue = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 export const timeValue = (d: Date) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;

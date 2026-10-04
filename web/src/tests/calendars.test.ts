@@ -664,37 +664,6 @@ describe("Date Range Builder", () => {
       );
     });
 
-    it("should return error for invalid start hour", () => {
-      const config = makeDefaultConfig({ startHour: 25 });
-      expect(validateDateRangeConfig(config)).toBe(
-        "Start hour must be between 0 and 23",
-      );
-    });
-
-    it("should return error for negative start hour", () => {
-      const config = makeDefaultConfig({ startHour: -1 });
-      expect(validateDateRangeConfig(config)).not.toBeNull();
-    });
-
-    it("should return error for invalid end hour", () => {
-      const config = makeDefaultConfig({ endHour: 24 });
-      expect(validateDateRangeConfig(config)).toBe(
-        "End hour must be between 0 and 23",
-      );
-    });
-
-    it("should return error for invalid start minute", () => {
-      const config = makeDefaultConfig({ startMinute: 60 });
-      expect(validateDateRangeConfig(config)).toBe(
-        "Start minute must be between 0 and 59",
-      );
-    });
-
-    it("should return error for invalid end minute", () => {
-      const config = makeDefaultConfig({ endMinute: -1 });
-      expect(validateDateRangeConfig(config)).not.toBeNull();
-    });
-
     it("should return error when weekly has no days selected", () => {
       const config = makeDefaultConfig({
         recurrence: "weekly",

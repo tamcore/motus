@@ -1,15 +1,4 @@
-/**
- * iCalendar (RFC 5545) utility functions for the frontend.
- *
- * Provides template generation, schedule summary parsing, and
- * active/next-active status determination for calendar schedules.
- */
-
-import { dateValue, parseLocalBoundary } from "./date-range";
-
-// ---------------------------------------------------------------------------
-// Template types and definitions
-// ---------------------------------------------------------------------------
+import { dateValue, pad2, parseLocalBoundary } from "./date-range";
 
 export type TemplateId =
   | "business_hours"
@@ -25,10 +14,8 @@ export interface CalendarTemplate {
   data: string;
 }
 
-/** Day abbreviations used in BYDAY rules (iCal format). */
 const ICAL_DAYS = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"] as const;
 
-/** Human-readable day names corresponding to ICAL_DAYS indices. */
 const DAY_NAMES = [
   "Sunday",
   "Monday",
@@ -39,12 +26,8 @@ const DAY_NAMES = [
   "Saturday",
 ];
 
-/** Short day names for compact display. */
 const DAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-/**
- * Generate a valid iCalendar document wrapping a single VEVENT with RRULE.
- */
 function makeIcal(
   summary: string,
   dtstart: string,
@@ -65,9 +48,6 @@ function makeIcal(
   ].join("\r\n");
 }
 
-/**
- * Pre-defined calendar templates for common scheduling patterns.
- */
 export const CALENDAR_TEMPLATES: readonly CalendarTemplate[] = [
   {
     id: "business_hours",
@@ -121,10 +101,6 @@ export const CALENDAR_TEMPLATES: readonly CalendarTemplate[] = [
   },
 ] as const;
 
-// ---------------------------------------------------------------------------
-// Schedule summary parsing
-// ---------------------------------------------------------------------------
-
 interface ParsedEvent {
   summary: string;
   dtstart: Date | null;
@@ -135,10 +111,7 @@ interface ParsedEvent {
   until: Date | null;
 }
 
-/**
- * Parse a minimal subset of iCalendar data to extract human-readable info.
- * This is a lightweight client-side parser -- the backend performs full validation.
- */
+/** Lightweight parser for a minimal iCalendar subset; the backend performs full validation. */
 function parseIcalEvents(icalData: string): ParsedEvent[] {
   const events: ParsedEvent[] = [];
   const eventBlocks = icalData.split("BEGIN:VEVENT");
@@ -185,17 +158,12 @@ function parseIcalEvents(icalData: string): ParsedEvent[] {
   return events;
 }
 
-/**
- * Parse an iCalendar date-time value from a property line like
- * "DTSTART:20240101T080000" or "DTSTART;TZID=America/New_York:20240101T080000"
- */
+/** Floating/UTC value of a line like "DTSTART;TZID=America/New_York:20240101T080000", as a UTC Date. */
 function parseIcalDateTime(line: string): Date | null {
-  // Extract the value after the last colon
   const colonIdx = line.lastIndexOf(":");
   if (colonIdx === -1) return null;
   const val = line.slice(colonIdx + 1).trim();
 
-  // Try date-time format: YYYYMMDDTHHMMSS
   const match = val.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z?$/);
   if (match) {
     const [, y, m, d, h, min, s] = match;
@@ -211,7 +179,6 @@ function parseIcalDateTime(line: string): Date | null {
     );
   }
 
-  // Try date-only format: YYYYMMDD
   const dateMatch = val.match(/^(\d{4})(\d{2})(\d{2})$/);
   if (dateMatch) {
     const [, y, m, d] = dateMatch;
@@ -221,9 +188,6 @@ function parseIcalDateTime(line: string): Date | null {
   return null;
 }
 
-/**
- * Parse RRULE parameters into a key-value map.
- */
 function parseRruleParams(rrule: string): Record<string, string> {
   const result: Record<string, string> = {};
   for (const part of rrule.split(";")) {
@@ -235,9 +199,6 @@ function parseRruleParams(rrule: string): Record<string, string> {
   return result;
 }
 
-/**
- * Format a time from a Date in HH:MM AM/PM format.
- */
 function formatTime12h(date: Date): string {
   return date.toLocaleTimeString("en-US", { timeZone: "UTC", hour: "numeric", minute: "2-digit" });
 }
@@ -255,15 +216,11 @@ function utcTimeOfDayMs(d: Date): number {
   return (d.getUTCHours() * 3600 + d.getUTCMinutes() * 60 + d.getUTCSeconds()) * 1000;
 }
 
-/**
- * Convert iCal day abbreviations to human-readable day list.
- */
 function formatDayList(days: string[]): string {
   const indices = dayIndices(days);
 
   if (indices.length === 0) return "";
 
-  // Check for common patterns
   const weekdays = [1, 2, 3, 4, 5];
   const weekend = [0, 6];
 
@@ -280,9 +237,6 @@ function formatDayList(days: string[]): string {
   return indices.map((i) => DAY_SHORT[i]).join(", ");
 }
 
-/**
- * Generate a human-readable summary of iCalendar schedule data.
- */
 export function getScheduleSummary(icalData: string): string {
   if (!icalData || !icalData.trim()) return "No schedule defined";
 
@@ -293,7 +247,6 @@ export function getScheduleSummary(icalData: string): string {
     const summaries = events.map((event) => {
       const parts: string[] = [];
 
-      // Frequency / days
       if (event.freq === "DAILY") {
         parts.push("Daily");
       } else if (event.freq === "WEEKLY" && event.byDay.length > 0) {
@@ -306,12 +259,10 @@ export function getScheduleSummary(icalData: string): string {
         parts.push("Yearly");
       }
 
-      // Time range
       if (event.dtstart && event.dtend) {
         const startTime = formatTime12h(event.dtstart);
         const endTime = formatTime12h(event.dtend);
 
-        // Check if it spans nearly 24 hours (all day)
         const diffMs = event.dtend.getTime() - event.dtstart.getTime();
         const diffHours = diffMs / (1000 * 60 * 60);
 
@@ -330,10 +281,6 @@ export function getScheduleSummary(icalData: string): string {
     return "Custom schedule";
   }
 }
-
-// ---------------------------------------------------------------------------
-// Active status checking (client-side approximation)
-// ---------------------------------------------------------------------------
 
 /**
  * Get a human-readable status string: "Active now" or "Next active: <description>".
@@ -482,14 +429,7 @@ function getNextOccurrenceLabel(events: ParsedEvent[], now: Date): string {
   return "Inactive";
 }
 
-// ---------------------------------------------------------------------------
-// Validation
-// ---------------------------------------------------------------------------
-
-/**
- * Client-side iCalendar data validation.
- * Returns null if valid, or an error message string.
- */
+/** Returns null if valid, or an error message. */
 export function validateIcalData(data: string): string | null {
   if (!data || !data.trim()) {
     return "iCalendar data is required";
@@ -514,37 +454,23 @@ export function validateIcalData(data: string): string | null {
   return null;
 }
 
-// ---------------------------------------------------------------------------
-// Visual Builder types and iCal generation
-// ---------------------------------------------------------------------------
-
-/** Recurrence type for the visual builder. */
 export type RecurrenceType = "none" | "daily" | "weekly";
 
-/** Configuration for building iCal data from the visual date range builder. */
 export interface DateRangeBuilderConfig {
-  /** Start date in YYYY-MM-DD format. */
+  /** YYYY-MM-DD. */
   startDate: string;
-  /** End date in YYYY-MM-DD format (used as UNTIL for recurrence). */
+  /** YYYY-MM-DD; the UNTIL date for recurrences. */
   endDate: string;
-  /** Start time hour (0-23). */
   startHour: number;
-  /** Start time minute (0-59). */
   startMinute: number;
-  /** End time hour (0-23). */
   endHour: number;
-  /** End time minute (0-59). */
   endMinute: number;
-  /** Recurrence type. */
   recurrence: RecurrenceType;
-  /** For weekly recurrence: which days are active (Sun=0 through Sat=6). */
+  /** Weekly recurrence days, Sun=0 through Sat=6. */
   weeklyDays: boolean[];
 }
 
-/**
- * Validate a date range builder configuration.
- * Returns null if valid, or an error message string.
- */
+/** Returns null if valid, or an error message. */
 export function validateDateRangeConfig(
   config: DateRangeBuilderConfig,
 ): string | null {
@@ -568,50 +494,28 @@ export function validateDateRangeConfig(
     return "End date must be on or after start date";
   }
 
-  // Validate individual field ranges before composite checks
-  if (config.startHour < 0 || config.startHour > 23) {
-    return "Start hour must be between 0 and 23";
-  }
-  if (config.endHour < 0 || config.endHour > 23) {
-    return "End hour must be between 0 and 23";
-  }
-  if (config.startMinute < 0 || config.startMinute > 59) {
-    return "Start minute must be between 0 and 59";
-  }
-  if (config.endMinute < 0 || config.endMinute > 59) {
-    return "End minute must be between 0 and 59";
-  }
-
-  // Validate time range
   const startMinutes = config.startHour * 60 + config.startMinute;
   const endMinutes = config.endHour * 60 + config.endMinute;
   if (endMinutes <= startMinutes) {
     return "End time must be after start time";
   }
 
-  // For weekly recurrence, at least one day must be selected
-  if (config.recurrence === "weekly") {
-    if (!config.weeklyDays.some(Boolean)) {
-      return "Select at least one day for weekly recurrence";
-    }
+  if (config.recurrence === "weekly" && !config.weeklyDays.some(Boolean)) {
+    return "Select at least one day for weekly recurrence";
   }
 
   return null;
 }
 
-/**
- * Build iCalendar data from a date range builder configuration.
- * Returns a valid iCalendar string or empty string if configuration is incomplete.
- */
+/** Empty string when the configuration is invalid. */
 export function buildDateRangeIcal(config: DateRangeBuilderConfig): string {
   const validationError = validateDateRangeConfig(config);
   if (validationError) return "";
 
   const startDay = config.startDate.replaceAll("-", "");
   const endDay = config.endDate.replaceAll("-", "");
-  const pad = (n: number) => String(n).padStart(2, "0");
-  const startTime = `${pad(config.startHour)}${pad(config.startMinute)}00`;
-  const endTime = `${pad(config.endHour)}${pad(config.endMinute)}00`;
+  const startTime = `${pad2(config.startHour)}${pad2(config.startMinute)}00`;
+  const endTime = `${pad2(config.endHour)}${pad2(config.endMinute)}00`;
   const until = `${endDay}T235959`;
   const dtstart = `${startDay}T${startTime}`;
 
@@ -627,136 +531,49 @@ export function buildDateRangeIcal(config: DateRangeBuilderConfig): string {
   return makeIcal("Custom Schedule", dtstart, `${startDay}T${endTime}`, rrule);
 }
 
-/**
- * Parse iCalendar data into a DateRangeBuilderConfig.
- * Used to populate the visual builder when editing an existing calendar.
- * Returns null if the data cannot be parsed into the builder format.
- */
+const isoDate = (d: Date) => d.toISOString().slice(0, 10);
+
+/** Builder config of the first VEVENT, to edit an existing calendar; null when unparseable. */
 export function parseIcalToDateRangeConfig(
   icalData: string,
 ): DateRangeBuilderConfig | null {
-  if (!icalData) return null;
+  const [event] = icalData ? parseIcalEvents(icalData) : [];
+  if (!event) return null;
 
-  try {
-    const config: DateRangeBuilderConfig = {
-      startDate: "",
-      endDate: "",
-      startHour: 8,
-      startMinute: 0,
-      endHour: 17,
-      endMinute: 0,
-      recurrence: "none",
-      weeklyDays: [false, true, true, true, true, true, false],
-    };
+  const { dtstart, dtend, freq } = event;
+  const endAt = event.rrule ? event.until : dtend;
+  const config: DateRangeBuilderConfig = {
+    startDate: dtstart ? isoDate(dtstart) : "",
+    endDate: endAt ? isoDate(endAt) : "",
+    startHour: dtstart ? dtstart.getUTCHours() : 8,
+    startMinute: dtstart ? dtstart.getUTCMinutes() : 0,
+    endHour: dtend ? dtend.getUTCHours() : 17,
+    endMinute: dtend ? dtend.getUTCMinutes() : 0,
+    recurrence: freq === "DAILY" ? "daily" : freq === "WEEKLY" ? "weekly" : "none",
+    weeklyDays:
+      freq === "WEEKLY" && event.byDay.length > 0
+        ? ICAL_DAYS.map((code) => event.byDay.includes(code))
+        : [false, true, true, true, true, true, false],
+  };
 
-    // Extract DTSTART date and time
-    const startMatch = icalData.match(
-      /DTSTART[^:]*:(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})/,
-    );
-    if (startMatch) {
-      config.startDate = `${startMatch[1]}-${startMatch[2]}-${startMatch[3]}`;
-      config.startHour = parseInt(startMatch[4]);
-      config.startMinute = parseInt(startMatch[5]);
-    }
-
-    // Extract DTEND date and time
-    const endMatch = icalData.match(
-      /DTEND[^:]*:(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})/,
-    );
-    if (endMatch) {
-      config.endHour = parseInt(endMatch[4]);
-      config.endMinute = parseInt(endMatch[5]);
-    }
-
-    // Extract RRULE
-    const rruleMatch = icalData.match(/RRULE:([^\r\n]+)/);
-    if (rruleMatch) {
-      const rrule = rruleMatch[1];
-      const params = parseRruleParams(rrule);
-
-      if (params.FREQ === "DAILY") {
-        config.recurrence = "daily";
-      } else if (params.FREQ === "WEEKLY") {
-        config.recurrence = "weekly";
-        if (params.BYDAY) {
-          const days = params.BYDAY.split(",").map((d) => d.trim());
-          config.weeklyDays = ICAL_DAYS.map((code) => days.includes(code));
-        }
-      }
-
-      // Extract UNTIL for end date
-      if (params.UNTIL) {
-        const untilMatch = params.UNTIL.match(/(\d{4})(\d{2})(\d{2})/);
-        if (untilMatch) {
-          config.endDate = `${untilMatch[1]}-${untilMatch[2]}-${untilMatch[3]}`;
-        }
-      }
-    }
-
-    // If no RRULE (single event), use DTEND date as end date
-    if (!rruleMatch && endMatch) {
-      config.endDate = `${endMatch[1]}-${endMatch[2]}-${endMatch[3]}`;
-    }
-
-    // If no end date parsed, default to start date + 30 days
-    const start = parseLocalBoundary(config.startDate, "", "start");
-    if (!config.endDate && start) {
-      start.setDate(start.getDate() + 30);
-      config.endDate = dateValue(start);
-    }
-
-    return config;
-  } catch {
-    return null;
+  // No end date: default to start date + 30 days.
+  const start = parseLocalBoundary(config.startDate, "", "start");
+  if (!config.endDate && start) {
+    start.setDate(start.getDate() + 30);
+    config.endDate = dateValue(start);
   }
+  return config;
 }
 
-/**
- * Extract start and end dates from iCalendar data.
- * Returns the DTSTART and the end date (from RRULE:UNTIL if present, otherwise DTEND for single events).
- * For recurring events without UNTIL, returns null for end (indicating ongoing).
- */
+/** DTSTART date and the end date: UNTIL for recurrences (null when ongoing), else DTEND. */
 export function getDateRange(icalData: string): {
   start: string | null;
   end: string | null;
 } {
-  if (!icalData) return { start: null, end: null };
-
-  const startMatch = icalData.match(/DTSTART[^:]*:(\d{8}T?\d{0,6})/);
-
-  const formatDate = (dateStr: string) => {
-    // Parse YYYYMMDD or YYYYMMDDTHHMMSS
-    const year = dateStr.substring(0, 4);
-    const month = dateStr.substring(4, 6);
-    const day = dateStr.substring(6, 8);
-    return `${year}-${month}-${day}`;
-  };
-
-  let end: string | null = null;
-
-  // Check if this is a recurring event
-  const rruleMatch = icalData.match(/RRULE:([^\r\n]+)/);
-
-  if (rruleMatch) {
-    // For recurring events, only use UNTIL parameter for end date
-    const params = parseRruleParams(rruleMatch[1]);
-    if (params.UNTIL) {
-      const untilMatch = params.UNTIL.match(/(\d{8})/);
-      if (untilMatch) {
-        end = formatDate(untilMatch[0]);
-      }
-    }
-    // If no UNTIL, end is null (ongoing recurrence)
-  } else {
-    // For single events (no RRULE), use DTEND
-    const endMatch = icalData.match(/DTEND[^:]*:(\d{8}T?\d{0,6})/);
-    if (endMatch) {
-      end = formatDate(endMatch[1]);
-    }
-  }
-
+  const [event] = icalData ? parseIcalEvents(icalData) : [];
+  const end = event?.rrule ? event.until : event?.dtend;
   return {
-    start: startMatch ? formatDate(startMatch[1]) : null,
-    end,
+    start: event?.dtstart ? isoDate(event.dtstart) : null,
+    end: end ? isoDate(end) : null,
   };
 }

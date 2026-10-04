@@ -8,7 +8,6 @@
 	import Button from '$lib/components/Button.svelte';
 	import type { AuditEntry } from '$lib/types/api';
 
-
 	const ACTIONS = [
 		{ value: '', label: 'All Actions' },
 		// Session
@@ -413,17 +412,6 @@
 	}
 
 	/* Empty state */
-	.empty-state p {
-		color: var(--text-secondary);
-		margin: var(--space-4) 0;
-	}
-
-	.empty-subtitle {
-		font-size: var(--text-sm);
-		max-width: 400px;
-		margin-left: auto;
-		margin-right: auto;
-	}
 
 	/* Table */
 	.table-wrapper {

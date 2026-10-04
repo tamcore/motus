@@ -22,7 +22,6 @@
 	let chartCanvas: HTMLCanvasElement;
 	let chartInstance: Chart | null = null;
 
-
 	const PAGE_SIZE_OPTIONS = [5, 10, 25, 50, 100];
 	const DEFAULT_PAGE_SIZE = 10;
 
@@ -601,7 +600,6 @@
 	.address-cell {
 		max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 	}
-	.empty-state p { color: var(--text-secondary); margin-top: var(--space-4); }
 	.empty-hint { font-size: var(--text-sm); color: var(--text-tertiary); }
 	.loading-state { padding: var(--space-4); }
 

@@ -67,7 +67,6 @@
 	// Test notification state
 	let testingId: number | null = null;
 
-
 	onMount(async () => {
 		await Promise.all([loadRules(), loadGeofences()]);
 		$refreshHandler = refresh;
@@ -655,16 +654,6 @@
 		color: var(--text-secondary);
 	}
 	/* Empty */
-	.empty-state p {
-		color: var(--text-secondary);
-		margin: var(--space-4) 0;
-	}
-	.empty-subtitle {
-		font-size: var(--text-sm);
-		max-width: 400px;
-		margin-left: auto;
-		margin-right: auto;
-	}
 
 	/* Rules list */
 	.rules-list {
@@ -968,7 +957,6 @@
 		background-color: var(--accent-primary);
 		color: var(--text-inverse);
 	}
-
 
 	.rule-card.other-user {
 		border-left: 3px solid var(--color-warning, #f59e0b);

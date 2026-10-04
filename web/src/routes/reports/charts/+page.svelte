@@ -661,10 +661,6 @@
 	}
 
 	/* Empty state */
-	.empty-state p {
-		color: var(--text-secondary);
-		margin-top: var(--space-4);
-	}
 
 	.empty-hint {
 		font-size: var(--text-sm);

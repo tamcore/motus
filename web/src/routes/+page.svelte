@@ -11,7 +11,6 @@
 	import AllDevicesToggle from '$lib/components/AllDevicesToggle.svelte';
 	import { formatRelative, formatSpeed, getCardinalDirection, formatCoordinates } from '$lib/utils/formatting';
 
-
 	let loading = true;
 	let loadError = '';
 	let devices: Device[] = [];
@@ -74,7 +73,6 @@
 	});
 
 	onDestroy(() => { $refreshHandler = null; });
-
 
 	function setFilter(filter: 'all' | 'online' | 'offline') {
 		// Toggle off if clicking the same filter
@@ -280,7 +278,6 @@
 		padding: var(--space-6) 0;
 	}
 
-
 	.error-actions {
 		display: flex;
 		align-items: center;
@@ -448,21 +445,6 @@
 		font-size: var(--text-xs);
 		color: var(--text-tertiary);
 		margin-top: var(--space-2);
-	}
-
-	.empty-state p {
-		color: var(--text-secondary);
-		margin: var(--space-4) 0;
-	}
-
-	.empty-link {
-		color: var(--accent-primary);
-		text-decoration: none;
-		font-weight: var(--font-medium);
-	}
-
-	.empty-link:hover {
-		text-decoration: underline;
 	}
 
 	/* ==== POSITION INFO ==== */

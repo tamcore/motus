@@ -309,17 +309,6 @@
 	}
 
 	/* Empty */
-	.empty-state p {
-		color: var(--text-secondary);
-		margin: var(--space-4) 0;
-	}
-
-	.empty-subtitle {
-		font-size: var(--text-sm);
-		max-width: 460px;
-		margin-left: auto;
-		margin-right: auto;
-	}
 
 	/* Calendar grid */
 	.calendars-grid {

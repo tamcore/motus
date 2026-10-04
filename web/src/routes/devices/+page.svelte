@@ -17,7 +17,6 @@
 	import BatteryIndicator from '$lib/components/BatteryIndicator.svelte';
 	import Skeleton from '$lib/components/Skeleton.svelte';
 
-
 	let loading = true;
 	let devices: Device[] = [];
 	let searchQuery = '';
@@ -794,7 +793,6 @@
 		margin-bottom: var(--space-6);
 	}
 
-
 	.toolbar {
 		display: flex;
 		align-items: center;
@@ -1126,10 +1124,6 @@
 	}
 
 	/* ---- Empty state ---- */
-	.empty-state p {
-		color: var(--text-secondary);
-		margin: var(--space-4) 0;
-	}
 
 	/* ---- Form / modal styles ---- */
 	.device-form {
@@ -1161,8 +1155,6 @@
 		justify-content: flex-end;
 		gap: var(--space-3);
 	}
-
-
 
 	/* ---- GPX import toast ---- */
 	.gpx-toast {

@@ -55,6 +55,27 @@ body {
   padding: var(--space-16) var(--space-4);
 }
 
+.empty-state p {
+  color: var(--text-secondary);
+  margin-block: var(--space-4);
+}
+
+.empty-subtitle {
+  font-size: var(--text-sm);
+  max-width: 460px;
+  margin-inline: auto;
+}
+
+.empty-link {
+  color: var(--accent-primary);
+  text-decoration: none;
+  font-weight: var(--font-medium);
+}
+
+.empty-link:hover {
+  text-decoration: underline;
+}
+
 .error-banner {
   display: flex;
   justify-content: space-between;

@@ -1,5 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
+// Wide enough for the inline nav (menu toggle below 1360px); mobile tests set their own viewport.
+const desktop = { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } };
+
 export default defineConfig({
   testDir: "./tests",
   fullyParallel: true,
@@ -28,7 +31,7 @@ export default defineConfig({
     {
       name: "chromium",
       use: {
-        ...devices["Desktop Chrome"],
+        ...desktop,
         storageState: ".auth/user.json",
       },
       dependencies: ["setup"],
@@ -38,7 +41,7 @@ export default defineConfig({
     {
       name: "auth",
       use: {
-        ...devices["Desktop Chrome"],
+        ...desktop,
         storageState: { cookies: [], origins: [] },
       },
       testDir: "./tests/e2e",
@@ -47,7 +50,7 @@ export default defineConfig({
     {
       name: "oidc",
       use: {
-        ...devices["Desktop Chrome"],
+        ...desktop,
         storageState: { cookies: [], origins: [] },
       },
       testDir: "./tests/e2e",

@@ -227,7 +227,7 @@ func (h *Handler) PasskeyLoginFinish(ctx context.Context, req oas.WebAuthnAssert
 func (h *Handler) createPasskeySession(ctx context.Context, user *model.User) (*model.Session, error) {
 	expiry := time.Now().Add(sessionExpiryRememberMe)
 
-	if demo.IsEnabled() && demo.IsDemoAccount(user.Email) {
+	if demo.IsDemoAccount(user.Email) {
 		token, _, _ := strings.Cut(user.Email, "@")
 		apiKey, err := h.cfg.ApiKeys.GetByToken(ctx, token)
 		if err != nil || apiKey == nil {

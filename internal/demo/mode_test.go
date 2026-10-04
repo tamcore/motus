@@ -24,6 +24,12 @@ func TestDemoMode(t *testing.T) {
 }
 
 func TestIsDemoAccount(t *testing.T) {
+	if IsDemoAccount("demo@motus.local") {
+		t.Error("demo account must not match while demo mode is disabled")
+	}
+	Enable()
+	defer enabled.Store(false)
+
 	tests := []struct {
 		name  string
 		email string

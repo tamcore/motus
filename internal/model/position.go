@@ -63,6 +63,20 @@ type PositionPoint struct {
 	Altitude *float64
 }
 
+// Cell returns a Traccar-style cell tower entry; an optional rssi sets signalStrength.
+func Cell(mcc, mnc, lac, cid int, rssi ...int) map[string]any {
+	cell := map[string]any{"mobileCountryCode": mcc, "mobileNetworkCode": mnc, "locationAreaCode": lac, "cellId": cid}
+	if len(rssi) > 0 {
+		cell["signalStrength"] = rssi[0]
+	}
+	return cell
+}
+
+// Wifi returns a Traccar-style Wi-Fi access point entry.
+func Wifi(mac string, rssi int) map[string]any {
+	return map[string]any{"macAddress": mac, "signalStrength": rssi}
+}
+
 // CellNetwork builds a Traccar-style network map from cell towers and Wi-Fi
 // access points and copies the first cell tower to the mcc/mnc/lac/cellId
 // attributes. It returns nil when both lists are empty.

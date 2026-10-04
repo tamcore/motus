@@ -1,6 +1,21 @@
 package model
 
-import "testing"
+import (
+	"maps"
+	"testing"
+)
+
+func TestCellAndWifi(t *testing.T) {
+	if got, want := Cell(262, 1, 100, 200), (map[string]any{"mobileCountryCode": 262, "mobileNetworkCode": 1, "locationAreaCode": 100, "cellId": 200}); !maps.Equal(got, want) {
+		t.Errorf("Cell = %v, want %v", got, want)
+	}
+	if got := Cell(262, 1, 100, 200, -70)["signalStrength"]; got != -70 {
+		t.Errorf("Cell signalStrength = %v, want -70", got)
+	}
+	if got, want := Wifi("aa:bb", -50), (map[string]any{"macAddress": "aa:bb", "signalStrength": -50}); !maps.Equal(got, want) {
+		t.Errorf("Wifi = %v, want %v", got, want)
+	}
+}
 
 func TestPositionSpeedOrZero(t *testing.T) {
 	if got := (&Position{}).SpeedOrZero(); got != 0 {

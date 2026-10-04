@@ -335,16 +335,7 @@ func parseCell(value string) (map[string]any, error) {
 		}
 		n[i] = v
 	}
-	cell := map[string]any{
-		"mobileCountryCode": n[0],
-		"mobileNetworkCode": n[1],
-		"locationAreaCode":  n[2],
-		"cellId":            n[3],
-	}
-	if len(n) > 4 {
-		cell["signalStrength"] = n[4]
-	}
-	return cell, nil
+	return model.Cell(n[0], n[1], n[2], n[3], n[4:]...), nil
 }
 
 // parseWifi parses "mac,rssi"; dashes in the MAC address become colons.
@@ -357,8 +348,5 @@ func parseWifi(value string) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	return map[string]any{
-		"macAddress":     strings.ReplaceAll(mac, "-", ":"),
-		"signalStrength": signal,
-	}, nil
+	return model.Wifi(strings.ReplaceAll(mac, "-", ":"), signal), nil
 }

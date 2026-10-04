@@ -87,7 +87,7 @@ func (h *Handler) AdminUpdateUser(ctx context.Context, req *oas.UserInput, param
 		return &oas.AdminUpdateUserNotFound{Error: "user not found"}, nil
 	}
 
-	if demo.IsEnabled() && demo.IsDemoAccount(existing.Email) {
+	if demo.IsDemoAccount(existing.Email) {
 		return &oas.AdminUpdateUserForbidden{Error: "demo accounts cannot be modified"}, nil
 	}
 

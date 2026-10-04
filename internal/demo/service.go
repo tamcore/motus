@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"slices"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -80,12 +81,7 @@ func (s *Service) Start(ctx context.Context) {
 	slog.Info("demo reset service stopped")
 }
 
-// IsDemoAccount checks whether the given email belongs to a demo account.
+// IsDemoAccount reports whether demo mode is enabled and email belongs to a demo account.
 func IsDemoAccount(email string) bool {
-	for _, acct := range DefaultAccounts {
-		if acct.Email == email {
-			return true
-		}
-	}
-	return false
+	return IsEnabled() && slices.ContainsFunc(DefaultAccounts, func(a DemoAccount) bool { return a.Email == email })
 }

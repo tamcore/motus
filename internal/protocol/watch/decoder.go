@@ -490,20 +490,15 @@ func decodeNetwork(pos *Position, data string) {
 				if err1 != nil || err2 != nil {
 					return false
 				}
-				cell := map[string]any{
-					"mobileCountryCode": mcc,
-					"mobileNetworkCode": mnc,
-					"locationAreaCode":  lac,
-					"cellId":            cid,
-				}
+				var rssi []int
 				if rssiStr != "" {
-					rssi, err := strconv.Atoi(rssiStr)
+					n, err := strconv.Atoi(rssiStr)
 					if err != nil {
 						return false
 					}
-					cell["signalStrength"] = rssi
+					rssi = append(rssi, n)
 				}
-				cells = append(cells, cell)
+				cells = append(cells, model.Cell(mcc, mnc, lac, cid, rssi...))
 			}
 		}
 
@@ -527,10 +522,7 @@ func decodeNetwork(pos *Position, data string) {
 				if err != nil {
 					return false
 				}
-				wifis = append(wifis, map[string]any{
-					"macAddress":     mac,
-					"signalStrength": rssi,
-				})
+				wifis = append(wifis, model.Wifi(mac, rssi))
 			}
 		}
 		return true

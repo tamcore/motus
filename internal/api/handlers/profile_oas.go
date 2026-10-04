@@ -19,7 +19,7 @@ func (h *Handler) UpdateProfile(ctx context.Context, req *oas.UpdateProfileReque
 		return &oas.UpdateProfileUnauthorized{Error: "not authenticated"}, nil
 	}
 
-	if demo.IsEnabled() && demo.IsDemoAccount(user.Email) {
+	if demo.IsDemoAccount(user.Email) {
 		return &oas.UpdateProfileBadRequest{Error: "demo accounts cannot be modified"}, nil
 	}
 

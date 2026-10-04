@@ -12,8 +12,6 @@ import (
 	"github.com/tamcore/motus/internal/services"
 )
 
-// --- ogen Handler methods ---
-
 // ListCalendars returns all calendars for the authenticated user.
 func (h *Handler) ListCalendars(ctx context.Context) (oas.ListCalendarsRes, error) {
 	user := api.UserFromContext(ctx)

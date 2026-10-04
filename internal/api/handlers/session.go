@@ -49,10 +49,6 @@ func setSessionCookie(ctx context.Context, id string, expires time.Time) {
 	})
 }
 
-// ---------------------------------------------------------------------------
-// Ogen *Handler session/auth methods
-// ---------------------------------------------------------------------------
-
 // Login authenticates a user with email and password.
 // Accepts both JSON and form-encoded bodies (Traccar Manager posts
 // x-www-form-urlencoded credentials). Returns the user object on success;

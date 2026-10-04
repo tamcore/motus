@@ -70,8 +70,6 @@ func NewHandler(cfg HandlerConfig) *Handler {
 
 // requireAdminCtx checks that the context contains an authenticated admin user.
 // Returns the admin user and nil on success.
-// NOTE: replaces the http.HandlerFunc-based requireAdmin from the deleted chi
-// user handlers.
 func requireAdminCtx(ctx context.Context) (*model.User, error) {
 	user := api.UserFromContext(ctx)
 	if user == nil || !user.IsAdmin() {

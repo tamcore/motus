@@ -10,8 +10,6 @@ import (
 	"github.com/tamcore/motus/internal/services"
 )
 
-// --- ogen Handler methods ---
-
 // ListGeofences returns all geofences for the authenticated user.
 func (h *Handler) ListGeofences(ctx context.Context) (oas.ListGeofencesRes, error) {
 	user := api.UserFromContext(ctx)

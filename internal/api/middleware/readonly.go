@@ -7,20 +7,9 @@ import (
 	"github.com/tamcore/motus/internal/api"
 )
 
-// RequireWriteAccess returns middleware that blocks state-changing requests
-// (POST, PUT, DELETE, PATCH) when the request was authenticated with a
-// read-only API key. GET and HEAD requests are always allowed.
-//
-// This middleware must be applied after the Auth middleware so that the
-// API key (if any) is available in the request context.
-//
-// The API key in context may come from a Bearer token header or from a
-// session cookie linked to an API key (see Auth middleware). Sessions
-// created via password login have no API key in context and are
-// unrestricted.
-//
-// Session management routes (/api/session*) are exempt from restrictions
-// so users can always logout and manage their own sessions.
+// RequireWriteAccess blocks state-changing requests made with a read-only API
+// key, from a Bearer token or an API-key-linked session. It must run after
+// Auth. Session routes stay exempt so users can always log out.
 func RequireWriteAccess(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Exempt session management routes - users can always logout

@@ -33,10 +33,6 @@ const (
 	defaultPasskeyName = "Passkey"
 )
 
-// ---------------------------------------------------------------------------
-// Registration
-// ---------------------------------------------------------------------------
-
 // PasskeyRegisterBegin starts a passkey registration for the authenticated user.
 func (h *Handler) PasskeyRegisterBegin(ctx context.Context) (oas.PasskeyRegisterBeginRes, error) {
 	if h.cfg.WebAuthn == nil {
@@ -119,10 +115,6 @@ func (h *Handler) PasskeyRegisterFinish(ctx context.Context, req oas.WebAuthnAtt
 
 	return new(passkeyToOAS(mc)), nil
 }
-
-// ---------------------------------------------------------------------------
-// Login (public, discoverable / usernameless)
-// ---------------------------------------------------------------------------
 
 // PasskeyLoginBegin starts a discoverable passkey login. No user identifier is
 // required; the authenticator selects the resident credential.
@@ -246,10 +238,6 @@ func (h *Handler) createPasskeySession(ctx context.Context, user *model.User) (*
 	return h.cfg.Sessions.CreateWithExpiry(ctx, user.ID, expiry, true)
 }
 
-// ---------------------------------------------------------------------------
-// Management
-// ---------------------------------------------------------------------------
-
 // ListPasskeys returns the authenticated user's registered passkeys.
 func (h *Handler) ListPasskeys(ctx context.Context) (oas.ListPasskeysRes, error) {
 	user := api.UserFromContext(ctx)
@@ -276,10 +264,6 @@ func (h *Handler) DeletePasskey(ctx context.Context, params oas.DeletePasskeyPar
 		map[string]any{"passkeyDeleted": params.ID}, "", "")
 	return &oas.DeletePasskeyNoContent{}, nil
 }
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 var (
 	// errPasskeyDemoUnavailable is returned when a demo account has no read-only

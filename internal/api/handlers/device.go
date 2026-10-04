@@ -200,8 +200,6 @@ func (h *Handler) AdminUnassignDevice(ctx context.Context, params oas.AdminUnass
 	return &oas.AdminUnassignDeviceNoContent{}, nil
 }
 
-// ─── helpers ────────────────────────────────────────────────────────────────
-
 // applyDeviceInputFields applies the set fields of req onto a copy of d.
 func applyDeviceInputFields(d *model.Device, req *oas.DeviceInput) *model.Device {
 	clone := *d

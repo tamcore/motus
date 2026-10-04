@@ -22,10 +22,8 @@ func shouldSkipLog(path string) bool {
 
 // Logger returns middleware that logs every HTTP request with structured
 // fields using log/slog. Each log entry includes a "type"="http" field
-// for easy filtering in log aggregation systems.
-//
-// Requests to health check (/api/health) and metrics (/metrics) endpoints
-// are silently skipped to reduce log noise.
+// for easy filtering in log aggregation systems. Paths in skippedPaths are
+// not logged.
 func Logger(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if shouldSkipLog(r.URL.Path) {

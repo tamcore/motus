@@ -78,8 +78,6 @@ func notificationCommandConfigToModel(c oas.NotificationConfigCommand) (map[stri
 	return cfg, nil
 }
 
-// --- ogen Handler methods ---
-
 // ListNotifications returns all notification rules for the authenticated user.
 func (h *Handler) ListNotifications(ctx context.Context) (oas.ListNotificationsRes, error) {
 	user := api.UserFromContext(ctx)

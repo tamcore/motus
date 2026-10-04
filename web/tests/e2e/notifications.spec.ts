@@ -96,6 +96,16 @@ test.describe('Notifications Page', () => {
     await expect(notifPage.modal).toHaveCount(0);
   });
 
+  test('should center the modal in the viewport', async ({ authedPage }) => {
+    await notifPage.createButton.click();
+    await expect(notifPage.modal).toBeVisible();
+    const box = await notifPage.modal.boundingBox();
+    const viewport = authedPage.viewportSize();
+    expect(box && viewport).toBeTruthy();
+    const centerX = box!.x + box!.width / 2;
+    expect(Math.abs(centerX - viewport!.width / 2)).toBeLessThan(2);
+  });
+
   test('should close modal on Escape key and restore focus', async ({ authedPage }) => {
     await notifPage.createButton.click();
     await expect(notifPage.modal).toBeVisible();

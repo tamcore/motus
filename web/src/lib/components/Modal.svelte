@@ -59,6 +59,8 @@
 
 <style>
 	.modal {
+		/* restore the UA centering that the global `* { margin: 0 }` reset removes */
+		margin: auto;
 		padding: 0;
 		border: none;
 		color: var(--text-primary);

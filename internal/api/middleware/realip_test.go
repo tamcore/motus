@@ -56,3 +56,16 @@ func TestRealIP(t *testing.T) {
 		})
 	}
 }
+
+func TestClientIP(t *testing.T) {
+	for in, want := range map[string]string{
+		"203.0.113.7:1234":           "203.0.113.7",
+		"[2001:db8:1:2:3:4:5:6]:443": "2001:db8:1:2::",
+		"[::ffff:203.0.113.7]:80":    "203.0.113.7",
+		"not-an-ip":                  "not-an-ip",
+	} {
+		if got := clientIP(in); got != want {
+			t.Errorf("clientIP(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

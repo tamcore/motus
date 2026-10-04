@@ -3,11 +3,10 @@ package middleware
 import (
 	"maps"
 	"math"
-	"net"
 	"net/http"
+	"net/netip"
 	"os"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -81,19 +80,14 @@ func (s *bucketStore) allow(key string) (bool, int) {
 // clientIP returns the RemoteAddr host (chi's RealIP has already rewritten
 // it to the client IP), reduced to its /64 prefix for IPv6.
 func clientIP(remoteAddr string) string {
-	ip, _, err := net.SplitHostPort(remoteAddr)
-	if err != nil {
-		ip = remoteAddr
+	ip, ok := parseRemoteAddr(remoteAddr)
+	if !ok {
+		return remoteAddr
 	}
-	if i := strings.IndexAny(ip, ".:"); i < 0 || ip[i] == '.' {
-		return ip
+	if ip.Is6() {
+		ip = netip.PrefixFrom(ip, 64).Masked().Addr()
 	}
-	v6 := net.ParseIP(ip)
-	if v6 == nil {
-		return ip
-	}
-	clear(v6[8:])
-	return v6.String()
+	return ip.String()
 }
 
 // rateLimitResponse writes a JSON 429 response matching the project's error format.

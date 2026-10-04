@@ -27,17 +27,11 @@ body {
   padding: 0 var(--space-4);
 }
 
-.text-primary { color: var(--text-primary); }
-.text-secondary { color: var(--text-secondary); }
 .text-tertiary { color: var(--text-tertiary); }
-
-.bg-primary { background-color: var(--bg-primary); }
-.bg-secondary { background-color: var(--bg-secondary); }
 
 /* Status indicators */
 .status-online { color: var(--status-online); }
 .status-offline { color: var(--status-offline); }
-.status-idle { color: var(--status-idle); }
 
 /* Shared page elements */
 .page-title {

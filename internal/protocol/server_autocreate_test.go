@@ -25,15 +25,7 @@ func TestDeviceAutoCreate_H02_Enabled_UnknownDevice(t *testing.T) {
 	ctx := context.Background()
 
 	// Create the default admin user for auto-created devices.
-	adminUser := &model.User{
-		Email:        "admin@motus.local",
-		PasswordHash: "hash",
-		Name:         "Admin",
-		Role:         model.RoleAdmin,
-	}
-	if err := userRepo.Create(ctx, adminUser); err != nil {
-		t.Fatalf("create admin user: %v", err)
-	}
+	adminUser := testutil.CreateAdmin(t, "admin@motus.local")
 
 	srv := &Server{
 		name:    "h02",
@@ -134,13 +126,7 @@ func TestDeviceAutoCreate_H02_Enabled_SubsequentPositions(t *testing.T) {
 	ctx := context.Background()
 
 	// Create admin user.
-	adminUser := &model.User{
-		Email:        "admin@motus.local",
-		PasswordHash: "hash",
-		Name:         "Admin",
-		Role:         model.RoleAdmin,
-	}
-	_ = userRepo.Create(ctx, adminUser)
+	testutil.CreateAdmin(t, "admin@motus.local")
 
 	srv := &Server{
 		name:    "h02",
@@ -234,13 +220,7 @@ func TestDeviceAutoCreate_H02_Disabled_UnknownDevice(t *testing.T) {
 	ctx := context.Background()
 
 	// Create admin user (shouldn't be used).
-	adminUser := &model.User{
-		Email:        "admin@motus.local",
-		PasswordHash: "hash",
-		Name:         "Admin",
-		Role:         model.RoleAdmin,
-	}
-	_ = userRepo.Create(ctx, adminUser)
+	adminUser := testutil.CreateAdmin(t, "admin@motus.local")
 
 	// Configure auto-create: DISABLED.
 	srv := &Server{
@@ -355,13 +335,7 @@ func TestDeviceAutoCreate_H02_ExistingDevice(t *testing.T) {
 	ctx := context.Background()
 
 	// Create admin user.
-	adminUser := &model.User{
-		Email:        "admin@motus.local",
-		PasswordHash: "hash",
-		Name:         "Admin",
-		Role:         model.RoleAdmin,
-	}
-	_ = userRepo.Create(ctx, adminUser)
+	adminUser := testutil.CreateAdmin(t, "admin@motus.local")
 
 	srv := &Server{
 		name:    "h02",
@@ -428,13 +402,7 @@ func TestDeviceAutoCreate_Watch_Enabled_UnknownDevice(t *testing.T) {
 	ctx := context.Background()
 
 	// Create admin user.
-	adminUser := &model.User{
-		Email:        "admin@motus.local",
-		PasswordHash: "hash",
-		Name:         "Admin",
-		Role:         model.RoleAdmin,
-	}
-	_ = userRepo.Create(ctx, adminUser)
+	adminUser := testutil.CreateAdmin(t, "admin@motus.local")
 
 	srv := &Server{
 		name:    "watch",
@@ -506,13 +474,7 @@ func TestDeviceAutoCreate_Watch_Disabled_UnknownDevice(t *testing.T) {
 	ctx := context.Background()
 
 	// Create admin user.
-	adminUser := &model.User{
-		Email:        "admin@motus.local",
-		PasswordHash: "hash",
-		Name:         "Admin",
-		Role:         model.RoleAdmin,
-	}
-	_ = userRepo.Create(ctx, adminUser)
+	testutil.CreateAdmin(t, "admin@motus.local")
 
 	// Auto-create DISABLED.
 	srv := &Server{
@@ -562,13 +524,7 @@ func TestDeviceAutoCreate_UserLookupCaching(t *testing.T) {
 	ctx := context.Background()
 
 	// Create admin user.
-	adminUser := &model.User{
-		Email:        "admin@motus.local",
-		PasswordHash: "hash",
-		Name:         "Admin",
-		Role:         model.RoleAdmin,
-	}
-	_ = userRepo.Create(ctx, adminUser)
+	adminUser := testutil.CreateAdmin(t, "admin@motus.local")
 
 	srv := &Server{
 		name:    "h02",
@@ -635,12 +591,7 @@ func TestDeviceAutoCreate_H02_Heartbeat_NoAutoCreate(t *testing.T) {
 	ctx := context.Background()
 
 	// Create admin user.
-	_ = userRepo.Create(ctx, &model.User{
-		Email:        "admin@motus.local",
-		PasswordHash: "hash",
-		Name:         "Admin",
-		Role:         model.RoleAdmin,
-	})
+	testutil.CreateAdmin(t, "admin@motus.local")
 
 	srv := &Server{
 		name:    "h02",
@@ -686,12 +637,7 @@ func TestDeviceAutoCreate_Watch_Heartbeat_NoAutoCreate(t *testing.T) {
 	ctx := context.Background()
 
 	// Create admin user.
-	_ = userRepo.Create(ctx, &model.User{
-		Email:        "admin@motus.local",
-		PasswordHash: "hash",
-		Name:         "Admin",
-		Role:         model.RoleAdmin,
-	})
+	testutil.CreateAdmin(t, "admin@motus.local")
 
 	srv := &Server{
 		name:    "watch",
@@ -802,13 +748,9 @@ func TestResolveOrCreateDevice_FillsEmptyProtocol(t *testing.T) {
 	testutil.CleanTables(t, pool)
 
 	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	adminUser := &model.User{Email: "admin@motus.local", PasswordHash: "hash", Name: "Admin", Role: model.RoleAdmin}
-	if err := userRepo.Create(ctx, adminUser); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	adminUser := testutil.CreateAdmin(t, "admin@motus.local")
 	device := &model.Device{UniqueID: "resync-empty-proto", Name: "Test", Protocol: "", Status: "unknown"}
 	if err := deviceRepo.Create(ctx, device, adminUser.ID); err != nil {
 		t.Fatalf("create device: %v", err)
@@ -841,13 +783,9 @@ func TestResolveOrCreateDevice_OverwritesMismatchedProtocol(t *testing.T) {
 	testutil.CleanTables(t, pool)
 
 	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	adminUser := &model.User{Email: "admin@motus.local", PasswordHash: "hash", Name: "Admin", Role: model.RoleAdmin}
-	if err := userRepo.Create(ctx, adminUser); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	adminUser := testutil.CreateAdmin(t, "admin@motus.local")
 	device := &model.Device{UniqueID: "resync-mismatch-proto", Name: "Test", Protocol: "watch", Status: "unknown"}
 	if err := deviceRepo.Create(ctx, device, adminUser.ID); err != nil {
 		t.Fatalf("create device: %v", err)
@@ -880,13 +818,9 @@ func TestResolveOrCreateDevice_NoUpdateWhenProtocolMatches(t *testing.T) {
 	testutil.CleanTables(t, pool)
 
 	deviceRepo := repository.NewDeviceRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	ctx := context.Background()
 
-	adminUser := &model.User{Email: "admin@motus.local", PasswordHash: "hash", Name: "Admin", Role: model.RoleAdmin}
-	if err := userRepo.Create(ctx, adminUser); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	adminUser := testutil.CreateAdmin(t, "admin@motus.local")
 	device := &model.Device{UniqueID: "resync-match-proto", Name: "Test", Protocol: "h02", Status: "unknown"}
 	if err := deviceRepo.Create(ctx, device, adminUser.ID); err != nil {
 		t.Fatalf("create device: %v", err)

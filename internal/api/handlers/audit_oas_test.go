@@ -18,7 +18,6 @@ import (
 	oas "github.com/tamcore/motus/internal/api/oas"
 	"github.com/tamcore/motus/internal/audit"
 	"github.com/tamcore/motus/internal/model"
-	"github.com/tamcore/motus/internal/storage/repository"
 	"github.com/tamcore/motus/internal/storage/repository/testutil"
 )
 
@@ -100,12 +99,7 @@ func setupAuditIntegration(t *testing.T) (*handlers.Handler, *audit.Logger, *mod
 	logger := audit.NewLogger(pool)
 	h := newAuditTestHandler(logger)
 
-	userRepo := repository.NewUserRepository(pool)
-	user := &model.User{Email: "audit-admin@example.com", PasswordHash: "hash", Name: "Audit Admin", Role: model.RoleAdmin}
-	if err := userRepo.Create(context.Background(), user); err != nil {
-		t.Fatalf("create user: %v", err)
-	}
-	return h, logger, user
+	return h, logger, testutil.CreateAdmin(t, "audit-admin@example.com")
 }
 
 // logEntries writes n audit entries for the given user via the real logger.

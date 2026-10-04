@@ -851,6 +851,7 @@ func setupSessionOASIntegration(t *testing.T) (*handlers.Handler, *repository.Us
 	return h, userRepo, sessionRepo, auditLogger
 }
 
+// createIntegrationUser creates a user with a real bcrypt hash so login tests can authenticate.
 func createIntegrationUser(t *testing.T, userRepo *repository.UserRepository, email, password string) *model.User {
 	t.Helper()
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.MinCost)

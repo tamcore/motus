@@ -100,14 +100,11 @@ func TestEventRepository_GetByFilters(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	eventRepo := repository.NewEventRepository(pool)
-	deviceRepo := repository.NewDeviceRepository(pool)
 	ctx := context.Background()
 
 	user := testutil.CreateUser(t, "event-3@example.com")
-	d1 := &model.Device{UniqueID: "filt-1-" + time.Now().Format("150405.000"), Name: "D1", Status: "online"}
-	d2 := &model.Device{UniqueID: "filt-2-" + time.Now().Format("150405.000"), Name: "D2", Status: "online"}
-	_ = deviceRepo.Create(ctx, d1, user.ID)
-	_ = deviceRepo.Create(ctx, d2, user.ID)
+	d1 := testutil.CreateDevice(t, user.ID, "filt-1-"+time.Now().Format("150405.000"))
+	d2 := testutil.CreateDevice(t, user.ID, "filt-2-"+time.Now().Format("150405.000"))
 
 	now := time.Now().UTC()
 	from := now.Add(-time.Hour)

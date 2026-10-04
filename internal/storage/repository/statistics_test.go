@@ -168,7 +168,6 @@ func TestStatisticsRepository_GetUserStats_WithData(t *testing.T) {
 	testutil.CleanTables(t, pool)
 
 	ctx := context.Background()
-	deviceRepo := repository.NewDeviceRepository(pool)
 	posRepo := repository.NewPositionRepository(pool)
 	eventRepo := repository.NewEventRepository(pool)
 	sessionRepo := repository.NewSessionRepository(pool)
@@ -178,14 +177,8 @@ func TestStatisticsRepository_GetUserStats_WithData(t *testing.T) {
 	u := testutil.CreateUser(t, "fullstats@example.com")
 
 	// Create 2 devices assigned to the user.
-	d1 := &model.Device{UniqueID: "full-d1", Name: "Full D1", Status: "online"}
-	d2 := &model.Device{UniqueID: "full-d2", Name: "Full D2", Status: "offline"}
-	if err := deviceRepo.Create(ctx, d1, u.ID); err != nil {
-		t.Fatalf("create device 1: %v", err)
-	}
-	if err := deviceRepo.Create(ctx, d2, u.ID); err != nil {
-		t.Fatalf("create device 2: %v", err)
-	}
+	d1 := testutil.CreateDevice(t, u.ID, "full-d1")
+	testutil.CreateDevice(t, u.ID, "full-d2")
 
 	// Insert 5 positions for d1.
 	now := time.Now().UTC()

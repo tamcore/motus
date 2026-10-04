@@ -11,20 +11,19 @@ import (
 	"github.com/tamcore/motus/internal/storage/repository/testutil"
 )
 
-func setupGeofenceServiceCRUD(t *testing.T) (*GeofenceService, *repository.GeofenceRepository, *repository.CalendarRepository, *repository.UserRepository) {
+func setupGeofenceServiceCRUD(t *testing.T) (*GeofenceService, *repository.GeofenceRepository, *repository.CalendarRepository) {
 	t.Helper()
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 	geoRepo := repository.NewGeofenceRepository(pool)
 	calRepo := repository.NewCalendarRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
 	svc := NewGeofenceService(geoRepo, nil)
-	return svc, geoRepo, calRepo, userRepo
+	return svc, geoRepo, calRepo
 }
 
 const testGeoJSONCircle = `{"type":"Polygon","coordinates":[[[13.40,52.51],[13.40,52.53],[13.42,52.53],[13.42,52.51],[13.40,52.51]]]}`
 
-func createTestUserAndGeofence(t *testing.T, ctx context.Context, svc *GeofenceService, userRepo *repository.UserRepository, email string) (*model.User, *model.Geofence) {
+func createTestUserAndGeofence(t *testing.T, ctx context.Context, svc *GeofenceService, email string) (*model.User, *model.Geofence) {
 	t.Helper()
 	user := testutil.CreateUser(t, email)
 	g, err := svc.CreateForUser(ctx, user, CreateGeofenceInput{Name: "Original", Geometry: testGeoJSONCircle})
@@ -35,9 +34,9 @@ func createTestUserAndGeofence(t *testing.T, ctx context.Context, svc *GeofenceS
 }
 
 func TestGeofenceService_InvalidGeometryIsClientError(t *testing.T) {
-	svc, _, _, userRepo := setupGeofenceServiceCRUD(t)
+	svc, _, _ := setupGeofenceServiceCRUD(t)
 	ctx := context.Background()
-	user, g := createTestUserAndGeofence(t, ctx, svc, userRepo, "geo-badgeom@example.com")
+	user, g := createTestUserAndGeofence(t, ctx, svc, "geo-badgeom@example.com")
 
 	for name, run := range map[string]func() error{
 		"create wkt": func() error {
@@ -62,9 +61,9 @@ func TestGeofenceService_InvalidGeometryIsClientError(t *testing.T) {
 }
 
 func TestGeofenceService_UpdateForUser_RenameName(t *testing.T) {
-	svc, _, _, userRepo := setupGeofenceServiceCRUD(t)
+	svc, _, _ := setupGeofenceServiceCRUD(t)
 	ctx := context.Background()
-	user, g := createTestUserAndGeofence(t, ctx, svc, userRepo, "geo-update@example.com")
+	user, g := createTestUserAndGeofence(t, ctx, svc, "geo-update@example.com")
 
 	newName := "Renamed"
 	updated, err := svc.UpdateForUser(ctx, user, g.ID, UpdateGeofenceInput{Name: &newName})
@@ -77,9 +76,9 @@ func TestGeofenceService_UpdateForUser_RenameName(t *testing.T) {
 }
 
 func TestGeofenceService_UpdateForUser_AttachCalendar(t *testing.T) {
-	svc, _, calRepo, userRepo := setupGeofenceServiceCRUD(t)
+	svc, _, calRepo := setupGeofenceServiceCRUD(t)
 	ctx := context.Background()
-	user, g := createTestUserAndGeofence(t, ctx, svc, userRepo, "geo-attach@example.com")
+	user, g := createTestUserAndGeofence(t, ctx, svc, "geo-attach@example.com")
 
 	cal := &model.Calendar{UserID: user.ID, Name: "Cal", Data: testIcal}
 	if err := calRepo.Create(ctx, cal); err != nil {
@@ -96,9 +95,9 @@ func TestGeofenceService_UpdateForUser_AttachCalendar(t *testing.T) {
 }
 
 func TestGeofenceService_UpdateForUser_DetachCalendar(t *testing.T) {
-	svc, _, calRepo, userRepo := setupGeofenceServiceCRUD(t)
+	svc, _, calRepo := setupGeofenceServiceCRUD(t)
 	ctx := context.Background()
-	user, g := createTestUserAndGeofence(t, ctx, svc, userRepo, "geo-detach@example.com")
+	user, g := createTestUserAndGeofence(t, ctx, svc, "geo-detach@example.com")
 
 	cal := &model.Calendar{UserID: user.ID, Name: "Cal2", Data: testIcal}
 	_ = calRepo.Create(ctx, cal)
@@ -114,9 +113,9 @@ func TestGeofenceService_UpdateForUser_DetachCalendar(t *testing.T) {
 }
 
 func TestGeofenceService_UpdateForUser_AccessDenied(t *testing.T) {
-	svc, _, _, userRepo := setupGeofenceServiceCRUD(t)
+	svc, _, _ := setupGeofenceServiceCRUD(t)
 	ctx := context.Background()
-	_, g := createTestUserAndGeofence(t, ctx, svc, userRepo, "geo-owner@example.com")
+	_, g := createTestUserAndGeofence(t, ctx, svc, "geo-owner@example.com")
 
 	other := testutil.CreateUser(t, "geo-other@example.com")
 
@@ -131,9 +130,9 @@ func TestGeofenceService_UpdateForUser_AccessDenied(t *testing.T) {
 const eastPolygonGeoJSON = `{"type":"Polygon","coordinates":[[[13.60,52.55],[13.60,52.57],[13.65,52.57],[13.65,52.55],[13.60,52.55]]]}`
 
 func TestGeofenceService_UpdateForUser_ShapeChange(t *testing.T) {
-	svc, geoRepo, _, userRepo := setupGeofenceServiceCRUD(t)
+	svc, geoRepo, _ := setupGeofenceServiceCRUD(t)
 	ctx := context.Background()
-	user, g := createTestUserAndGeofence(t, ctx, svc, userRepo, "geo-shape@example.com")
+	user, g := createTestUserAndGeofence(t, ctx, svc, "geo-shape@example.com")
 	device := testutil.CreateDevice(t, user.ID, "geo-svc-"+user.Email)
 
 	// Point inside original polygon.
@@ -166,9 +165,9 @@ func TestGeofenceService_UpdateForUser_ShapeChange(t *testing.T) {
 }
 
 func TestGeofenceService_UpdateForUser_AreaWKT(t *testing.T) {
-	svc, geoRepo, _, userRepo := setupGeofenceServiceCRUD(t)
+	svc, geoRepo, _ := setupGeofenceServiceCRUD(t)
 	ctx := context.Background()
-	user, g := createTestUserAndGeofence(t, ctx, svc, userRepo, "geo-area@example.com")
+	user, g := createTestUserAndGeofence(t, ctx, svc, "geo-area@example.com")
 	device := testutil.CreateDevice(t, user.ID, "geo-svc-"+user.Email)
 
 	// Update via WKT area string (east polygon).
@@ -189,9 +188,9 @@ func TestGeofenceService_UpdateForUser_AreaWKT(t *testing.T) {
 }
 
 func TestGeofenceService_DeleteForUser_HappyPath(t *testing.T) {
-	svc, geoRepo, _, userRepo := setupGeofenceServiceCRUD(t)
+	svc, geoRepo, _ := setupGeofenceServiceCRUD(t)
 	ctx := context.Background()
-	user, g := createTestUserAndGeofence(t, ctx, svc, userRepo, "geo-del@example.com")
+	user, g := createTestUserAndGeofence(t, ctx, svc, "geo-del@example.com")
 
 	if err := svc.DeleteForUser(ctx, user, g.ID); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -203,9 +202,9 @@ func TestGeofenceService_DeleteForUser_HappyPath(t *testing.T) {
 }
 
 func TestGeofenceService_DeleteForUser_AccessDenied(t *testing.T) {
-	svc, _, _, userRepo := setupGeofenceServiceCRUD(t)
+	svc, _, _ := setupGeofenceServiceCRUD(t)
 	ctx := context.Background()
-	_, g := createTestUserAndGeofence(t, ctx, svc, userRepo, "geo-delacc@example.com")
+	_, g := createTestUserAndGeofence(t, ctx, svc, "geo-delacc@example.com")
 
 	other := testutil.CreateUser(t, "geo-del-other@example.com")
 

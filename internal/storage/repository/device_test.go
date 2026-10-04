@@ -101,10 +101,7 @@ func TestDeviceRepository_GetByUniqueID(t *testing.T) {
 	ctx := context.Background()
 
 	user := testutil.CreateUser(t, "device-4@example.com")
-	device := &model.Device{UniqueID: "unique-find-001", Name: "Unique Find", Status: "unknown"}
-	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
-		t.Fatalf("Create failed: %v", err)
-	}
+	device := testutil.CreateDevice(t, user.ID, "unique-find-001")
 
 	found, err := deviceRepo.GetByUniqueID(ctx, "unique-find-001")
 	if err != nil {
@@ -179,10 +176,7 @@ func TestDeviceRepository_GetUserIDs(t *testing.T) {
 	ctx := context.Background()
 
 	user := testutil.CreateUser(t, "device-7@example.com")
-	device := &model.Device{UniqueID: "userid-dev", Name: "UserID Device", Status: "unknown"}
-	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
-		t.Fatalf("Create failed: %v", err)
-	}
+	device := testutil.CreateDevice(t, user.ID, "userid-dev")
 
 	ids, err := deviceRepo.GetUserIDs(ctx, device.ID)
 	if err != nil {
@@ -203,10 +197,7 @@ func TestDeviceRepository_UserHasAccess(t *testing.T) {
 	ctx := context.Background()
 
 	user := testutil.CreateUser(t, "device-8@example.com")
-	device := &model.Device{UniqueID: "access-dev", Name: "Access Device", Status: "unknown"}
-	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
-		t.Fatalf("Create failed: %v", err)
-	}
+	device := testutil.CreateDevice(t, user.ID, "access-dev")
 
 	if !deviceRepo.UserHasAccess(ctx, &model.User{ID: user.ID}, device.ID) {
 		t.Error("expected user to have access to device")
@@ -259,10 +250,7 @@ func TestDeviceRepository_Delete(t *testing.T) {
 	ctx := context.Background()
 
 	user := testutil.CreateUser(t, "device-10@example.com")
-	device := &model.Device{UniqueID: "delete-dev", Name: "Delete Me", Status: "unknown"}
-	if err := deviceRepo.Create(ctx, device, user.ID); err != nil {
-		t.Fatalf("Create failed: %v", err)
-	}
+	device := testutil.CreateDevice(t, user.ID, "delete-dev")
 
 	if err := deviceRepo.Delete(ctx, device.ID); err != nil {
 		t.Fatalf("Delete failed: %v", err)

@@ -181,9 +181,19 @@ func CleanTables(t *testing.T, pool *pgxpool.Pool) {
 // CreateUser inserts a regular user with the given email.
 func CreateUser(t *testing.T, email string) *model.User {
 	t.Helper()
-	u := &model.User{Email: email, PasswordHash: "hash", Name: "Test User"}
+	return createUser(t, &model.User{Email: email, PasswordHash: "hash", Name: "Test User"})
+}
+
+// CreateAdmin inserts an admin user with a placeholder password hash.
+func CreateAdmin(t *testing.T, email string) *model.User {
+	t.Helper()
+	return createUser(t, &model.User{Email: email, PasswordHash: "hash", Name: "Admin", Role: model.RoleAdmin})
+}
+
+func createUser(t *testing.T, u *model.User) *model.User {
+	t.Helper()
 	if err := repository.NewUserRepository(SetupTestDB(t)).Create(context.Background(), u); err != nil {
-		t.Fatalf("create user %s: %v", email, err)
+		t.Fatalf("create user %s: %v", u.Email, err)
 	}
 	return u
 }

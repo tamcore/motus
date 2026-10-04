@@ -236,10 +236,7 @@ func TestTrailBookmarkRepository_CascadeOnUserAndDeviceDelete(t *testing.T) {
 		t.Error("expected bookmark to be removed with its device")
 	}
 
-	dev2 := &model.Device{UniqueID: "bm-dev-3", Name: "Watch", Status: "offline"}
-	if err := f.devices.Create(ctx, dev2, f.owner.ID); err != nil {
-		t.Fatalf("create device: %v", err)
-	}
+	dev2 := testutil.CreateDevice(t, f.owner.ID, "bm-dev-3")
 	byUser := f.create(t, f.owner.ID, dev2.ID, "User gone", from)
 	if err := f.users.Delete(ctx, f.owner.ID); err != nil {
 		t.Fatalf("delete user: %v", err)

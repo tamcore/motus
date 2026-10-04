@@ -50,8 +50,8 @@ func TestCommandRepository_GetPendingByUniqueIDs(t *testing.T) {
 	user := testutil.CreateUser(t, "command-2@example.com")
 	a := &model.Device{UniqueID: "cmdpend-a", Name: "A", Status: "online", Protocol: "h02"}
 	b := &model.Device{UniqueID: "cmdpend-b", Name: "B", Status: "online", Protocol: "watch"}
-	other := &model.Device{UniqueID: "cmdpend-other", Name: "Other", Status: "online"}
-	for _, d := range []*model.Device{a, b, other} {
+	other := testutil.CreateDevice(t, user.ID, "cmdpend-other")
+	for _, d := range []*model.Device{a, b} {
 		if err := deviceRepo.Create(ctx, d, user.ID); err != nil {
 			t.Fatalf("Create device: %v", err)
 		}

@@ -404,14 +404,8 @@ func (h *Hub) BroadcastPosition(position *model.Position) {
 		slog.Float64("lat", position.Latitude),
 		slog.Float64("lon", position.Longitude),
 	)
-	// Convert speed from internal km/h to knots for Traccar API compatibility.
-	pos := *position
-	if position.Speed != nil {
-		knots := *position.Speed / 1.852
-		pos.Speed = &knots
-	}
 	msg := TraccarMessage{
-		Positions: []model.Position{pos},
+		Positions: []model.Position{*position.InKnots()},
 	}
 	metrics.WebSocketMessagesSent.WithLabelValues("position").Inc()
 	h.publishAndBroadcast(position.DeviceID, msg)

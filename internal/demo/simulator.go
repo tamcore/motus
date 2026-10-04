@@ -8,6 +8,8 @@ import (
 	"math/rand"
 	"strings"
 	"time"
+
+	"github.com/tamcore/motus/internal/model"
 )
 
 // writeDeadlineTimeout is the per-write TCP deadline. If a single write takes
@@ -397,8 +399,7 @@ func BuildH02Message(imei string, lat, lon, speedKmh, course, altitude float64, 
 	latNMEA, latDir := decimalToNMEA(lat, true)
 	lonNMEA, lonDir := decimalToNMEA(lon, false)
 
-	// Convert km/h to knots.
-	speedKnots := speedKmh / 1.852
+	speedKnots := model.KmhToKnots(speedKmh)
 
 	// Set flags based on ignition state.
 	// Bit 10 of the status word: 1 = ignition ON, 0 = ignition OFF.

@@ -69,8 +69,8 @@ func (h *Handler) deviceActivity(ctx context.Context, d *model.Device, from, to 
 			EndTime:    t.EndTime,
 			Duration:   t.Duration,
 			Distance:   t.Distance,
-			AvgSpeed:   t.AvgSpeed * kmhToKnotsRatio,
-			MaxSpeed:   t.MaxSpeed * kmhToKnotsRatio,
+			AvgSpeed:   model.KmhToKnots(t.AvgSpeed),
+			MaxSpeed:   model.KmhToKnots(t.MaxSpeed),
 		})
 	}
 	var stops []oas.ReportStop

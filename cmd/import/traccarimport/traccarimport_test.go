@@ -371,25 +371,6 @@ func TestNullStr(t *testing.T) {
 	}
 }
 
-func TestKnotsToKmh(t *testing.T) {
-	tests := []struct {
-		knots    float64
-		expected float64
-	}{
-		{0, 0},
-		{1, 1.852},
-		{10, 18.52},
-		{100, 185.2},
-	}
-
-	for _, tt := range tests {
-		got := knotsToKmh(tt.knots)
-		if math.Abs(got-tt.expected) > 0.01 {
-			t.Errorf("knotsToKmh(%f) = %f, want %f", tt.knots, got, tt.expected)
-		}
-	}
-}
-
 func TestNullToNil(t *testing.T) {
 	tests := []struct {
 		input   string

@@ -21,6 +21,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/spf13/cobra"
 	"github.com/tamcore/motus/internal/geocoding"
+	"github.com/tamcore/motus/internal/model"
 )
 
 // Config holds all CLI flags.
@@ -1011,7 +1012,7 @@ func importPositions(ctx context.Context, pool *pgxpool.Pool, positions []Tracca
 				INSERT INTO positions (device_id, latitude, longitude, altitude, speed, course, timestamp, device_time, server_time)
 				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 			`, motusDeviceID, p.Latitude, p.Longitude, p.Altitude,
-				knotsToKmh(p.Speed), p.Course, p.FixTime, p.DeviceTime, p.ServerTime)
+				model.KnotsToKmh(p.Speed), p.Course, p.FixTime, p.DeviceTime, p.ServerTime)
 
 			if err != nil {
 				if config.Verbose {
@@ -1463,11 +1464,6 @@ func parseTimestamp(s string) (time.Time, error) {
 		}
 	}
 	return time.Time{}, fmt.Errorf("unrecognized timestamp format: %q", s)
-}
-
-// knotsToKmh converts speed from knots (Traccar) to km/h (Motus).
-func knotsToKmh(knots float64) float64 {
-	return knots * 1.852
 }
 
 // geocodeRecentPositions reverse-geocodes recently imported positions that don't have addresses.

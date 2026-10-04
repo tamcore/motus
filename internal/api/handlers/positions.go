@@ -21,20 +21,6 @@ const positionQueryTimeout = 120 * time.Second
 // built in memory, so an unbounded all-time range can OOM the process.
 const maxPositionsPerResponse = 10000
 
-// kmhToKnotsRatio converts a speed value from km/h to knots.
-// Traccar's REST API contract specifies speed in knots; internal storage uses km/h.
-const kmhToKnotsRatio = 1.0 / 1.852
-
-func positionInKnots(p *model.Position) *model.Position {
-	if p.Speed == nil {
-		return p
-	}
-	cp := *p
-	knots := *p.Speed * kmhToKnotsRatio
-	cp.Speed = &knots
-	return &cp
-}
-
 // CountPositions implements oas.Handler for GET /api/positions/count.
 func (h *Handler) CountPositions(ctx context.Context, params oas.CountPositionsParams) (oas.CountPositionsRes, error) {
 	user := api.UserFromContext(ctx)
@@ -81,7 +67,7 @@ func (h *Handler) GetPositions(ctx context.Context, params oas.GetPositionsParam
 		}
 		result := make(oas.GetPositionsOKApplicationJSON, len(positions))
 		for i, p := range positions {
-			result[i] = positionToOAS(positionInKnots(p))
+			result[i] = positionToOAS(p.InKnots())
 		}
 		return &result, nil
 	}
@@ -125,7 +111,7 @@ func collectPositions(stream func(func(*model.Position) error) error) (oas.GetPo
 	}
 	result := make(oas.GetPositionsOKApplicationJSON, len(positions))
 	for i, p := range positions {
-		result[i] = positionToOAS(positionInKnots(p))
+		result[i] = positionToOAS(p.InKnots())
 		positions[i] = nil // lets GC free converted positions mid-loop
 	}
 	return result, nil

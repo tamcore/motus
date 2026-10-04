@@ -8,6 +8,7 @@ import (
 
 	"github.com/tamcore/motus/internal/api"
 	oas "github.com/tamcore/motus/internal/api/oas"
+	"github.com/tamcore/motus/internal/model"
 )
 
 // GetPositionPoints implements oas.Handler for GET /api/positions/points.
@@ -39,7 +40,7 @@ func (h *Handler) GetPositionPoints(ctx context.Context, params oas.GetPositionP
 		result[i] = oas.PositionPoint{
 			Lat:      p.Lat,
 			Lon:      p.Lon,
-			Speed:    p.Speed * kmhToKnotsRatio,
+			Speed:    model.KmhToKnots(p.Speed),
 			FixTime:  p.FixTime,
 			Course:   optFloat64(p.Course),
 			Altitude: optFloat64(p.Altitude),

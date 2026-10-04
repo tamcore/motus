@@ -14,6 +14,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/tamcore/motus/internal/model"
 )
 
 // Message represents a decoded H02 protocol message.
@@ -130,7 +132,7 @@ func decodePosition(msg *Message, fields []string) (*Message, error) {
 	if err != nil {
 		return nil, fmt.Errorf("parse speed %q: %w", fields[8], err)
 	}
-	msg.Speed = speed * 1.852
+	msg.Speed = model.KnotsToKmh(speed)
 
 	// Parse course (degrees).
 	course, err := strconv.ParseFloat(fields[9], 64)

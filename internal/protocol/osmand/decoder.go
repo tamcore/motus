@@ -55,7 +55,6 @@ type Message struct {
 	Network map[string]any
 }
 
-const knotsToKmh = 1.852
 const mpsToKmh = 3.6
 
 // DecodeQuery decodes a report sent as URL query or form parameters. now is
@@ -106,7 +105,7 @@ func DecodeQuery(params url.Values, now time.Time) (*Message, error) {
 			case "speed":
 				var knots float64
 				if knots, err = strconv.ParseFloat(value, 64); err == nil {
-					m.Speed = knots * knotsToKmh
+					m.Speed = model.KnotsToKmh(knots)
 				}
 			case "bearing", "heading":
 				m.Course, err = strconv.ParseFloat(value, 64)

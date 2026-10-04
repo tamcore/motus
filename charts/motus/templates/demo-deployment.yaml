@@ -4,7 +4,7 @@ kind: Deployment
 metadata:
   name: {{ include "motus.demo.fullname" . }}
   labels:
-    {{- include "motus.demo.labels" . | nindent 4 }}
+    {{- include "motus.componentLabels" (list . "gps-simulator" "demo") | nindent 4 }}
 spec:
   replicas: 1  # Single replica to avoid duplicate GPS injection
   selector:
@@ -23,26 +23,7 @@ spec:
         env:
         - name: MOTUS_ENV
           value: "development"
-        {{- if .Values.postgresUriSecret.enabled }}
-        - name: POSTGRES_URI
-          valueFrom:
-            secretKeyRef:
-              name: {{ .Values.postgresUriSecret.name }}
-              key: {{ .Values.postgresUriSecret.key }}
-        {{- else }}
-        - name: MOTUS_DATABASE_HOST
-          value: {{ include "motus.database.host" . | quote }}
-        - name: MOTUS_DATABASE_PORT
-          value: {{ include "motus.database.port" . | quote }}
-        - name: MOTUS_DATABASE_NAME
-          value: {{ include "motus.database.name" . | quote }}
-        - name: MOTUS_DATABASE_USER
-          value: {{ include "motus.database.user" . | quote }}
-        - name: MOTUS_DATABASE_PASSWORD
-          value: {{ include "motus.database.password" . | quote }}
-        - name: MOTUS_DATABASE_SSLMODE
-          value: {{ include "motus.database.sslmode" . | quote }}
-        {{- end }}
+        {{- include "motus.databaseEnv" . | nindent 8 }}
       - name: reset-demo
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}{{- if .Values.image.digest }}@{{ .Values.image.digest }}{{- end }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
@@ -50,51 +31,13 @@ spec:
         env:
         - name: MOTUS_ENV
           value: "development"
-        {{- if .Values.postgresUriSecret.enabled }}
-        - name: POSTGRES_URI
-          valueFrom:
-            secretKeyRef:
-              name: {{ .Values.postgresUriSecret.name }}
-              key: {{ .Values.postgresUriSecret.key }}
-        {{- else }}
-        - name: MOTUS_DATABASE_HOST
-          value: {{ include "motus.database.host" . | quote }}
-        - name: MOTUS_DATABASE_PORT
-          value: {{ include "motus.database.port" . | quote }}
-        - name: MOTUS_DATABASE_NAME
-          value: {{ include "motus.database.name" . | quote }}
-        - name: MOTUS_DATABASE_USER
-          value: {{ include "motus.database.user" . | quote }}
-        - name: MOTUS_DATABASE_PASSWORD
-          value: {{ include "motus.database.password" . | quote }}
-        - name: MOTUS_DATABASE_SSLMODE
-          value: {{ include "motus.database.sslmode" . | quote }}
-        {{- end }}
+        {{- include "motus.databaseEnv" . | nindent 8 }}
       containers:
       - name: demo-simulator
         image: {{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}{{ with .Values.image.digest }}@{{ . }}{{ end }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         env:
-        {{- if .Values.postgresUriSecret.enabled }}
-        - name: POSTGRES_URI
-          valueFrom:
-            secretKeyRef:
-              name: {{ .Values.postgresUriSecret.name }}
-              key: {{ .Values.postgresUriSecret.key }}
-        {{- else }}
-        - name: MOTUS_DATABASE_HOST
-          value: {{ include "motus.database.host" . | quote }}
-        - name: MOTUS_DATABASE_PORT
-          value: {{ include "motus.database.port" . | quote }}
-        - name: MOTUS_DATABASE_NAME
-          value: {{ include "motus.database.name" . | quote }}
-        - name: MOTUS_DATABASE_USER
-          value: {{ include "motus.database.user" . | quote }}
-        - name: MOTUS_DATABASE_PASSWORD
-          value: {{ include "motus.database.password" . | quote }}
-        - name: MOTUS_DATABASE_SSLMODE
-          value: {{ include "motus.database.sslmode" . | quote }}
-        {{- end }}
+        {{- include "motus.databaseEnv" . | nindent 8 }}
         - name: MOTUS_ENV
           value: "development"
         - name: MOTUS_SERVER_PORT

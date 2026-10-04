@@ -4,7 +4,7 @@ kind: Service
 metadata:
   name: {{ include "motus.redis.fullname" . }}
   labels:
-    {{- include "motus.redis.labels" . | nindent 4 }}
+    {{- include "motus.componentLabels" (list . "cache" "redis") | nindent 4 }}
 spec:
   type: ClusterIP
   ports:

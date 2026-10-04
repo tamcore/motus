@@ -33,7 +33,7 @@ Create chart name and version as used by the chart label.
 {{/*
 Common labels
 */}}
-{{- define "motus.labels" -}}
+{{- define "motus.baseLabels" -}}
 helm.sh/chart: {{ include "motus.chart" . }}
 app.kubernetes.io/name: {{ include "motus.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
@@ -41,7 +41,21 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- end }}
+
+{{- define "motus.labels" -}}
+{{ include "motus.baseLabels" . }}
 app: {{ include "motus.name" . }}
+{{- end }}
+
+{{/*
+Component labels. Usage: include "motus.componentLabels" (list . "<component>" "<app suffix>")
+*/}}
+{{- define "motus.componentLabels" -}}
+{{- $ctx := index . 0 -}}
+{{ include "motus.baseLabels" $ctx }}
+app.kubernetes.io/component: {{ index . 1 }}
+app: {{ include "motus.name" $ctx }}-{{ index . 2 }}
 {{- end }}
 
 {{/*
@@ -49,32 +63,6 @@ Selector labels (backward compatible with old format)
 */}}
 {{- define "motus.selectorLabels" -}}
 app: {{ include "motus.name" . }}
-{{- end }}
-
-{{/*
-Create the name of the service account to use
-*/}}
-{{- define "motus.serviceAccountName" -}}
-{{- if .Values.serviceAccount.create }}
-{{- default (include "motus.fullname" .) .Values.serviceAccount.name }}
-{{- else }}
-{{- default "default" .Values.serviceAccount.name }}
-{{- end }}
-{{- end }}
-
-{{/*
-Postgres component labels
-*/}}
-{{- define "motus.postgres.labels" -}}
-helm.sh/chart: {{ include "motus.chart" . }}
-app.kubernetes.io/name: {{ include "motus.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
-{{- if .Chart.AppVersion }}
-app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-{{- end }}
-app.kubernetes.io/managed-by: {{ .Release.Service }}
-app.kubernetes.io/component: database
-app: {{ include "motus.name" . }}-postgres
 {{- end }}
 
 {{/*
@@ -92,21 +80,6 @@ Postgres fullname
 {{- end }}
 
 {{/*
-Redis component labels
-*/}}
-{{- define "motus.redis.labels" -}}
-helm.sh/chart: {{ include "motus.chart" . }}
-app.kubernetes.io/name: {{ include "motus.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
-{{- if .Chart.AppVersion }}
-app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-{{- end }}
-app.kubernetes.io/managed-by: {{ .Release.Service }}
-app.kubernetes.io/component: cache
-app: {{ include "motus.name" . }}-redis
-{{- end }}
-
-{{/*
 Redis selector labels (backward compatible with old format)
 */}}
 {{- define "motus.redis.selectorLabels" -}}
@@ -118,21 +91,6 @@ Redis fullname
 */}}
 {{- define "motus.redis.fullname" -}}
 {{- printf "%s-redis" (include "motus.fullname" .) | trunc 63 | trimSuffix "-" }}
-{{- end }}
-
-{{/*
-Demo component labels
-*/}}
-{{- define "motus.demo.labels" -}}
-helm.sh/chart: {{ include "motus.chart" . }}
-app.kubernetes.io/name: {{ include "motus.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
-{{- if .Chart.AppVersion }}
-app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-{{- end }}
-app.kubernetes.io/managed-by: {{ .Release.Service }}
-app.kubernetes.io/component: gps-simulator
-app: {{ include "motus.name" . }}-demo
 {{- end }}
 
 {{/*
@@ -223,5 +181,39 @@ Redis URL helper
 {{- .Values.redis.external.url }}
 {{- else }}
 {{- printf "redis://%s:6379/0" (include "motus.redis.fullname" .) }}
+{{- end }}
+{{- end }}
+
+{{/*
+Database connection env vars
+*/}}
+{{- define "motus.databaseEnv" -}}
+{{- if .Values.postgresUriSecret.enabled -}}
+- name: POSTGRES_URI
+  valueFrom:
+    secretKeyRef:
+      name: {{ .Values.postgresUriSecret.name }}
+      key: {{ .Values.postgresUriSecret.key }}
+{{- else -}}
+- name: MOTUS_DATABASE_HOST
+  value: {{ include "motus.database.host" . | quote }}
+- name: MOTUS_DATABASE_PORT
+  value: {{ include "motus.database.port" . | quote }}
+- name: MOTUS_DATABASE_NAME
+  value: {{ include "motus.database.name" . | quote }}
+- name: MOTUS_DATABASE_USER
+  value: {{ include "motus.database.user" . | quote }}
+{{- if .Values.externalDatabase.existingSecret }}
+- name: MOTUS_DATABASE_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: {{ .Values.externalDatabase.existingSecret }}
+      key: {{ .Values.externalDatabase.existingSecretKey | default "password" }}
+{{- else }}
+- name: MOTUS_DATABASE_PASSWORD
+  value: {{ include "motus.database.password" . | quote }}
+{{- end }}
+- name: MOTUS_DATABASE_SSLMODE
+  value: {{ include "motus.database.sslmode" . | quote }}
 {{- end }}
 {{- end }}

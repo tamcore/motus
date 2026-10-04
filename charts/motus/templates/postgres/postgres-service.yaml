@@ -4,7 +4,7 @@ kind: Service
 metadata:
   name: {{ include "motus.postgres.fullname" . }}
   labels:
-    {{- include "motus.postgres.labels" . | nindent 4 }}
+    {{- include "motus.componentLabels" (list . "database" "postgres") | nindent 4 }}
 spec:
   type: ClusterIP
   ports:

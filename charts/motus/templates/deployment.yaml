@@ -52,34 +52,7 @@ spec:
           name: gps-osmand
         {{- end }}
         env:
-        {{- if .Values.postgresUriSecret.enabled }}
-        - name: POSTGRES_URI
-          valueFrom:
-            secretKeyRef:
-              name: {{ .Values.postgresUriSecret.name }}
-              key: {{ .Values.postgresUriSecret.key }}
-        {{- else }}
-        - name: MOTUS_DATABASE_HOST
-          value: {{ include "motus.database.host" . | quote }}
-        - name: MOTUS_DATABASE_PORT
-          value: {{ include "motus.database.port" . | quote }}
-        - name: MOTUS_DATABASE_NAME
-          value: {{ include "motus.database.name" . | quote }}
-        - name: MOTUS_DATABASE_USER
-          value: {{ include "motus.database.user" . | quote }}
-        {{- if .Values.externalDatabase.existingSecret }}
-        - name: MOTUS_DATABASE_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: {{ .Values.externalDatabase.existingSecret }}
-              key: {{ .Values.externalDatabase.existingSecretKey | default "password" }}
-        {{- else }}
-        - name: MOTUS_DATABASE_PASSWORD
-          value: {{ include "motus.database.password" . | quote }}
-        {{- end }}
-        - name: MOTUS_DATABASE_SSLMODE
-          value: {{ include "motus.database.sslmode" . | quote }}
-        {{- end }}
+        {{- include "motus.databaseEnv" . | nindent 8 }}
         {{- if .Values.config.csrf.secret }}
         - name: MOTUS_CSRF_SECRET
           valueFrom:

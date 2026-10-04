@@ -4,7 +4,7 @@ kind: StatefulSet
 metadata:
   name: {{ include "motus.redis.fullname" . }}
   labels:
-    {{- include "motus.redis.labels" . | nindent 4 }}
+    {{- include "motus.componentLabels" (list . "cache" "redis") | nindent 4 }}
 spec:
   serviceName: {{ include "motus.redis.fullname" . }}
   replicas: 1

@@ -76,7 +76,7 @@ func (r *ApiKeyRepository) GetByID(ctx context.Context, id int64) (*model.ApiKey
 	return k, nil
 }
 
-const apiKeyColumns = `id, user_id, token, name, permissions, expires_at, created_at, last_used_at`
+const apiKeyColumns = `id, user_id, token, name, permissions, expires_at, created_at, last_used_at` // #nosec G101 -- SQL column list, not a credential
 
 func scanApiKey(row pgx.Row) (*model.ApiKey, error) {
 	k := &model.ApiKey{}

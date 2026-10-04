@@ -15,9 +15,7 @@ vi.stubGlobal("localStorage", {
   length: 0,
 });
 
-const { isPasskeyCancellation, PasskeyCancelledError } = await import(
-  "./webauthn"
-);
+const { isPasskeyCancellation } = await import("./webauthn");
 
 /** Build a WebAuthnError with the given code and optional cause. */
 function makeWebAuthnError(
@@ -35,14 +33,6 @@ function makeNamedError(name: string): Error {
 }
 
 describe("isPasskeyCancellation", () => {
-  it("returns true for PasskeyCancelledError", () => {
-    // Arrange
-    const error = new PasskeyCancelledError();
-
-    // Act & Assert
-    expect(isPasskeyCancellation(error)).toBe(true);
-  });
-
   it("returns true for a WebAuthnError with ERROR_CEREMONY_ABORTED", () => {
     // Arrange
     const error = makeWebAuthnError("ERROR_CEREMONY_ABORTED");
@@ -91,25 +81,5 @@ describe("isPasskeyCancellation", () => {
     expect(isPasskeyCancellation(null)).toBe(false);
     expect(isPasskeyCancellation(undefined)).toBe(false);
     expect(isPasskeyCancellation("NotAllowedError")).toBe(false);
-  });
-});
-
-describe("PasskeyCancelledError", () => {
-  it("is an Error subclass with a stable name and default message", () => {
-    // Arrange
-    const error = new PasskeyCancelledError();
-
-    // Act & Assert
-    expect(error).toBeInstanceOf(Error);
-    expect(error.name).toBe("PasskeyCancelledError");
-    expect(error.message).toBe("Passkey operation was cancelled");
-  });
-
-  it("accepts a custom message", () => {
-    // Arrange
-    const error = new PasskeyCancelledError("nope");
-
-    // Act & Assert
-    expect(error.message).toBe("nope");
   });
 });

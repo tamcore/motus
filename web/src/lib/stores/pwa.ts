@@ -1,7 +1,5 @@
 import { writable, derived } from "svelte/store";
 
-// ─── Types ──────────────────────────────────────────────────────────────────
-
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
   readonly userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
@@ -9,17 +7,13 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export interface PwaState {
-  /** Whether the app can be installed (browser supports it and not already installed) */
   installable: boolean;
-  /** Whether the app is already installed as a PWA */
   installed: boolean;
-  /** Whether a new service worker version is waiting to activate */
+  /** A new service worker version is waiting to activate. */
   updateAvailable: boolean;
-  /** Whether the user dismissed the install prompt (remembered for this session) */
+  /** Remembered for this session. */
   installDismissed: boolean;
 }
-
-// ─── Store ──────────────────────────────────────────────────────────────────
 
 const initialState: PwaState = {
   installable: false,
@@ -119,10 +113,8 @@ function createPwaStore() {
         60 * 60 * 1000,
       );
     } catch (err) {
-      // Service worker registration failed - app still works without it
-      if (typeof console !== "undefined") {
-        console.warn("Service worker registration failed:", err);
-      }
+      // The app still works without a service worker.
+      console.warn("Service worker registration failed:", err);
     }
   }
 
@@ -170,9 +162,6 @@ function createPwaStore() {
 
 export const pwa = createPwaStore();
 
-// ─── Derived stores for convenience ─────────────────────────────────────────
-
-/** Whether to show the install banner (installable, not dismissed, not already installed) */
 export const showInstallBanner = derived(
   pwa,
   ($pwa) => $pwa.installable && !$pwa.installDismissed && !$pwa.installed,

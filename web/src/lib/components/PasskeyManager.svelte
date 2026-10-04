@@ -12,8 +12,7 @@
 	import Modal from '$lib/components/Modal.svelte';
 	import Input from '$lib/components/Input.svelte';
 
-	// Evaluated in the browser only; false during SSR.
-	const supported = typeof window !== 'undefined' && isPasskeySupported();
+	const supported = isPasskeySupported();
 
 	// ---------------------------------------------------------------------------
 	// List state

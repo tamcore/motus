@@ -114,8 +114,6 @@ export function useUserLocation(): UseUserLocationReturn {
   }
 
   async function startCompass(): Promise<void> {
-    if (typeof window === 'undefined') return;
-
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const DevOrEvent = (window as any).DeviceOrientationEvent;
 

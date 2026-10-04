@@ -9,6 +9,8 @@ import {
   changeServerUrl,
 } from "./native-interface";
 
+vi.mock("$lib/auth-token-store", () => ({ getStoredAuthToken: vi.fn().mockResolvedValue(null) }));
+
 describe("native-interface", () => {
   beforeEach(() => {
     // Clean up any previous mocks.

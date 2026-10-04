@@ -235,12 +235,6 @@
 		color: var(--accent-primary);
 	}
 
-	.header-actions {
-		display: flex;
-		align-items: center;
-		gap: var(--space-3);
-	}
-
 	.history-filter {
 		display: flex;
 		align-items: center;
@@ -342,11 +336,6 @@
 		text-transform: capitalize;
 	}
 
-	.channel-webhook {
-		background-color: rgba(0, 212, 255, 0.15);
-		color: var(--accent-primary);
-	}
-
 	.status-cell {
 		display: flex;
 		align-items: center;
@@ -368,11 +357,6 @@
 
 	.status-queued {
 		color: var(--text-secondary);
-	}
-
-	.channel-command {
-		background-color: color-mix(in srgb, var(--color-warning, #f59e0b) 15%, transparent);
-		color: var(--color-warning, #f59e0b);
 	}
 
 	.cell-details {

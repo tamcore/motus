@@ -305,7 +305,7 @@
 
 <div class="notifications-page">
 	<div class="container">
-		<div class="page-header">
+		<div class="page-header page-header-stack">
 			<h1 class="page-title">Notification Rules</h1>
 			<div class="header-actions">
 				<AllDevicesToggle on:change={refresh} />
@@ -592,11 +592,6 @@
 	.notifications-page {
 		padding: var(--space-6) 0;
 	}
-	.header-actions {
-		display: flex;
-		align-items: center;
-		gap: var(--space-3);
-	}
 	.history-link,
 	.logs-link {
 		display: inline-flex;
@@ -676,14 +671,6 @@
 		border-radius: var(--radius-sm);
 		font-size: var(--text-xs);
 		font-weight: var(--font-medium);
-	}
-	.channel-webhook {
-		background-color: rgba(0, 212, 255, 0.15);
-		color: var(--accent-primary);
-	}
-	.channel-command {
-		background-color: color-mix(in srgb, var(--color-warning, #f59e0b) 15%, transparent);
-		color: var(--color-warning, #f59e0b);
 	}
 
 	/* Toggle */

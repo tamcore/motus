@@ -942,21 +942,6 @@
 		margin-top: var(--space-2);
 	}
 
-	.map-container {
-		flex: 1;
-		position: relative;
-	}
-
-	.map-loading {
-		position: absolute;
-		inset: 0;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		background-color: var(--bg-primary);
-		z-index: 500;
-	}
-
 	.spinner.small {
 		width: 20px;
 		height: 20px;
@@ -968,19 +953,6 @@
 		position: absolute;
 		top: var(--space-3);
 		right: calc(var(--space-3) + 36px + var(--space-2)); /* left of zoom control */
-		z-index: 500;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 36px;
-		height: 36px;
-		background-color: var(--bg-secondary);
-		border: 1px solid var(--border-color);
-		border-radius: var(--radius-full);
-		color: var(--text-secondary);
-		cursor: pointer;
-		box-shadow: var(--shadow-md);
-		transition: all var(--transition-fast);
 	}
 
 	.locate-error {

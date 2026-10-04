@@ -470,7 +470,6 @@
 	}
 
 	.header-actions {
-		display: flex;
 		gap: var(--space-2);
 		flex-shrink: 0;
 	}
@@ -502,11 +501,6 @@
 
 	.filter-group-action {
 		align-self: flex-end;
-	}
-
-	.select {
-		background-color: var(--bg-primary);
-		min-width: 180px;
 	}
 
 	.select-sm {
@@ -632,11 +626,6 @@
 	}
 
 	/* Empty state */
-
-	.empty-hint {
-		font-size: var(--text-sm);
-		color: var(--text-tertiary);
-	}
 
 	/* Responsive */
 	@media (max-width: 768px) {

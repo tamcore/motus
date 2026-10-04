@@ -853,12 +853,7 @@
 	}
 
 	.map-loading {
-		position: absolute;
-		inset: 0;
-		display: flex;
 		flex-direction: column;
-		align-items: center;
-		justify-content: center;
 		gap: var(--space-3);
 		background-color: rgba(0, 0, 0, 0.3);
 		z-index: 500;

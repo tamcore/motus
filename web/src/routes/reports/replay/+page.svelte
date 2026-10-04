@@ -752,7 +752,7 @@
 			<div bind:this={mapEl} class="replay-map"></div>
 
 			{#if fetching}
-				<div class="map-loading">
+				<div class="replay-loading">
 					<div class="spinner"></div>
 					<span>Loading positions...</span>
 				</div>
@@ -996,19 +996,7 @@
 		margin: 0 0 var(--space-6);
 	}
 
-	.filters-bar {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: flex-end;
-		gap: var(--space-4);
-		padding: var(--space-4);
-		background-color: var(--bg-secondary);
-		border: 1px solid var(--border-color);
-		border-radius: var(--radius-lg);
-	}
-
 	.select {
-		background-color: var(--bg-primary);
 		min-width: 200px;
 	}
 
@@ -1053,7 +1041,7 @@
 		background-color: var(--bg-tertiary);
 	}
 
-	.map-loading {
+	.replay-loading {
 		position: absolute;
 		top: 50%;
 		left: 50%;

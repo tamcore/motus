@@ -231,7 +231,7 @@
 						<div class="device-header">
 							<h3 class="device-name">{device.name}</h3>
 							{#if device.ownerName}
-								<span class="owner-badge" title="Owned by {device.ownerName}">{device.ownerName}</span>
+								<span class="owner-badge owner-badge-sm" title="Owned by {device.ownerName}">{device.ownerName}</span>
 							{/if}
 							<StatusIndicator status={device.status} />
 						</div>
@@ -487,11 +487,5 @@
 	.device-card.other-user {
 		border-left: 3px solid var(--color-warning, #f59e0b);
 		background: color-mix(in srgb, var(--color-warning, #f59e0b) 4%, transparent);
-	}
-
-	.owner-badge {
-		font-size: 0.6rem;
-		padding: 0.05rem 0.3rem;
-		border-radius: 0.2rem;
 	}
 </style>

@@ -79,7 +79,7 @@
 
 <div class="statistics-page">
 	<div class="container">
-		<div class="page-header">
+		<div class="page-header page-header-stack">
 			<div class="page-header-left">
 				<h1 class="page-title">Platform Statistics</h1>
 			</div>
@@ -281,12 +281,6 @@
 <style>
 	.statistics-page {
 		padding: var(--space-6) 0;
-	}
-
-	.page-header-left {
-		display: flex;
-		align-items: baseline;
-		gap: var(--space-3);
 	}
 
 	/* Stats Grid */
@@ -539,12 +533,6 @@
 
 	/* Responsive */
 	@media (max-width: 768px) {
-		.page-header {
-			flex-direction: column;
-			align-items: flex-start;
-			gap: var(--space-3);
-		}
-
 		.stats-grid {
 			grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
 		}

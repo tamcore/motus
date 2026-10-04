@@ -261,7 +261,7 @@
 
 <div class="users-page">
 	<div class="container">
-		<div class="page-header">
+		<div class="page-header page-header-stack page-header-compact">
 			<div class="page-header-left">
 				<h1 class="page-title">User Management</h1>
 				<span class="user-count">{users.length} user{users.length !== 1 ? 's' : ''}</span>
@@ -635,12 +635,6 @@
 		padding: var(--space-6) 0;
 	}
 
-	.page-header-left {
-		display: flex;
-		align-items: baseline;
-		gap: var(--space-3);
-	}
-
 	.user-count {
 		font-size: var(--text-sm);
 		color: var(--text-secondary);
@@ -673,7 +667,6 @@
 		color: var(--text-primary);
 	}
 
-	.loading-state p,
 	.devices-loading p {
 		color: var(--text-secondary);
 	}
@@ -681,13 +674,6 @@
 	/* Empty state */
 
 	/* ==== DESKTOP TABLE VIEW ==== */
-	.table-wrapper {
-		overflow-x: auto;
-		border: 1px solid var(--border-color);
-		border-radius: var(--radius-lg);
-		background-color: var(--bg-secondary);
-	}
-
 	.users-table {
 		width: 100%;
 		border-collapse: collapse;
@@ -964,18 +950,6 @@
 
 	/* Responsive */
 	@media (max-width: 768px) {
-		.page-header {
-			flex-direction: column;
-			align-items: flex-start;
-			gap: var(--space-3);
-		}
-
-		.page-header-left {
-			flex-direction: column;
-			align-items: flex-start;
-			gap: var(--space-2);
-		}
-
 		.role-distribution {
 			flex-wrap: wrap;
 		}
@@ -984,14 +958,6 @@
 	@media (max-width: 480px) {
 		.users-page {
 			padding: var(--space-4) 0;
-		}
-
-		.page-header {
-			margin-bottom: var(--space-4);
-		}
-
-		.page-title {
-			font-size: var(--text-2xl);
 		}
 
 		.summary-meta {

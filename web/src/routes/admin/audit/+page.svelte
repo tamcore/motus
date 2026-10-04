@@ -159,7 +159,7 @@
 
 <div class="audit-page">
 	<div class="container">
-		<div class="page-header">
+		<div class="page-header page-header-stack">
 			<div class="page-header-left">
 				<h1 class="page-title">Audit Log</h1>
 				{#if !loading}
@@ -170,7 +170,7 @@
 		</div>
 
 		<!-- Filters -->
-		<div class="filters-bar">
+		<div class="filters-bar mb-6">
 			<div class="filter-group">
 				<label for="filterAction" class="filter-label">Action</label>
 				<select id="filterAction" bind:value={filterAction} on:change={handleFilterChange} class="select">
@@ -323,12 +323,6 @@
 		margin-bottom: var(--space-4);
 	}
 
-	.page-header-left {
-		display: flex;
-		align-items: baseline;
-		gap: var(--space-3);
-	}
-
 	.entry-count {
 		font-size: var(--text-sm);
 		color: var(--text-secondary);
@@ -339,16 +333,6 @@
 	}
 
 	/* Filters */
-	.filters-bar {
-		display: flex;
-		gap: var(--space-4);
-		margin-bottom: var(--space-6);
-		padding: var(--space-4);
-		background-color: var(--bg-secondary);
-		border: 1px solid var(--border-color);
-		border-radius: var(--radius-lg);
-	}
-
 	.filter-group {
 		display: flex;
 		flex-direction: column;
@@ -365,7 +349,6 @@
 
 	.select {
 		padding: var(--space-2) var(--space-3);
-		background-color: var(--bg-primary);
 		font-size: var(--text-sm);
 		min-width: 160px;
 	}
@@ -373,13 +356,6 @@
 	/* Empty state */
 
 	/* Table */
-	.table-wrapper {
-		overflow-x: auto;
-		border: 1px solid var(--border-color);
-		border-radius: var(--radius-lg);
-		background-color: var(--bg-secondary);
-	}
-
 	.audit-table {
 		width: 100%;
 		border-collapse: collapse;
@@ -562,18 +538,6 @@
 
 	/* Responsive */
 	@media (max-width: 768px) {
-		.page-header {
-			flex-direction: column;
-			align-items: flex-start;
-			gap: var(--space-3);
-		}
-
-		.page-header-left {
-			flex-direction: column;
-			align-items: flex-start;
-			gap: var(--space-2);
-		}
-
 		.audit-table th:nth-child(4),
 		.audit-table td:nth-child(4) {
 			display: none;

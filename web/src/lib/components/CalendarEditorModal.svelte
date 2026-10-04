@@ -773,20 +773,9 @@
 	}
 
 	.date-input {
-		padding: var(--space-2) var(--space-3);
 		background-color: var(--bg-tertiary);
-		border: 1px solid var(--border-color);
-		border-radius: var(--radius-md);
-		color: var(--text-primary);
-		font-size: var(--text-sm);
 		font-family: inherit;
 		width: 100%;
-	}
-
-	.date-input:focus {
-		outline: none;
-		border-color: var(--accent-primary);
-		box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
 	}
 
 	/* Color scheme for date input to match theme */

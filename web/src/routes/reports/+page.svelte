@@ -258,7 +258,7 @@
 			</div>
 		</div>
 
-		<div class="filters-bar">
+		<div class="filters-bar mb-6">
 			<div class="filter-group">
 				<label for="device-select" class="filter-label">Device <AllDevicesToggle on:change={reloadDevices} /></label>
 				{#if loading}
@@ -346,7 +346,7 @@
 			{#if trips.length > pageSize}
 				<p class="lazy-info">Showing {Math.min(visibleTripCount, trips.length)} of {trips.length} trips</p>
 			{/if}
-			<div class="table-wrapper">
+			<div class="table-scroll">
 				<table class="trips-table">
 					<thead><tr>
 						{#if $columnConfig.device}<th>Device</th>{/if}
@@ -406,7 +406,7 @@
 			{#if stops.length > pageSize}
 				<p class="lazy-info">Showing {Math.min(visibleStopCount, stops.length)} of {stops.length} stops</p>
 			{/if}
-			<div class="table-wrapper">
+			<div class="table-scroll">
 				<table class="trips-table">
 					<thead><tr>
 						<th>Device</th><th>Address</th><th>Arrival</th>
@@ -461,16 +461,6 @@
 		background-color: var(--bg-secondary); border: 1px solid var(--border-color);
 		border-radius: var(--radius-lg);
 	}
-	.filters-bar {
-		display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-4);
-		padding: var(--space-4); background-color: var(--bg-secondary);
-		border: 1px solid var(--border-color); border-radius: var(--radius-lg);
-		margin-bottom: var(--space-6);
-	}
-	.select {
-		background-color: var(--bg-primary);
-		min-width: 180px;
-	}
 	.tabs {
 		display: flex; gap: var(--space-1); margin-bottom: var(--space-6);
 		border-bottom: 1px solid var(--border-color);
@@ -524,7 +514,7 @@
 		accent-color: var(--accent-primary);
 	}
 
-	.table-wrapper { overflow-x: auto; }
+	.table-scroll { overflow-x: auto; }
 	.trips-table { width: 100%; border-collapse: collapse; }
 	.trips-table th, .trips-table td {
 		padding: var(--space-3) var(--space-4); text-align: left;
@@ -548,7 +538,7 @@
 	}
 	.stat-label { font-size: var(--text-sm); color: var(--text-secondary); margin-bottom: var(--space-2); }
 	.stat-value { font-size: var(--text-2xl); font-weight: var(--font-bold); color: var(--text-primary); }
-	.header-actions { display: flex; gap: var(--space-2); align-items: center; }
+	.header-actions { gap: var(--space-2); }
 	.charts-link {
 		display: inline-flex; align-items: center; gap: var(--space-2);
 		padding: var(--space-3) var(--space-4); background-color: var(--bg-secondary);
@@ -560,7 +550,6 @@
 	.address-cell {
 		max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 	}
-	.empty-hint { font-size: var(--text-sm); color: var(--text-tertiary); }
 	.trips-loading { padding: var(--space-4); }
 
 	/* Ongoing trip highlight */

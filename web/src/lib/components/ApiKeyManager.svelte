@@ -500,22 +500,12 @@
 	.date-input {
 		width: 100%;
 		padding: var(--space-3) var(--space-4);
-		background-color: var(--bg-primary);
-		border: 1px solid var(--border-color);
-		border-radius: var(--radius-md);
-		color: var(--text-primary);
 		font-size: var(--text-base);
 		transition: border-color var(--transition-fast);
 	}
 
 	.date-input:hover {
 		border-color: var(--border-hover);
-	}
-
-	.date-input:focus {
-		outline: none;
-		border-color: var(--accent-primary);
-		box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
 	}
 
 	/* Token display after creation */

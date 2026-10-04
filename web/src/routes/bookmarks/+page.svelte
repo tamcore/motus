@@ -192,7 +192,6 @@
 		border-color: var(--accent-primary);
 	}
 
-	.loading-state p,
 	.no-results {
 		color: var(--text-secondary);
 	}

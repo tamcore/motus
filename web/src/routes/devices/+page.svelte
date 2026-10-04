@@ -313,7 +313,7 @@
 
 <div class="devices-page">
 	<div class="container">
-		<div class="page-header">
+		<div class="page-header page-header-compact">
 			<h1 class="page-title">Devices</h1>
 			<Button variant="primary" on:click={openCreateModal}>Add Device</Button>
 		</div>
@@ -795,9 +795,6 @@
 
 	/* ==== DESKTOP TABLE VIEW ==== */
 	.table-wrapper {
-		overflow-x: auto;
-		border: 1px solid var(--border-color);
-		border-radius: var(--radius-lg);
 		background-color: var(--bg-primary);
 	}
 
@@ -1227,14 +1224,6 @@
 	@media (max-width: 480px) {
 		.devices-page {
 			padding: var(--space-4) 0;
-		}
-
-		.page-header {
-			margin-bottom: var(--space-4);
-		}
-
-		.page-title {
-			font-size: var(--text-2xl);
 		}
 
 		.toolbar {

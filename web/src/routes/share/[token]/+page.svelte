@@ -579,18 +579,6 @@
 		border: none !important;
 	}
 
-	/* Leaflet popup theming */
-	.map-container :global(.leaflet-popup-content-wrapper) {
-		background-color: var(--bg-secondary, #2d2d2d);
-		color: var(--text-primary, #e0e0e0);
-		border-radius: 8px;
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-	}
-
-	.map-container :global(.leaflet-popup-tip) {
-		background-color: var(--bg-secondary, #2d2d2d);
-	}
-
 	/* Connection indicator */
 	.ws-indicator {
 		position: absolute;

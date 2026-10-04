@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/tamcore/motus/internal/audit"
@@ -94,6 +95,16 @@ func TestNotificationRuleService_CreateValidation(t *testing.T) {
 		if _, err := svc.CreateForUser(t.Context(), user, in); !errors.Is(err, ErrInvalid) {
 			t.Errorf("%s: got %v, want ErrInvalid", name, err)
 		}
+	}
+}
+
+func TestNotificationRuleService_CreateChecksTemplateBeforeWebhookURL(t *testing.T) {
+	svc, _ := newRuleServiceWith()
+	in := webhookRuleInput()
+	in.Template, in.Config = "", nil
+	_, err := svc.CreateForUser(t.Context(), &model.User{ID: 1}, in)
+	if err == nil || !strings.Contains(err.Error(), "template is required") {
+		t.Fatalf("got %v, want template is required", err)
 	}
 }
 
@@ -197,6 +208,17 @@ func TestNotificationRuleService_AuditsAllMutations(t *testing.T) {
 	}
 	if err := svc.DeleteForUser(ctx, user, r.ID); err != nil {
 		t.Fatalf("delete: %v", err)
+	}
+
+	entries, _, err := logger.Query(ctx, audit.QueryParams{UserID: &user.ID, Action: audit.ActionNotifCreate})
+	if err != nil || len(entries) != 1 {
+		t.Fatalf("create entries: %d (err %v), want 1", len(entries), err)
+	}
+	if rt := entries[0].ResourceType; rt == nil || *rt != audit.ResourceNotification {
+		t.Errorf("resourceType = %v, want %q", rt, audit.ResourceNotification)
+	}
+	if name := entries[0].Details["name"]; name != "Home" {
+		t.Errorf("details name = %v, want Home", name)
 	}
 
 	for _, action := range []string{audit.ActionNotifCreate, audit.ActionNotifUpdate, audit.ActionNotifDelete} {

@@ -639,15 +639,18 @@ func handleCreateNotificationRule(ctx context.Context, req mcp.CallToolRequest, 
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
-	cfg := map[string]any{}
-	if wu := req.GetString("webhook_url", ""); wu != "" {
-		cfg["webhookUrl"] = wu
+	if req.GetString("channel", "") != model.NotificationChannelWebhook {
+		return mcp.NewToolResultError("unsupported channel (supported: webhook)"), nil
+	}
+	webhookURL := req.GetString("webhook_url", "")
+	if webhookURL == "" {
+		return mcp.NewToolResultError("webhook_url is required for webhook channel"), nil
 	}
 	rule, err := deps.NotificationRules.CreateForUser(ctx, user, services.NotificationRuleInput{
 		Name:       req.GetString("name", ""),
 		EventTypes: splitTrim(req.GetString("event_types", "")),
-		Channel:    req.GetString("channel", ""),
-		Config:     cfg,
+		Channel:    model.NotificationChannelWebhook,
+		Config:     map[string]any{"webhookUrl": webhookURL},
 		Template:   req.GetString("template", ""),
 		Enabled:    req.GetString("enabled", "") != "false",
 	})

@@ -62,12 +62,12 @@ func validateRuleInput(in NotificationRuleInput, isCreate bool) (string, error) 
 		}
 		return "", model.ValidateCommandEventTypes(cmdType, in.EventTypes)
 	case model.NotificationChannelWebhook:
+		if isCreate && in.Template == "" {
+			return "", errors.New("template is required")
+		}
 		webhookURL, _ := in.Config["webhookUrl"].(string)
 		if err := notification.ValidateWebhookURL(webhookURL); err != nil {
 			return "", fmt.Errorf("invalid webhook URL: %v", err)
-		}
-		if isCreate && in.Template == "" {
-			return "", errors.New("template is required")
 		}
 		return in.Template, nil
 	default:

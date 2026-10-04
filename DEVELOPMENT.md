@@ -43,33 +43,7 @@ Frontend dev server: http://localhost:5173 (proxies API to :8080).
 
 ## Project Structure
 
-```
-motus/
-├── cmd/motus/              Main binary (serve, import, replay, user, device, db-migrate)
-├── internal/
-│   ├── api/                HTTP handlers, middleware, router
-│   ├── audit/              Audit logging
-│   ├── config/             Configuration (all env var loading)
-│   ├── demo/               Demo mode GPS simulation
-│   ├── model/              Data models
-│   ├── notification/       Webhook sender, template engine
-│   ├── protocol/           GPS protocol decoders (H02, WATCH)
-│   ├── services/           Business logic (events, timeouts)
-│   ├── storage/            Database repositories
-│   ├── version/            Build version info
-│   └── websocket/          WebSocket hub
-├── web/
-│   ├── src/
-│   │   ├── lib/            Components, API client, stores, utilities
-│   │   └── routes/         SvelteKit pages
-│   └── tests/
-│       ├── e2e/            Playwright E2E tests
-│       ├── fixtures/       Test fixtures (auth, test data)
-│       └── page-objects/   Page object models
-├── migrations/             Database migrations (goose, embedded via go:embed)
-├── charts/motus/           Helm chart for Kubernetes
-└── docs/                   Additional documentation
-```
+See [AGENTS.md](AGENTS.md#architecture) for the code layout and [database notes](AGENTS.md#database).
 
 ## Testing
 
@@ -110,32 +84,3 @@ Run `make help` to list all targets.
 
 [`docs/openapi.yaml`](docs/openapi.yaml) is the source of truth. A running server serves
 interactive docs at `/api/docs`. Live updates stream over the WebSocket at `/api/socket`.
-
-## Data Model
-
-### Tables
-
-| Table | Description |
-|-------|-------------|
-| `users` | User accounts with roles |
-| `devices` | GPS devices with status and speed limits |
-| `positions` | GPS positions (partitioned by month) |
-| `sessions` | Authentication sessions |
-| `geofences` | Geofence polygons (PostGIS GEOMETRY) |
-| `events` | Geofence/device/overspeed/motion/idle events |
-| `notification_rules` | Notification configurations |
-| `notification_log` | Delivery tracking |
-| `audit_log` | Admin and user action audit trail |
-| `api_keys` | API key management |
-
-### Relationships
-
-- `user_devices` — many-to-many user ↔ device assignments
-- `user_geofences` — many-to-many user ↔ geofence associations
-
-### Notes
-
-- Positions are partitioned by month (`00022_partition_positions.sql`) for efficient retention
-- The `users` table has **no** `updated_at` column
-- Migrations use [goose](https://github.com/pressly/goose) and are embedded via `//go:embed`
-- PostGIS is required for geofence geometry columns

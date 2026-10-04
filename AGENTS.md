@@ -216,19 +216,7 @@ the reset logic must receive the matching values.
 The AI chat feature exposes an in-process MCP tool registry (via `mark3labs/mcp-go`) invoked
 by a streaming chat orchestrator that speaks to any OpenAI-compatible Chat Completions endpoint.
 
-**Env vars** (all optional; required fields marked):
-
-| Variable | Default | Notes |
-|---|---|---|
-| `MOTUS_AI_ENABLED` | `false` | Set to `true` to enable `/api/chat` and the Chat nav link |
-| `MOTUS_AI_BASE_URL` | `https://api.openai.com/v1` | Any OpenAI-compatible endpoint |
-| `MOTUS_AI_API_KEY` | *(required when enabled)* | Prefer a Kubernetes Secret / `apiKeyRef` in production |
-| `MOTUS_AI_MODEL` | `gpt-4o-mini` | Model name understood by the target endpoint |
-| `MOTUS_AI_MAX_TOKENS` | `4096` | Max completion tokens per request |
-| `MOTUS_AI_TEMPERATURE` | `0.2` | Sampling temperature |
-| `MOTUS_AI_TIMEOUT` | `90s` | Total wall-clock timeout per `POST /api/chat` request |
-| `MOTUS_AI_MAX_TOOL_LOOPS` | `8` | Max tool-call iterations before the loop is cut off |
-| `MOTUS_AI_SYSTEM_PROMPT` | *(built-in)* | Override the default system prompt |
+**Env vars:** see [docs/ai-assistant.md](docs/ai-assistant.md#configuration).
 
 **Architecture:**
 - `POST /api/chat` → `internal/ai/chat.Service.Stream` → `internal/ai/mcp` (MCP tool dispatch)
@@ -266,19 +254,6 @@ Deploys to kube-context `<KUBE_CONTEXT>`, namespace `<KUBE_NAMESPACE>`. Live at 
 
 See `AGENTS.md.local` for actual values (not tracked in git).
 
-### Running tests
-
-```bash
-# Go unit tests (with race detector)
-go test -race ./...
-
-# E2E tests (requires running stack)
-cd web && npx playwright test
-
-# Lint everything
-make lint
-```
-
 ### TDD Methodology (100% Test-Driven)
 
 All changes MUST follow strict TDD: **write tests first, then implement**.
@@ -294,7 +269,7 @@ All changes MUST follow strict TDD: **write tests first, then implement**.
 
 - **Unit tests**: stdlib `testing` + `httptest`, colocated as `*_test.go`.
 - **Integration tests**: testcontainers (`postgis/postgis:16-3.4`). Skipped with `-short`.
-- **Test utilities**: `internal/storage/repository/testutil/` — `SetupTestDB`, `CleanTables`, `Cleanup`.
+- **Test utilities**: `internal/storage/repository/testutil/` — `SetupTestDB`, `CleanTables`, `Cleanup`, `CreateUser`, `CreateDevice`.
 - **TestMain pattern**: Every package with integration tests has a `main_test.go` calling `testutil.Cleanup()`.
 - **Mock pattern**: Handler tests use real repos against testcontainers DB. Mock only external services.
 - **HTTP tests**: Use `httptest.NewRequest` + `httptest.NewRecorder` with `api.ContextWithUser` for auth.
@@ -397,20 +372,8 @@ avoid cascade failures from the auth setup's login request.
 
 ### Fetch mocking in E2E tests
 **`page.route()` does NOT reliably intercept SvelteKit client-side fetches.** Use
-`page.addInitScript()` to monkeypatch `window.fetch` instead. This injects the mock
-before SvelteKit hydration, guaranteeing interception. Pattern:
-```typescript
-await page.addInitScript(() => {
-  const origFetch = window.fetch;
-  window.fetch = async function (input, init) {
-    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-    if (url.includes('/api/target-endpoint')) {
-      return new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } });
-    }
-    return origFetch.call(this, input, init);
-  } as typeof fetch;
-});
-```
+`mockFetch(page, routes)` from `web/tests/helpers/mock-fetch.ts`: it patches `window.fetch`
+via `page.addInitScript()` before SvelteKit hydration. Call it before `page.goto()`/`reload()`.
 
 ### PostGIS healthcheck timing
 The PostGIS container has a two-phase startup: init scripts run, then PostgreSQL restarts.

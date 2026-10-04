@@ -1,4 +1,4 @@
-import { writable } from "svelte/store";
+import { get, writable } from "svelte/store";
 import { streamChat, clearHistory } from "$lib/api/chat";
 
 export interface DisplayMessage {
@@ -22,14 +22,12 @@ export async function sendMessage(userText: string): Promise<void> {
   chatError.set(null);
   chatLoading.set(true);
 
-  chatMessages.update((msgs) => [...msgs, { role: "user", content: userText }]);
-
-  const assistantIdx: number = await new Promise((resolve) => {
-    chatMessages.update((msgs) => {
-      resolve(msgs.length);
-      return [...msgs, { role: "assistant", content: "" }];
-    });
-  });
+  chatMessages.update((msgs) => [
+    ...msgs,
+    { role: "user", content: userText },
+    { role: "assistant", content: "" },
+  ]);
+  const assistantIdx = get(chatMessages).length - 1;
 
   const patchAssistant = (patch: (msg: DisplayMessage) => DisplayMessage) =>
     chatMessages.update((msgs) => msgs.map((m, i) => (i === assistantIdx ? patch(m) : m)));

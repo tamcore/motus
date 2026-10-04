@@ -1,6 +1,37 @@
 import type { NotificationConfigCommand } from "$lib/types/api";
-import { EVENT_TYPES } from "$lib/stores/notifications";
 import { buildCommandAttributes, COMMAND_TYPE_LABELS, type CommandFormValues, formatInterval } from "./commands";
+
+export const EVENT_TYPES = [
+  { value: "geofenceEnter", label: "Geofence Enter" },
+  { value: "geofenceExit", label: "Geofence Exit" },
+  { value: "deviceOnline", label: "Device Online" },
+  { value: "deviceOffline", label: "Device Offline" },
+  { value: "motion", label: "Motion Started" },
+  { value: "deviceIdle", label: "Device Idle" },
+  { value: "ignitionOn", label: "Ignition On" },
+  { value: "ignitionOff", label: "Ignition Off" },
+  { value: "alarm", label: "Alarm (SOS / Power Cut)" },
+  { value: "tripCompleted", label: "Trip Completed" },
+];
+
+export const CHANNELS = [
+  { value: "webhook", label: "Webhook" },
+  { value: "command", label: "Device Command" },
+];
+
+export const TEMPLATE_VARIABLES = [
+  "{{device.id}}",
+  "{{device.name}}",
+  "{{device.uniqueId}}",
+  "{{event.type}}",
+  "{{event.timestamp}}",
+  "{{position.latitude}}",
+  "{{position.longitude}}",
+  "{{position.speed}}",
+];
+
+export const DEFAULT_TEMPLATE =
+  '{"device": "{{device.name}}", "event": "{{event.type}}"}';
 
 /**
  * Command types a notification rule may send automatically, in display

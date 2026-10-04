@@ -8,8 +8,7 @@
 		BOOKMARK_NAME_MAX,
 		bookmarkOriginalFromRange,
 		buildBookmarkPayload,
-		charCount,
-		type BookmarkRangeOriginal
+		charCount
 	} from '$lib/utils/trail-bookmarks';
 
 	export let open = false;
@@ -30,7 +29,7 @@
 	let toDate = '';
 	let toTime = '';
 	// Exact boundaries the form was prefilled with; kept when left unchanged.
-	let original: BookmarkRangeOriginal | null = null;
+	let original: Pick<TrailBookmark, 'from' | 'to'> | null = null;
 	let error = '';
 	let saving = false;
 

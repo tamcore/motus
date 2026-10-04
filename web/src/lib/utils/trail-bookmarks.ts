@@ -58,29 +58,17 @@ export function bookmarkDuration(b: Pick<TrailBookmark, "from" | "to">): string 
 
 /** True when `range` is exactly the bookmark's range (e.g. to highlight it). */
 export function bookmarkMatchesRange(b: Pick<TrailBookmark, "from" | "to">, range: TrailRange): boolean {
-  if (range.preset !== "custom") return false;
-  const own = bookmarkToTrailRange(b);
   return (
-    own.preset === "custom" &&
-    new Date(range.from).getTime() === new Date(own.from).getTime() &&
-    new Date(range.to).getTime() === new Date(own.to).getTime()
+    range.preset === "custom" &&
+    new Date(range.from).getTime() === new Date(b.from).getTime() &&
+    new Date(range.to).getTime() === new Date(b.to).getTime()
   );
 }
 
-/** The exact boundaries a bookmark form was prefilled with. */
-export interface BookmarkRangeOriginal {
-  from: string;
-  to: string;
-}
+type BookmarkRange = Pick<TrailBookmark, "from" | "to">;
 
-/**
- * Freezes a range to absolute ISO boundaries (relative presets end at `now`),
- * since a bookmark always stores an absolute window.
- */
-export function bookmarkOriginalFromRange(
-  range: TrailRange,
-  now: Date = new Date(),
-): BookmarkRangeOriginal {
+/** Absolute ISO boundaries of a range; relative presets end at `now`. */
+export function bookmarkOriginalFromRange(range: TrailRange, now: Date = new Date()): BookmarkRange {
   const { from, to } = resolveTrailRange(range, now);
   return { from: from.toISOString(), to: to.toISOString() };
 }
@@ -105,7 +93,7 @@ const ANGLE_BRACKETS = /[<>]/;
  */
 export function buildBookmarkPayload(
   input: BookmarkFormInput,
-  original?: BookmarkRangeOriginal | null,
+  original?: BookmarkRange | null,
 ): BookmarkPayloadResult {
   const name = input.name.trim();
   const description = input.description.trim();

@@ -45,7 +45,6 @@ export function formatRelative(date: Date): string {
   const hours = Math.floor(minutes / 60);
   const days = Math.floor(hours / 24);
 
-  if (seconds < 0) return "just now";
   if (seconds < 60) return "just now";
   if (minutes < 60) return `${minutes} minute${minutes > 1 ? "s" : ""} ago`;
   if (hours < 24) return `${hours} hour${hours > 1 ? "s" : ""} ago`;
@@ -53,70 +52,36 @@ export function formatRelative(date: Date): string {
   return date.toLocaleDateString();
 }
 
-/**
- * Format speed according to user unit preference.
- * Input speed is always in km/h.
- */
+/** Input speed is always in km/h. */
 export function formatSpeed(
   kmh: number | undefined | null,
   units: UserSettings["units"] = get(settings).units,
 ): string {
   if (kmh === undefined || kmh === null) return "0 km/h";
-
-  if (units === "imperial") {
-    const mph = kmh * KM_TO_MI;
-    return `${mph.toFixed(1)} mph`;
-  }
-
-  return `${kmh.toFixed(1)} km/h`;
+  return units === "imperial" ? `${(kmh * KM_TO_MI).toFixed(1)} mph` : `${kmh.toFixed(1)} km/h`;
 }
 
-/**
- * Format distance according to user unit preference.
- * Input distance is always in km.
- */
+const isImperial = () => get(settings).units === "imperial";
+const distanceUnit = () => (isImperial() ? "mi" : "km");
+
+/** Converts km to the user's distance unit. */
+export function mileageToDisplay(km: number): number {
+  return isImperial() ? km * KM_TO_MI : km;
+}
+
+/** Converts the user's distance unit back to km. */
+export function mileageFromDisplay(value: number): number {
+  return isImperial() ? value / KM_TO_MI : value;
+}
+
 export function formatDistance(km: number): string {
-  const s = get(settings);
-
-  if (s.units === "imperial") {
-    const miles = km * KM_TO_MI;
-    return `${miles.toFixed(2)} mi`;
-  }
-
-  return `${km.toFixed(2)} km`;
+  return `${mileageToDisplay(km).toFixed(2)} ${distanceUnit()}`;
 }
 
-/**
- * Format mileage (odometer) according to user unit preference.
- * Input is always in km. Displays whole numbers with locale grouping.
- */
+/** Odometer in whole units with locale grouping. */
 export function formatMileage(km: number | undefined | null): string {
   if (km === undefined || km === null) return "—";
-
-  const s = get(settings);
-
-  if (s.units === "imperial") {
-    const miles = km * KM_TO_MI;
-    return `${Math.round(miles).toLocaleString()} mi`;
-  }
-
-  return `${Math.round(km).toLocaleString()} km`;
-}
-
-/**
- * Convert mileage from km to the user's display unit.
- */
-export function mileageToDisplay(km: number): number {
-  const s = get(settings);
-  return s.units === "imperial" ? km * KM_TO_MI : km;
-}
-
-/**
- * Convert mileage from the user's display unit back to km.
- */
-export function mileageFromDisplay(value: number): number {
-  const s = get(settings);
-  return s.units === "imperial" ? value / KM_TO_MI : value;
+  return `${Math.round(mileageToDisplay(km)).toLocaleString()} ${distanceUnit()}`;
 }
 
 /**

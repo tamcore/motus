@@ -8,12 +8,6 @@
 	import Modal from '$lib/components/Modal.svelte';
 	import AllDevicesToggle from '$lib/components/AllDevicesToggle.svelte';
 	import ReportingIntervalPicker from '$lib/components/ReportingIntervalPicker.svelte';
-	import {
-		EVENT_TYPES,
-		CHANNELS,
-		TEMPLATE_VARIABLES,
-		DEFAULT_TEMPLATE
-	} from '$lib/stores/notifications';
 	import type {
 		Geofence,
 		NotificationRule,
@@ -23,6 +17,10 @@
 	} from '$lib/types/api';
 	import { COMMAND_TYPE_LABELS, DEFAULT_REPORTING_INTERVAL_SECONDS } from '$lib/utils/commands';
 	import {
+		EVENT_TYPES,
+		CHANNELS,
+		TEMPLATE_VARIABLES,
+		DEFAULT_TEMPLATE,
 		NOTIFICATION_COMMAND_TYPES,
 		buildCommandConfig,
 		commandEventConflict,

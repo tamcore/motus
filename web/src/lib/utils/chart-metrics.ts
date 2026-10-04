@@ -111,38 +111,21 @@ export const METRICS: MetricDefinition[] = [
   },
 ];
 
-/**
- * Look up a metric by its id.
- */
-function getMetricById(id: string): MetricDefinition | undefined {
-  return METRICS.find((m) => m.id === id);
+/** Known metrics for the ids, in id order. */
+function selectedMetrics(ids: string[]): MetricDefinition[] {
+  return ids.flatMap((id) => METRICS.find((m) => m.id === id) ?? []);
 }
 
-/**
- * Check whether a metric has meaningful (non-null, non-zero) data in the given positions.
- * Returns false for unknown metric ids or empty positions.
- */
-function hasMetricData(
-  positions: Position[],
-  metricId: string,
-): boolean {
-  if (positions.length === 0) return false;
-  const metric = getMetricById(metricId);
-  if (!metric) return false;
-  return positions.some((pos, idx) => {
-    const val = metric.extract(pos, idx, positions);
-    return val !== null && val !== 0;
-  });
-}
-
-/**
- * Filter METRICS to only those with meaningful data in the given positions.
- */
+/** Metrics with meaningful (non-null, non-zero) data in the positions. */
 export function getAvailableMetrics(
   positions: Position[],
 ): MetricDefinition[] {
-  if (positions.length === 0) return [];
-  return METRICS.filter((m) => hasMetricData(positions, m.id));
+  return METRICS.filter((m) =>
+    positions.some((pos, idx) => {
+      const val = m.extract(pos, idx, positions);
+      return val !== null && val !== 0;
+    }),
+  );
 }
 
 /**
@@ -154,29 +137,18 @@ export function buildDatasets(
 ): { labels: string[]; datasets: LineDataset[] } {
   const labels = positions.map((p) => p.fixTime);
 
-  const datasets: LineDataset[] = [];
-
-  for (const metricId of selectedMetricIds) {
-    const metric = getMetricById(metricId);
-    if (!metric) continue;
-
-    const data = positions.map((pos, idx) =>
-      metric.extract(pos, idx, positions),
-    );
-
-    datasets.push({
-      label: `${metric.label} (${metric.unit})`,
-      data,
-      borderColor: metric.color,
-      backgroundColor: `${metric.color}1a`,
-      yAxisID: metric.axisId,
-      tension: 0.3,
-      pointRadius: positions.length > 200 ? 0 : 2,
-      pointHoverRadius: 4,
-      borderWidth: 2,
-      fill: false,
-    });
-  }
+  const datasets = selectedMetrics(selectedMetricIds).map((metric): LineDataset => ({
+    label: `${metric.label} (${metric.unit})`,
+    data: positions.map((pos, idx) => metric.extract(pos, idx, positions)),
+    borderColor: metric.color,
+    backgroundColor: `${metric.color}1a`,
+    yAxisID: metric.axisId,
+    tension: 0.3,
+    pointRadius: positions.length > 200 ? 0 : 2,
+    pointHoverRadius: 4,
+    borderWidth: 2,
+    fill: false,
+  }));
 
   return { labels, datasets };
 }
@@ -211,20 +183,9 @@ export function buildScales(
     },
   };
 
-  // Collect unique axes needed
-  const seenAxes = new Set<string>();
-  const axisMetrics: { axisId: string; unit: string; label: string }[] = [];
-
-  for (const metricId of selectedMetricIds) {
-    const metric = getMetricById(metricId);
-    if (!metric || seenAxes.has(metric.axisId)) continue;
-    seenAxes.add(metric.axisId);
-    axisMetrics.push({
-      axisId: metric.axisId,
-      unit: metric.unit,
-      label: metric.label,
-    });
-  }
+  const axisMetrics = selectedMetrics(selectedMetricIds).filter(
+    (m, i, all) => all.findIndex((o) => o.axisId === m.axisId) === i,
+  );
 
   // Alternate axes left/right
   axisMetrics.forEach((am, idx) => {
@@ -257,9 +218,7 @@ export function exportChartDataToCSV(
   selectedMetricIds: string[],
   deviceName: string,
 ): void {
-  const metrics = selectedMetricIds
-    .map(getMetricById)
-    .filter((m): m is MetricDefinition => m !== undefined);
+  const metrics = selectedMetrics(selectedMetricIds);
 
   const headers = ["Time", ...metrics.map((m) => `${m.label} (${m.unit})`)];
 

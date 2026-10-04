@@ -11,6 +11,7 @@ import (
 	"github.com/tamcore/motus/internal/demo"
 	"github.com/tamcore/motus/internal/storage/repository"
 	"github.com/tamcore/motus/internal/storage/repository/testutil"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func setupPool(t *testing.T) *pgxpool.Pool {
@@ -668,5 +669,24 @@ func assertRowCount(t *testing.T, pool *pgxpool.Pool, query string, want int, ar
 	}
 	if count != want {
 		t.Errorf("row count = %d, want %d\nquery: %s", count, want, query)
+	}
+}
+
+func TestReset_DemoAccountsKeepShortPasswords(t *testing.T) {
+	pool := setupPool(t)
+	ctx := context.Background()
+
+	if _, err := demo.Reset(ctx, pool, demo.DefaultAccounts, demo.DefaultDeviceIMEIs); err != nil {
+		t.Fatalf("Reset() returned error: %v", err)
+	}
+
+	for email, password := range map[string]string{"admin@motus.local": "admin", "demo@motus.local": "demo"} {
+		var hash string
+		if err := pool.QueryRow(ctx, "SELECT password_hash FROM users WHERE email = $1", email).Scan(&hash); err != nil {
+			t.Fatalf("load %s: %v", email, err)
+		}
+		if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)); err != nil {
+			t.Errorf("%s: password %q rejected: %v", email, password, err)
+		}
 	}
 }

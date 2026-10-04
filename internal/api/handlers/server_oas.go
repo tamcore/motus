@@ -76,9 +76,5 @@ func (h *Handler) AdminListPositions(ctx context.Context) (oas.AdminListPosition
 		return &oas.AdminListPositionsForbidden{Error: "failed to list positions"}, nil
 	}
 
-	result := make(oas.AdminListPositionsOKApplicationJSON, 0, len(positions))
-	for _, p := range positions {
-		result = append(result, positionToOAS(p))
-	}
-	return &result, nil
+	return new(mapSlice[oas.AdminListPositionsOKApplicationJSON](positions, positionToOAS)), nil
 }

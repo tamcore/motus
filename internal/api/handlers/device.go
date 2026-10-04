@@ -32,16 +32,9 @@ func (h *Handler) ListDevices(ctx context.Context) (oas.ListDevicesRes, error) {
 	if err != nil {
 		return &oas.Error{Error: "failed to list devices"}, nil
 	}
-	if devices == nil {
-		devices = []*model.Device{}
-	}
 	prefix := effectivePrefixCtx(ctx, h.cfg.UniqueIDPrefix)
 	model.ApplyUniqueIDPrefix(devices, prefix)
-	result := make(oas.ListDevicesOKApplicationJSON, len(devices))
-	for i, d := range devices {
-		result[i] = deviceToOAS(d)
-	}
-	return &result, nil
+	return new(mapSlice[oas.ListDevicesOKApplicationJSON](devices, deviceToOAS)), nil
 }
 
 // GetDevice returns a single device by ID.
@@ -172,14 +165,7 @@ func (h *Handler) AdminListUserDevices(ctx context.Context, params oas.AdminList
 	if err != nil {
 		return &oas.AdminListUserDevicesNotFound{Error: "user or devices not found"}, nil
 	}
-	if devices == nil {
-		devices = []*model.Device{}
-	}
-	result := make(oas.AdminListUserDevicesOKApplicationJSON, len(devices))
-	for i, d := range devices {
-		result[i] = deviceToOAS(d)
-	}
-	return &result, nil
+	return new(mapSlice[oas.AdminListUserDevicesOKApplicationJSON](devices, deviceToOAS)), nil
 }
 
 // AdminAssignDevice assigns a device to a user (admin only).

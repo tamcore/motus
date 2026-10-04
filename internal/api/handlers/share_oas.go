@@ -27,11 +27,7 @@ func (h *Handler) ListShares(ctx context.Context, params oas.ListSharesParams) (
 		return &oas.ListSharesUnauthorized{Error: "failed to list shares"}, nil
 	}
 
-	result := make(oas.ListSharesOKApplicationJSON, 0, len(shares))
-	for _, s := range shares {
-		result = append(result, deviceShareToOAS(s))
-	}
-	return &result, nil
+	return new(mapSlice[oas.ListSharesOKApplicationJSON](shares, deviceShareToOAS)), nil
 }
 
 // CreateShare creates a new shareable link for a device.

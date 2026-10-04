@@ -98,11 +98,7 @@ func (h *Handler) ListCommands(ctx context.Context, params oas.ListCommandsParam
 	if err != nil {
 		return &oas.Error{Error: "failed to list commands"}, nil
 	}
-	result := make(oas.ListCommandsOKApplicationJSON, len(commands))
-	for i, c := range commands {
-		result[i] = commandToOAS(c)
-	}
-	return &result, nil
+	return new(mapSlice[oas.ListCommandsOKApplicationJSON](commands, commandToOAS)), nil
 }
 
 // GetCommandTypes implements oas.Handler for GET /api/commands/types.

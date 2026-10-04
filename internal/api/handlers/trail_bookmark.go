@@ -95,11 +95,7 @@ func (h *Handler) ListTrailBookmarks(ctx context.Context, params oas.ListTrailBo
 	if err != nil {
 		return nil, bookmarkStorageError("list", err)
 	}
-	result := make(oas.ListTrailBookmarksOKApplicationJSON, len(bookmarks))
-	for i, b := range bookmarks {
-		result[i] = trailBookmarkToOAS(b)
-	}
-	return &result, nil
+	return new(mapSlice[oas.ListTrailBookmarksOKApplicationJSON](bookmarks, trailBookmarkToOAS)), nil
 }
 
 // CreateTrailBookmark saves a device trail range for the caller.

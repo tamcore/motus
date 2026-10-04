@@ -122,7 +122,7 @@ func (h *Handler) PasskeyRegisterFinish(ctx context.Context, req oas.WebAuthnAtt
 	h.cfg.AuditLogger.Log(ctx, &user.ID, audit.ActionUserUpdate, audit.ResourceUser, &user.ID,
 		map[string]any{"passkeyRegistered": name}, "", "")
 
-	return passkeyToOAS(mc), nil
+	return new(passkeyToOAS(mc)), nil
 }
 
 // ---------------------------------------------------------------------------
@@ -265,11 +265,7 @@ func (h *Handler) ListPasskeys(ctx context.Context) (oas.ListPasskeysRes, error)
 	if err != nil {
 		return &oas.Error{Error: "failed to list passkeys"}, nil
 	}
-	result := make(oas.ListPasskeysOKApplicationJSON, 0, len(creds))
-	for _, c := range creds {
-		result = append(result, *passkeyToOAS(c))
-	}
-	return &result, nil
+	return new(mapSlice[oas.ListPasskeysOKApplicationJSON](creds, passkeyToOAS)), nil
 }
 
 // DeletePasskey removes one of the authenticated user's passkeys.
@@ -326,18 +322,13 @@ func (h *Handler) userWithCredentials(ctx context.Context, userID int64) (*webau
 }
 
 // passkeyToOAS converts a stored credential to its API representation.
-func passkeyToOAS(c *model.PasskeyCredential) *oas.PasskeyCredentialInfo {
-	info := &oas.PasskeyCredentialInfo{
-		ID:        c.ID,
-		Name:      c.Name,
-		CreatedAt: c.CreatedAt,
+func passkeyToOAS(c *model.PasskeyCredential) oas.PasskeyCredentialInfo {
+	return oas.PasskeyCredentialInfo{
+		ID:         c.ID,
+		Name:       c.Name,
+		CreatedAt:  c.CreatedAt,
+		LastUsedAt: ptrToOptTime(c.LastUsedAt),
 	}
-	if c.LastUsedAt != nil {
-		info.LastUsedAt = oas.NewOptNilDateTime(*c.LastUsedAt)
-	} else {
-		info.LastUsedAt = oas.OptNilDateTime{Null: true, Set: true}
-	}
-	return info
 }
 
 // localPart returns the part of an email before the '@'.

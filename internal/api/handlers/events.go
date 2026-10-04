@@ -33,11 +33,7 @@ func (h *Handler) listEvents(ctx context.Context, deviceID oas.OptInt64, eventTy
 	if err != nil {
 		return nil, &oas.Error{Error: "failed to get events"}
 	}
-	result := make([]oas.Event, len(events))
-	for i, e := range events {
-		result[i] = eventToOAS(e)
-	}
-	return result, nil
+	return mapSlice[[]oas.Event](events, eventToOAS), nil
 }
 
 // ListEvents implements oas.Handler for GET /api/events.

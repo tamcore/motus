@@ -11,6 +11,19 @@ import (
 	"github.com/tamcore/motus/internal/model"
 )
 
+func TestMapSlice(t *testing.T) {
+	got := mapSlice[oas.GetCommandTypesOKApplicationJSON]([]string{"a", "b"}, func(s string) oas.CommandType {
+		return oas.CommandType{Type: s}
+	})
+	if len(got) != 2 || got[0].Type != "a" || got[1].Type != "b" {
+		t.Errorf("got %v", got)
+	}
+	empty := mapSlice[oas.GetCommandTypesOKApplicationJSON](nil, func(s string) oas.CommandType { return oas.CommandType{} })
+	if empty == nil || len(empty) != 0 {
+		t.Errorf("nil input must yield a non-nil empty slice, got %#v", empty)
+	}
+}
+
 func TestRawToAttrs(t *testing.T) {
 	raw := map[string]jx.Raw{
 		"foo": jx.Raw(`"bar"`),
@@ -284,14 +297,9 @@ func TestApiKeyToOAS(t *testing.T) {
 		Permissions: "full",
 		CreatedAt:   now,
 	}
-	withToken := apiKeyToOAS(k, true)
-	if !withToken.Token.Set || withToken.Token.Value != "secret-token" {
-		t.Error("token should be included when includeToken=true")
-	}
-
-	withoutToken := apiKeyToOAS(k, false)
+	withoutToken := apiKeyToOAS(k)
 	if withoutToken.Token.Set {
-		t.Error("token should not be included when includeToken=false")
+		t.Error("token must not be included")
 	}
 	if withoutToken.Permissions != oas.ApiKeyPermissionsFull {
 		t.Errorf("Permissions = %v, want full", withoutToken.Permissions)

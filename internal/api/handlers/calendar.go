@@ -9,7 +9,6 @@ import (
 	oas "github.com/tamcore/motus/internal/api/oas"
 	"github.com/tamcore/motus/internal/audit"
 	"github.com/tamcore/motus/internal/calendar"
-	"github.com/tamcore/motus/internal/model"
 	"github.com/tamcore/motus/internal/services"
 )
 
@@ -25,14 +24,7 @@ func (h *Handler) ListCalendars(ctx context.Context) (oas.ListCalendarsRes, erro
 	if err != nil {
 		return &oas.Error{Error: "failed to list calendars"}, nil
 	}
-	if calendars == nil {
-		calendars = []*model.Calendar{}
-	}
-	result := make(oas.ListCalendarsOKApplicationJSON, len(calendars))
-	for i, c := range calendars {
-		result[i] = calendarToOAS(c)
-	}
-	return &result, nil
+	return new(mapSlice[oas.ListCalendarsOKApplicationJSON](calendars, calendarToOAS)), nil
 }
 
 // CreateCalendar adds a new calendar for the authenticated user.
@@ -124,12 +116,5 @@ func (h *Handler) AdminListCalendars(ctx context.Context) (oas.AdminListCalendar
 	if err != nil {
 		return &oas.AdminListCalendarsForbidden{Error: "failed to list calendars"}, nil
 	}
-	if calendars == nil {
-		calendars = []*model.Calendar{}
-	}
-	result := make(oas.AdminListCalendarsOKApplicationJSON, len(calendars))
-	for i, c := range calendars {
-		result[i] = calendarToOAS(c)
-	}
-	return &result, nil
+	return new(mapSlice[oas.AdminListCalendarsOKApplicationJSON](calendars, calendarToOAS)), nil
 }

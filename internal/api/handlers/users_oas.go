@@ -240,9 +240,5 @@ func (h *Handler) AdminListUserKeys(ctx context.Context, params oas.AdminListUse
 		return &oas.AdminListUserKeysForbidden{Error: "failed to list API keys"}, nil
 	}
 
-	result := make(oas.AdminListUserKeysOKApplicationJSON, 0, len(keys))
-	for _, k := range keys {
-		result = append(result, apiKeyToOAS(k, false))
-	}
-	return &result, nil
+	return new(mapSlice[oas.AdminListUserKeysOKApplicationJSON](keys, apiKeyToOAS)), nil
 }

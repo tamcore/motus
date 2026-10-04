@@ -90,14 +90,7 @@ func (h *Handler) ListNotifications(ctx context.Context) (oas.ListNotificationsR
 	if err != nil {
 		return &oas.Error{Error: "failed to list notification rules"}, nil
 	}
-	if rules == nil {
-		rules = []*model.NotificationRule{}
-	}
-	result := make(oas.ListNotificationsOKApplicationJSON, len(rules))
-	for i, r := range rules {
-		result[i] = notificationRuleToOAS(r)
-	}
-	return &result, nil
+	return new(mapSlice[oas.ListNotificationsOKApplicationJSON](rules, notificationRuleToOAS)), nil
 }
 
 // CreateNotification adds a new notification rule for the authenticated user.
@@ -173,14 +166,7 @@ func (h *Handler) NotificationLogs(ctx context.Context, params oas.NotificationL
 	if err != nil {
 		return &oas.NotificationLogsNotFound{Error: "failed to get notification logs"}, nil
 	}
-	if logs == nil {
-		logs = []*model.NotificationLog{}
-	}
-	result := make(oas.NotificationLogsOKApplicationJSON, len(logs))
-	for i, l := range logs {
-		result[i] = notificationLogToOAS(l)
-	}
-	return &result, nil
+	return new(mapSlice[oas.NotificationLogsOKApplicationJSON](logs, notificationLogToOAS)), nil
 }
 
 // TestNotification sends a test notification for a rule.
@@ -214,12 +200,5 @@ func (h *Handler) AdminListNotifications(ctx context.Context) (oas.AdminListNoti
 	if err != nil {
 		return &oas.AdminListNotificationsForbidden{Error: "failed to list notification rules"}, nil
 	}
-	if rules == nil {
-		rules = []*model.NotificationRule{}
-	}
-	result := make(oas.AdminListNotificationsOKApplicationJSON, len(rules))
-	for i, r := range rules {
-		result[i] = notificationRuleToOAS(r)
-	}
-	return &result, nil
+	return new(mapSlice[oas.AdminListNotificationsOKApplicationJSON](rules, notificationRuleToOAS)), nil
 }

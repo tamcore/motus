@@ -7,7 +7,6 @@ import (
 	"github.com/go-faster/jx"
 	"github.com/tamcore/motus/internal/api"
 	oas "github.com/tamcore/motus/internal/api/oas"
-	"github.com/tamcore/motus/internal/model"
 	"github.com/tamcore/motus/internal/services"
 )
 
@@ -23,14 +22,7 @@ func (h *Handler) ListGeofences(ctx context.Context) (oas.ListGeofencesRes, erro
 	if err != nil {
 		return &oas.Error{Error: "failed to list geofences"}, nil
 	}
-	if geofences == nil {
-		geofences = []*model.Geofence{}
-	}
-	result := make(oas.ListGeofencesOKApplicationJSON, len(geofences))
-	for i, g := range geofences {
-		result[i] = geofenceToOAS(g)
-	}
-	return &result, nil
+	return new(mapSlice[oas.ListGeofencesOKApplicationJSON](geofences, geofenceToOAS)), nil
 }
 
 // GetGeofence returns a single geofence by ID.
@@ -155,12 +147,5 @@ func (h *Handler) AdminListGeofences(ctx context.Context) (oas.AdminListGeofence
 	if err != nil {
 		return &oas.AdminListGeofencesForbidden{Error: "failed to list geofences"}, nil
 	}
-	if geofences == nil {
-		geofences = []*model.Geofence{}
-	}
-	result := make(oas.AdminListGeofencesOKApplicationJSON, len(geofences))
-	for i, g := range geofences {
-		result[i] = geofenceToOAS(g)
-	}
-	return &result, nil
+	return new(mapSlice[oas.AdminListGeofencesOKApplicationJSON](geofences, geofenceToOAS)), nil
 }

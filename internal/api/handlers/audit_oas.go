@@ -37,13 +37,8 @@ func (h *Handler) AdminGetAuditLog(ctx context.Context, params oas.AdminGetAudit
 		return &oas.AdminGetAuditLogForbidden{Error: "failed to query audit log"}, nil
 	}
 
-	oasEntries := make([]oas.AuditEntry, 0, len(entries))
-	for _, e := range entries {
-		oasEntries = append(oasEntries, auditEntryToOAS(e))
-	}
-
 	return &oas.AuditPage{
-		Entries: oasEntries,
+		Entries: mapSlice[[]oas.AuditEntry](entries, auditEntryToOAS),
 		Total:   total,
 	}, nil
 }

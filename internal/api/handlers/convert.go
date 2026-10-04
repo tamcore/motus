@@ -91,6 +91,15 @@ func deref[T any](p *T) T {
 	return *p
 }
 
+// mapSlice converts each element of in with f; nil input yields an empty slice.
+func mapSlice[S ~[]U, T, U any](in []T, f func(T) U) S {
+	out := make(S, len(in))
+	for i, v := range in {
+		out[i] = f(v)
+	}
+	return out
+}
+
 // attrBool extracts a bool value from an attribute map by key.
 func attrBool(attrs map[string]any, key string) oas.OptBool {
 	b, ok := attrs[key].(bool)
@@ -240,15 +249,10 @@ func sessionToOAS(s *model.Session) oas.Session {
 
 // apiKeyToOAS converts a model.ApiKey to oas.ApiKey.
 // includeToken controls whether the raw token is exposed (only on creation).
-func apiKeyToOAS(k *model.ApiKey, includeToken bool) oas.ApiKey {
-	var token oas.OptString
-	if includeToken && k.Token != "" {
-		token = oas.OptString{Value: k.Token, Set: true}
-	}
+func apiKeyToOAS(k *model.ApiKey) oas.ApiKey {
 	return oas.ApiKey{
 		ID:          k.ID,
 		UserId:      k.UserID,
-		Token:       token,
 		Name:        k.Name,
 		Permissions: oas.ApiKeyPermissions(k.Permissions),
 		ExpiresAt:   ptrToOptTime(k.ExpiresAt),

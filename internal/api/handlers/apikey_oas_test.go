@@ -284,7 +284,7 @@ func TestCreateApiKey_Unauthenticated(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 // TestListApiKeys_RedactsTokens verifies that list responses never expose the
-// raw token (apiKeyToOAS with includeToken=false leaves Token unset).
+// raw token.
 func TestListApiKeys_RedactsTokens(t *testing.T) {
 	expiresAt := time.Now().Add(24 * time.Hour)
 	mock := &mockApiKeyRepo{

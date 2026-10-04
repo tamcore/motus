@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -49,13 +50,13 @@ func (h *Handler) OidcLogin(ctx context.Context) error {
 		return fmt.Errorf("failed to store state")
 	}
 
-	authURL, err := h.oidcAuthURL(ctx, state)
+	_, oauth2Cfg, err := h.buildOIDCOAuth2Config(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to build auth URL: %w", err)
 	}
 
 	if w := api.ResponseWriterFromContext(ctx); w != nil {
-		w.Header().Set("Location", authURL)
+		w.Header().Set("Location", oauth2Cfg.AuthCodeURL(state))
 	}
 	return nil
 }
@@ -82,7 +83,13 @@ func (h *Handler) OidcCallback(ctx context.Context, params oas.OidcCallbackParam
 		return &oas.Error{Error: "invalid or expired state"}, nil
 	}
 
-	token, err := h.oidcExchangeCode(ctx, code)
+	provider, oauth2Cfg, err := h.buildOIDCOAuth2Config(ctx)
+	if err != nil {
+		slog.Warn("oidc: provider discovery failed", slog.Any("error", err))
+		return &oas.Error{Error: "code exchange failed"}, nil
+	}
+
+	token, err := oauth2Cfg.Exchange(ctx, code)
 	if err != nil {
 		slog.Warn("oidc: code exchange failed", slog.Any("error", err))
 		return &oas.Error{Error: "code exchange failed"}, nil
@@ -94,7 +101,7 @@ func (h *Handler) OidcCallback(ctx context.Context, params oas.OidcCallbackParam
 		return &oas.Error{Error: "no id_token in token response"}, nil
 	}
 
-	idToken, err := h.oidcVerifyToken(ctx, rawIDToken)
+	idToken, err := provider.Verifier(&gooidc.Config{ClientID: oauth2Cfg.ClientID}).Verify(ctx, rawIDToken)
 	if err != nil {
 		slog.Warn("oidc: id_token verification failed", slog.Any("error", err))
 		return &oas.Error{Error: "id_token verification failed"}, nil
@@ -149,34 +156,6 @@ func (h *Handler) OidcCallback(ctx context.Context, params oas.OidcCallbackParam
 		map[string]any{"method": "oidc", "email": user.Email}, "", "")
 
 	return &oas.OidcCallbackFound{}, nil
-}
-
-// oidcAuthURL builds the authorization URL using the OIDC provider.
-func (h *Handler) oidcAuthURL(ctx context.Context, state string) (string, error) {
-	_, oauth2Cfg, err := h.buildOIDCOAuth2Config(ctx)
-	if err != nil {
-		return "", err
-	}
-	return oauth2Cfg.AuthCodeURL(state), nil
-}
-
-// oidcExchangeCode exchanges an authorization code for tokens.
-func (h *Handler) oidcExchangeCode(ctx context.Context, code string) (*oauth2.Token, error) {
-	_, oauth2Cfg, err := h.buildOIDCOAuth2Config(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return oauth2Cfg.Exchange(ctx, code)
-}
-
-// oidcVerifyToken verifies and parses the raw ID token.
-func (h *Handler) oidcVerifyToken(ctx context.Context, rawIDToken string) (*gooidc.IDToken, error) {
-	provider, oauth2Cfg, err := h.buildOIDCOAuth2Config(ctx)
-	if err != nil {
-		return nil, err
-	}
-	verifier := provider.Verifier(&gooidc.Config{ClientID: oauth2Cfg.ClientID})
-	return verifier.Verify(ctx, rawIDToken)
 }
 
 // buildOIDCOAuth2Config constructs an OIDC provider and oauth2.Config from the handler config.
@@ -275,23 +254,14 @@ func (h *Handler) oidcIsAdminByFilter(email string, allClaims map[string]any) bo
 		}
 	}
 
-	if cfg.AdminClaim != "" && cfg.AdminClaimValue != "" {
-		claimVal, ok := allClaims[cfg.AdminClaim]
-		if ok {
-			switch v := claimVal.(type) {
-			case string:
-				if v == cfg.AdminClaimValue {
-					return true
-				}
-			case []any:
-				for _, item := range v {
-					if s, ok := item.(string); ok && s == cfg.AdminClaimValue {
-						return true
-					}
-				}
-			}
-		}
+	if cfg.AdminClaim == "" || cfg.AdminClaimValue == "" {
+		return false
 	}
-
+	switch v := allClaims[cfg.AdminClaim].(type) {
+	case string:
+		return v == cfg.AdminClaimValue
+	case []any:
+		return slices.Contains(v, any(cfg.AdminClaimValue))
+	}
 	return false
 }

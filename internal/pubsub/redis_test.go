@@ -23,7 +23,7 @@ func newRedisPubSub(t *testing.T, url, channel string) (*pubsub.RedisPubSub, err
 		return nil, err
 	}
 	t.Cleanup(func() { _ = client.Close() })
-	return pubsub.NewRedisPubSubFromClient(client, channel)
+	return pubsub.NewRedisPubSubFromClient(client, channel), nil
 }
 
 func TestNewRedisClient_InvalidURL(t *testing.T) {
@@ -58,10 +58,7 @@ func TestNewRedisPubSubFromClient_Success(t *testing.T) {
 		t.Fatalf("create redis client: %v", err)
 	}
 
-	ps, err := pubsub.NewRedisPubSubFromClient(client, "test-from-client")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	ps := pubsub.NewRedisPubSubFromClient(client, "test-from-client")
 	defer func() { _ = ps.Close() }()
 }
 

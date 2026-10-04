@@ -538,26 +538,6 @@ func TestInterpolateRoute_CustomInterval(t *testing.T) {
 	}
 }
 
-func TestInterpolateRoute_NegativeAndZeroInterval(t *testing.T) {
-	points := []RoutePoint{
-		{Lat: 48.0, Lon: 11.0, Speed: 80, Distance: 0, Course: 0},
-		{Lat: 48.01, Lon: 11.01, Speed: 100, Distance: 500, Course: 45},
-	}
-
-	// Zero interval should use default (100m).
-	result := interpolateRoute(points, 0)
-	// 500m / 100m = 5 segments + start = 6 points.
-	if len(result) != 6 {
-		t.Errorf("zero interval: got %d points, want 6", len(result))
-	}
-
-	// Negative interval should use default (100m).
-	result = interpolateRoute(points, -100)
-	if len(result) != 6 {
-		t.Errorf("negative interval: got %d points, want 6", len(result))
-	}
-}
-
 func TestSmoothRouteWithInterval_RealRoutes(t *testing.T) {
 	dir := filepath.Join(findProjectRoot(t), "data", "demo")
 	if _, err := os.Stat(dir); os.IsNotExist(err) {

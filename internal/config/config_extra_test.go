@@ -128,7 +128,6 @@ func TestLoadFromEnv_OsmAndPortDefault(t *testing.T) {
 func TestLoadFromEnv_RedisDefaults(t *testing.T) {
 	_ = os.Unsetenv("MOTUS_REDIS_URL")
 	_ = os.Unsetenv("MOTUS_REDIS_ENABLED")
-	_ = os.Unsetenv("MOTUS_REDIS_INVALIDATION_CHANNEL")
 
 	cfg, err := config.LoadFromEnv()
 	if err != nil {
@@ -140,22 +139,6 @@ func TestLoadFromEnv_RedisDefaults(t *testing.T) {
 	}
 	if cfg.Redis.URL != "" {
 		t.Errorf("expected empty Redis URL by default, got %q", cfg.Redis.URL)
-	}
-	if cfg.Redis.InvalidationChannel != "motus:cache:invalidate" {
-		t.Errorf("expected default invalidation channel 'motus:cache:invalidate', got %q", cfg.Redis.InvalidationChannel)
-	}
-}
-
-func TestLoadFromEnv_RedisInvalidationChannelOverride(t *testing.T) {
-	t.Setenv("MOTUS_REDIS_INVALIDATION_CHANNEL", "custom:invalidate")
-
-	cfg, err := config.LoadFromEnv()
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if cfg.Redis.InvalidationChannel != "custom:invalidate" {
-		t.Errorf("expected 'custom:invalidate', got %q", cfg.Redis.InvalidationChannel)
 	}
 }
 

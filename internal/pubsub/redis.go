@@ -37,8 +37,8 @@ func NewRedisClient(redisURL string) (*redis.Client, error) {
 // NewRedisPubSubFromClient creates a Redis pub/sub instance from an existing
 // client. The caller retains ownership of the client; Close on the returned
 // RedisPubSub will only tear down the subscription, not the client.
-func NewRedisPubSubFromClient(client *redis.Client, channel string) (*RedisPubSub, error) {
-	return &RedisPubSub{client: client, channel: channel}, nil
+func NewRedisPubSubFromClient(client *redis.Client, channel string) *RedisPubSub {
+	return &RedisPubSub{client: client, channel: channel}
 }
 
 // Publish serialises message as JSON and publishes it to the Redis channel.

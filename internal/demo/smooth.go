@@ -69,10 +69,6 @@ func SmoothRouteWithInterval(route *Route, interval float64) *Route {
 	}
 }
 
-// --------------------------------------------------------------------
-// Speed estimation
-// --------------------------------------------------------------------
-
 // estimateSpeeds assigns realistic speeds to route points that have no speed
 // data (speed == 0). It uses the inter-point distance and bearing change to
 // distinguish highway segments from urban manoeuvring.
@@ -165,10 +161,6 @@ func angleDiff(a, b float64) float64 {
 	return d
 }
 
-// --------------------------------------------------------------------
-// Interpolation
-// --------------------------------------------------------------------
-
 // interpolateRoute adds intermediate points to segments that exceed the given
 // maxInterval (in meters) so the device appears to move smoothly on the map.
 // Every segment longer than maxInterval is subdivided into equal sub-segments
@@ -176,10 +168,6 @@ func angleDiff(a, b float64) float64 {
 func interpolateRoute(points []RoutePoint, maxInterval float64) []RoutePoint {
 	if len(points) < 2 {
 		return points
-	}
-
-	if maxInterval <= 0 {
-		maxInterval = defaultInterpolationInterval
 	}
 
 	// Pre-calculate total expected points to reduce allocations.
@@ -236,10 +224,6 @@ func interpolateBearing(from, to, ratio float64) float64 {
 	result := from + diff*ratio
 	return math.Mod(result+360, 360)
 }
-
-// --------------------------------------------------------------------
-// Speed smoothing
-// --------------------------------------------------------------------
 
 // smoothSpeeds applies a moving-average filter to the speed profile so that
 // speed doesn't jump abruptly from one point to the next.

@@ -242,10 +242,6 @@ type RedisConfig struct {
 	// Enabled controls whether Redis pub/sub is used for cross-pod WebSocket
 	// broadcasting. Loaded from MOTUS_REDIS_ENABLED.
 	Enabled bool
-	// InvalidationChannel is the Redis pub/sub channel used for cross-pod
-	// device-access cache invalidation. Loaded from MOTUS_REDIS_INVALIDATION_CHANNEL.
-	// Default: "motus:cache:invalidate".
-	InvalidationChannel string
 }
 
 // WebSocketConfig holds WebSocket-related settings.
@@ -381,9 +377,8 @@ func LoadFromEnv() (*Config, error) {
 			AllowedOrigins: parseEnv("MOTUS_WS_ALLOWED_ORIGINS", nil, parseList),
 		},
 		Redis: RedisConfig{
-			URL:                 getEnv("MOTUS_REDIS_URL", ""),
-			Enabled:             parseEnv("MOTUS_REDIS_ENABLED", false, strconv.ParseBool),
-			InvalidationChannel: getEnv("MOTUS_REDIS_INVALIDATION_CHANNEL", "motus:cache:invalidate"),
+			URL:     getEnv("MOTUS_REDIS_URL", ""),
+			Enabled: parseEnv("MOTUS_REDIS_ENABLED", false, strconv.ParseBool),
 		},
 		Demo: DemoConfig{
 			Enabled:               parseEnv("MOTUS_DEMO_ENABLED", false, strconv.ParseBool),
@@ -470,7 +465,6 @@ func getPort(key, defaultValue string) string {
 	return v
 }
 
-// parseEnv returns parse(os.Getenv(key)), or defaultValue when unset or invalid.
 // defaultTrustedProxies covers reverse proxies on the same host or private
 // network, such as a Kubernetes ingress or a Docker Compose proxy.
 var defaultTrustedProxies = []string{
@@ -494,6 +488,7 @@ func (s SecurityConfig) TrustedProxyPrefixes() ([]netip.Prefix, error) {
 	return prefixes, nil
 }
 
+// parseEnv returns parse(os.Getenv(key)), or defaultValue when unset or invalid.
 func parseEnv[T any](key string, defaultValue T, parse func(string) (T, error)) T {
 	v := os.Getenv(key)
 	if v == "" {

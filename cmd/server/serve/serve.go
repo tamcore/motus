@@ -177,7 +177,7 @@ func Run() {
 	}
 
 	redisPubSub := newRedisPubSub(redisClient, "motus:updates", "broadcasting")
-	redisInvalidationPubSub := newRedisPubSub(redisClient, cfg.Redis.InvalidationChannel, "cache invalidation")
+	redisInvalidationPubSub := newRedisPubSub(redisClient, "motus:cache:invalidate", "cache invalidation")
 
 	// WebSocket hub with origin validation and per-user filtering.
 	// Since /api/socket is outside auth middleware, we must parse session cookie manually.
@@ -547,16 +547,8 @@ func Run() {
 				)
 
 				// Smooth routes: estimate speeds, interpolate gaps, smooth transitions.
-				// Use configured interpolation interval for point density.
-				interpInterval := cfg.Demo.InterpolationInterval
-				if interpInterval <= 0 {
-					interpInterval = 100.0 // default 100m
-				}
-				slog.Debug("demo interpolation interval",
-					slog.Float64("intervalMeters", interpInterval),
-				)
 				for i, r := range routes {
-					routes[i] = demo.SmoothRouteWithInterval(r, interpInterval)
+					routes[i] = demo.SmoothRouteWithInterval(r, cfg.Demo.InterpolationInterval)
 				}
 
 				for _, r := range routes {
@@ -698,18 +690,13 @@ func deriveWebAuthnCookieKey(csrfSecret []byte) []byte {
 	return sum[:]
 }
 
-// newRedisPubSub returns a pub/sub on channel, or nil when Redis is unavailable or setup fails.
+// newRedisPubSub returns a pub/sub on channel, or nil when Redis is unavailable.
 func newRedisPubSub(client *redislib.Client, channel, purpose string) pubsub.PubSub {
 	if client == nil {
 		return nil
 	}
-	ps, err := pubsub.NewRedisPubSubFromClient(client, channel)
-	if err != nil {
-		slog.Warn("Redis pub/sub setup failed", slog.String("purpose", purpose), slog.Any("error", err))
-		return nil
-	}
 	slog.Info("Redis pub/sub enabled for cross-pod " + purpose)
-	return ps
+	return pubsub.NewRedisPubSubFromClient(client, channel)
 }
 
 func registerPprof(mux *http.ServeMux) {

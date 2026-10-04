@@ -14,12 +14,10 @@ import (
 func (c *Config) Validate() error {
 	var errs []string
 
-	// Server port validation.
 	if err := validatePort(c.Server.Port, "MOTUS_SERVER_PORT"); err != nil {
 		errs = append(errs, err.Error())
 	}
 
-	// GPS port validation.
 	if err := validatePort(c.GPS.H02Port, "MOTUS_GPS_H02_PORT"); err != nil {
 		errs = append(errs, err.Error())
 	}
@@ -30,7 +28,6 @@ func (c *Config) Validate() error {
 		errs = append(errs, err.Error())
 	}
 
-	// Metrics port validation (only when enabled).
 	if c.Metrics.Enabled {
 		if err := validatePort(c.Metrics.Port, "MOTUS_METRICS_PORT"); err != nil {
 			errs = append(errs, err.Error())
@@ -42,7 +39,6 @@ func (c *Config) Validate() error {
 		errs = append(errs, "database: either POSTGRES_URI or MOTUS_DATABASE_HOST must be set")
 	}
 
-	// Database port and password validation (only when using individual fields).
 	if c.Database.URI == "" {
 		if err := validatePort(c.Database.Port, "MOTUS_DATABASE_PORT"); err != nil {
 			errs = append(errs, err.Error())
@@ -52,7 +48,6 @@ func (c *Config) Validate() error {
 		}
 	}
 
-	// Connection pool validation.
 	if c.Database.Pool.MaxConns <= 0 {
 		errs = append(errs, "MOTUS_DB_MAX_CONNS must be > 0")
 	}
@@ -69,7 +64,6 @@ func (c *Config) Validate() error {
 		errs = append(errs, "MOTUS_DB_MAX_CONN_IDLE_TIME must be > 0")
 	}
 
-	// Device config validation.
 	if c.Device.TimeoutMinutes <= 0 {
 		errs = append(errs, "MOTUS_DEVICE_TIMEOUT_MINUTES must be > 0")
 	}
@@ -80,7 +74,6 @@ func (c *Config) Validate() error {
 		errs = append(errs, "MOTUS_DEVICE_AUTO_CREATE_USER must be set when device auto-creation is enabled")
 	}
 
-	// Demo config validation (only when enabled).
 	if c.Demo.Enabled {
 		if c.Demo.SpeedMultiplier <= 0 {
 			errs = append(errs, "MOTUS_DEMO_SPEED_MULTIPLIER must be > 0")
@@ -109,17 +102,14 @@ func (c *Config) Validate() error {
 		errs = append(errs, err.Error())
 	}
 
-	// Redis validation (only when enabled).
 	if c.Redis.Enabled && c.Redis.URL == "" {
 		errs = append(errs, "MOTUS_REDIS_URL must be set when Redis is enabled")
 	}
 
-	// Position retention validation.
 	if c.Positions.RetentionDays < 0 {
 		errs = append(errs, "MOTUS_POSITION_RETENTION_DAYS must be >= 0 (0 disables retention)")
 	}
 
-	// Geocoding validation (only when enabled).
 	if c.Geocoding.Enabled {
 		if c.Geocoding.URL == "" {
 			errs = append(errs, "MOTUS_GEOCODING_URL must be set when geocoding is enabled")
@@ -132,7 +122,6 @@ func (c *Config) Validate() error {
 		}
 	}
 
-	// OIDC validation (only when enabled).
 	if c.OIDC.Enabled {
 		if c.OIDC.Issuer == "" {
 			errs = append(errs, "MOTUS_OIDC_ISSUER must be set when OIDC is enabled")
@@ -153,7 +142,6 @@ func (c *Config) Validate() error {
 		}
 	}
 
-	// AI validation (only when enabled).
 	if c.AI.Enabled {
 		if c.AI.BaseURL == "" {
 			errs = append(errs, "MOTUS_AI_BASE_URL must be set when AI is enabled")

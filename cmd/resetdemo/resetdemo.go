@@ -37,10 +37,6 @@ func NewCmd() *cobra.Command {
 			if connURL == "" {
 				connURL = cfg.Database.URL()
 			}
-			if connURL == "" {
-				slog.Error("database URL required (--db-url, POSTGRES_URI, or MOTUS_DATABASE_* variables)")
-				os.Exit(1)
-			}
 
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			defer cancel()

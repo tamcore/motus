@@ -28,7 +28,6 @@ var DefaultAccounts = []DemoAccount{
 type Service struct {
 	pool        *pgxpool.Pool
 	resetTime   string // "HH:MM" format
-	accounts    []DemoAccount
 	deviceIMEIs []string
 }
 
@@ -40,7 +39,6 @@ func NewService(pool *pgxpool.Pool, resetTime string, deviceIMEIs []string) *Ser
 	return &Service{
 		pool:        pool,
 		resetTime:   resetTime,
-		accounts:    DefaultAccounts,
 		deviceIMEIs: deviceIMEIs,
 	}
 }
@@ -51,7 +49,7 @@ func NewService(pool *pgxpool.Pool, resetTime string, deviceIMEIs []string) *Ser
 func (s *Service) SeedIfNeeded(ctx context.Context) error {
 	slog.Info("reinitializing demo data")
 
-	result, err := Reset(ctx, s.pool, s.accounts, s.deviceIMEIs)
+	result, err := Reset(ctx, s.pool, DefaultAccounts, s.deviceIMEIs)
 	if err != nil {
 		return fmt.Errorf("reset demo data: %w", err)
 	}
@@ -72,7 +70,7 @@ func (s *Service) Start(ctx context.Context) {
 		}
 		lastResetDay = now.Day()
 		slog.Info("nightly reset triggered")
-		result, err := Reset(ctx, s.pool, s.accounts, s.deviceIMEIs)
+		result, err := Reset(ctx, s.pool, DefaultAccounts, s.deviceIMEIs)
 		if err != nil {
 			slog.Error("nightly reset failed", slog.Any("error", err))
 			return

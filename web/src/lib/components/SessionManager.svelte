@@ -5,9 +5,6 @@
 	import { formatDate } from '$lib/utils/formatting';
 	import Button from '$lib/components/Button.svelte';
 
-	// ---------------------------------------------------------------------------
-	// List state
-	// ---------------------------------------------------------------------------
 	let loading = true;
 	let sessions: Session[] = [];
 	let listError = '';
@@ -16,9 +13,6 @@
 
 	$: otherSessionCount = sessions.filter((s) => !s.isCurrent).length;
 
-	// ---------------------------------------------------------------------------
-	// Lifecycle
-	// ---------------------------------------------------------------------------
 	onMount(() => {
 		loadSessions();
 	});
@@ -35,9 +29,6 @@
 		}
 	}
 
-	// ---------------------------------------------------------------------------
-	// Delete
-	// ---------------------------------------------------------------------------
 	async function revokeSession(id: string) {
 		if (!confirm(`Revoke session ${truncateId(id)}? That session will be immediately logged out.`)) return;
 		actionError = '';
@@ -49,9 +40,6 @@
 		}
 	}
 
-	// ---------------------------------------------------------------------------
-	// Revoke all
-	// ---------------------------------------------------------------------------
 	async function revokeAll() {
 		if (!confirm('Revoke all other sessions? Every session except this one will be immediately logged out.')) return;
 		actionError = '';
@@ -63,9 +51,6 @@
 		}
 	}
 
-	// ---------------------------------------------------------------------------
-	// Helpers
-	// ---------------------------------------------------------------------------
 	function truncateId(id: string): string {
 		if (id.length > 12) return id.substring(0, 12) + '\u2026';
 		return id;

@@ -14,16 +14,10 @@
 
 	const supported = isPasskeySupported();
 
-	// ---------------------------------------------------------------------------
-	// List state
-	// ---------------------------------------------------------------------------
 	let loading = true;
 	let passkeys: PasskeyCredentialInfo[] = [];
 	let listError = '';
 
-	// ---------------------------------------------------------------------------
-	// Create modal state
-	// ---------------------------------------------------------------------------
 	let showCreateModal = false;
 	let newPasskeyName = '';
 	let creating = false;
@@ -31,9 +25,6 @@
 
 	let actionError = '';
 
-	// ---------------------------------------------------------------------------
-	// Lifecycle
-	// ---------------------------------------------------------------------------
 	onMount(() => {
 		if (supported) {
 			loadPasskeys();
@@ -54,9 +45,6 @@
 		}
 	}
 
-	// ---------------------------------------------------------------------------
-	// Create
-	// ---------------------------------------------------------------------------
 	function openCreateModal() {
 		showCreateModal = true;
 		newPasskeyName = '';
@@ -94,9 +82,6 @@
 		}
 	}
 
-	// ---------------------------------------------------------------------------
-	// Delete
-	// ---------------------------------------------------------------------------
 	async function removePasskey(passkey: PasskeyCredentialInfo) {
 		if (!confirm(`Remove "${passkey.name}"? You will no longer be able to sign in with this passkey.`)) return;
 		actionError = '';
@@ -108,9 +93,6 @@
 		}
 	}
 
-	// ---------------------------------------------------------------------------
-	// Helpers
-	// ---------------------------------------------------------------------------
 	function formatLastUsed(lastUsedAt: string | null | undefined): string {
 		if (!lastUsedAt) return 'Never';
 		return formatDate(lastUsedAt);

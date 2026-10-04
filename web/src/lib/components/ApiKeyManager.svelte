@@ -10,16 +10,10 @@
 	import QrCodeDialog from '$lib/components/QrCodeDialog.svelte';
 	import { copyText } from '$lib/utils/clipboard';
 
-	// ---------------------------------------------------------------------------
-	// List state
-	// ---------------------------------------------------------------------------
 	let loading = true;
 	let apiKeys: ApiKey[] = [];
 	let listError = '';
 
-	// ---------------------------------------------------------------------------
-	// Create modal state
-	// ---------------------------------------------------------------------------
 	let showCreateModal = false;
 	let newKeyName = '';
 	let newKeyPermissions = 'full';
@@ -33,15 +27,9 @@
 
 	let actionError = '';
 
-	// ---------------------------------------------------------------------------
-	// QR Code dialog state
-	// ---------------------------------------------------------------------------
 	let showQrDialog = false;
 	let qrToken = '';
 
-	// ---------------------------------------------------------------------------
-	// Lifecycle
-	// ---------------------------------------------------------------------------
 	onMount(() => {
 		loadKeys();
 	});
@@ -58,9 +46,6 @@
 		}
 	}
 
-	// ---------------------------------------------------------------------------
-	// Create
-	// ---------------------------------------------------------------------------
 	function resetCreateForm() {
 		newKeyName = '';
 		newKeyPermissions = 'full';
@@ -143,18 +128,12 @@
 		}
 	}
 
-	// ---------------------------------------------------------------------------
-	// Copy token
-	// ---------------------------------------------------------------------------
 	async function copyToken() {
 		if (!createdToken || !(await copyText(createdToken, tokenInputEl))) return;
 		tokenCopied = true;
 		setTimeout(() => (tokenCopied = false), 2000);
 	}
 
-	// ---------------------------------------------------------------------------
-	// Delete
-	// ---------------------------------------------------------------------------
 	async function deleteKey(key: ApiKey) {
 		if (!confirm(`Revoke "${key.name}"? Any integrations using this key will immediately stop working.`)) return;
 		actionError = '';
@@ -166,9 +145,6 @@
 		}
 	}
 
-	// ---------------------------------------------------------------------------
-	// QR Code
-	// ---------------------------------------------------------------------------
 	function openQrDialog(token: string) {
 		qrToken = token;
 		showQrDialog = true;
@@ -179,9 +155,6 @@
 		qrToken = '';
 	}
 
-	// ---------------------------------------------------------------------------
-	// Helpers
-	// ---------------------------------------------------------------------------
 	function formatLastUsed(lastUsedAt: string | null | undefined): string {
 		if (!lastUsedAt) return 'Never';
 		return formatDate(lastUsedAt);

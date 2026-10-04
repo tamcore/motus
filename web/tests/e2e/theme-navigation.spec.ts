@@ -59,6 +59,14 @@ test.describe('Navigation', () => {
         () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
       );
       expect(overflow).toBeLessThanOrEqual(0);
+      // Inline links must all be visible; otherwise the menu toggle takes over.
+      const links = authedPage.locator('.nav-center a.nav-link');
+      if (await links.first().isVisible()) {
+        const lastRight = await links.last().evaluate((el) => el.getBoundingClientRect().right);
+        expect(lastRight).toBeLessThanOrEqual(width);
+      } else {
+        await expect(authedPage.locator('.menu-toggle')).toBeVisible();
+      }
     });
   }
 

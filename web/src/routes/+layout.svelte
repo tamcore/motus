@@ -317,18 +317,14 @@
 		color: var(--accent-primary);
 	}
 
-	/* 11 links do not fit every desktop width: scroll the links, not the page */
 	.nav-center {
 		display: flex;
-		gap: var(--space-2);
-		min-width: 0;
-		overflow-x: auto;
-		scrollbar-width: none;
+		gap: var(--space-1);
 	}
 
 	.nav-link {
 		white-space: nowrap;
-		padding: var(--space-3) var(--space-4);
+		padding: var(--space-2) var(--space-3);
 		text-decoration: none;
 		color: var(--text-secondary);
 		font-weight: var(--font-medium);
@@ -350,8 +346,8 @@
 		content: '';
 		position: absolute;
 		bottom: 0;
-		left: var(--space-4);
-		right: var(--space-4);
+		left: var(--space-3);
+		right: var(--space-3);
 		height: 2px;
 		background-color: var(--accent-primary);
 	}
@@ -440,7 +436,8 @@
 		background-color: var(--bg-primary);
 	}
 
-	@media (max-width: 768px) {
+	/* All nav links fit inline from 1360px (1400px container); below, use the menu. */
+	@media (max-width: 1359px) {
 		.nav-center {
 			display: none;
 			position: absolute;

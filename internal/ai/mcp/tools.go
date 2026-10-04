@@ -1,10 +1,12 @@
 package mcp
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"strings"
 	"time"
@@ -12,9 +14,7 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/tamcore/motus/internal/api"
-	"github.com/tamcore/motus/internal/audit"
 	"github.com/tamcore/motus/internal/model"
-	"github.com/tamcore/motus/internal/notification"
 	"github.com/tamcore/motus/internal/services"
 )
 
@@ -106,12 +106,12 @@ Two modes:
 		mcp.WithDescription(`Creates a notification rule that sends an alert when a GPS event occurs.
 Supported event types: geofenceEnter, geofenceExit, deviceOnline, deviceOffline, motion, deviceIdle, ignitionOn, ignitionOff, alarm, tripCompleted.
 Supported channels: webhook.
-For webhook channel: provide webhook_url (must be http/https; private IPs are blocked).`),
+For webhook channel: provide webhook_url (must be http/https; private IPs are blocked) and template.`),
 		mcp.WithString("name", mcp.Required(), mcp.Description("Rule display name.")),
 		mcp.WithString("event_types", mcp.Required(), mcp.Description("Comma-separated event types, e.g. deviceOffline,alarm.")),
 		mcp.WithString("channel", mcp.Required(), mcp.Description("Delivery channel. Currently: webhook.")),
 		mcp.WithString("webhook_url", mcp.Description("Webhook URL (required for webhook channel).")),
-		mcp.WithString("template", mcp.Description("Optional JSON payload template. Supports {{device.name}}, {{geofence.name}}, {{position.latitude}}, etc.")),
+		mcp.WithString("template", mcp.Description("Payload template (required for webhook). Supports {{device.name}}, {{geofence.name}}, {{position.latitude}}, etc.")),
 		mcp.WithString("enabled", mcp.Description("true or false. Default: true.")),
 	), withDeps(deps, handleCreateNotificationRule))
 
@@ -639,53 +639,21 @@ func handleCreateNotificationRule(ctx context.Context, req mcp.CallToolRequest, 
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
-	name, err := req.RequireString("name")
-	if err != nil {
-		return mcp.NewToolResultError("name is required"), nil
+	cfg := map[string]any{}
+	if wu := req.GetString("webhook_url", ""); wu != "" {
+		cfg["webhookUrl"] = wu
 	}
-	eventTypesStr, err := req.RequireString("event_types")
-	if err != nil {
-		return mcp.NewToolResultError("event_types is required"), nil
-	}
-	channel, err := req.RequireString("channel")
-	if err != nil {
-		return mcp.NewToolResultError("channel is required"), nil
-	}
-
-	eventTypes := splitTrim(eventTypesStr)
-	if err := validateEventTypes(eventTypes); err != nil {
-		return mcp.NewToolResultError(err.Error()), nil
-	}
-	if err := validateChannel(channel); err != nil {
-		return mcp.NewToolResultError(err.Error()), nil
-	}
-
-	cfg, err := buildNotificationConfig(req, channel)
-	if err != nil {
-		return mcp.NewToolResultError(err.Error()), nil
-	}
-
-	enabled := true
-	if v := req.GetString("enabled", ""); v == "false" {
-		enabled = false
-	}
-
-	rule := &model.NotificationRule{
-		UserID:     user.ID,
-		Name:       name,
-		EventTypes: eventTypes,
-		Channel:    channel,
+	rule, err := deps.NotificationRules.CreateForUser(ctx, user, services.NotificationRuleInput{
+		Name:       req.GetString("name", ""),
+		EventTypes: splitTrim(req.GetString("event_types", "")),
+		Channel:    req.GetString("channel", ""),
 		Config:     cfg,
 		Template:   req.GetString("template", ""),
-		Enabled:    enabled,
+		Enabled:    req.GetString("enabled", "") != "false",
+	})
+	if err != nil {
+		return mcp.NewToolResultError(services.PublicMessage(err, "failed to create rule")), nil
 	}
-	if err := deps.Notifications.Create(ctx, rule); err != nil {
-		return mcp.NewToolResultError("failed to create rule: " + err.Error()), nil
-	}
-
-	deps.AuditLogger.Log(ctx, &user.ID, audit.ActionNotifCreate, audit.ResourceNotification, &rule.ID,
-		map[string]any{"name": rule.Name, "channel": rule.Channel}, "", "")
-
 	return jsonResult(map[string]any{"id": rule.ID, "name": rule.Name}), nil
 }
 
@@ -694,62 +662,42 @@ func handleUpdateNotificationRule(ctx context.Context, req mcp.CallToolRequest, 
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
-
-	idStr, err := req.RequireString("id")
+	ruleID, err := requireRuleID(req)
 	if err != nil {
-		return mcp.NewToolResultError("id is required"), nil
-	}
-	var ruleID int64
-	if _, err := fmt.Sscanf(idStr, "%d", &ruleID); err != nil {
-		return mcp.NewToolResultError("invalid id"), nil
+		return mcp.NewToolResultError(err.Error()), nil
 	}
 
-	existing, err := deps.Notifications.GetByID(ctx, ruleID)
-	if err != nil || existing == nil {
-		return mcp.NewToolResultError("rule not found"), nil
+	existing, err := deps.NotificationRules.GetForUser(ctx, user, ruleID)
+	if err != nil {
+		return mcp.NewToolResultError(services.PublicMessage(err, "failed to load rule")), nil
 	}
-	if !user.CanManage(existing.UserID) {
-		return mcp.NewToolResultError("access denied"), nil
-	}
-
-	updated := *existing
-	if n := req.GetString("name", ""); n != "" {
-		updated.Name = n
+	in := services.NotificationRuleInput{
+		Name:       cmp.Or(req.GetString("name", ""), existing.Name),
+		EventTypes: existing.EventTypes,
+		Channel:    existing.Channel,
+		Config:     maps.Clone(existing.Config),
+		Template:   cmp.Or(req.GetString("template", ""), existing.Template),
+		Enabled:    existing.Enabled,
 	}
 	if et := req.GetString("event_types", ""); et != "" {
-		types := splitTrim(et)
-		if err := validateEventTypes(types); err != nil {
-			return mcp.NewToolResultError(err.Error()), nil
-		}
-		if updated.Channel == model.NotificationChannelCommand {
-			cmdType, _ := updated.Config["commandType"].(string)
-			if err := model.ValidateCommandEventTypes(cmdType, types); err != nil {
-				return mcp.NewToolResultError(err.Error()), nil
-			}
-		}
-		updated.EventTypes = types
+		in.EventTypes = splitTrim(et)
 	}
 	if wu := req.GetString("webhook_url", ""); wu != "" {
 		if existing.Channel != model.NotificationChannelWebhook {
 			return mcp.NewToolResultError("webhook_url can only be set on webhook rules"), nil
 		}
-		if err := notification.ValidateWebhookURL(wu); err != nil {
-			return mcp.NewToolResultError("invalid webhook_url: " + err.Error()), nil
+		if in.Config == nil {
+			in.Config = map[string]any{}
 		}
-		if updated.Config == nil {
-			updated.Config = make(map[string]any)
-		}
-		updated.Config["webhookUrl"] = wu
-	}
-	if t := req.GetString("template", ""); t != "" {
-		updated.Template = t
+		in.Config["webhookUrl"] = wu
 	}
 	if v := req.GetString("enabled", ""); v != "" {
-		updated.Enabled = v != "false"
+		in.Enabled = v != "false"
 	}
 
-	if err := deps.Notifications.Update(ctx, &updated); err != nil {
-		return mcp.NewToolResultError("failed to update rule: " + err.Error()), nil
+	updated, err := deps.NotificationRules.UpdateForUser(ctx, user, ruleID, in)
+	if err != nil {
+		return mcp.NewToolResultError(services.PublicMessage(err, "failed to update rule")), nil
 	}
 	return jsonResult(map[string]any{"id": updated.ID, "name": updated.Name, "enabled": updated.Enabled}), nil
 }
@@ -759,28 +707,26 @@ func handleDeleteNotificationRule(ctx context.Context, req mcp.CallToolRequest, 
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
+	ruleID, err := requireRuleID(req)
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	if err := deps.NotificationRules.DeleteForUser(ctx, user, ruleID); err != nil {
+		return mcp.NewToolResultError(services.PublicMessage(err, "failed to delete rule")), nil
+	}
+	return jsonResult(map[string]any{"deleted": ruleID}), nil
+}
 
+func requireRuleID(req mcp.CallToolRequest) (int64, error) {
 	idStr, err := req.RequireString("id")
 	if err != nil {
-		return mcp.NewToolResultError("id is required"), nil
+		return 0, errors.New("id is required")
 	}
 	var ruleID int64
 	if _, err := fmt.Sscanf(idStr, "%d", &ruleID); err != nil {
-		return mcp.NewToolResultError("invalid id"), nil
+		return 0, errors.New("invalid id")
 	}
-
-	existing, err := deps.Notifications.GetByID(ctx, ruleID)
-	if err != nil || existing == nil {
-		return mcp.NewToolResultError("rule not found"), nil
-	}
-	if !user.CanManage(existing.UserID) {
-		return mcp.NewToolResultError("access denied"), nil
-	}
-
-	if err := deps.Notifications.Delete(ctx, ruleID); err != nil {
-		return mcp.NewToolResultError("failed to delete rule: " + err.Error()), nil
-	}
-	return jsonResult(map[string]any{"deleted": ruleID}), nil
+	return ruleID, nil
 }
 
 // ---- event handler ----------------------------------------------------------
@@ -869,43 +815,6 @@ func splitTrim(s string) []string {
 		}
 	}
 	return out
-}
-
-func validateEventTypes(types []string) error {
-	for _, t := range types {
-		if !model.IsNotificationEventType(t) {
-			return fmt.Errorf("unsupported event type %q", t)
-		}
-	}
-	return nil
-}
-
-func validateChannel(ch string) error {
-	if ch != model.NotificationChannelWebhook {
-		return fmt.Errorf("unsupported channel %q (supported: webhook)", ch)
-	}
-	return nil
-}
-
-func buildNotificationConfig(req mcp.CallToolRequest, channel string) (map[string]any, error) {
-	cfg := make(map[string]any)
-	switch channel {
-	case "webhook":
-		wu := req.GetString("webhook_url", "")
-		if wu == "" {
-			return nil, fmt.Errorf("webhook_url is required for webhook channel")
-		}
-		if err := notification.ValidateWebhookURL(wu); err != nil {
-			return nil, fmt.Errorf("invalid webhook_url: %w", err)
-		}
-		cfg["webhookUrl"] = wu
-		if h := req.GetString("headers", ""); h != "" {
-			cfg["headers"] = h
-		}
-	default:
-		return nil, fmt.Errorf("unsupported channel %q", channel)
-	}
-	return cfg, nil
 }
 
 func handleListTrailBookmarks(ctx context.Context, req mcp.CallToolRequest, deps Deps) (*mcp.CallToolResult, error) {

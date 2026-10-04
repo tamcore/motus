@@ -5,7 +5,6 @@ package mcp
 
 import (
 	"github.com/mark3labs/mcp-go/server"
-	"github.com/tamcore/motus/internal/audit"
 	"github.com/tamcore/motus/internal/geocoding"
 	"github.com/tamcore/motus/internal/services"
 	"github.com/tamcore/motus/internal/storage/repository"
@@ -13,17 +12,17 @@ import (
 
 // Deps holds the dependencies required to register all MCP tools.
 type Deps struct {
-	Devices         repository.DeviceRepo
-	Positions       repository.PositionRepo
-	Events          repository.EventRepo
-	Geofences       repository.GeofenceRepo
-	GeofenceService *services.GeofenceService
-	Calendars       repository.CalendarRepo
-	CalendarService *services.CalendarService
-	Notifications   repository.NotificationRepo
-	TrailBookmarks  repository.TrailBookmarkRepo
-	AuditLogger     *audit.Logger
-	ForwardGeocoder geocoding.ForwardGeocoder
+	Devices           repository.DeviceRepo
+	Positions         repository.PositionRepo
+	Events            repository.EventRepo
+	Geofences         repository.GeofenceRepo
+	GeofenceService   *services.GeofenceService
+	Calendars         repository.CalendarRepo
+	CalendarService   *services.CalendarService
+	Notifications     repository.NotificationRepo
+	NotificationRules *services.NotificationRuleService
+	TrailBookmarks    repository.TrailBookmarkRepo
+	ForwardGeocoder   geocoding.ForwardGeocoder
 }
 
 // NewServer creates and returns a configured in-process MCP server with all

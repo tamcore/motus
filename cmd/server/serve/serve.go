@@ -144,9 +144,10 @@ func Run() {
 	// Audit logger.
 	auditLogger := audit.NewLogger(pool)
 
-	// Geofence and calendar services (shared by OAS handler and AI MCP tools).
+	// Geofence, calendar and notification rule services (shared by OAS handler and AI MCP tools).
 	geofenceService := services.NewGeofenceService(geofenceRepo, auditLogger)
 	calendarService := services.NewCalendarService(calendarRepo, auditLogger)
+	notificationRuleService := services.NewNotificationRuleService(notificationRepo, geofenceRepo, auditLogger)
 
 	// Device registry (used by protocol servers below).
 	deviceRegistry := protocol.NewDeviceRegistry()
@@ -269,6 +270,7 @@ func Run() {
 		WebAuthn:            webAuthnEngine,
 		WebAuthnCookieKey:   webAuthnCookieKey,
 		NotificationService: notificationService,
+		NotificationRules:   notificationRuleService,
 		GeofenceService:     geofenceService,
 		CalendarService:     calendarService,
 		DeviceRegistry:      deviceRegistry,
@@ -321,17 +323,17 @@ func Run() {
 	var chatHistoryHandler http.Handler
 	if cfg.AI.Enabled {
 		mcpSrv := aiMCP.NewServer(aiMCP.Deps{
-			Devices:         deviceRepo,
-			Positions:       positionRepo,
-			Events:          eventRepo,
-			Geofences:       geofenceRepo,
-			GeofenceService: geofenceService,
-			Calendars:       calendarRepo,
-			CalendarService: calendarService,
-			Notifications:   notificationRepo,
-			TrailBookmarks:  trailBookmarkRepo,
-			AuditLogger:     auditLogger,
-			ForwardGeocoder: forwardGeocoder,
+			Devices:           deviceRepo,
+			Positions:         positionRepo,
+			Events:            eventRepo,
+			Geofences:         geofenceRepo,
+			GeofenceService:   geofenceService,
+			Calendars:         calendarRepo,
+			CalendarService:   calendarService,
+			Notifications:     notificationRepo,
+			NotificationRules: notificationRuleService,
+			TrailBookmarks:    trailBookmarkRepo,
+			ForwardGeocoder:   forwardGeocoder,
 		})
 		chatSvc := aiChat.NewService(aiChat.Config{
 			BaseURL:          cfg.AI.BaseURL,

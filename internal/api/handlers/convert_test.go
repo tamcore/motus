@@ -543,14 +543,14 @@ func TestNotificationRuleToOAS_Webhook(t *testing.T) {
 	}
 }
 
-func TestOasNotificationConfigToModel_Webhook(t *testing.T) {
+func TestNotificationConfigToModel_Webhook(t *testing.T) {
 	u, _ := url.Parse("https://example.com/hook")
 	var config oas.NotificationRuleConfig
 	config.SetNotificationConfigWebhook(oas.NotificationConfigWebhook{
 		Channel:    oas.NotificationConfigWebhookChannelWebhook,
 		WebhookUrl: *u,
 	})
-	cfg, err := oasNotificationConfigToModel(config)
+	cfg, err := notificationConfigToModel("webhook", config)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -559,10 +559,9 @@ func TestOasNotificationConfigToModel_Webhook(t *testing.T) {
 	}
 }
 
-func TestOasNotificationConfigToModel_Invalid(t *testing.T) {
+func TestNotificationConfigToModel_Invalid(t *testing.T) {
 	var config oas.NotificationRuleConfig
-	_, err := oasNotificationConfigToModel(config)
-	if err == nil {
+	if _, err := notificationConfigToModel("webhook", config); err == nil {
 		t.Error("expected error for zero-value config")
 	}
 }

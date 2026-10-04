@@ -12,7 +12,7 @@ package handlers_test
 //
 // SSRF note: the high-value webhook URL validation cases (private RFC1918
 // targets) are ported verbatim from the old tests; the live handler funnels
-// them through oasNotificationConfigToModel -> notification.ValidateWebhookURL.
+// them through services.NotificationRuleService -> notification.ValidateWebhookURL.
 
 import (
 	"context"
@@ -41,6 +41,7 @@ func newNotificationTestHandler(notifications repository.NotificationRepo) *hand
 	return handlers.NewHandler(handlers.HandlerConfig{
 		Notifications:       notifications,
 		NotificationService: svc,
+		NotificationRules:   services.NewNotificationRuleService(notifications, nil, nil),
 		AuditLogger:         audit.NewLogger(nil),
 	})
 }

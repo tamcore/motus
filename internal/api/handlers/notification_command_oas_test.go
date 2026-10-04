@@ -30,6 +30,7 @@ func newNotificationGeofenceTestHandler(notifications repository.NotificationRep
 		Notifications:       notifications,
 		Geofences:           geofences,
 		NotificationService: svc,
+		NotificationRules:   services.NewNotificationRuleService(notifications, geofences, nil),
 		AuditLogger:         audit.NewLogger(nil),
 	})
 }

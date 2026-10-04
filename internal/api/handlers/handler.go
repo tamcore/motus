@@ -43,6 +43,7 @@ type HandlerConfig struct {
 	WebAuthnCookieKey []byte
 
 	NotificationService *services.NotificationService
+	NotificationRules   *services.NotificationRuleService
 	GeofenceService     *services.GeofenceService
 	CalendarService     *services.CalendarService
 	DeviceRegistry      *protocol.DeviceRegistry

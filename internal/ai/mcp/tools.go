@@ -14,6 +14,7 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/tamcore/motus/internal/api"
+	"github.com/tamcore/motus/internal/config"
 	"github.com/tamcore/motus/internal/model"
 	"github.com/tamcore/motus/internal/services"
 )
@@ -52,8 +53,8 @@ func registerTools(s *server.MCPServer, deps Deps) {
 		mcp.WithDescription("Creates a circular geofence around an address or coordinates. Validates name, emits an audit entry."),
 		mcp.WithString("name", mcp.Required(), mcp.Description("Geofence display name.")),
 		mcp.WithString("address", mcp.Description("Address to geocode (alternative to latitude/longitude).")),
-		mcp.WithString("latitude", mcp.Description("Latitude of the centre (decimal degrees). Required if address not given.")),
-		mcp.WithString("longitude", mcp.Description("Longitude of the centre (decimal degrees). Required if address not given.")),
+		mcp.WithNumber("latitude", mcp.Description("Latitude of the centre (decimal degrees). Required if address not given.")),
+		mcp.WithNumber("longitude", mcp.Description("Longitude of the centre (decimal degrees). Required if address not given.")),
 		mcp.WithNumber("radius_m", mcp.Description("Radius in metres. Default: 200.")),
 		mcp.WithString("calendar_id", mcp.Description("Optional calendar ID for time-based activation.")),
 	), withDeps(deps, handleCreateGeofence))
@@ -106,7 +107,7 @@ For webhook channel: provide webhook_url (must be http/https; private IPs are bl
 		mcp.WithString("channel", mcp.Required(), mcp.Description("Delivery channel. Currently: webhook.")),
 		mcp.WithString("webhook_url", mcp.Description("Webhook URL (required for webhook channel).")),
 		mcp.WithString("template", mcp.Description("Payload template (required for webhook). Supports {{device.name}}, {{geofence.name}}, {{position.latitude}}, etc.")),
-		mcp.WithString("enabled", mcp.Description("true or false. Default: true.")),
+		mcp.WithBoolean("enabled", mcp.Description("true or false. Default: true.")),
 	), withDeps(deps, handleCreateNotificationRule))
 
 	s.AddTool(mcp.NewTool("update_notification_rule",
@@ -116,7 +117,7 @@ For webhook channel: provide webhook_url (must be http/https; private IPs are bl
 		mcp.WithString("event_types", mcp.Description("New comma-separated event types.")),
 		mcp.WithString("webhook_url", mcp.Description("New webhook URL.")),
 		mcp.WithString("template", mcp.Description("New payload template.")),
-		mcp.WithString("enabled", mcp.Description("true to enable, false to disable.")),
+		mcp.WithBoolean("enabled", mcp.Description("true to enable, false to disable.")),
 	), withDeps(deps, handleUpdateNotificationRule))
 
 	s.AddTool(mcp.NewTool("delete_notification_rule",
@@ -470,7 +471,7 @@ func handleCreateCalendar(ctx context.Context, req mcp.CallToolRequest, deps Dep
 		spec.StartTime = &start
 		spec.EndTime = &end
 	case weekdaysStr != "" && dailyStart != "" && dailyEnd != "":
-		days := splitTrim(weekdaysStr)
+		days := config.SplitList(weekdaysStr)
 		spec.Weekdays = days
 		spec.DailyStartTime = &dailyStart
 		spec.DailyEndTime = &dailyEnd
@@ -596,11 +597,11 @@ func handleCreateNotificationRule(ctx context.Context, req mcp.CallToolRequest, 
 	}
 	rule, err := deps.NotificationRules.CreateForUser(ctx, user, services.NotificationRuleInput{
 		Name:       req.GetString("name", ""),
-		EventTypes: splitTrim(req.GetString("event_types", "")),
+		EventTypes: config.SplitList(req.GetString("event_types", "")),
 		Channel:    model.NotificationChannelWebhook,
 		Config:     map[string]any{"webhookUrl": webhookURL},
 		Template:   req.GetString("template", ""),
-		Enabled:    req.GetString("enabled", "") != "false",
+		Enabled:    req.GetBool("enabled", true),
 	})
 	if err != nil {
 		return mcp.NewToolResultError(services.PublicMessage(err, "failed to create rule")), nil
@@ -628,10 +629,10 @@ func handleUpdateNotificationRule(ctx context.Context, req mcp.CallToolRequest, 
 		Channel:    existing.Channel,
 		Config:     maps.Clone(existing.Config),
 		Template:   cmp.Or(req.GetString("template", ""), existing.Template),
-		Enabled:    existing.Enabled,
+		Enabled:    req.GetBool("enabled", existing.Enabled),
 	}
 	if et := req.GetString("event_types", ""); et != "" {
-		in.EventTypes = splitTrim(et)
+		in.EventTypes = config.SplitList(et)
 	}
 	if wu := req.GetString("webhook_url", ""); wu != "" {
 		if existing.Channel != model.NotificationChannelWebhook {
@@ -641,9 +642,6 @@ func handleUpdateNotificationRule(ctx context.Context, req mcp.CallToolRequest, 
 			in.Config = map[string]any{}
 		}
 		in.Config["webhookUrl"] = wu
-	}
-	if v := req.GetString("enabled", ""); v != "" {
-		in.Enabled = v != "false"
 	}
 
 	updated, err := deps.NotificationRules.UpdateForUser(ctx, user, ruleID, in)
@@ -723,7 +721,7 @@ func handleListEvents(ctx context.Context, req mcp.CallToolRequest, deps Deps) (
 
 	var eventTypes []string
 	if et := req.GetString("event_types", ""); et != "" {
-		eventTypes = splitTrim(et)
+		eventTypes = config.SplitList(et)
 	}
 
 	limit := int(req.GetFloat("limit", 100))
@@ -760,17 +758,6 @@ func handleListEvents(ctx context.Context, req mcp.CallToolRequest, deps Deps) (
 		})
 	}
 	return jsonResult(out), nil
-}
-
-func splitTrim(s string) []string {
-	parts := strings.Split(s, ",")
-	out := make([]string, 0, len(parts))
-	for _, p := range parts {
-		if t := strings.TrimSpace(p); t != "" {
-			out = append(out, t)
-		}
-	}
-	return out
 }
 
 func handleListTrailBookmarks(ctx context.Context, req mcp.CallToolRequest, deps Deps) (*mcp.CallToolResult, error) {
@@ -860,18 +847,12 @@ func resolveCoords(ctx context.Context, req mcp.CallToolRequest, deps Deps) (lat
 		lat, lon, _, err = deps.ForwardGeocoder.ForwardGeocode(ctx, addr)
 		return
 	}
-	latStr := req.GetString("latitude", "")
-	lonStr := req.GetString("longitude", "")
-	if latStr == "" || lonStr == "" {
-		return 0, 0, errors.New("address or latitude/longitude is required")
+	lat, latErr := req.RequireFloat("latitude")
+	lon, lonErr := req.RequireFloat("longitude")
+	if err := errors.Join(latErr, lonErr); err != nil {
+		return 0, 0, fmt.Errorf("address or latitude/longitude is required: %w", err)
 	}
-	if _, err = fmt.Sscanf(latStr, "%f", &lat); err != nil {
-		return 0, 0, fmt.Errorf("invalid latitude: %s", latStr)
-	}
-	if _, err = fmt.Sscanf(lonStr, "%f", &lon); err != nil {
-		return 0, 0, fmt.Errorf("invalid longitude: %s", lonStr)
-	}
-	return
+	return lat, lon, nil
 }
 
 // circleGeoJSON returns a GeoJSON Polygon approximating a circle of radius

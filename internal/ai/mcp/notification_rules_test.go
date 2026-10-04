@@ -36,7 +36,7 @@ func TestNotificationRuleTools_UseSharedService(t *testing.T) {
 	}
 	id := fmt.Sprint(rule.ID)
 
-	res, _ := handleUpdateNotificationRule(ctx, callToolRequest(map[string]any{"id": id, "event_types": "deviceOnline"}), deps)
+	res, _ := handleUpdateNotificationRule(ctx, callToolRequest(map[string]any{"id": id, "event_types": "deviceOnline", "enabled": false}), deps)
 	if res.IsError {
 		t.Fatalf("update: %s", resultText(t, res))
 	}
@@ -46,6 +46,9 @@ func TestNotificationRuleTools_UseSharedService(t *testing.T) {
 	}
 	if len(got.GeofenceIDs) != 0 {
 		t.Errorf("geofence filter = %v, want cleared once no geofence event remains", got.GeofenceIDs)
+	}
+	if got.Enabled {
+		t.Error("enabled = true, want false from JSON boolean")
 	}
 
 	res, _ = handleDeleteNotificationRule(ctx, callToolRequest(map[string]any{"id": id}), deps)

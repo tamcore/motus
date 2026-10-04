@@ -508,12 +508,15 @@ func parseInt32(s string) (int32, error) {
 
 func parseFloat(s string) (float64, error) { return strconv.ParseFloat(s, 64) }
 
-func parseList(s string) ([]string, error) {
+func parseList(s string) ([]string, error) { return SplitList(s), nil }
+
+// SplitList splits a comma-separated string, trims each item and drops empty items.
+func SplitList(s string) []string {
 	result := []string{}
 	for p := range strings.SplitSeq(s, ",") {
 		if trimmed := strings.TrimSpace(p); trimmed != "" {
 			result = append(result, trimmed)
 		}
 	}
-	return result, nil
+	return result
 }

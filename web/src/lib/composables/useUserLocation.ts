@@ -1,12 +1,12 @@
 import { get, writable, type Readable } from "svelte/store";
 
-export interface UserPosition {
+interface UserPosition {
   lat: number;
   lng: number;
   accuracy: number;
 }
 
-export interface UserLocationState {
+interface UserLocationState {
   active: boolean;
   position: UserPosition | null;
   /** Degrees from true north, or null if unavailable. */
@@ -145,7 +145,7 @@ function geolocationErrorMessage(err: GeolocationPositionError): string {
 type Leaflet = typeof import("leaflet");
 type LeafletMap = import("leaflet").Map;
 
-export interface UserLocationLayers {
+interface UserLocationLayers {
   sync: (location: UserLocationState) => void;
   toggle: (location: UseUserLocationReturn) => Promise<void>;
 }

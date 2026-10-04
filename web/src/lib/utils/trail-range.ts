@@ -5,7 +5,7 @@
  */
 import { ALL_TIME_START, dateValue, parseLocalBoundary, timeValue } from "./date-range";
 
-export type TrailRelativePreset = "24h" | "48h" | "7d" | "30d" | "all";
+type TrailRelativePreset = "24h" | "48h" | "7d" | "30d" | "all";
 export type TrailPreset = TrailRelativePreset | "custom";
 
 export type TrailRange =

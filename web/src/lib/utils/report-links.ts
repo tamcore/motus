@@ -1,5 +1,5 @@
 /** Trip fields needed to link to the replay view. */
-export interface TripRange {
+interface TripRange {
   deviceId: number;
   startTime: string;
   endTime: string;

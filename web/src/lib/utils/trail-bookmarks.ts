@@ -79,7 +79,7 @@ export interface BookmarkFormInput extends RangeInputs {
   description: string;
 }
 
-export type BookmarkPayloadResult =
+type BookmarkPayloadResult =
   | { ok: true; payload: TrailBookmarkPayload }
   | { ok: false; error: string };
 

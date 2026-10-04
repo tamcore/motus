@@ -131,7 +131,7 @@ export function describeGeofenceFilter(
 }
 
 /** A checkbox of the geofence filter in the rule editor. */
-export interface GeofenceFilterOption {
+interface GeofenceFilterOption {
   id: number;
   label: string;
   /** Selected in the rule but not in the lookup (deleted or inaccessible). */

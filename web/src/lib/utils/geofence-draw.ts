@@ -13,7 +13,7 @@ export const GEOFENCE_STYLE = {
 };
 
 /** GeoJSON Polygon geometry as produced by {@link layerToGeoJSON}. */
-export interface PolygonGeometry {
+interface PolygonGeometry {
   type: "Polygon";
   coordinates: [number, number][][];
 }

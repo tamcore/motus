@@ -6,7 +6,7 @@ interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
 }
 
-export interface PwaState {
+interface PwaState {
   installable: boolean;
   installed: boolean;
   /** A new service worker version is waiting to activate. */

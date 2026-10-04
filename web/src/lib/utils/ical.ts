@@ -7,7 +7,7 @@ export type TemplateId =
   | "always"
   | "custom";
 
-export interface CalendarTemplate {
+interface CalendarTemplate {
   id: TemplateId;
   label: string;
   description: string;

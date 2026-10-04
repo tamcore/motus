@@ -5,7 +5,7 @@
  * on the map page. The `id` is persisted in user settings.
  */
 
-export interface MapOverlay {
+interface MapOverlay {
   /** Unique identifier stored in settings. */
   id: string;
   /** Human-readable display name. */

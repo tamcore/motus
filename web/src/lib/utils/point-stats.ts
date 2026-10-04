@@ -1,6 +1,6 @@
 import type { PositionPoint } from "$lib/types/api";
 
-export interface PointStats {
+interface PointStats {
   /** Epoch ms of the earliest valid fixTime, NaN when none is valid. */
   earliest: number;
   latest: number;

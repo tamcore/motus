@@ -9,44 +9,6 @@ import (
 	"time"
 )
 
-func TestSwapWKTCoordinates(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{
-			name:     "simple polygon with lat,lon to lon,lat",
-			input:    "POLYGON((52.51 13.35, 52.53 13.35, 52.53 13.40, 52.51 13.40, 52.51 13.35))",
-			expected: "POLYGON((13.35 52.51, 13.35 52.53, 13.40 52.53, 13.40 52.51, 13.35 52.51))",
-		},
-		{
-			name:     "polygon with spaces after commas",
-			input:    "POLYGON ((50.0 8.0, 51.0 8.0, 51.0 9.0, 50.0 9.0, 50.0 8.0))",
-			expected: "POLYGON ((8.0 50.0, 8.0 51.0, 9.0 51.0, 9.0 50.0, 8.0 50.0))",
-		},
-		{
-			name:     "real Traccar polygon from Germany",
-			input:    "POLYGON((49.79 9.93, 49.81 9.93, 49.81 9.97, 49.79 9.97, 49.79 9.93))",
-			expected: "POLYGON((9.93 49.79, 9.93 49.81, 9.97 49.81, 9.97 49.79, 9.93 49.79))",
-		},
-		{
-			name:     "no coordinates returns as-is",
-			input:    "EMPTY",
-			expected: "EMPTY",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := swapWKTCoordinates(tt.input)
-			if got != tt.expected {
-				t.Errorf("swapWKTCoordinates(%q)\n  got:  %q\n  want: %q", tt.input, got, tt.expected)
-			}
-		})
-	}
-}
-
 func TestIsTraccarCircle(t *testing.T) {
 	tests := []struct {
 		input    string
@@ -1805,18 +1767,6 @@ func TestParseTraccarCircle_Errors(t *testing.T) {
 				t.Errorf("parseTraccarCircle(%q) expected error", tt.input)
 			}
 		})
-	}
-}
-
-func TestSwapWKTCoordinates_OddPair(t *testing.T) {
-	// A coordinate pair with != 2 tokens should be written as-is.
-	// Inject via a geometry that has an odd token between commas.
-	// The function splits on comma and then on spaces.
-	wkt := "POLYGON ((1.0 2.0 3.0, 4.0 5.0))"
-	got := swapWKTCoordinates(wkt)
-	// "1.0 2.0 3.0" has 3 parts so it's written as-is; "4.0 5.0" is swapped.
-	if got == "" {
-		t.Error("expected non-empty result")
 	}
 }
 

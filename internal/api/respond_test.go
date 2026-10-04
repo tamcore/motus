@@ -9,48 +9,15 @@ import (
 	"github.com/tamcore/motus/internal/model"
 )
 
-func TestRespondJSON(t *testing.T) {
-	tests := []struct {
-		name       string
-		status     int
-		data       any
-		wantStatus int
-		wantBody   bool
-	}{
-		{"200 with data", 200, map[string]string{"key": "value"}, 200, true},
-		{"201 with data", 201, map[string]string{"created": "true"}, 201, true},
-		{"204 with nil data", 204, nil, 204, false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			rr := httptest.NewRecorder()
-			RespondJSON(rr, tt.status, tt.data)
-
-			if rr.Code != tt.wantStatus {
-				t.Errorf("expected status %d, got %d", tt.wantStatus, rr.Code)
-			}
-
-			if got := rr.Header().Get("Content-Type"); got != "application/json" {
-				t.Errorf("expected Content-Type 'application/json', got %q", got)
-			}
-
-			if tt.wantBody {
-				var body map[string]string
-				if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {
-					t.Errorf("failed to decode body: %v", err)
-				}
-			}
-		})
-	}
-}
-
 func TestRespondError(t *testing.T) {
 	rr := httptest.NewRecorder()
 	RespondError(rr, 400, "bad request")
 
 	if rr.Code != 400 {
 		t.Errorf("expected status 400, got %d", rr.Code)
+	}
+	if got := rr.Header().Get("Content-Type"); got != "application/json" {
+		t.Errorf("expected Content-Type 'application/json', got %q", got)
 	}
 
 	var body map[string]string

@@ -56,19 +56,11 @@ type RouterConfig struct {
 	ChatHistory http.Handler
 }
 
-// injectResponseWriter stores w in the request context so ogen handlers can
-// set cookies via ResponseWriterFromContext.
-func injectResponseWriter(next http.Handler) http.Handler {
+// injectHTTP stores w and r in the request context so ogen handlers can set
+// cookies and read request cookies (e.g. the WebAuthn challenge cookie).
+func injectHTTP(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		r = r.WithContext(ContextWithResponseWriter(r.Context(), w))
-		next.ServeHTTP(w, r)
-	})
-}
-
-// injectRequest stores the *http.Request in its own context so ogen handlers
-// can read request cookies (e.g. the WebAuthn challenge cookie).
-func injectRequest(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		r = r.WithContext(ContextWithRequest(r.Context(), r))
 		next.ServeHTTP(w, r)
 	})
@@ -120,14 +112,8 @@ func serveDocs(f fs.FS, path string) http.HandlerFunc {
 
 // NewRouter creates the HTTP router with the ogen server mounted for all
 // /api/ routes. Authentication is handled by sec (SecurityHandler) inside the
-// ogen layer — the old authMiddleware and adminMiddleware chi parameters are
-// replaced by the SecurityHandler.
-func NewRouter(h oas.Handler, sec oas.SecurityHandler, hub *websocket.Hub, opts ...RouterConfig) http.Handler {
-	var cfg RouterConfig
-	if len(opts) > 0 {
-		cfg = opts[0]
-	}
-
+// ogen layer.
+func NewRouter(h oas.Handler, sec oas.SecurityHandler, hub *websocket.Hub, cfg RouterConfig) http.Handler {
 	oasServer, err := oas.NewServer(h, sec)
 	if err != nil {
 		panic("failed to create ogen server: " + err.Error())
@@ -177,7 +163,7 @@ func NewRouter(h oas.Handler, sec oas.SecurityHandler, hub *websocket.Hub, opts 
 		if cfg.Auth != nil {
 			chatHandler = cfg.Auth(chatHandler)
 		}
-		chatHandler = injectResponseWriter(chatHandler)
+		chatHandler = injectHTTP(chatHandler)
 		r.Post("/api/chat", chatHandler.ServeHTTP)
 	}
 
@@ -187,13 +173,13 @@ func NewRouter(h oas.Handler, sec oas.SecurityHandler, hub *websocket.Hub, opts 
 		if cfg.Auth != nil {
 			histHandler = cfg.Auth(histHandler)
 		}
-		histHandler = injectResponseWriter(histHandler)
+		histHandler = injectHTTP(histHandler)
 		r.Get("/api/chat/history", histHandler.ServeHTTP)
 		r.Delete("/api/chat/history", histHandler.ServeHTTP)
 	}
 
 	// Build the ogen API handler with middleware applied. Execution order is
-	// outermost-first: injectResponseWriter runs first, oasServer runs last.
+	// outermost-first: injectHTTP runs first, oasServer runs last.
 	var apiHandler http.Handler = oasServer
 
 	// Write access enforcement (innermost wrapper around ogen).
@@ -228,11 +214,7 @@ func NewRouter(h oas.Handler, sec oas.SecurityHandler, hub *websocket.Hub, opts 
 			})
 		}(apiHandler)
 	}
-	// Inject the request into context so handlers can read cookies (e.g. the
-	// WebAuthn challenge cookie).
-	apiHandler = injectRequest(apiHandler)
-	// Inject ResponseWriter into context (outermost layer, runs first).
-	apiHandler = injectResponseWriter(apiHandler)
+	apiHandler = injectHTTP(apiHandler)
 
 	// Mount ogen server for all /api/ routes. Use Handle (not Mount) so chi
 	// does not strip the /api prefix — ogen's generated router expects the
@@ -258,20 +240,9 @@ func NewRouter(h oas.Handler, sec oas.SecurityHandler, hub *websocket.Hub, opts 
 						return
 					}
 				}
-				if cleanPath != "" {
-					if _, err := fs.Stat(webFS, cleanPath); err == nil {
-						fileServer.ServeHTTP(w, r)
-						return
-					}
-				}
-				if cleanPath != "" {
-					if _, err := fs.Stat(webFS, cleanPath+".html"); err == nil {
-						r.URL.Path = "/" + cleanPath + ".html"
-						fileServer.ServeHTTP(w, r)
-						return
-					}
-					if _, err := fs.Stat(webFS, cleanPath+"/index.html"); err == nil {
-						r.URL.Path = "/" + cleanPath + "/index.html"
+				for _, p := range []string{cleanPath, cleanPath + ".html", cleanPath + "/index.html"} {
+					if _, err := fs.Stat(webFS, p); err == nil && cleanPath != "" {
+						r.URL.Path = "/" + p
 						fileServer.ServeHTTP(w, r)
 						return
 					}

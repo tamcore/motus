@@ -960,7 +960,7 @@ func setupCompatRouterServer(t *testing.T) *compatRouterEnv {
 		ApiKeys:  apiKeyRepo,
 	})
 	secHandler := handlers.NewSecurityHandler(sessionRepo, apiKeyRepo, userRepo)
-	router := api.NewRouter(handler, secHandler, hub)
+	router := api.NewRouter(handler, secHandler, hub, api.RouterConfig{})
 	ts := httptest.NewServer(router)
 	t.Cleanup(ts.Close)
 
@@ -1279,7 +1279,7 @@ func TestTraccarCompat_FullRouterDevicesEndpoint(t *testing.T) {
 		ApiKeys:   apiKeyRepo,
 	})
 	secHandler := handlers.NewSecurityHandler(sessionRepo, apiKeyRepo, userRepo)
-	router := api.NewRouter(handler, secHandler, hub)
+	router := api.NewRouter(handler, secHandler, hub, api.RouterConfig{})
 	ts := httptest.NewServer(router)
 	defer ts.Close()
 

@@ -13,18 +13,11 @@ type contextKey string
 const userContextKey contextKey = "user"
 const apiKeyContextKey contextKey = "apiKey"
 
-// RespondJSON writes a JSON response with the given status code.
-func RespondJSON(w http.ResponseWriter, status int, data any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	if data != nil {
-		_ = json.NewEncoder(w).Encode(data)
-	}
-}
-
 // RespondError writes a JSON error response.
 func RespondError(w http.ResponseWriter, status int, message string) {
-	RespondJSON(w, status, map[string]string{"error": message})
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(map[string]string{"error": message})
 }
 
 // UserFromContext extracts the authenticated user from the request context.

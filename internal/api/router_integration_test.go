@@ -47,7 +47,7 @@ func flagMiddleware(called *bool) func(http.Handler) http.Handler {
 }
 
 func TestNewRouter_HealthCheck(t *testing.T) {
-	router := NewRouter(nopOASHandler{}, passthroughSecHandler{}, newTestHub())
+	router := NewRouter(nopOASHandler{}, passthroughSecHandler{}, newTestHub(), RouterConfig{})
 
 	req := httptest.NewRequest(http.MethodGet, "/api/health", nil)
 	rr := httptest.NewRecorder()
@@ -66,7 +66,7 @@ func TestNewRouter_HealthCheck(t *testing.T) {
 }
 
 func TestNewRouter_DocsRoutes(t *testing.T) {
-	router := NewRouter(nopOASHandler{}, passthroughSecHandler{}, newTestHub())
+	router := NewRouter(nopOASHandler{}, passthroughSecHandler{}, newTestHub(), RouterConfig{})
 
 	cases := []struct {
 		path        string
@@ -175,7 +175,7 @@ func TestNewRouter_WithWriteAccess(t *testing.T) {
 }
 
 func TestNewRouter_MetricsSkippedForWebSocket(t *testing.T) {
-	router := NewRouter(nopOASHandler{}, passthroughSecHandler{}, newTestHub())
+	router := NewRouter(nopOASHandler{}, passthroughSecHandler{}, newTestHub(), RouterConfig{})
 
 	req := httptest.NewRequest(http.MethodGet, "/api/socket", nil)
 	rr := httptest.NewRecorder()

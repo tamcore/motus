@@ -32,6 +32,22 @@ export function haversineDistance(
   return R * c;
 }
 
+/** Sum of haversine distances (km) between consecutive points. */
+export function pathDistance(
+  points: readonly { latitude: number; longitude: number }[],
+): number {
+  let total = 0;
+  for (let i = 1; i < points.length; i++) {
+    total += haversineDistance(
+      points[i - 1].latitude,
+      points[i - 1].longitude,
+      points[i].latitude,
+      points[i].longitude,
+    );
+  }
+  return total;
+}
+
 export function exportTripsToCSV(trips: Trip[]): void {
   const headers = [
     "Device",

@@ -1,6 +1,6 @@
 import type { ChartDataset } from "chart.js";
 import type { Position } from "$lib/types/api";
-import { haversineDistance } from "$lib/utils/trips";
+import { haversineDistance, pathDistance } from "$lib/utils/trips";
 import { downloadCSV } from "$lib/utils/download";
 import { dateValue } from "$lib/utils/date-range";
 
@@ -96,18 +96,7 @@ export const METRICS: MetricDefinition[] = [
     unit: "km",
     axisId: "distance",
     color: "#a78bfa",
-    extract: (_pos, index, all) => {
-      let total = 0;
-      for (let i = 1; i <= index; i++) {
-        total += haversineDistance(
-          all[i - 1].latitude,
-          all[i - 1].longitude,
-          all[i].latitude,
-          all[i].longitude,
-        );
-      }
-      return total;
-    },
+    extract: (_pos, index, all) => pathDistance(all.slice(0, index + 1)),
   },
 ];
 

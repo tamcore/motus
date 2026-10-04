@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"strings"
 	"time"
-
-	"github.com/tamcore/motus/internal/calendar"
 )
 
 // CalendarSpec describes what kind of iCalendar event to generate.
@@ -26,13 +24,9 @@ var validWeekdaySet = map[string]bool{
 	"TH": true, "FR": true, "SA": true, "SU": true,
 }
 
-// BuildICalendar generates a valid RFC 5545 iCalendar string from spec and
-// validates it using the existing calendar.Validate function.
+// BuildICalendar generates an RFC 5545 iCalendar string from spec.
+// CalendarService validates the result and the name on create.
 func BuildICalendar(spec CalendarSpec) (string, error) {
-	if spec.Name == "" {
-		return "", fmt.Errorf("name is required")
-	}
-
 	var lines []string
 	lines = append(lines, "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//motus//AI//EN")
 
@@ -45,7 +39,7 @@ func BuildICalendar(spec CalendarSpec) (string, error) {
 		lines = append(lines,
 			"BEGIN:VEVENT",
 			"UID:"+uid,
-			"SUMMARY:"+icalEscape(spec.Name),
+			"SUMMARY:"+icalEscaper.Replace(spec.Name),
 			"DTSTART:"+spec.StartTime.UTC().Format("20060102T150405Z"),
 			"DTEND:"+spec.EndTime.UTC().Format("20060102T150405Z"),
 			"END:VEVENT",
@@ -60,26 +54,26 @@ func BuildICalendar(spec CalendarSpec) (string, error) {
 			}
 			upperDays = append(upperDays, u)
 		}
-		startH, startM, err := parseHHMM(*spec.DailyStartTime)
+		start, err := time.Parse("15:04", *spec.DailyStartTime)
 		if err != nil {
 			return "", fmt.Errorf("invalid daily_start_time: %w", err)
 		}
-		endH, endM, err := parseHHMM(*spec.DailyEndTime)
+		end, err := time.Parse("15:04", *spec.DailyEndTime)
 		if err != nil {
 			return "", fmt.Errorf("invalid daily_end_time: %w", err)
 		}
-		if endH*60+endM <= startH*60+startM {
+		if !end.After(start) {
 			return "", fmt.Errorf("daily_end_time must be after daily_start_time")
 		}
 
 		now := time.Now().UTC()
-		dtstart := time.Date(now.Year(), now.Month(), now.Day(), startH, startM, 0, 0, time.UTC)
-		dtend := time.Date(now.Year(), now.Month(), now.Day(), endH, endM, 0, 0, time.UTC)
+		dtstart := time.Date(now.Year(), now.Month(), now.Day(), start.Hour(), start.Minute(), 0, 0, time.UTC)
+		dtend := time.Date(now.Year(), now.Month(), now.Day(), end.Hour(), end.Minute(), 0, 0, time.UTC)
 		uid := fmt.Sprintf("motus-weekly-%d@motus", now.UnixNano())
 		lines = append(lines,
 			"BEGIN:VEVENT",
 			"UID:"+uid,
-			"SUMMARY:"+icalEscape(spec.Name),
+			"SUMMARY:"+icalEscaper.Replace(spec.Name),
 			"DTSTART:"+dtstart.Format("20060102T150405Z"),
 			"DTEND:"+dtend.Format("20060102T150405Z"),
 			"RRULE:FREQ=WEEKLY;BYDAY="+strings.Join(upperDays, ","),
@@ -91,28 +85,7 @@ func BuildICalendar(spec CalendarSpec) (string, error) {
 	}
 
 	lines = append(lines, "END:VCALENDAR")
-	ical := strings.Join(lines, "\r\n")
-
-	if err := calendar.Validate(ical); err != nil {
-		return "", fmt.Errorf("generated invalid iCalendar: %w", err)
-	}
-	return ical, nil
+	return strings.Join(lines, "\r\n"), nil
 }
 
-func parseHHMM(s string) (h, m int, err error) {
-	if _, err = fmt.Sscanf(s, "%d:%d", &h, &m); err != nil {
-		return 0, 0, fmt.Errorf("expected HH:MM, got %q", s)
-	}
-	if h < 0 || h > 23 || m < 0 || m > 59 {
-		return 0, 0, fmt.Errorf("time out of range: %q", s)
-	}
-	return h, m, nil
-}
-
-func icalEscape(s string) string {
-	s = strings.ReplaceAll(s, "\\", "\\\\")
-	s = strings.ReplaceAll(s, ";", "\\;")
-	s = strings.ReplaceAll(s, ",", "\\,")
-	s = strings.ReplaceAll(s, "\n", "\\n")
-	return s
-}
+var icalEscaper = strings.NewReplacer(`\`, `\\`, ";", `\;`, ",", `\,`, "\n", `\n`)

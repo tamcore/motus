@@ -151,16 +151,14 @@ func (s *Service) Stream(ctx context.Context, hist HistoryHandle, sink EventSink
 			_ = sink.Flush()
 
 			result, toolErr := s.dispatchTool(ctx, tc.Name, tc.Arguments)
+			event := ChatEvent{Type: "tool_result", ID: tc.ID, Name: tc.Name}
 			if toolErr != nil {
-				errJSON := fmt.Sprintf(`{"error":%q}`, toolErr.Error())
-				_ = sink.Send(ChatEvent{Type: "tool_result", ID: tc.ID, Name: tc.Name, Error: toolErr.Error()})
-				_ = sink.Flush()
-				_ = hist.Append(ctx, Message{Role: "tool", Content: errJSON, ToolCallID: tc.ID})
-				history = append(history, openai.ToolMessage(errJSON, tc.ID))
-				continue
+				event.Error = toolErr.Error()
+				result = fmt.Sprintf(`{"error":%q}`, toolErr.Error())
+			} else {
+				event.Result = json.RawMessage(result)
 			}
-
-			_ = sink.Send(ChatEvent{Type: "tool_result", ID: tc.ID, Name: tc.Name, Result: json.RawMessage(result)})
+			_ = sink.Send(event)
 			_ = sink.Flush()
 			_ = hist.Append(ctx, Message{Role: "tool", Content: result, ToolCallID: tc.ID})
 			history = append(history, openai.ToolMessage(result, tc.ID))

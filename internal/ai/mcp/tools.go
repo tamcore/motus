@@ -63,8 +63,6 @@ func registerTools(s *server.MCPServer, deps Deps) {
 		mcp.WithString("address", mcp.Required(), mcp.Description("Address to geocode.")),
 	), withDeps(deps, handleGeocodeAddress))
 
-	// ---- calendars ---------------------------------------------------------------
-
 	s.AddTool(mcp.NewTool("list_calendars",
 		mcp.WithDescription("Lists all time-window calendars accessible to the current user. Calendars can be attached to geofences to make them time-conditional."),
 	), withDeps(deps, handleListCalendars))
@@ -82,8 +80,6 @@ Two modes:
 		mcp.WithString("daily_end_time", mcp.Description("Recurring mode: daily end time in HH:MM UTC, e.g. 18:00.")),
 	), withDeps(deps, handleCreateCalendar))
 
-	// ---- geofences (update / delete) -------------------------------------------
-
 	s.AddTool(mcp.NewTool("update_geofence",
 		mcp.WithDescription("Updates a geofence's name and/or calendar attachment. Use calendar_id to attach a calendar, or 'clear' to detach one."),
 		mcp.WithString("id", mcp.Required(), mcp.Description("Geofence ID.")),
@@ -95,8 +91,6 @@ Two modes:
 		mcp.WithDescription("Permanently deletes a geofence. This cannot be undone."),
 		mcp.WithString("id", mcp.Required(), mcp.Description("Geofence ID.")),
 	), withDeps(deps, handleDeleteGeofence))
-
-	// ---- notifications -----------------------------------------------------------
 
 	s.AddTool(mcp.NewTool("list_notification_rules",
 		mcp.WithDescription("Lists all notification rules for the current user."),
@@ -130,15 +124,11 @@ For webhook channel: provide webhook_url (must be http/https; private IPs are bl
 		mcp.WithString("id", mcp.Required(), mcp.Description("Rule ID.")),
 	), withDeps(deps, handleDeleteNotificationRule))
 
-	// ---- trail bookmarks ---------------------------------------------------------
-
 	s.AddTool(mcp.NewTool("list_trail_bookmarks",
 		mcp.WithDescription("Lists the user's saved trail bookmarks (named device time ranges such as hikes), newest first. Each has from/to (RFC3339) that can be passed to get_distance_traveled or list_events. Read-only."),
 		mcp.WithString("device_id", mcp.Description("Limit to a single device ID.")),
 		mcp.WithString("device_name", mcp.Description("Limit to a device by name (alternative to device_id).")),
 	), withDeps(deps, handleListTrailBookmarks))
-
-	// ---- events ------------------------------------------------------------------
 
 	s.AddTool(mcp.NewTool("list_events",
 		mcp.WithDescription(`Lists GPS events (geofence transitions, alarms, trip completions, etc.) for the given time range.
@@ -189,8 +179,6 @@ func jsonResult(v any) *mcp.CallToolResult {
 	return mcp.NewToolResultText(string(b))
 }
 
-// ---- handlers ---------------------------------------------------------------
-
 func handleGetServerTime(ctx context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	now := time.Now().UTC()
 	return jsonResult(map[string]string{
@@ -208,20 +196,9 @@ func handleListDevices(ctx context.Context, req mcp.CallToolRequest, deps Deps) 
 
 	filter := strings.ToLower(req.GetString("name_contains", ""))
 
-	var devices []*model.Device
-	if user.IsAdmin() {
-		all, err := deps.Devices.GetAllWithOwners(ctx)
-		if err != nil {
-			return mcp.NewToolResultError("failed to list devices: " + err.Error()), nil
-		}
-		for i := range all {
-			devices = append(devices, &all[i])
-		}
-	} else {
-		devices, err = deps.Devices.GetByUser(ctx, user.ID)
-		if err != nil {
-			return mcp.NewToolResultError("failed to list devices: " + err.Error()), nil
-		}
+	devices, err := accessibleDevices(ctx, user, deps)
+	if err != nil {
+		return mcp.NewToolResultError("failed to list devices: " + err.Error()), nil
 	}
 
 	type entry struct {
@@ -291,21 +268,9 @@ func handleGetDistanceTraveled(ctx context.Context, req mcp.CallToolRequest, dep
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
-	fromStr, err := req.RequireString("from")
+	from, to, err := parseRange(req)
 	if err != nil {
-		return mcp.NewToolResultError("from is required"), nil
-	}
-	toStr, err := req.RequireString("to")
-	if err != nil {
-		return mcp.NewToolResultError("to is required"), nil
-	}
-	from, err := time.Parse(time.RFC3339, fromStr)
-	if err != nil {
-		return mcp.NewToolResultError("invalid from: " + err.Error()), nil
-	}
-	to, err := time.Parse(time.RFC3339, toStr)
-	if err != nil {
-		return mcp.NewToolResultError("invalid to: " + err.Error()), nil
+		return mcp.NewToolResultError(err.Error()), nil
 	}
 
 	// Resolve device scope.
@@ -408,11 +373,8 @@ func handleCreateGeofence(ctx context.Context, req mcp.CallToolRequest, deps Dep
 	}
 
 	var calID *int64
-	if v := req.GetString("calendar_id", ""); v != "" {
-		var id int64
-		if _, err := fmt.Sscanf(v, "%d", &id); err == nil {
-			calID = &id
-		}
+	if id, err := requireID(req, "calendar_id"); err == nil {
+		calID = &id
 	}
 
 	geometry := circleGeoJSON(lat, lon, radiusM)
@@ -453,8 +415,6 @@ func handleGeocodeAddress(ctx context.Context, req mcp.CallToolRequest, deps Dep
 		"displayName": displayName,
 	}), nil
 }
-
-// ---- calendar handlers ------------------------------------------------------
 
 func handleListCalendars(ctx context.Context, _ mcp.CallToolRequest, deps Deps) (*mcp.CallToolResult, error) {
 	user, err := requireUser(ctx)
@@ -533,21 +493,15 @@ func handleCreateCalendar(ctx context.Context, req mcp.CallToolRequest, deps Dep
 	return jsonResult(map[string]any{"id": c.ID, "name": c.Name}), nil
 }
 
-// ---- geofence update / delete handlers --------------------------------------
-
 func handleUpdateGeofence(ctx context.Context, req mcp.CallToolRequest, deps Deps) (*mcp.CallToolResult, error) {
 	user, err := requireWriter(ctx)
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
-	idStr, err := req.RequireString("id")
+	geoID, err := requireID(req, "id")
 	if err != nil {
-		return mcp.NewToolResultError("id is required"), nil
-	}
-	var geoID int64
-	if _, err := fmt.Sscanf(idStr, "%d", &geoID); err != nil {
-		return mcp.NewToolResultError("invalid id"), nil
+		return mcp.NewToolResultError(err.Error()), nil
 	}
 
 	in := services.UpdateGeofenceInput{}
@@ -560,9 +514,9 @@ func handleUpdateGeofence(ctx context.Context, req mcp.CallToolRequest, deps Dep
 		if calStr == "clear" || calStr == "0" || calStr == "none" {
 			in.CalendarID = nil
 		} else {
-			var calID int64
-			if _, err := fmt.Sscanf(calStr, "%d", &calID); err != nil {
-				return mcp.NewToolResultError("invalid calendar_id"), nil
+			calID, err := requireID(req, "calendar_id")
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
 			}
 			in.CalendarID = &calID
 		}
@@ -585,13 +539,9 @@ func handleDeleteGeofence(ctx context.Context, req mcp.CallToolRequest, deps Dep
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
-	idStr, err := req.RequireString("id")
+	geoID, err := requireID(req, "id")
 	if err != nil {
-		return mcp.NewToolResultError("id is required"), nil
-	}
-	var geoID int64
-	if _, err := fmt.Sscanf(idStr, "%d", &geoID); err != nil {
-		return mcp.NewToolResultError("invalid id"), nil
+		return mcp.NewToolResultError(err.Error()), nil
 	}
 
 	if err := deps.GeofenceService.DeleteForUser(ctx, user, geoID); err != nil {
@@ -599,8 +549,6 @@ func handleDeleteGeofence(ctx context.Context, req mcp.CallToolRequest, deps Dep
 	}
 	return jsonResult(map[string]any{"deleted": geoID}), nil
 }
-
-// ---- notification handlers --------------------------------------------------
 
 func handleListNotificationRules(ctx context.Context, _ mcp.CallToolRequest, deps Deps) (*mcp.CallToolResult, error) {
 	user, err := requireUser(ctx)
@@ -665,7 +613,7 @@ func handleUpdateNotificationRule(ctx context.Context, req mcp.CallToolRequest, 
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
-	ruleID, err := requireRuleID(req)
+	ruleID, err := requireID(req, "id")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
@@ -710,7 +658,7 @@ func handleDeleteNotificationRule(ctx context.Context, req mcp.CallToolRequest, 
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
-	ruleID, err := requireRuleID(req)
+	ruleID, err := requireID(req, "id")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
@@ -720,19 +668,25 @@ func handleDeleteNotificationRule(ctx context.Context, req mcp.CallToolRequest, 
 	return jsonResult(map[string]any{"deleted": ruleID}), nil
 }
 
-func requireRuleID(req mcp.CallToolRequest) (int64, error) {
-	idStr, err := req.RequireString("id")
+// requireID reads a required integer argument (number or numeric string).
+func requireID(req mcp.CallToolRequest, key string) (int64, error) {
+	id, err := req.RequireInt(key)
 	if err != nil {
-		return 0, errors.New("id is required")
+		return 0, fmt.Errorf("invalid %s", key)
 	}
-	var ruleID int64
-	if _, err := fmt.Sscanf(idStr, "%d", &ruleID); err != nil {
-		return 0, errors.New("invalid id")
-	}
-	return ruleID, nil
+	return int64(id), nil
 }
 
-// ---- event handler ----------------------------------------------------------
+// parseRange reads the required RFC3339 from/to arguments.
+func parseRange(req mcp.CallToolRequest) (from, to time.Time, err error) {
+	if from, err = time.Parse(time.RFC3339, req.GetString("from", "")); err != nil {
+		return from, to, fmt.Errorf("invalid from: %w", err)
+	}
+	if to, err = time.Parse(time.RFC3339, req.GetString("to", "")); err != nil {
+		return from, to, fmt.Errorf("invalid to: %w", err)
+	}
+	return from, to, nil
+}
 
 func handleListEvents(ctx context.Context, req mcp.CallToolRequest, deps Deps) (*mcp.CallToolResult, error) {
 	user, err := requireUser(ctx)
@@ -740,21 +694,9 @@ func handleListEvents(ctx context.Context, req mcp.CallToolRequest, deps Deps) (
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
-	fromStr, err := req.RequireString("from")
+	from, to, err := parseRange(req)
 	if err != nil {
-		return mcp.NewToolResultError("from is required"), nil
-	}
-	toStr, err := req.RequireString("to")
-	if err != nil {
-		return mcp.NewToolResultError("to is required"), nil
-	}
-	from, err := time.Parse(time.RFC3339, fromStr)
-	if err != nil {
-		return mcp.NewToolResultError("invalid from: " + err.Error()), nil
-	}
-	to, err := time.Parse(time.RFC3339, toStr)
-	if err != nil {
-		return mcp.NewToolResultError("invalid to: " + err.Error()), nil
+		return mcp.NewToolResultError(err.Error()), nil
 	}
 
 	var deviceIDs []int64
@@ -806,8 +748,6 @@ func handleListEvents(ctx context.Context, req mcp.CallToolRequest, deps Deps) (
 	}
 	return jsonResult(out), nil
 }
-
-// ---- notification helpers ---------------------------------------------------
 
 func splitTrim(s string) []string {
 	parts := strings.Split(s, ",")
@@ -865,43 +805,40 @@ func handleListTrailBookmarks(ctx context.Context, req mcp.CallToolRequest, deps
 	return jsonResult(out), nil
 }
 
-// ---- helpers ----------------------------------------------------------------
-
 // resolveDeviceID reads device_id (string int) or device_name from the request.
 func resolveDeviceID(ctx context.Context, req mcp.CallToolRequest, user *model.User, deps Deps) (int64, error) {
-	if idStr := req.GetString("device_id", ""); idStr != "" {
-		var id int64
-		if _, err := fmt.Sscanf(idStr, "%d", &id); err != nil {
-			return 0, fmt.Errorf("invalid device_id: %s", idStr)
-		}
-		return id, nil
+	if v, ok := req.GetArguments()["device_id"]; ok && v != "" {
+		return requireID(req, "device_id")
 	}
 	if name := req.GetString("device_name", ""); name != "" {
-		var devices []*model.Device
-		if user.IsAdmin() {
-			all, err := deps.Devices.GetAllWithOwners(ctx)
-			if err != nil {
-				return 0, err
-			}
-			for i := range all {
-				devices = append(devices, &all[i])
-			}
-		} else {
-			var err error
-			devices, err = deps.Devices.GetByUser(ctx, user.ID)
-			if err != nil {
-				return 0, err
-			}
+		devices, err := accessibleDevices(ctx, user, deps)
+		if err != nil {
+			return 0, err
 		}
-		lower := strings.ToLower(name)
 		for _, d := range devices {
-			if strings.ToLower(d.Name) == lower {
+			if strings.EqualFold(d.Name, name) {
 				return d.ID, nil
 			}
 		}
 		return 0, fmt.Errorf("device not found: %s", name)
 	}
 	return 0, nil
+}
+
+// accessibleDevices returns all devices for admins, else the user's devices.
+func accessibleDevices(ctx context.Context, user *model.User, deps Deps) ([]*model.Device, error) {
+	if !user.IsAdmin() {
+		return deps.Devices.GetByUser(ctx, user.ID)
+	}
+	all, err := deps.Devices.GetAllWithOwners(ctx)
+	if err != nil {
+		return nil, err
+	}
+	devices := make([]*model.Device, len(all))
+	for i := range all {
+		devices[i] = &all[i]
+	}
+	return devices, nil
 }
 
 // resolveCoords returns lat/lon from the request, geocoding address if needed.

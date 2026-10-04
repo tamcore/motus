@@ -110,16 +110,6 @@ func TestBuildICalendar_DailyEndBeforeStart(t *testing.T) {
 	}
 }
 
-func TestBuildICalendar_MissingName(t *testing.T) {
-	start := time.Date(2026, 6, 6, 0, 0, 0, 0, time.UTC)
-	end := time.Date(2026, 6, 7, 0, 0, 0, 0, time.UTC)
-	spec := CalendarSpec{StartTime: &start, EndTime: &end}
-	_, err := BuildICalendar(spec)
-	if err == nil {
-		t.Fatal("expected error for missing name")
-	}
-}
-
 func TestBuildICalendar_NoMode(t *testing.T) {
 	_, err := BuildICalendar(CalendarSpec{Name: "orphan"})
 	if err == nil {
@@ -150,7 +140,7 @@ func TestIcalEscape(t *testing.T) {
 		{"a\nb", "a\\nb"},
 	}
 	for _, c := range cases {
-		if got := icalEscape(c.in); got != c.want {
+		if got := icalEscaper.Replace(c.in); got != c.want {
 			t.Errorf("icalEscape(%q) = %q, want %q", c.in, got, c.want)
 		}
 	}

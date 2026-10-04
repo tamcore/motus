@@ -23,12 +23,7 @@ func (h *Handler) AdminListUsers(ctx context.Context) (oas.AdminListUsersRes, er
 		return &oas.AdminListUsersForbidden{Error: "failed to list users"}, nil
 	}
 
-	result := make(oas.AdminListUsersOKApplicationJSON, 0, len(users))
-	for _, u := range users {
-		u.PopulateTraccarFields()
-		result = append(result, userToOAS(u))
-	}
-	return &result, nil
+	return new(mapSlice[oas.AdminListUsersOKApplicationJSON](users, userToOAS)), nil
 }
 
 // AdminCreateUser adds a new user.
@@ -52,9 +47,6 @@ func (h *Handler) AdminCreateUser(ctx context.Context, req *oas.UserInput) (oas.
 	role := model.RoleUser
 	if r, ok := req.Role.Get(); ok {
 		role = string(r)
-	}
-	if !model.IsValidRole(role) {
-		return &oas.AdminCreateUserBadRequest{Error: "invalid role: must be admin, user, or readonly"}, nil
 	}
 
 	var passwordHash string
@@ -82,7 +74,6 @@ func (h *Handler) AdminCreateUser(ctx context.Context, req *oas.UserInput) (oas.
 	h.cfg.AuditLogger.Log(ctx, &admin.ID, audit.ActionUserCreate, audit.ResourceUser, &user.ID,
 		map[string]any{"email": user.Email, "role": user.Role}, "", "")
 
-	user.PopulateTraccarFields()
 	result := userToOAS(user)
 	return &result, nil
 }
@@ -134,9 +125,6 @@ func (h *Handler) AdminUpdateUser(ctx context.Context, req *oas.UserInput, param
 	}
 	if r, ok := req.Role.Get(); ok && string(r) != "" {
 		role := string(r)
-		if !model.IsValidRole(role) {
-			return &oas.AdminUpdateUserBadRequest{Error: "invalid role: must be admin, user, or readonly"}, nil
-		}
 		if role != existing.Role {
 			changes["oldRole"] = existing.Role
 			changes["newRole"] = role
@@ -171,7 +159,6 @@ func (h *Handler) AdminUpdateUser(ctx context.Context, req *oas.UserInput, param
 
 	h.cfg.AuditLogger.Log(ctx, &admin.ID, audit.ActionUserUpdate, audit.ResourceUser, &existing.ID, changes, "", "")
 
-	existing.PopulateTraccarFields()
 	result := userToOAS(existing)
 	return &result, nil
 }

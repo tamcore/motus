@@ -1,7 +1,5 @@
 package model
 
-import "slices"
-
 import "time"
 
 // API key permission levels.
@@ -10,14 +8,9 @@ const (
 	PermissionReadonly = "readonly"
 )
 
-// ValidPermissions returns the set of supported API key permission levels.
-func ValidPermissions() []string {
-	return []string{PermissionFull, PermissionReadonly}
-}
-
 // IsValidPermission reports whether perm is a recognised permission level.
 func IsValidPermission(perm string) bool {
-	return slices.Contains(ValidPermissions(), perm)
+	return perm == PermissionFull || perm == PermissionReadonly
 }
 
 // ApiKey represents a named API key with permission level for a user.

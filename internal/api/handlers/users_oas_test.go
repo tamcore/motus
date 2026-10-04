@@ -29,6 +29,8 @@ package handlers_test
 import (
 	"context"
 	"errors"
+	"net/http"
+	"strings"
 	"sync"
 	"testing"
 
@@ -378,17 +380,10 @@ func TestAdminCreateUser_InvalidName(t *testing.T) {
 func TestAdminCreateUser_InvalidRole(t *testing.T) {
 	h := newUsersTestHandler(&mockUserRepo{}, &mockDeviceRepo{}, nil)
 
-	res, err := h.AdminCreateUser(usersTestAdminCtx(), &oas.UserInput{
-		Email:    "bad@test.com",
-		Name:     "Bad Role",
-		Password: oas.NewOptString("secret123"),
-		Role:     oas.OptUserInputRole{Value: "superadmin", Set: true},
-	})
-	if err != nil {
-		t.Fatalf("AdminCreateUser returned error: %v", err)
-	}
-	if _, ok := res.(*oas.AdminCreateUserBadRequest); !ok {
-		t.Errorf("expected *oas.AdminCreateUserBadRequest for invalid role, got %T", res)
+	rec := serveJSON(t, h, &model.User{ID: 1, Role: model.RoleAdmin}, http.MethodPost, "/api/users",
+		`{"email":"bad@test.com","name":"Bad Role","password":"secret123","role":"superadmin"}`)
+	if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "role") {
+		t.Errorf("expected 400 for invalid role, got %d: %s", rec.Code, rec.Body.String())
 	}
 }
 
@@ -525,14 +520,10 @@ func TestAdminUpdateUser_NotFound(t *testing.T) {
 func TestAdminUpdateUser_InvalidRole(t *testing.T) {
 	h := newUsersTestHandler(newUpdateUserMock(), &mockDeviceRepo{}, nil)
 
-	res, err := h.AdminUpdateUser(usersTestAdminCtx(), &oas.UserInput{
-		Role: oas.OptUserInputRole{Value: "superadmin", Set: true},
-	}, oas.AdminUpdateUserParams{ID: 5})
-	if err != nil {
-		t.Fatalf("AdminUpdateUser returned error: %v", err)
-	}
-	if _, ok := res.(*oas.AdminUpdateUserBadRequest); !ok {
-		t.Errorf("expected *oas.AdminUpdateUserBadRequest for invalid role, got %T", res)
+	rec := serveJSON(t, h, &model.User{ID: 1, Role: model.RoleAdmin}, http.MethodPut, "/api/users/5",
+		`{"email":"","name":"","role":"superadmin"}`)
+	if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "role") {
+		t.Errorf("expected 400 for invalid role, got %d: %s", rec.Code, rec.Body.String())
 	}
 }
 

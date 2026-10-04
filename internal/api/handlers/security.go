@@ -69,6 +69,5 @@ func (s *SecurityHandler) user(ctx context.Context, id int64) *model.User {
 	if err != nil || user == nil {
 		return nil
 	}
-	user.PopulateTraccarFields()
 	return user
 }

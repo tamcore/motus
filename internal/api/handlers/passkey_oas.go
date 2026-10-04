@@ -230,7 +230,6 @@ func (h *Handler) PasskeyLoginFinish(ctx context.Context, req oas.WebAuthnAssert
 	h.cfg.AuditLogger.Log(ctx, &user.ID, audit.ActionSessionLogin, audit.ResourceSession, nil,
 		map[string]any{"method": "passkey"}, "", "")
 
-	user.PopulateTraccarFields()
 	out := userToOAS(user)
 	return &out, nil
 }

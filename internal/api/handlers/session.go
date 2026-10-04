@@ -115,7 +115,6 @@ func (h *Handler) Login(ctx context.Context, req oas.LoginReq) (oas.LoginRes, er
 	h.cfg.AuditLogger.Log(ctx, &user.ID, audit.ActionSessionLogin, audit.ResourceSession, nil,
 		map[string]any{"email": user.Email}, "", "")
 
-	user.PopulateTraccarFields()
 	out := userToOAS(user)
 	return &out, nil
 }
@@ -171,7 +170,6 @@ func (h *Handler) GetSession(ctx context.Context, params oas.GetSessionParams) (
 	if user == nil {
 		return &oas.Error{Error: "unauthorized"}, nil
 	}
-	user.PopulateTraccarFields()
 	out := userToOAS(user)
 	return &out, nil
 }
@@ -209,7 +207,6 @@ func (h *Handler) tokenLogin(ctx context.Context, token string) (oas.GetSessionR
 	}
 	h.cfg.AuditLogger.Log(ctx, &user.ID, audit.ActionSessionLogin, audit.ResourceSession, nil, details, "", "")
 
-	user.PopulateTraccarFields()
 	out := userToOAS(user)
 	return &out, nil
 }

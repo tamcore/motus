@@ -42,9 +42,6 @@ func (h *Handler) CreateApiKey(ctx context.Context, req *oas.ApiKeyInput) (oas.C
 	if p, ok := req.Permissions.Get(); ok {
 		permissions = string(p)
 	}
-	if !model.IsValidPermission(permissions) {
-		return &oas.CreateApiKeyBadRequest{Error: "permissions must be 'full' or 'readonly'"}, nil
-	}
 
 	var expiresAt *time.Time
 	if ea, ok := req.ExpiresAt.Get(); ok {

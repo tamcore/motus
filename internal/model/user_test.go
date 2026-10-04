@@ -24,24 +24,6 @@ func TestIsValidRole(t *testing.T) {
 	}
 }
 
-func TestValidRoles(t *testing.T) {
-	roles := ValidRoles()
-	if len(roles) != 3 {
-		t.Fatalf("expected 3 roles, got %d", len(roles))
-	}
-
-	expected := map[string]bool{
-		RoleAdmin:    true,
-		RoleUser:     true,
-		RoleReadonly: true,
-	}
-	for _, r := range roles {
-		if !expected[r] {
-			t.Errorf("unexpected role: %q", r)
-		}
-	}
-}
-
 func TestUser_IsAdmin(t *testing.T) {
 	tests := []struct {
 		name string

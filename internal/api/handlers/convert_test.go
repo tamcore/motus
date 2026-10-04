@@ -150,24 +150,27 @@ func TestDeviceToOAS(t *testing.T) {
 
 func TestUserToOAS(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Second)
-	u := &model.User{
-		ID:            1,
-		Email:         "alice@example.com",
-		Name:          "Alice",
-		Administrator: true,
-		Readonly:      false,
-		Disabled:      false,
-		CreatedAt:     now,
-	}
+	u := &model.User{ID: 1, Email: "alice@example.com", Name: "Alice", Role: model.RoleAdmin, CreatedAt: now}
 	got := userToOAS(u)
 	if got.ID != 1 || got.Email != "alice@example.com" {
 		t.Errorf("unexpected user: %+v", got)
 	}
-	if !got.Administrator {
-		t.Error("Administrator should be true")
-	}
 	if got.Attributes.Set {
-		t.Error("Attributes should not be set when nil")
+		t.Error("Attributes should not be set")
+	}
+
+	for _, tt := range []struct {
+		role                string
+		wantAdmin, wantRead bool
+	}{
+		{model.RoleAdmin, true, false},
+		{model.RoleUser, false, false},
+		{model.RoleReadonly, false, true},
+	} {
+		got := userToOAS(&model.User{Role: tt.role})
+		if got.Administrator != tt.wantAdmin || got.Readonly != tt.wantRead || got.Disabled {
+			t.Errorf("role %q: administrator=%v readonly=%v disabled=%v", tt.role, got.Administrator, got.Readonly, got.Disabled)
+		}
 	}
 }
 

@@ -29,19 +29,6 @@ func TestIsValidPermission(t *testing.T) {
 	}
 }
 
-func TestValidPermissions(t *testing.T) {
-	perms := ValidPermissions()
-	if len(perms) != 2 {
-		t.Fatalf("expected 2 valid permissions, got %d", len(perms))
-	}
-	if perms[0] != PermissionFull {
-		t.Errorf("expected first permission %q, got %q", PermissionFull, perms[0])
-	}
-	if perms[1] != PermissionReadonly {
-		t.Errorf("expected second permission %q, got %q", PermissionReadonly, perms[1])
-	}
-}
-
 func TestApiKey_IsReadonly(t *testing.T) {
 	tests := []struct {
 		permissions string

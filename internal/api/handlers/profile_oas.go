@@ -90,7 +90,6 @@ func (h *Handler) UpdateProfile(ctx context.Context, req *oas.UpdateProfileReque
 		h.cfg.AuditLogger.Log(ctx, &existing.ID, audit.ActionUserUpdate, audit.ResourceUser, &existing.ID, changes, "", "")
 	}
 
-	existing.PopulateTraccarFields()
 	result := userToOAS(existing)
 	return &result, nil
 }

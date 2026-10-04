@@ -36,13 +36,18 @@ func (s userSecurity) HandleXAuthToken(ctx context.Context, _ oas.OperationName,
 
 func postGeofence(t *testing.T, mock *auditMockGeofenceRepo, body string) *httptest.ResponseRecorder {
 	t.Helper()
-	srv, err := oas.NewServer(newGeofenceTestHandler(mock), userSecurity{
-		user: &model.User{ID: 1, Email: "geo@example.com", Role: model.RoleUser},
-	})
+	return serveJSON(t, newGeofenceTestHandler(mock), &model.User{ID: 1, Email: "geo@example.com", Role: model.RoleUser},
+		http.MethodPost, "/api/geofences", body)
+}
+
+// serveJSON sends a JSON request through the generated ogen server as user.
+func serveJSON(t *testing.T, h oas.Handler, user *model.User, method, path, body string) *httptest.ResponseRecorder {
+	t.Helper()
+	srv, err := oas.NewServer(h, userSecurity{user: user})
 	if err != nil {
 		t.Fatalf("new server: %v", err)
 	}
-	req := httptest.NewRequest(http.MethodPost, "/api/geofences", strings.NewReader(body))
+	req := httptest.NewRequest(method, path, strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer x")
 	rec := httptest.NewRecorder()

@@ -13,6 +13,8 @@ package handlers_test
 import (
 	"context"
 	"errors"
+	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -138,21 +140,11 @@ func TestCreateApiKey_EmptyName(t *testing.T) {
 
 func TestCreateApiKey_InvalidPermissions(t *testing.T) {
 	h := newApiKeyTestHandler(&mockApiKeyRepo{}, &mockUserRepo{})
-	ctx := api.ContextWithUser(context.Background(), &model.User{ID: 1, Email: "test@example.com"})
 
-	res, err := h.CreateApiKey(ctx, &oas.ApiKeyInput{
-		Name:        "Test",
-		Permissions: oas.NewOptApiKeyInputPermissions("admin"),
-	})
-	if err != nil {
-		t.Fatalf("CreateApiKey returned error: %v", err)
-	}
-	badReq, ok := res.(*oas.CreateApiKeyBadRequest)
-	if !ok {
-		t.Fatalf("expected *oas.CreateApiKeyBadRequest, got %T", res)
-	}
-	if badReq.Error != "permissions must be 'full' or 'readonly'" {
-		t.Errorf("unexpected error message: %q", badReq.Error)
+	rec := serveJSON(t, h, &model.User{ID: 1, Email: "test@example.com"}, http.MethodPost, "/api/keys",
+		`{"name":"Test","permissions":"admin"}`)
+	if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "permissions") {
+		t.Errorf("expected 400 for invalid permissions, got %d: %s", rec.Code, rec.Body.String())
 	}
 }
 

@@ -190,19 +190,13 @@ func deviceToOAS(d *model.Device) oas.Device {
 
 // userToOAS converts a model.User to oas.User.
 func userToOAS(u *model.User) oas.User {
-	var attrs oas.OptAttributes
-	if u.Attributes != nil {
-		attrs = oas.OptAttributes{Value: oas.Attributes(attrsToRaw(u.Attributes)), Set: true}
-	}
 	return oas.User{
 		ID:            u.ID,
 		Email:         u.Email,
 		Name:          u.Name,
-		Administrator: u.Administrator,
-		Readonly:      u.Readonly,
-		Disabled:      u.Disabled,
+		Administrator: u.IsAdmin(),
+		Readonly:      u.Role == model.RoleReadonly,
 		CreatedAt:     u.CreatedAt,
-		Attributes:    attrs,
 	}
 }
 

@@ -1,8 +1,9 @@
 package model
 
-import "slices"
-
-import "time"
+import (
+	"slices"
+	"time"
+)
 
 // Valid user roles.
 const (
@@ -11,14 +12,9 @@ const (
 	RoleReadonly = "readonly"
 )
 
-// ValidRoles returns the set of supported user roles.
-func ValidRoles() []string {
-	return []string{RoleAdmin, RoleUser, RoleReadonly}
-}
-
 // IsValidRole reports whether role is a recognised user role.
 func IsValidRole(role string) bool {
-	return slices.Contains(ValidRoles(), role)
+	return slices.Contains([]string{RoleAdmin, RoleUser, RoleReadonly}, role)
 }
 
 // User represents a system user with optional API token.
@@ -37,17 +33,6 @@ type User struct {
 	// OIDCIssuer is the OIDC issuer URL.
 	// Nil for users who have never authenticated via OIDC.
 	OIDCIssuer *string `json:"-"`
-
-	// Traccar-compatible fields (computed from Role).
-	Administrator    bool           `json:"administrator"`
-	Readonly         bool           `json:"readonly"`
-	Disabled         bool           `json:"disabled"`
-	Map              *string        `json:"map,omitempty"`
-	Latitude         *float64       `json:"latitude,omitempty"`
-	Longitude        *float64       `json:"longitude,omitempty"`
-	Zoom             *int           `json:"zoom,omitempty"`
-	CoordinateFormat *string        `json:"coordinateFormat,omitempty"`
-	Attributes       map[string]any `json:"attributes,omitempty"`
 }
 
 // IsAdmin reports whether the user has the admin role.
@@ -58,12 +43,4 @@ func (u *User) IsAdmin() bool {
 // CanManage reports whether u may manage a resource owned by ownerID.
 func (u *User) CanManage(ownerID int64) bool {
 	return ownerID == u.ID || u.IsAdmin()
-}
-
-// PopulateTraccarFields sets the Traccar-compatible boolean fields
-// from the internal Role field.
-func (u *User) PopulateTraccarFields() {
-	u.Administrator = (u.Role == RoleAdmin)
-	u.Readonly = (u.Role == RoleReadonly)
-	u.Disabled = false
 }

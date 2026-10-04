@@ -27,6 +27,8 @@ const pad2 = (n: number) => String(n).padStart(2, "0");
 /** Local `yyyy-mm-dd` of a date, as used by native date inputs. */
 export const dateValue = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 export const timeValue = (d: Date) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+/** RFC 3339 timestamp `hours` from now, for expiry presets. */
+export const hoursFromNow = (hours: number) => new Date(Date.now() + hours * 3_600_000).toISOString();
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_RE = /^\d{2}:\d{2}$/;

@@ -1,4 +1,5 @@
 import { test, expect } from '../fixtures/auth-fixture';
+import { mockFetch } from '../helpers/mock-fetch';
 
 test.describe('Admin User Management', () => {
   test.beforeEach(async ({ authedPage }) => {
@@ -108,5 +109,25 @@ test.describe('Admin User Management', () => {
 
     // User should be removed from the table.
     await expect(authedPage.locator('table.users-table').locator(`text=${uniqueEmail}`)).toHaveCount(0, { timeout: 5000 });
+  });
+});
+
+test.describe('Sudo bar', () => {
+  test('shows when the sudo status reports an active session', async ({ authedPage }) => {
+    await mockFetch(authedPage, [
+      { path: '/api/admin/sudo', method: 'GET', body: { active: true, originalUserId: 1, targetUserId: 2 } },
+    ]);
+    await authedPage.goto('/');
+
+    const bar = authedPage.locator('.sudo-bar');
+    await expect(bar).toBeVisible();
+    await expect(bar).toContainText('SUDO MODE');
+    await expect(bar.locator('button.sudo-exit-btn')).toBeVisible();
+  });
+
+  test('stays hidden without a sudo session', async ({ authedPage }) => {
+    await authedPage.goto('/');
+    await expect(authedPage.locator('h1:has-text("Dashboard")')).toBeVisible();
+    await expect(authedPage.locator('.sudo-bar')).toHaveCount(0);
   });
 });

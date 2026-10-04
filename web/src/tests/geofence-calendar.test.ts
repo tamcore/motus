@@ -73,7 +73,6 @@ function createMockGeofence(overrides: Partial<Geofence> = {}): Geofence {
 function createMockCalendar(overrides: Partial<Calendar> = {}): Calendar {
   return {
     id: 1,
-    userId: 1,
     name: "Work Hours",
     data: "BEGIN:VCALENDAR\nBEGIN:VEVENT\nDTSTART:20260101T090000\nDTEND:20260101T170000\nRRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR\nEND:VEVENT\nEND:VCALENDAR",
     createdAt: "2026-02-10T10:00:00Z",
@@ -133,12 +132,7 @@ describe("Geofence Calendar Integration", () => {
 
   describe("Calendar active status check", () => {
     it("should return active status for a calendar", async () => {
-      const checkResponse: CalendarCheckResponse = {
-        calendarId: 1,
-        name: "Work Hours",
-        active: true,
-        checkedAt: "2026-02-17T14:00:00Z",
-      };
+      const checkResponse: CalendarCheckResponse = { active: true };
       mockCheckCalendar.mockResolvedValueOnce(checkResponse);
 
       const result = await mockCheckCalendar(1);
@@ -148,12 +142,7 @@ describe("Geofence Calendar Integration", () => {
     });
 
     it("should return inactive status for a calendar outside schedule", async () => {
-      const checkResponse: CalendarCheckResponse = {
-        calendarId: 1,
-        name: "Work Hours",
-        active: false,
-        checkedAt: "2026-02-17T22:00:00Z",
-      };
+      const checkResponse: CalendarCheckResponse = { active: false };
       mockCheckCalendar.mockResolvedValueOnce(checkResponse);
 
       const result = await mockCheckCalendar(1);
@@ -370,8 +359,8 @@ describe("Geofence Calendar Integration", () => {
 
       // Simulate checking each calendar
       mockCheckCalendar
-        .mockResolvedValueOnce({ calendarId: 1, name: "Work Hours", active: true, checkedAt: "2026-02-17T14:00:00Z" })
-        .mockResolvedValueOnce({ calendarId: 2, name: "Night Shift", active: false, checkedAt: "2026-02-17T14:00:00Z" });
+        .mockResolvedValueOnce({ active: true })
+        .mockResolvedValueOnce({ active: false });
 
       const status: Record<number, boolean> = {};
       const checks = Array.from(calendarIds).map(async (id) => {
@@ -456,14 +445,8 @@ describe("Geofence Calendar Integration", () => {
     });
 
     it("should have CalendarCheckResponse shape", () => {
-      const response: CalendarCheckResponse = {
-        calendarId: 1,
-        name: "Work Hours",
-        active: true,
-        checkedAt: "2026-02-17T14:00:00Z",
-      };
+      const response: CalendarCheckResponse = { active: true };
       expect(response.active).toBe(true);
-      expect(response.calendarId).toBe(1);
     });
   });
 

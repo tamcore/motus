@@ -57,7 +57,8 @@
 
 	$: roleCounts = users.reduce(
 		(acc, u) => {
-			acc[u.role] = (acc[u.role] || 0) + 1;
+			const role = getRoleFromUser(u);
+			acc[role] = (acc[role] || 0) + 1;
 			return acc;
 		},
 		{} as Record<string, number>
@@ -134,15 +135,12 @@
 
 		try {
 			if (editingUser) {
-				const updateData: Record<string, unknown> = {
+				await api.updateUser(editingUser.id, {
 					email: formEmail,
 					name: formName,
-					role: formRole
-				};
-				if (formPassword) {
-					updateData.password = formPassword;
-				}
-				await api.updateUser(editingUser.id, updateData);
+					role: formRole,
+					...(formPassword ? { password: formPassword } : {})
+				});
 			} else {
 				if (!formPassword) {
 					error = 'Password is required for new users';

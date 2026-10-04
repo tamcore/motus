@@ -6,9 +6,11 @@ vi.mock("$app/environment", () => ({
 }));
 
 // Mock the API client
-const mockGetApiKeys = vi.fn();
-const mockCreateApiKey = vi.fn();
-const mockDeleteApiKey = vi.fn();
+const { mockGetApiKeys, mockCreateApiKey, mockDeleteApiKey } = vi.hoisted(() => ({
+  mockGetApiKeys: vi.fn(),
+  mockCreateApiKey: vi.fn(),
+  mockDeleteApiKey: vi.fn(),
+}));
 
 vi.mock("$lib/api/client", () => ({
   api: {
@@ -25,7 +27,9 @@ vi.mock("$lib/api/client", () => ({
   },
 }));
 
+import { render, screen, waitFor, fireEvent } from "@testing-library/svelte";
 import type { ApiKey, CreateApiKeyPayload } from "$lib/types/api";
+import ApiKeyManager from "$lib/components/ApiKeyManager.svelte";
 
 // Helper to create a mock API key
 function createMockApiKey(overrides: Partial<ApiKey> = {}): ApiKey {
@@ -141,27 +145,6 @@ describe("API Keys Management", () => {
       expect(result.permissions).toBe("readonly");
     });
 
-    it("should create a key with expiresInHours", async () => {
-      const payload: CreateApiKeyPayload = {
-        name: "Short-lived Key",
-        permissions: "full",
-        expiresInHours: 24,
-      };
-      const futureDate = new Date(
-        Date.now() + 24 * 60 * 60 * 1000,
-      ).toISOString();
-      const created = createMockApiKey({
-        id: 5,
-        name: "Short-lived Key",
-        expiresAt: futureDate,
-      });
-      mockCreateApiKey.mockResolvedValueOnce(created);
-
-      const result = await mockCreateApiKey(payload);
-
-      expect(mockCreateApiKey).toHaveBeenCalledWith(payload);
-      expect(result.expiresAt).toBeTruthy();
-    });
 
     it("should create a key with expiresAt custom date", async () => {
       const futureDate = "2027-06-15T00:00:00Z";
@@ -236,24 +219,6 @@ describe("API Keys Management", () => {
       ).rejects.toThrow("expiresAt must be in the future");
     });
 
-    it("should handle validation error for both expiration fields", async () => {
-      const { APIError } = await import("$lib/api/client");
-      mockCreateApiKey.mockRejectedValueOnce(
-        new APIError(
-          400,
-          "specify either expiresInHours or expiresAt, not both",
-        ),
-      );
-
-      await expect(
-        mockCreateApiKey({
-          name: "Test",
-          permissions: "full",
-          expiresInHours: 24,
-          expiresAt: "2027-01-01T00:00:00Z",
-        }),
-      ).rejects.toThrow("specify either expiresInHours or expiresAt, not both");
-    });
   });
 
   describe("Delete API key", () => {
@@ -370,7 +335,6 @@ describe("API Keys Management", () => {
         const result = await mockCreateApiKey({
           name: newKeyName,
           permissions: newKeyPermissions,
-          expiresInHours: parseInt(newKeyExpiration, 10),
         });
         createdToken = result.token;
       } catch (e: unknown) {
@@ -609,19 +573,32 @@ describe("API Keys Management", () => {
       expect(presets["720"]).toBe(720);
     });
 
-    it("should not send expiration for 'never' option", () => {
-      const expiration: string = "never";
-      let expiresInHours: number | null = null;
-      let expiresAt: string | null = null;
+    async function createViaModal(expiration: string) {
+      mockGetApiKeys.mockResolvedValue([]);
+      mockCreateApiKey.mockResolvedValue(createMockApiKey({ token: "mts_full_token_value" }));
+      render(ApiKeyManager, { props: { showUsageInstructions: false } });
+      await fireEvent.click(await screen.findByRole("button", { name: "Create API Key" }));
+      await fireEvent.input(screen.getByLabelText(/Key Name/), { target: { value: "HA" } });
+      await fireEvent.change(screen.getByLabelText("Expiration"), { target: { value: expiration } });
+      await fireEvent.submit(document.querySelector("form.create-form")!);
+      await waitFor(() => expect(mockCreateApiKey).toHaveBeenCalledOnce());
+      return mockCreateApiKey.mock.calls[0][0] as CreateApiKeyPayload;
+    }
 
-      if (expiration === "custom") {
-        expiresAt = "2027-01-01T00:00:00Z";
-      } else if (expiration !== "never") {
-        expiresInHours = parseInt(expiration, 10);
-      }
+    it("sends a preset as an expiresAt timestamp", async () => {
+      const before = Date.now();
+      const payload = await createViaModal("24");
 
-      expect(expiresInHours).toBeNull();
-      expect(expiresAt).toBeNull();
+      const ms = Date.parse(payload.expiresAt!);
+      expect(ms).toBeGreaterThanOrEqual(before + 24 * 3_600_000);
+      expect(ms).toBeLessThanOrEqual(Date.now() + 24 * 3_600_000);
+      expect(payload).not.toHaveProperty("expiresInHours");
+    });
+
+    it("sends no expiration for the 'never' option", async () => {
+      const payload = await createViaModal("never");
+
+      expect(payload).toEqual({ name: "HA", permissions: "full" });
     });
 
     it("should send expiresAt for custom date option", () => {

@@ -1,72 +1,20 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount } from 'svelte';
 	import { slide } from 'svelte/transition';
 	import { api } from '$lib/api/client';
-	import { currentUser } from '$lib/stores/auth';
+	import { currentUserName } from '$lib/stores/auth';
 
 	export let sudoActive = false;
 	/** Pixel height of the sudo bar, exposed for layout offset calculations */
 	export let barHeight = 0;
-	let sudoOriginalUser: string | null = null;
-	let sudoExpiresAt: string | null = null;
 	let endingSudo = false;
 	let error = '';
-	let timeRemaining = '';
-	let countdownInterval: ReturnType<typeof setInterval> | null = null;
-
-	function getUserDisplay(user: Record<string, unknown> | string | null): string {
-		if (!user) return '';
-		if (typeof user === 'string') return user;
-		return (user.name as string) || (user.email as string) || '';
-	}
-
-	function updateCountdown() {
-		if (!sudoExpiresAt) {
-			timeRemaining = '';
-			return;
-		}
-		const now = Date.now();
-		const expires = new Date(sudoExpiresAt).getTime();
-		const diff = expires - now;
-
-		if (diff <= 0) {
-			timeRemaining = 'expired';
-			// Session expired, reload to let the server handle it
-			window.location.reload();
-			return;
-		}
-
-		const minutes = Math.floor(diff / 60000);
-		const seconds = Math.floor((diff % 60000) / 1000);
-
-		if (minutes > 0) {
-			timeRemaining = `${minutes}m ${seconds}s remaining`;
-		} else {
-			timeRemaining = `${seconds}s remaining`;
-		}
-	}
 
 	onMount(async () => {
 		try {
-			const status = await api.getSudoStatus();
-			if (status?.isSudo) {
-				sudoActive = true;
-				sudoOriginalUser = status.originalUser || null;
-				sudoExpiresAt = status.expiresAt || null;
-
-				if (sudoExpiresAt) {
-					updateCountdown();
-					countdownInterval = setInterval(updateCountdown, 1000);
-				}
-			}
+			sudoActive = (await api.getSudoStatus()).active;
 		} catch {
 			// Sudo status check is non-critical; silently ignore
-		}
-	});
-
-	onDestroy(() => {
-		if (countdownInterval) {
-			clearInterval(countdownInterval);
 		}
 	});
 
@@ -76,12 +24,6 @@
 		try {
 			await api.endSudo();
 			sudoActive = false;
-			sudoOriginalUser = null;
-			sudoExpiresAt = null;
-			if (countdownInterval) {
-				clearInterval(countdownInterval);
-				countdownInterval = null;
-			}
 			window.location.href = '/admin/users';
 		} catch (err) {
 			error = 'Failed to end sudo session. Reloading...';
@@ -105,15 +47,7 @@
 				<div class="sudo-text">
 					<span class="sudo-label">SUDO MODE</span>
 					<span class="sudo-details">
-						Viewing as <strong>{getUserDisplay($currentUser)}</strong>
-						{#if sudoOriginalUser}
-							<span class="sudo-separator">|</span>
-							Admin: {getUserDisplay(sudoOriginalUser)}
-						{/if}
-						{#if timeRemaining}
-							<span class="sudo-separator">|</span>
-							<span class="sudo-timer">{timeRemaining}</span>
-						{/if}
+						Viewing as <strong>{$currentUserName}</strong>
 					</span>
 				</div>
 			</div>
@@ -214,16 +148,6 @@
 		font-weight: var(--font-semibold);
 	}
 
-	.sudo-separator {
-		margin: 0 var(--space-1);
-		opacity: 0.5;
-	}
-
-	.sudo-timer {
-		font-variant-numeric: tabular-nums;
-		opacity: 0.85;
-	}
-
 	.sudo-bar-right {
 		display: flex;
 		align-items: center;
@@ -298,10 +222,6 @@
 			flex-direction: column;
 			align-items: flex-start;
 			gap: var(--space-1);
-		}
-
-		.sudo-separator {
-			display: none;
 		}
 
 		.sudo-details {

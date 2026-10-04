@@ -31,8 +31,6 @@ describe("admin audit page", () => {
         },
       ],
       total: 1,
-      limit: 50,
-      offset: 0,
     });
 
     render(AuditPage);

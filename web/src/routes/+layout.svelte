@@ -3,7 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { theme } from '$lib/stores/theme';
-	import { currentUser, isAuthenticated } from '$lib/stores/auth';
+	import { currentUser, currentUserName, isAuthenticated } from '$lib/stores/auth';
 	import { serverInfo, loadServerInfo } from '$lib/stores/server';
 	import { wsManager } from '$lib/stores/websocket';
 	import { pwa } from '$lib/stores/pwa';
@@ -149,11 +149,6 @@
 			dropdownOpen = false;
 		}
 	}
-
-	function getUserDisplay(user: Record<string, unknown> | null): string {
-		if (!user) return '';
-		return (user.name as string) || (user.email as string) || '';
-	}
 </script>
 
 <svelte:window on:click={handleClickOutside} />
@@ -223,7 +218,7 @@
 					<ThemeSwitcher />
 					<div class="user-menu">
 						<button class="user-button" on:click={toggleDropdown}>
-							{getUserDisplay($currentUser)}
+							{$currentUserName}
 						</button>
 						{#if dropdownOpen}
 							<div class="user-dropdown">

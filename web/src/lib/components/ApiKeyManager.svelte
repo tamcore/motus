@@ -3,7 +3,7 @@
 	import { api } from '$lib/api/client';
 	import type { ApiKey } from '$lib/types/api';
 	import { formatDate } from '$lib/utils/formatting';
-	import { dateValue } from '$lib/utils/date-range';
+	import { dateValue, hoursFromNow } from '$lib/utils/date-range';
 	import Button from '$lib/components/Button.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import Input from '$lib/components/Input.svelte';
@@ -108,21 +108,17 @@
 		creating = true;
 		createError = '';
 
-		// Build expiration payload.
-		let expiresInHours: number | null = null;
-		let expiresAt: string | null = null;
-		if (newKeyExpiration === 'custom') {
-			// Convert local date input to RFC 3339.
-			expiresAt = new Date(newKeyCustomDate).toISOString();
-		} else if (newKeyExpiration !== 'never') {
-			expiresInHours = parseInt(newKeyExpiration, 10);
-		}
+		const expiresAt =
+			newKeyExpiration === 'never'
+				? null
+				: newKeyExpiration === 'custom'
+					? new Date(newKeyCustomDate).toISOString()
+					: hoursFromNow(parseInt(newKeyExpiration, 10));
 
 		try {
 			const result = await api.createApiKey({
 				name: trimmedName,
 				permissions: newKeyPermissions,
-				...(expiresInHours !== null ? { expiresInHours } : {}),
 				...(expiresAt !== null ? { expiresAt } : {}),
 			});
 

@@ -11,15 +11,14 @@ import type {
   CalendarCheckResponse,
   Command,
   CreateApiKeyPayload,
-  CreateCalendarPayload,
-  CreateDevicePayload,
+  CalendarPayload,
   CreateGeofencePayload,
-  CreateNotificationPayload,
-  CreateUserPayload,
   Device,
+  DevicePayload,
   DeviceShare,
   Geofence,
   NotificationLog,
+  NotificationPayload,
   NotificationRule,
   PasskeyCredentialInfo,
   PlatformStats,
@@ -30,13 +29,10 @@ import type {
   TokenResponse,
   TrailBookmark,
   TrailBookmarkPayload,
-  UpdateCalendarPayload,
-  UpdateDevicePayload,
   UpdateGeofencePayload,
-  UpdateNotificationPayload,
   UpdateProfilePayload,
-  UpdateUserPayload,
   User,
+  UserPayload,
   UserStats,
 } from "$lib/types/api";
 import type { Trip } from "$lib/utils/trips";
@@ -223,14 +219,14 @@ export const api = {
   getDevices: () => request<Device[]>("/devices"),
 
   /** Create a new device. */
-  createDevice: (device: CreateDevicePayload) =>
+  createDevice: (device: DevicePayload) =>
     request<Device>("/devices", {
       method: "POST",
       body: JSON.stringify(device),
     }),
 
   /** Update an existing device. */
-  updateDevice: (id: number, device: UpdateDevicePayload) =>
+  updateDevice: (id: number, device: DevicePayload) =>
     request<Device>(`/devices/${id}`, {
       method: "PUT",
       body: JSON.stringify(device),
@@ -244,7 +240,7 @@ export const api = {
   importGPX: (deviceId: number, file: File) => {
     const body = new FormData();
     body.append("file", file);
-    return request<{ imported: number; skipped: number }>(`/devices/${deviceId}/gpx`, {
+    return request<{ imported: number }>(`/devices/${deviceId}/gpx`, {
       method: "POST",
       body,
     });
@@ -367,14 +363,14 @@ export const api = {
   getNotifications: () => request<NotificationRule[]>("/notifications"),
 
   /** Create a new notification rule. */
-  createNotification: (rule: CreateNotificationPayload) =>
+  createNotification: (rule: NotificationPayload) =>
     request<NotificationRule>("/notifications", {
       method: "POST",
       body: JSON.stringify(rule),
     }),
 
   /** Update an existing notification rule. */
-  updateNotification: (id: number, rule: UpdateNotificationPayload) =>
+  updateNotification: (id: number, rule: NotificationPayload) =>
     request<NotificationRule>(`/notifications/${id}`, {
       method: "PUT",
       body: JSON.stringify(rule),
@@ -409,14 +405,14 @@ export const api = {
   getUsers: () => request<User[]>("/users"),
 
   /** Create a new user (admin only). */
-  createUser: (user: CreateUserPayload) =>
+  createUser: (user: UserPayload) =>
     request<User>("/users", {
       method: "POST",
       body: JSON.stringify(user),
     }),
 
   /** Update an existing user (admin only). */
-  updateUser: (id: number, user: UpdateUserPayload) =>
+  updateUser: (id: number, user: UserPayload) =>
     request<User>(`/users/${id}`, {
       method: "PUT",
       body: JSON.stringify(user),
@@ -472,11 +468,11 @@ export const api = {
 
   /** Start impersonating a user (admin only). */
   startSudo: (userId: number) =>
-    request<SudoStatusResponse>(`/admin/sudo/${userId}`, { method: "POST" }),
+    request<void>(`/admin/sudo/${userId}`, { method: "POST" }),
 
   /** End impersonation session. */
   endSudo: () =>
-    request<SudoStatusResponse>("/admin/sudo", { method: "DELETE" }),
+    request<void>("/admin/sudo", { method: "DELETE" }),
 
   /** Get current sudo/impersonation status. */
   getSudoStatus: () => request<SudoStatusResponse>("/admin/sudo"),
@@ -551,10 +547,10 @@ export const api = {
   // ---------------------------------------------------------------------------
 
   /** Create a new share link for a device. */
-  createDeviceShare: (deviceId: number, expiresInHours?: number | null) =>
+  createDeviceShare: (deviceId: number, expiresAt?: string | null) =>
     request<DeviceShare>(`/devices/${deviceId}/share`, {
       method: "POST",
-      body: JSON.stringify(expiresInHours ? { expiresInHours } : {}),
+      body: JSON.stringify(expiresAt ? { expiresAt } : {}),
     }),
 
   /** List all active shares for a device. */
@@ -573,14 +569,14 @@ export const api = {
   getCalendars: () => request<Calendar[]>("/calendars"),
 
   /** Create a new calendar. */
-  createCalendar: (payload: CreateCalendarPayload) =>
+  createCalendar: (payload: CalendarPayload) =>
     request<Calendar>("/calendars", {
       method: "POST",
       body: JSON.stringify(payload),
     }),
 
   /** Update an existing calendar. */
-  updateCalendar: (id: number, payload: UpdateCalendarPayload) =>
+  updateCalendar: (id: number, payload: CalendarPayload) =>
     request<Calendar>(`/calendars/${id}`, {
       method: "PUT",
       body: JSON.stringify(payload),

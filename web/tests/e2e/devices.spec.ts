@@ -1,3 +1,4 @@
+import type { Locator, Page } from '@playwright/test';
 import { test, expect } from '../fixtures/auth-fixture';
 import { DevicesPage } from '../page-objects/DevicesPage';
 
@@ -274,24 +275,56 @@ test.describe('Devices Page', () => {
   });
 });
 
+/** Creates a device via the API, runs `fn` on its desktop-table row, then deletes the device. */
+async function withDeviceRow(page: Page, name: string, fn: (row: Locator) => Promise<void>) {
+  const csrf = (await page.request.get('/api/session')).headers()['x-csrf-token'] ?? '';
+  const res = await page.request.post('/api/devices', {
+    headers: { 'X-CSRF-Token': csrf },
+    data: { name, uniqueId: String(Date.now()) },
+  });
+  expect(res.status()).toBe(201);
+  const id = (await res.json()).id;
+
+  try {
+    const devicesPage = new DevicesPage(page);
+    await devicesPage.goto();
+    await devicesPage.search(name);
+    const row = devicesPage.tableRows.filter({ hasText: name });
+    await expect(row).toHaveCount(1);
+    await fn(row);
+  } finally {
+    await page.request.delete(`/api/devices/${id}`, { headers: { 'X-CSRF-Token': csrf } });
+  }
+}
+
+test.describe('Device sharing', () => {
+  test('share link expiry preset is sent as expiresAt and shown', async ({ authedPage }) => {
+    await withDeviceRow(authedPage, `PW Share ${Date.now()}`, async (row) => {
+      await row.locator('button:has-text("Share")').click();
+      const modal = new DevicesPage(authedPage).modal;
+      await modal.locator('#share-expiry').selectOption('1h');
+
+      const before = Date.now();
+      const [request] = await Promise.all([
+        authedPage.waitForRequest((r) => r.method() === 'POST' && /\/api\/devices\/\d+\/share$/.test(r.url())),
+        modal.locator('button:has-text("Generate Link")').click(),
+      ]);
+      const expiresAt = Date.parse(request.postDataJSON().expiresAt);
+      expect(expiresAt).toBeGreaterThanOrEqual(before + 3_600_000 - 60_000);
+      expect(expiresAt).toBeLessThanOrEqual(Date.now() + 3_600_000 + 60_000);
+
+      await expect(modal.locator('.share-link-input')).toHaveValue(/\/share\/[^/]+$/);
+      const expiry = modal.locator('.share-item .share-expiry');
+      await expect(expiry).toHaveCount(1);
+      await expect(expiry).not.toHaveText('Never');
+    });
+  });
+});
+
 test.describe('Device deletion', () => {
   test('asks for confirmation before deleting a device', async ({ authedPage }) => {
     const name = `PW Delete ${Date.now()}`;
-    const csrf = (await authedPage.request.get('/api/session')).headers()['x-csrf-token'] ?? '';
-    const res = await authedPage.request.post('/api/devices', {
-      headers: { 'X-CSRF-Token': csrf },
-      data: { name, uniqueId: String(Date.now()) },
-    });
-    expect(res.status()).toBe(201);
-    const id = (await res.json()).id;
-
-    try {
-      const devicesPage = new DevicesPage(authedPage);
-      await devicesPage.goto();
-      await devicesPage.search(name);
-      const row = devicesPage.tableRows.filter({ hasText: name });
-      await expect(row).toHaveCount(1);
-
+    await withDeviceRow(authedPage, name, async (row) => {
       let message = '';
       authedPage.once('dialog', (d) => {
         message = d.message();
@@ -304,8 +337,6 @@ test.describe('Device deletion', () => {
       authedPage.once('dialog', (d) => void d.accept());
       await row.locator('button:has-text("Delete")').click();
       await expect(row).toHaveCount(0);
-    } finally {
-      await authedPage.request.delete(`/api/devices/${id}`, { headers: { 'X-CSRF-Token': csrf } });
-    }
+    });
   });
 });

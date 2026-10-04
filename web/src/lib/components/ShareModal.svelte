@@ -2,6 +2,8 @@
 	import { onMount, createEventDispatcher } from 'svelte';
 	import { api } from '$lib/api/client';
 	import { formatDate } from '$lib/utils/formatting';
+	import { hoursFromNow } from '$lib/utils/date-range';
+	import type { DeviceShare } from '$lib/types/api';
 	import Button from './Button.svelte';
 	import Modal from './Modal.svelte';
 
@@ -9,20 +11,11 @@
 	export let deviceName: string;
 	export let open = false;
 
-	interface Share {
-		id: number;
-		deviceId: number;
-		token: string;
-		createdBy: number;
-		expiresAt: string | null;
-		createdAt: string;
-	}
-
 	const dispatch = createEventDispatcher();
 
 	let expiry = '24h';
 	let shareLink = '';
-	let activeShares: Share[] = [];
+	let activeShares: DeviceShare[] = [];
 	let creating = false;
 	let loadingShares = false;
 	let copied = false;
@@ -59,10 +52,9 @@
 		error = '';
 		copied = false;
 		try {
-			const option = expiryOptions.find((o) => o.value === expiry);
-			const hours = option?.hours ?? null;
-			const share = await api.createDeviceShare(deviceId, hours);
-			shareLink = `${window.location.origin}${share.shareUrl || '/share/' + share.token}`;
+			const hours = expiryOptions.find((o) => o.value === expiry)?.hours ?? null;
+			const share = await api.createDeviceShare(deviceId, hours === null ? null : hoursFromNow(hours));
+			shareLink = `${window.location.origin}/share/${share.token}`;
 			await loadShares();
 		} catch (err) {
 			error = 'Failed to create share link';
@@ -105,14 +97,14 @@
 		dispatch('close');
 	}
 
-	function formatExpiry(expiresAt: string | null): string {
+	function formatExpiry(expiresAt?: string | null): string {
 		if (!expiresAt) return 'Never';
 		const date = new Date(expiresAt);
 		if (date < new Date()) return 'Expired';
 		return formatDate(expiresAt);
 	}
 
-	function isExpired(expiresAt: string | null): boolean {
+	function isExpired(expiresAt?: string | null): boolean {
 		if (!expiresAt) return false;
 		return new Date(expiresAt) < new Date();
 	}

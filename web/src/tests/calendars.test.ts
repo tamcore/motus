@@ -50,8 +50,7 @@ vi.mock("$lib/api/client", () => ({
 import type {
   Calendar,
   CalendarCheckResponse,
-  CreateCalendarPayload,
-  UpdateCalendarPayload,
+  CalendarPayload,
 } from "$lib/types/api";
 
 import {
@@ -74,7 +73,6 @@ import {
 function createMockCalendar(overrides: Partial<Calendar> = {}): Calendar {
   return {
     id: 1,
-    userId: 1,
     name: "Test Calendar",
     data: CALENDAR_TEMPLATES[0].data, // Business Hours
     createdAt: "2026-02-15T10:00:00Z",
@@ -369,7 +367,7 @@ describe("Calendar Management", () => {
 
     describe("createCalendar", () => {
       it("should create a calendar with name and data", async () => {
-        const payload: CreateCalendarPayload = {
+        const payload: CalendarPayload = {
           name: "My Schedule",
           data: CALENDAR_TEMPLATES[0].data,
         };
@@ -401,7 +399,7 @@ describe("Calendar Management", () => {
 
     describe("updateCalendar", () => {
       it("should update calendar name and data", async () => {
-        const payload: UpdateCalendarPayload = {
+        const payload: CalendarPayload = {
           name: "Updated Name",
           data: CALENDAR_TEMPLATES[1].data,
         };
@@ -409,7 +407,7 @@ describe("Calendar Management", () => {
         const updated = createMockCalendar({
           id: 1,
           name: "Updated Name",
-          data: payload.data!,
+          data: payload.data,
           updatedAt: "2026-02-16T10:00:00Z",
         });
         mockUpdateCalendar.mockResolvedValue(updated);
@@ -421,19 +419,6 @@ describe("Calendar Management", () => {
         expect(result.name).toBe("Updated Name");
       });
 
-      it("should allow partial updates", async () => {
-        const payload: UpdateCalendarPayload = { name: "Just Name" };
-        const updated = createMockCalendar({ name: "Just Name" });
-        mockUpdateCalendar.mockResolvedValue(updated);
-
-        const { api } = await import("$lib/api/client");
-        const result = await api.updateCalendar(1, payload);
-
-        expect(mockUpdateCalendar).toHaveBeenCalledWith(1, {
-          name: "Just Name",
-        });
-        expect(result.name).toBe("Just Name");
-      });
     });
 
     describe("deleteCalendar", () => {
@@ -457,10 +442,8 @@ describe("Calendar Management", () => {
     describe("checkCalendar", () => {
       it("should return check response with active status", async () => {
         const response: CalendarCheckResponse = {
-          calendarId: 1,
-          name: "Business Hours",
           active: true,
-          checkedAt: "2026-02-17T10:00:00Z",
+          nextTrigger: "2026-02-18T08:00:00Z",
         };
         mockCheckCalendar.mockResolvedValue(response);
 
@@ -469,16 +452,11 @@ describe("Calendar Management", () => {
 
         expect(mockCheckCalendar).toHaveBeenCalledWith(1);
         expect(result.active).toBe(true);
-        expect(result.calendarId).toBe(1);
+        expect(result.nextTrigger).toBe("2026-02-18T08:00:00Z");
       });
 
       it("should return inactive status", async () => {
-        const response: CalendarCheckResponse = {
-          calendarId: 1,
-          name: "Business Hours",
-          active: false,
-          checkedAt: "2026-02-17T22:00:00Z",
-        };
+        const response: CalendarCheckResponse = { active: false };
         mockCheckCalendar.mockResolvedValue(response);
 
         const { api } = await import("$lib/api/client");
@@ -510,21 +488,8 @@ describe("Calendar Management", () => {
       expect(calendar.updatedAt).toBeTruthy();
     });
 
-    it("Calendar should allow optional userId", () => {
-      const calendar: Calendar = {
-        id: 1,
-        userId: 42,
-        name: "Test",
-        data: "BEGIN:VCALENDAR...",
-        createdAt: "2026-02-15T10:00:00Z",
-        updatedAt: "2026-02-15T10:00:00Z",
-      };
-
-      expect(calendar.userId).toBe(42);
-    });
-
-    it("CreateCalendarPayload should require name and data", () => {
-      const payload: CreateCalendarPayload = {
+    it("CalendarPayload should require name and data", () => {
+      const payload: CalendarPayload = {
         name: "My Calendar",
         data: "BEGIN:VCALENDAR...",
       };
@@ -533,33 +498,14 @@ describe("Calendar Management", () => {
       expect(payload.data).toBeTruthy();
     });
 
-    it("UpdateCalendarPayload should allow partial fields", () => {
-      const nameOnly: UpdateCalendarPayload = { name: "New Name" };
-      const dataOnly: UpdateCalendarPayload = { data: "BEGIN:VCALENDAR..." };
-      const both: UpdateCalendarPayload = {
-        name: "New Name",
-        data: "BEGIN:VCALENDAR...",
-      };
-
-      expect(nameOnly.name).toBe("New Name");
-      expect(nameOnly.data).toBeUndefined();
-      expect(dataOnly.data).toBeTruthy();
-      expect(both.name).toBeTruthy();
-      expect(both.data).toBeTruthy();
-    });
-
     it("CalendarCheckResponse should have all fields", () => {
       const response: CalendarCheckResponse = {
-        calendarId: 1,
-        name: "Test",
         active: true,
-        checkedAt: "2026-02-17T10:00:00Z",
+        nextTrigger: "2026-02-17T10:00:00Z",
       };
 
-      expect(response.calendarId).toBe(1);
-      expect(response.name).toBe("Test");
       expect(response.active).toBe(true);
-      expect(response.checkedAt).toBeTruthy();
+      expect(response.nextTrigger).toBeTruthy();
     });
   });
 

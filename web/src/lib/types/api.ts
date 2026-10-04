@@ -9,47 +9,26 @@
 // User
 // ---------------------------------------------------------------------------
 
-/** User roles supported by the backend. */
-
 /** A system user as returned by the API. */
 export interface User {
   id: number;
   email: string;
   name: string;
-  role: "admin" | "user" | "readonly";
-  token?: string | null;
   createdAt: string;
 
   /** Traccar-compatible fields (computed from role on the backend). */
   administrator: boolean;
   readonly: boolean;
   disabled: boolean;
-  map?: string | null;
-  latitude?: number | null;
-  longitude?: number | null;
-  zoom?: number | null;
-  coordinateFormat?: string | null;
   attributes?: Record<string, unknown>;
-
-  /** Index signature for Svelte store compatibility */
-  [key: string]: unknown;
 }
 
-/** Payload for creating a new user. */
-export interface CreateUserPayload {
+/** Payload for creating or updating a user (admin). Password is optional on update. */
+export interface UserPayload {
   email: string;
-  password: string;
   name: string;
-  role: string;
-}
-
-/** Payload for updating an existing user. */
-export interface UpdateUserPayload {
-  email?: string;
   password?: string;
-  name?: string;
   role?: string;
-  disabled?: boolean;
 }
 
 /** Payload for updating the authenticated user's own profile. */
@@ -92,8 +71,8 @@ export interface Device {
   ownerName?: string;
 }
 
-/** Payload for creating a new device. */
-export interface CreateDevicePayload {
+/** Payload for creating or updating a device. */
+export interface DevicePayload {
   uniqueId: string;
   name: string;
   phone?: string;
@@ -102,21 +81,8 @@ export interface CreateDevicePayload {
   category?: string;
   protocol?: string;
   disabled?: boolean;
-  mileage?: number | null;
-  attributes?: Record<string, unknown>;
-}
-
-/** Payload for updating an existing device. */
-export interface UpdateDevicePayload {
-  uniqueId?: string;
-  name?: string;
-  phone?: string;
-  model?: string;
-  contact?: string;
-  category?: string;
-  protocol?: string;
-  disabled?: boolean;
   speedLimit?: number | null;
+  /** Not in the DeviceInput spec yet: the backend drops it until the spec adds it. */
   mileage?: number | null;
   attributes?: Record<string, unknown>;
 }
@@ -142,8 +108,7 @@ export interface Position {
   course?: number | null;
   address?: string | null;
   accuracy?: number | null;
-  geofenceIds?: number[];
-  outdated: boolean;
+  outdated?: boolean;
   attributes?: Record<string, unknown>;
   network?: Record<string, unknown>;
 }
@@ -167,7 +132,6 @@ export interface PositionPoint {
 /** A time-based schedule stored in iCalendar (RFC 5545) format. */
 export interface Calendar {
   id: number;
-  userId?: number;
   name: string;
   /** iCalendar (RFC 5545) data string. */
   data: string;
@@ -177,24 +141,17 @@ export interface Calendar {
   ownerName?: string;
 }
 
-/** Payload for creating a new calendar. */
-export interface CreateCalendarPayload {
+/** Payload for creating or (fully) updating a calendar. */
+export interface CalendarPayload {
   name: string;
   data: string;
 }
 
-/** Payload for updating an existing calendar. */
-export interface UpdateCalendarPayload {
-  name?: string;
-  data?: string;
-}
-
 /** Response from checking if a calendar is currently active. */
 export interface CalendarCheckResponse {
-  calendarId: number;
-  name: string;
   active: boolean;
-  checkedAt: string;
+  /** Next time the schedule becomes active, when known. */
+  nextTrigger?: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -333,23 +290,12 @@ export interface NotificationRule {
   ownerName?: string;
 }
 
-/** Payload for creating a notification rule. */
-export interface CreateNotificationPayload {
+/** Payload for creating or (fully) updating a notification rule. */
+export interface NotificationPayload {
   name: string;
   eventTypes: string[];
   channel: string;
   config: NotificationConfig;
-  template?: string;
-  enabled?: boolean;
-  geofenceIds?: number[];
-}
-
-/** Payload for updating a notification rule. */
-export interface UpdateNotificationPayload {
-  name?: string;
-  eventTypes?: string[];
-  channel?: string;
-  config?: NotificationConfig;
   template?: string;
   enabled?: boolean;
   geofenceIds?: number[];
@@ -375,9 +321,8 @@ export interface DeviceShare {
   id: number;
   deviceId: number;
   token: string;
-  shareUrl: string;
   createdBy: number;
-  expiresAt: string | null;
+  expiresAt?: string | null;
   createdAt: string;
 }
 
@@ -405,14 +350,11 @@ export interface TokenResponse {
   token: string;
 }
 
-/** Sudo status response. */
+/** Sudo status response (GET /api/admin/sudo). */
 export interface SudoStatusResponse {
-  isSudo: boolean;
-  originalUserId?: number;
-  originalUser?: string;
-  targetUserId?: number;
-  user?: string;
-  expiresAt?: string;
+  active: boolean;
+  originalUserId?: number | null;
+  targetUserId?: number | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -462,8 +404,6 @@ export interface AuditEntry {
 export interface AuditLogResponse {
   entries: AuditEntry[];
   total: number;
-  limit: number;
-  offset: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -489,9 +429,7 @@ export interface ApiKey {
 export interface CreateApiKeyPayload {
   name: string;
   permissions: string;
-  /** Number of hours from now until the key expires. Mutually exclusive with expiresAt. */
-  expiresInHours?: number | null;
-  /** RFC 3339 timestamp for custom expiration. Mutually exclusive with expiresInHours. */
+  /** RFC 3339 expiry; omit for a never-expiring key. */
   expiresAt?: string | null;
 }
 

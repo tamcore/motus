@@ -2,6 +2,7 @@ package partition_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -440,5 +441,51 @@ func TestPartitionManager_CreatePartitionIfNotExists_CreationPath(t *testing.T) 
 	}
 	if !found {
 		t.Errorf("partition %q was not re-created by RunOnce", futureName)
+	}
+}
+
+// TestPartitionManager_CreatePartition_MoveErrorSurfaced verifies that a failed
+// row move from the default partition is reported as the cause and rolls back
+// cleanly (default partition stays attached).
+func TestPartitionManager_CreatePartition_MoveErrorSurfaced(t *testing.T) {
+	pool := testutil.SetupTestDB(t)
+	testutil.CleanTables(t, pool)
+	mgr := partition.NewManager(pool, 0, time.Hour, nil)
+	ctx := context.Background()
+	if err := mgr.RunOnce(ctx); err != nil {
+		t.Fatalf("initial RunOnce failed: %v", err)
+	}
+
+	now := time.Now().UTC()
+	futureName := partition.PartitionName(time.Date(now.Year(), now.Month()+3, 1, 0, 0, 0, 0, time.UTC))
+	if _, err := pool.Exec(ctx, "DROP TABLE IF EXISTS "+futureName); err != nil {
+		t.Fatalf("drop future partition: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `
+		CREATE FUNCTION fail_default_delete() RETURNS trigger LANGUAGE plpgsql AS $$
+		BEGIN RAISE EXCEPTION 'move blocked by test'; END $$;
+		CREATE TRIGGER fail_default_delete BEFORE DELETE ON positions_default
+		FOR EACH STATEMENT EXECUTE FUNCTION fail_default_delete();`); err != nil {
+		t.Fatalf("create trigger: %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = pool.Exec(context.Background(), `
+			DROP TRIGGER IF EXISTS fail_default_delete ON positions_default;
+			DROP FUNCTION IF EXISTS fail_default_delete();`)
+	})
+
+	err := mgr.RunOnce(ctx)
+	if err == nil || !strings.Contains(err.Error(), "move blocked by test") {
+		t.Fatalf("RunOnce error = %v, want the move failure as cause", err)
+	}
+
+	var attached bool
+	if err := pool.QueryRow(ctx,
+		`SELECT EXISTS (SELECT 1 FROM pg_inherits WHERE inhrelid = 'positions_default'::regclass)`,
+	).Scan(&attached); err != nil {
+		t.Fatalf("query default attachment: %v", err)
+	}
+	if !attached {
+		t.Error("default partition must stay attached after a failed move")
 	}
 }

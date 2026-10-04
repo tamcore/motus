@@ -170,9 +170,9 @@ func (m *Manager) createPartitionIfNotExists(ctx context.Context, name string, s
 		start.Format("2006-01-02"),
 		end.Format("2006-01-02"),
 	)
+	// A failed statement aborts the transaction; the deferred rollback restores
+	// the attached default partition.
 	if _, err := tx.Exec(ctx, createSQL); err != nil {
-		// Re-attach default before returning error.
-		_, _ = tx.Exec(ctx, `ALTER TABLE positions ATTACH PARTITION positions_default DEFAULT`)
 		return false, fmt.Errorf("create partition: %w", err)
 	}
 
@@ -186,12 +186,7 @@ func (m *Manager) createPartitionIfNotExists(ctx context.Context, name string, s
 		)
 		INSERT INTO %s SELECT * FROM moved`, name)
 	if _, err := tx.Exec(ctx, moveSQL, start, end); err != nil {
-		// This can fail if there are no rows, which is fine.
-		// Log but don't fail.
-		m.logger.Debug("note: moving rows from default partition",
-			slog.String("partition", name),
-			slog.Any("error", err),
-		)
+		return false, fmt.Errorf("move rows from default partition: %w", err)
 	}
 
 	if _, err := tx.Exec(ctx, `ALTER TABLE positions ATTACH PARTITION positions_default DEFAULT`); err != nil {

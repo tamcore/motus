@@ -164,12 +164,13 @@ func TestTruncate(t *testing.T) {
 		{"hello", 5, "hello"},
 		{"hello world", 5, "hello..."},
 		{"", 5, ""},
+		{"ab", 1, "a..."},
 	}
 
 	for _, tt := range tests {
-		got := truncate(tt.input, tt.maxLen)
+		got := Truncate(tt.input, tt.maxLen)
 		if got != tt.want {
-			t.Errorf("truncate(%q, %d) = %q, want %q", tt.input, tt.maxLen, got, tt.want)
+			t.Errorf("Truncate(%q, %d) = %q, want %q", tt.input, tt.maxLen, got, tt.want)
 		}
 	}
 }

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/tamcore/motus/internal/protocol"
 )
 
 // Config holds replay CLI flags.
@@ -106,7 +107,7 @@ func runReplay(config *Config) error {
 			if config.Verbose {
 				slog.Debug("sent message",
 					slog.Int("seq", count),
-					slog.String("msg", truncate(msg, 80)))
+					slog.String("msg", protocol.Truncate(msg, 80)))
 			} else if count%100 == 0 {
 				slog.Info("replay progress", slog.Int("sent", count))
 			}
@@ -119,7 +120,7 @@ func runReplay(config *Config) error {
 				if n > 0 {
 					slog.Debug("server response",
 						slog.Int("seq", count),
-						slog.String("response", truncate(string(buf[:n]), 80)))
+						slog.String("response", protocol.Truncate(string(buf[:n]), 80)))
 				}
 			}
 		}
@@ -193,11 +194,4 @@ func extractFromPcap(config *Config) ([]string, error) {
 // messageDelay is a fixed 5s GPS update interval scaled by the playback speed.
 func messageDelay(speed float64) time.Duration {
 	return time.Duration(5000/speed) * time.Millisecond
-}
-
-func truncate(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen] + "..."
 }

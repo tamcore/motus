@@ -6,6 +6,7 @@ import (
 	"cmp"
 	"context"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -37,8 +38,8 @@ type AutoCreateConfig struct {
 	DefaultUserEmail string
 }
 
-// defaultMaxConnections is the maximum number of concurrent GPS device connections.
-const defaultMaxConnections int64 = 1000
+// maxConnections is the maximum number of concurrent GPS device connections.
+const maxConnections int64 = 1000
 
 // Server is a TCP server that accepts GPS device connections,
 // decodes protocol messages, and passes positions to a handler.
@@ -54,8 +55,7 @@ type Server struct {
 	// Device auto-creation.
 	users         repository.UserRepo
 	autoCreate    AutoCreateConfig
-	defaultUserID int64      // cached user ID for auto-creation (protected by userIDMu)
-	userIDMu      sync.Mutex // protects defaultUserID caching
+	defaultUserID atomic.Int64 // cached user ID for auto-creation
 
 	// deviceCache maps unique ID to cachedDevice for deviceCacheTTL.
 	deviceCache sync.Map
@@ -64,9 +64,8 @@ type Server struct {
 	relayTarget string
 
 	// Connection tracking for graceful shutdown.
-	activeConns    sync.WaitGroup
-	connCount      atomic.Int64
-	maxConnections int64
+	activeConns sync.WaitGroup
+	connCount   atomic.Int64
 
 	// Optional: live connection registry for command dispatch.
 	registry *DeviceRegistry
@@ -98,12 +97,11 @@ const watchMaxFrameSize = 1 << 20
 // NewH02Server creates a TCP server for the H02 GPS protocol.
 func NewH02Server(port string, devices repository.DeviceRepo, handler *PositionHandler) *Server {
 	s := &Server{
-		name:           "h02",
-		port:           port,
-		devices:        devices,
-		handler:        handler,
-		maxConnections: defaultMaxConnections,
-		scannerSplit:   h02SplitFunc,
+		name:         "h02",
+		port:         port,
+		devices:      devices,
+		handler:      handler,
+		scannerSplit: h02SplitFunc,
 	}
 	s.decoder = s.decodeH02
 	s.SetLogger(slog.Default())
@@ -113,14 +111,13 @@ func NewH02Server(port string, devices repository.DeviceRepo, handler *PositionH
 // NewWatchServer creates a TCP server for the WATCH GPS protocol.
 func NewWatchServer(port string, devices repository.DeviceRepo, handler *PositionHandler) *Server {
 	s := &Server{
-		name:           "watch",
-		port:           port,
-		devices:        devices,
-		handler:        handler,
-		maxConnections: defaultMaxConnections,
-		scannerSplit:   watch.SplitFunc,
-		maxFrameSize:   watchMaxFrameSize,
-		rawFrames:      true,
+		name:         "watch",
+		port:         port,
+		devices:      devices,
+		handler:      handler,
+		scannerSplit: watch.SplitFunc,
+		maxFrameSize: watchMaxFrameSize,
+		rawFrames:    true,
 	}
 	s.decoder = s.decodeWatch
 	s.SetLogger(slog.Default())
@@ -257,11 +254,7 @@ func (s *Server) resolveDefaultUserID(ctx context.Context) (int64, error) {
 		return 0, fmt.Errorf("user repository not configured for auto-creation")
 	}
 
-	s.userIDMu.Lock()
-	cached := s.defaultUserID
-	s.userIDMu.Unlock()
-
-	if cached != 0 {
+	if cached := s.defaultUserID.Load(); cached != 0 {
 		return cached, nil
 	}
 
@@ -270,9 +263,7 @@ func (s *Server) resolveDefaultUserID(ctx context.Context) (int64, error) {
 		return 0, fmt.Errorf("default user %q not found: %w", s.autoCreate.DefaultUserEmail, err)
 	}
 
-	s.userIDMu.Lock()
-	s.defaultUserID = user.ID
-	s.userIDMu.Unlock()
+	s.defaultUserID.Store(user.ID)
 
 	return user.ID, nil
 }
@@ -336,22 +327,20 @@ func (s *Server) acceptLoop(ctx context.Context) {
 		}
 
 		// Enforce connection limit to prevent resource exhaustion.
-		if s.maxConnections > 0 && s.connCount.Load() >= s.maxConnections {
+		if s.connCount.Load() >= maxConnections {
 			s.log().Warn("connection rejected: limit reached",
 				slog.Int64("current", s.connCount.Load()),
-				slog.Int64("max", s.maxConnections),
+				slog.Int64("max", maxConnections),
 			)
 			_ = conn.Close()
 			continue
 		}
 
-		s.activeConns.Add(1)
 		s.connCount.Add(1)
-		go func() {
-			defer s.activeConns.Done()
+		s.activeConns.Go(func() {
 			defer s.connCount.Add(-1)
 			s.handleConnection(ctx, conn)
-		}()
+		})
 	}
 }
 
@@ -404,7 +393,7 @@ func (s *Server) handleConnection(ctx context.Context, conn net.Conn) {
 				_ = conn.SetWriteDeadline(time.Time{})
 				s.log().Debug("tx (command)",
 					slog.String("conn", id),
-					slog.String("data", truncate(string(data), 200)),
+					slog.String("data", Truncate(string(data), maxLoggedFrame)),
 				)
 			}
 		}
@@ -471,7 +460,7 @@ func (s *Server) handleConnection(ctx context.Context, conn net.Conn) {
 			slog.String("conn", id),
 			slog.String("remoteAddr", remoteAddr),
 			slog.String("device", deviceID),
-			slog.String("data", truncate(line, maxLoggedFrame)),
+			slog.String("data", Truncate(line, maxLoggedFrame)),
 		)
 
 		position, devID, response, err := s.decoder(decodeCtx, line)
@@ -536,7 +525,7 @@ func (s *Server) handleConnection(ctx context.Context, conn net.Conn) {
 
 	if err := scanner.Err(); err != nil {
 		// Don't log expected errors on shutdown.
-		if !strings.Contains(err.Error(), "use of closed network connection") {
+		if !errors.Is(err, net.ErrClosed) {
 			s.log().Warn("scanner error",
 				slog.String("remoteAddr", remoteAddr),
 				slog.Any("error", err),
@@ -763,7 +752,7 @@ func (s *Server) recordWatchCommandReply(ctx context.Context, device *model.Devi
 		s.log().Debug("command reply recorded",
 			slog.String("device", msg.DeviceID),
 			slog.Int64("commandID", cmd.ID),
-			slog.String("result", truncate(result, maxLoggedFrame)),
+			slog.String("result", Truncate(result, maxLoggedFrame)),
 		)
 		return
 	}
@@ -866,7 +855,8 @@ func (s *Server) markDeviceOffline(ctx context.Context, uniqueID string) {
 	}
 }
 
-func truncate(s string, maxLen int) string {
+// Truncate shortens s to maxLen bytes and appends "..." when it was longer.
+func Truncate(s string, maxLen int) string {
 	if len(s) <= maxLen {
 		return s
 	}

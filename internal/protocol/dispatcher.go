@@ -70,7 +70,11 @@ func (d *CommandDispatcher) dispatch(ctx context.Context) {
 
 // sendCommand encodes and delivers a single command.
 func (d *CommandDispatcher) sendCommand(ctx context.Context, protocol, uniqueID string, cmd *model.Command) {
-	payload, err := d.encodePayload(protocol, uniqueID, cmd)
+	// Protocols without an encoder skip non-custom commands silently.
+	payload, err := d.encoders.Encode(protocol, cmd, uniqueID)
+	if errors.Is(err, ErrNoEncoder) {
+		return
+	}
 	if err != nil {
 		d.logger.Warn("dispatcher: encode error",
 			slog.String("device", uniqueID),
@@ -99,15 +103,4 @@ func (d *CommandDispatcher) sendCommand(ctx context.Context, protocol, uniqueID 
 		slog.Int64("commandId", cmd.ID),
 		slog.String("type", cmd.Type),
 	)
-}
-
-// encodePayload returns the wire bytes for cmd via the EncoderRegistry.
-// Commands for protocols without an encoder are skipped silently (nil payload),
-// except custom commands, which are then sent verbatim.
-func (d *CommandDispatcher) encodePayload(protocol, uniqueID string, cmd *model.Command) ([]byte, error) {
-	payload, err := d.encoders.Encode(protocol, cmd, uniqueID)
-	if errors.Is(err, ErrNoEncoder) {
-		return nil, nil
-	}
-	return payload, err
 }

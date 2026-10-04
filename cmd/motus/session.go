@@ -9,6 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/spf13/cobra"
+	"github.com/tamcore/motus/internal/protocol"
 	"github.com/tamcore/motus/internal/storage/repository"
 )
 
@@ -67,7 +68,7 @@ func newUserSessionsListCmd() *cobra.Command {
 					}
 					items[i] = item
 					rows[i] = []string{
-						truncateID(s.ID),
+						protocol.Truncate(s.ID, 12),
 						apiKey,
 						s.CreatedAt.Format("2006-01-02 15:04"),
 						s.ExpiresAt.Format("2006-01-02 15:04"),
@@ -106,7 +107,7 @@ func newUserSessionsRevokeCmd() *cobra.Command {
 				}
 			})
 
-			fmt.Printf("Revoked session: %s\n", truncateID(id))
+			fmt.Printf("Revoked session: %s\n", protocol.Truncate(id, 12))
 		},
 	}
 
@@ -114,12 +115,4 @@ func newUserSessionsRevokeCmd() *cobra.Command {
 	_ = cmd.MarkFlagRequired("id")
 
 	return cmd
-}
-
-// truncateID returns the first 12 characters of a session ID for display.
-func truncateID(id string) string {
-	if len(id) > 12 {
-		return id[:12] + "..."
-	}
-	return id
 }

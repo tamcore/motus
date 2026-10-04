@@ -590,8 +590,8 @@ func TestDeviceAutoCreate_UserLookupCaching(t *testing.T) {
 	}
 
 	// Check that user ID is cached internally.
-	if srv.defaultUserID != adminUser.ID {
-		t.Errorf("cached defaultUserID: got %d, want %d", srv.defaultUserID, adminUser.ID)
+	if srv.defaultUserID.Load() != adminUser.ID {
+		t.Errorf("cached defaultUserID: got %d, want %d", srv.defaultUserID.Load(), adminUser.ID)
 	}
 
 	// Second auto-create should use cached user ID (no additional DB query).

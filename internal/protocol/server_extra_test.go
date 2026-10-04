@@ -230,26 +230,6 @@ func TestServer_Start_InvalidPort(t *testing.T) {
 	}
 }
 
-func TestTruncate_AdditionalCases(t *testing.T) {
-	tests := []struct {
-		input  string
-		maxLen int
-		want   string
-	}{
-		{"exactly3", 8, "exactly3"},
-		{"long string here", 4, "long..."},
-		{"a", 1, "a"},
-		{"ab", 1, "a..."},
-	}
-
-	for _, tt := range tests {
-		got := truncate(tt.input, tt.maxLen)
-		if got != tt.want {
-			t.Errorf("truncate(%q, %d) = %q, want %q", tt.input, tt.maxLen, got, tt.want)
-		}
-	}
-}
-
 func TestServer_SetLogger_BindsProtocolAttrs(t *testing.T) {
 	var buf bytes.Buffer
 	srv := NewH02Server("5014", nil, nil)

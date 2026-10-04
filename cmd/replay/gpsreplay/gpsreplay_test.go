@@ -30,26 +30,6 @@ func TestNewCmd(t *testing.T) {
 
 // --- truncate ---
 
-func TestTruncate(t *testing.T) {
-	tests := []struct {
-		input  string
-		maxLen int
-		want   string
-	}{
-		{"", 10, ""},
-		{"hello", 10, "hello"},
-		{"hello", 5, "hello"},
-		{"hello world", 5, "hello..."},
-		{"abcdef", 3, "abc..."},
-	}
-	for _, tt := range tests {
-		got := truncate(tt.input, tt.maxLen)
-		if got != tt.want {
-			t.Errorf("truncate(%q, %d) = %q, want %q", tt.input, tt.maxLen, got, tt.want)
-		}
-	}
-}
-
 // --- messageDelay ---
 
 func TestMessageDelay(t *testing.T) {

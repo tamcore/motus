@@ -83,28 +83,6 @@ func TestSortUsers(t *testing.T) {
 	}
 }
 
-// --- truncateID ---
-
-func TestTruncateID(t *testing.T) {
-	tests := []struct {
-		input string
-		want  string
-	}{
-		{"", ""},
-		{"short", "short"},
-		{"exactly12ch", "exactly12ch"},
-		{"1234567890AB", "1234567890AB"},     // exactly 12
-		{"1234567890ABC", "1234567890AB..."}, // 13 → truncated
-		{"a-very-long-session-id-12345", "a-very-long-..."},
-	}
-	for _, tt := range tests {
-		got := truncateID(tt.input)
-		if got != tt.want {
-			t.Errorf("truncateID(%q) = %q, want %q", tt.input, got, tt.want)
-		}
-	}
-}
-
 // --- printTableTo ---
 
 func TestPrintTableTo(t *testing.T) {

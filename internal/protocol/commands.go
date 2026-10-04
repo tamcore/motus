@@ -173,11 +173,6 @@ func NewEncoderRegistry(sessions *DeviceRegistry) *EncoderRegistry {
 	}}
 }
 
-// Get returns the encoder for the given protocol, or nil if not found.
-func (r *EncoderRegistry) Get(protocol string) CommandEncoder {
-	return r.encoders[protocol]
-}
-
 // SupportedCommands lists the command types a device speaking protocol can
 // receive. A device whose protocol is not known yet ("") may receive any
 // command; a protocol without an encoder (e.g. osmand) receives none. Safe to
@@ -186,7 +181,7 @@ func (r *EncoderRegistry) SupportedCommands(protocol string) []string {
 	if r == nil || protocol == "" {
 		return model.SupportedCommandTypes()
 	}
-	enc := r.Get(protocol)
+	enc := r.encoders[protocol]
 	if enc == nil {
 		return []string{}
 	}
@@ -204,7 +199,7 @@ var ErrNoEncoder = errors.New("no command encoder for protocol")
 func (r *EncoderRegistry) Encode(protocol string, cmd *model.Command, uniqueID string) ([]byte, error) {
 	var enc CommandEncoder
 	if r != nil {
-		enc = r.Get(protocol)
+		enc = r.encoders[protocol]
 	}
 	if enc == nil {
 		if cmd.Type == model.CommandCustom {

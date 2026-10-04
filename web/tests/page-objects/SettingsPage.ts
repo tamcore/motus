@@ -26,6 +26,10 @@ export class SettingsPage {
     return this.page.locator('.api-keys-section');
   }
 
+  get apiKeysLoading() {
+    return this.apiKeysSection.locator('.loading-text');
+  }
+
   get sessionsSection() {
     return this.page.locator('.sessions-section');
   }

@@ -20,6 +20,7 @@ test.describe('Settings page layout', () => {
     settings = new SettingsPage(authedPage);
     await settings.goto();
     await expect(settings.sessionCards.first()).toBeVisible();
+    await expect(settings.apiKeysLoading).toHaveCount(0);
   });
 
   test('centers the 800px container', async ({ authedPage }) => {
@@ -81,7 +82,7 @@ test.describe('Settings page layout', () => {
     expect(create.x).toBeGreaterThan(cancel.x + cancel.width);
     expect(Math.abs(create.y - cancel.y)).toBeLessThan(1);
     const rightGap = dialog.x + dialog.width - (create.x + create.width);
-    expect(rightGap).toBeLessThan(40);
+    expect(Math.abs(rightGap)).toBeLessThan(40);
 
     const name = await box(settings.dialog.locator('input[name="keyName"]'));
     const permissions = await box(settings.dialog.locator('#keyPermissions'));

@@ -69,8 +69,7 @@ func (r *DeviceShareRepository) GetByToken(ctx context.Context, token string) (*
 // ListByDevice returns all active share links for a device.
 func (r *DeviceShareRepository) ListByDevice(ctx context.Context, deviceID int64) ([]*model.DeviceShare, error) {
 	rows, err := r.pool.Query(ctx,
-		`SELECT id, device_id, token, created_by, expires_at, created_at
-		 FROM device_shares
+		`SELECT `+deviceShareColumns+` FROM device_shares
 		 WHERE device_id = $1 AND (expires_at IS NULL OR expires_at > NOW())
 		 ORDER BY created_at DESC`,
 		deviceID,
@@ -79,8 +78,8 @@ func (r *DeviceShareRepository) ListByDevice(ctx context.Context, deviceID int64
 		return nil, fmt.Errorf("list device shares: %w", err)
 	}
 	return pgx.AppendRows([]*model.DeviceShare(nil), rows, func(row pgx.CollectableRow) (*model.DeviceShare, error) {
-		s := &model.DeviceShare{}
-		if err := row.Scan(&s.ID, &s.DeviceID, &s.Token, &s.CreatedBy, &s.ExpiresAt, &s.CreatedAt); err != nil {
+		s, err := scanDeviceShare(row)
+		if err != nil {
 			return nil, fmt.Errorf("scan device share: %w", err)
 		}
 		return s, nil
@@ -90,17 +89,19 @@ func (r *DeviceShareRepository) ListByDevice(ctx context.Context, deviceID int64
 // GetByID retrieves a device share by its ID.
 // Returns nil, nil if the share is not found.
 func (r *DeviceShareRepository) GetByID(ctx context.Context, id int64) (*model.DeviceShare, error) {
-	s := &model.DeviceShare{}
-	err := r.pool.QueryRow(ctx,
-		`SELECT id, device_id, token, created_by, expires_at, created_at
-		 FROM device_shares
-		 WHERE id = $1`,
-		id,
-	).Scan(&s.ID, &s.DeviceID, &s.Token, &s.CreatedBy, &s.ExpiresAt, &s.CreatedAt)
+	s, err := scanDeviceShare(r.pool.QueryRow(ctx, `SELECT `+deviceShareColumns+` FROM device_shares WHERE id = $1`, id))
 	if err != nil {
 		return nil, fmt.Errorf("get device share by id: %w", err)
 	}
 	return s, nil
+}
+
+const deviceShareColumns = `id, device_id, token, created_by, expires_at, created_at`
+
+func scanDeviceShare(row pgx.Row) (*model.DeviceShare, error) {
+	s := &model.DeviceShare{}
+	err := row.Scan(&s.ID, &s.DeviceID, &s.Token, &s.CreatedBy, &s.ExpiresAt, &s.CreatedAt)
+	return s, err
 }
 
 // Delete removes a device share by ID.

@@ -45,22 +45,26 @@ func (r *CalendarRepository) Create(ctx context.Context, c *model.Calendar) erro
 
 // GetByID retrieves a calendar by its ID.
 func (r *CalendarRepository) GetByID(ctx context.Context, id int64) (*model.Calendar, error) {
-	var c model.Calendar
-	err := r.pool.QueryRow(ctx, `
-		SELECT id, user_id, name, data, created_at, updated_at
-		FROM calendars
-		WHERE id = $1
-	`, id).Scan(&c.ID, &c.UserID, &c.Name, &c.Data, &c.CreatedAt, &c.UpdatedAt)
+	c, err := scanCalendar(r.pool.QueryRow(ctx, `SELECT `+calendarColumns+` FROM calendars c WHERE c.id = $1`, id))
 	if err != nil {
 		return nil, fmt.Errorf("get calendar by id: %w", err)
 	}
-	return &c, nil
+	return c, nil
+}
+
+const calendarColumns = `c.id, c.user_id, c.name, c.data, c.created_at, c.updated_at`
+
+// scanCalendar scans calendarColumns, followed by extra.
+func scanCalendar(row pgx.Row, extra ...any) (*model.Calendar, error) {
+	c := &model.Calendar{}
+	err := row.Scan(append([]any{&c.ID, &c.UserID, &c.Name, &c.Data, &c.CreatedAt, &c.UpdatedAt}, extra...)...)
+	return c, err
 }
 
 // GetByUser retrieves all calendars associated with a user.
 func (r *CalendarRepository) GetByUser(ctx context.Context, userID int64) ([]*model.Calendar, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT c.id, c.user_id, c.name, c.data, c.created_at, c.updated_at
+		SELECT `+calendarColumns+`
 		FROM calendars c
 		JOIN user_calendars uc ON c.id = uc.calendar_id
 		WHERE uc.user_id = $1
@@ -70,19 +74,18 @@ func (r *CalendarRepository) GetByUser(ctx context.Context, userID int64) ([]*mo
 		return nil, fmt.Errorf("get calendars by user: %w", err)
 	}
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (*model.Calendar, error) {
-		var c model.Calendar
-		if err := row.Scan(&c.ID, &c.UserID, &c.Name, &c.Data, &c.CreatedAt, &c.UpdatedAt); err != nil {
+		c, err := scanCalendar(row)
+		if err != nil {
 			return nil, fmt.Errorf("scan calendar: %w", err)
 		}
-		return &c, nil
+		return c, nil
 	})
 }
 
 // GetAll retrieves all calendars with owner names.
 func (r *CalendarRepository) GetAll(ctx context.Context) ([]*model.Calendar, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT c.id, c.user_id, c.name, c.data, c.created_at, c.updated_at,
-			COALESCE(u.name, '') AS owner_name
+		SELECT `+calendarColumns+`, COALESCE(u.name, '') AS owner_name
 		FROM calendars c
 		LEFT JOIN users u ON u.id = c.user_id
 		ORDER BY c.name
@@ -91,11 +94,13 @@ func (r *CalendarRepository) GetAll(ctx context.Context) ([]*model.Calendar, err
 		return nil, fmt.Errorf("get all calendars: %w", err)
 	}
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (*model.Calendar, error) {
-		var c model.Calendar
-		if err := row.Scan(&c.ID, &c.UserID, &c.Name, &c.Data, &c.CreatedAt, &c.UpdatedAt, &c.OwnerName); err != nil {
+		var ownerName string
+		c, err := scanCalendar(row, &ownerName)
+		if err != nil {
 			return nil, fmt.Errorf("scan calendar: %w", err)
 		}
-		return &c, nil
+		c.OwnerName = ownerName
+		return c, nil
 	})
 }
 

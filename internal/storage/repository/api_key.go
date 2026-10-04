@@ -60,12 +60,7 @@ func (r *ApiKeyRepository) Create(ctx context.Context, key *model.ApiKey) error 
 // GetByToken retrieves an API key by its raw token value.
 // The token is hashed before lookup so the database never stores plaintext.
 func (r *ApiKeyRepository) GetByToken(ctx context.Context, token string) (*model.ApiKey, error) {
-	k := &model.ApiKey{}
-	err := r.pool.QueryRow(ctx,
-		`SELECT id, user_id, token, name, permissions, expires_at, created_at, last_used_at
-		 FROM api_keys WHERE token = $1`,
-		HashToken(token),
-	).Scan(&k.ID, &k.UserID, &k.Token, &k.Name, &k.Permissions, &k.ExpiresAt, &k.CreatedAt, &k.LastUsedAt)
+	k, err := scanApiKey(r.pool.QueryRow(ctx, `SELECT `+apiKeyColumns+` FROM api_keys WHERE token = $1`, HashToken(token)))
 	if err != nil {
 		return nil, fmt.Errorf("get api key by token: %w", err)
 	}
@@ -74,33 +69,34 @@ func (r *ApiKeyRepository) GetByToken(ctx context.Context, token string) (*model
 
 // GetByID retrieves an API key by its ID.
 func (r *ApiKeyRepository) GetByID(ctx context.Context, id int64) (*model.ApiKey, error) {
-	k := &model.ApiKey{}
-	err := r.pool.QueryRow(ctx,
-		`SELECT id, user_id, token, name, permissions, expires_at, created_at, last_used_at
-		 FROM api_keys WHERE id = $1`,
-		id,
-	).Scan(&k.ID, &k.UserID, &k.Token, &k.Name, &k.Permissions, &k.ExpiresAt, &k.CreatedAt, &k.LastUsedAt)
+	k, err := scanApiKey(r.pool.QueryRow(ctx, `SELECT `+apiKeyColumns+` FROM api_keys WHERE id = $1`, id))
 	if err != nil {
 		return nil, fmt.Errorf("get api key by id: %w", err)
 	}
 	return k, nil
 }
 
+const apiKeyColumns = `id, user_id, token, name, permissions, expires_at, created_at, last_used_at`
+
+func scanApiKey(row pgx.Row) (*model.ApiKey, error) {
+	k := &model.ApiKey{}
+	err := row.Scan(&k.ID, &k.UserID, &k.Token, &k.Name, &k.Permissions, &k.ExpiresAt, &k.CreatedAt, &k.LastUsedAt)
+	return k, err
+}
+
 // ListByUser returns all API keys for a user, ordered by creation date.
 // Tokens are redacted in the response (only first 8 chars shown).
 func (r *ApiKeyRepository) ListByUser(ctx context.Context, userID int64) ([]*model.ApiKey, error) {
 	rows, err := r.pool.Query(ctx,
-		`SELECT id, user_id, token, name, permissions, expires_at, created_at, last_used_at
-		 FROM api_keys WHERE user_id = $1
-		 ORDER BY created_at DESC`,
+		`SELECT `+apiKeyColumns+` FROM api_keys WHERE user_id = $1 ORDER BY created_at DESC`,
 		userID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("list api keys: %w", err)
 	}
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (*model.ApiKey, error) {
-		k := &model.ApiKey{}
-		if err := row.Scan(&k.ID, &k.UserID, &k.Token, &k.Name, &k.Permissions, &k.ExpiresAt, &k.CreatedAt, &k.LastUsedAt); err != nil {
+		k, err := scanApiKey(row)
+		if err != nil {
 			return nil, fmt.Errorf("scan api key: %w", err)
 		}
 		return k, nil

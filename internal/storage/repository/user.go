@@ -58,14 +58,21 @@ func (r *UserRepository) CreateOIDCUser(ctx context.Context, email, name, role, 
 
 // GetByOIDCSubject retrieves a user by their OIDC subject and issuer.
 func (r *UserRepository) GetByOIDCSubject(ctx context.Context, subject, issuer string) (*model.User, error) {
+	return r.getUser(ctx, "get user by oidc subject", "oidc_subject = $1 AND oidc_issuer = $2", subject, issuer)
+}
+
+const userColumns = `id, email, COALESCE(password_hash, ''), name, role, token, created_at, oidc_subject, oidc_issuer`
+
+func scanUser(row pgx.Row) (*model.User, error) {
 	u := &model.User{}
-	err := r.pool.QueryRow(ctx,
-		`SELECT id, email, COALESCE(password_hash, ''), name, role, token, created_at, oidc_subject, oidc_issuer
-		 FROM users WHERE oidc_subject = $1 AND oidc_issuer = $2`,
-		subject, issuer,
-	).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.Name, &u.Role, &u.Token, &u.CreatedAt, &u.OIDCSubject, &u.OIDCIssuer)
+	err := row.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.Name, &u.Role, &u.Token, &u.CreatedAt, &u.OIDCSubject, &u.OIDCIssuer)
+	return u, err
+}
+
+func (r *UserRepository) getUser(ctx context.Context, op, where string, args ...any) (*model.User, error) {
+	u, err := scanUser(r.pool.QueryRow(ctx, `SELECT `+userColumns+` FROM users WHERE `+where, args...))
 	if err != nil {
-		return nil, fmt.Errorf("get user by oidc subject: %w", err)
+		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 	return u, nil
 }
@@ -84,57 +91,30 @@ func (r *UserRepository) SetOIDCSubject(ctx context.Context, userID int64, subje
 
 // GetByEmail retrieves a user by email address.
 func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*model.User, error) {
-	u := &model.User{}
-	err := r.pool.QueryRow(ctx,
-		`SELECT id, email, COALESCE(password_hash, ''), name, role, token, created_at, oidc_subject, oidc_issuer
-		 FROM users WHERE email = $1`, email,
-	).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.Name, &u.Role, &u.Token, &u.CreatedAt, &u.OIDCSubject, &u.OIDCIssuer)
-	if err != nil {
-		return nil, fmt.Errorf("get user by email: %w", err)
-	}
-	return u, nil
+	return r.getUser(ctx, "get user by email", "email = $1", email)
 }
 
 // GetByID retrieves a user by ID.
 func (r *UserRepository) GetByID(ctx context.Context, id int64) (*model.User, error) {
-	u := &model.User{}
-	err := r.pool.QueryRow(ctx,
-		`SELECT id, email, COALESCE(password_hash, ''), name, role, token, created_at, oidc_subject, oidc_issuer
-		 FROM users WHERE id = $1`, id,
-	).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.Name, &u.Role, &u.Token, &u.CreatedAt, &u.OIDCSubject, &u.OIDCIssuer)
-	if err != nil {
-		return nil, fmt.Errorf("get user by id: %w", err)
-	}
-	return u, nil
+	return r.getUser(ctx, "get user by id", "id = $1", id)
 }
 
 // GetByToken retrieves a user by their raw API token.
 // The token is hashed before lookup so the database never stores plaintext.
 func (r *UserRepository) GetByToken(ctx context.Context, token string) (*model.User, error) {
-	u := &model.User{}
-	err := r.pool.QueryRow(ctx,
-		`SELECT id, email, COALESCE(password_hash, ''), name, role, token, created_at, oidc_subject, oidc_issuer
-		 FROM users WHERE token = $1`, HashToken(token),
-	).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.Name, &u.Role, &u.Token, &u.CreatedAt, &u.OIDCSubject, &u.OIDCIssuer)
-	if err != nil {
-		return nil, fmt.Errorf("get user by token: %w", err)
-	}
-	return u, nil
+	return r.getUser(ctx, "get user by token", "token = $1", HashToken(token))
 }
 
 // ListAll returns all users ordered by email. Passwords are excluded from
 // the returned objects.
 func (r *UserRepository) ListAll(ctx context.Context) ([]*model.User, error) {
-	rows, err := r.pool.Query(ctx,
-		`SELECT id, email, COALESCE(password_hash, ''), name, role, token, created_at, oidc_subject, oidc_issuer
-		 FROM users ORDER BY email`,
-	)
+	rows, err := r.pool.Query(ctx, `SELECT `+userColumns+` FROM users ORDER BY email`)
 	if err != nil {
 		return nil, fmt.Errorf("list users: %w", err)
 	}
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (*model.User, error) {
-		u := &model.User{}
-		if err := row.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.Name, &u.Role, &u.Token, &u.CreatedAt, &u.OIDCSubject, &u.OIDCIssuer); err != nil {
+		u, err := scanUser(row)
+		if err != nil {
 			return nil, fmt.Errorf("scan user: %w", err)
 		}
 		return u, nil

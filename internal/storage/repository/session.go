@@ -73,11 +73,9 @@ func (r *SessionRepository) insert(ctx context.Context, s *model.Session) (*mode
 
 // GetByID retrieves a session by its ID, returning nil if expired.
 func (r *SessionRepository) GetByID(ctx context.Context, id string) (*model.Session, error) {
-	s := &model.Session{}
-	err := r.pool.QueryRow(ctx,
-		`SELECT id, user_id, remember_me, original_user_id, is_sudo, api_key_id, created_at, expires_at
-		 FROM sessions WHERE id = $1 AND expires_at > NOW()`, id,
-	).Scan(&s.ID, &s.UserID, &s.RememberMe, &s.OriginalUserID, &s.IsSudo, &s.ApiKeyID, &s.CreatedAt, &s.ExpiresAt)
+	s, err := scanSession(r.pool.QueryRow(ctx,
+		`SELECT `+sessionColumns+` FROM sessions s WHERE s.id = $1 AND s.expires_at > NOW()`, id,
+	))
 	if err != nil {
 		return nil, fmt.Errorf("get session: %w", err)
 	}
@@ -88,16 +86,23 @@ func (r *SessionRepository) GetByID(ctx context.Context, id string) (*model.Sess
 // given prefix. This supports the truncated display IDs returned by the
 // API — the frontend never sees the full session token.
 func (r *SessionRepository) GetByIDPrefix(ctx context.Context, userID int64, prefix string) (*model.Session, error) {
-	s := &model.Session{}
-	err := r.pool.QueryRow(ctx,
-		`SELECT id, user_id, remember_me, original_user_id, is_sudo, api_key_id, created_at, expires_at
-		 FROM sessions WHERE user_id = $1 AND id LIKE $2 || '%' AND expires_at > NOW()
+	s, err := scanSession(r.pool.QueryRow(ctx,
+		`SELECT `+sessionColumns+` FROM sessions s
+		 WHERE s.user_id = $1 AND s.id LIKE $2 || '%' AND s.expires_at > NOW()
 		 LIMIT 1`, userID, prefix,
-	).Scan(&s.ID, &s.UserID, &s.RememberMe, &s.OriginalUserID, &s.IsSudo, &s.ApiKeyID, &s.CreatedAt, &s.ExpiresAt)
+	))
 	if err != nil {
 		return nil, fmt.Errorf("get session by prefix: %w", err)
 	}
 	return s, nil
+}
+
+const sessionColumns = `s.id, s.user_id, s.remember_me, s.original_user_id, s.is_sudo, s.api_key_id, s.created_at, s.expires_at`
+
+func scanSession(row pgx.Row) (*model.Session, error) {
+	s := &model.Session{}
+	err := row.Scan(&s.ID, &s.UserID, &s.RememberMe, &s.OriginalUserID, &s.IsSudo, &s.ApiKeyID, &s.CreatedAt, &s.ExpiresAt)
+	return s, err
 }
 
 // Delete removes a session by ID.

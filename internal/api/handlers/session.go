@@ -3,7 +3,6 @@ package handlers
 import (
 	"context"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -24,15 +23,8 @@ const (
 	sessionExpiryRememberMe = 30 * 24 * time.Hour
 )
 
-// isSecureEnvironment returns true when running in a production-like
-// environment. In development (MOTUS_ENV=development) the Secure flag
-// on cookies is omitted so that HTTP works on localhost.
-func isSecureEnvironment() bool {
-	return os.Getenv("MOTUS_ENV") != "development"
-}
-
 // setSessionCookie writes the session_id cookie; a past expiry clears it.
-func setSessionCookie(ctx context.Context, id string, expires time.Time) {
+func (h *Handler) setSessionCookie(ctx context.Context, id string, expires time.Time) {
 	w := api.ResponseWriterFromContext(ctx)
 	if w == nil {
 		return
@@ -44,7 +36,7 @@ func setSessionCookie(ctx context.Context, id string, expires time.Time) {
 		Expires:  expires,
 		MaxAge:   int(time.Until(expires).Seconds()),
 		HttpOnly: true,
-		Secure:   isSecureEnvironment(),
+		Secure:   !h.cfg.Development,
 		SameSite: http.SameSiteLaxMode,
 	})
 }
@@ -106,7 +98,7 @@ func (h *Handler) Login(ctx context.Context, req oas.LoginReq) (oas.LoginRes, er
 		return &oas.LoginUnauthorized{Error: "failed to create session"}, nil
 	}
 
-	setSessionCookie(ctx, session.ID, session.ExpiresAt)
+	h.setSessionCookie(ctx, session.ID, session.ExpiresAt)
 
 	h.cfg.AuditLogger.Log(ctx, &user.ID, audit.ActionSessionLogin, audit.ResourceSession, nil,
 		map[string]any{"email": user.Email}, "", "")
@@ -127,7 +119,7 @@ func (h *Handler) Logout(ctx context.Context) (oas.LogoutRes, error) {
 		_ = h.cfg.Sessions.Delete(ctx, session.ID)
 	}
 
-	setSessionCookie(ctx, "", time.Unix(0, 0))
+	h.setSessionCookie(ctx, "", time.Unix(0, 0))
 
 	return &oas.LogoutNoContent{}, nil
 }
@@ -195,7 +187,7 @@ func (h *Handler) tokenLogin(ctx context.Context, token string) (oas.GetSessionR
 		return &oas.Error{Error: "failed to create session"}, nil
 	}
 
-	setSessionCookie(ctx, session.ID, session.ExpiresAt)
+	h.setSessionCookie(ctx, session.ID, session.ExpiresAt)
 
 	details := map[string]any{"method": "token"}
 	if apiKey != nil {

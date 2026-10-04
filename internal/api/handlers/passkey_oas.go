@@ -212,7 +212,7 @@ func (h *Handler) PasskeyLoginFinish(ctx context.Context, req oas.WebAuthnAssert
 		return &oas.PasskeyLoginFinishUnauthorized{Error: err.Error()}, nil
 	}
 
-	setSessionCookie(ctx, session.ID, session.ExpiresAt)
+	h.setSessionCookie(ctx, session.ID, session.ExpiresAt)
 
 	h.cfg.AuditLogger.Log(ctx, &user.ID, audit.ActionSessionLogin, audit.ResourceSession, nil,
 		map[string]any{"method": "passkey"}, "", "")
@@ -323,7 +323,7 @@ func (h *Handler) setChallengeCookie(ctx context.Context, name string, sd *webau
 		Path:     "/api/session/passkey/",
 		MaxAge:   int(passkeyChallengeTTL.Seconds()),
 		HttpOnly: true,
-		Secure:   isSecureEnvironment(),
+		Secure:   !h.cfg.Development,
 		SameSite: http.SameSiteLaxMode,
 	})
 	return nil
@@ -348,20 +348,20 @@ func (h *Handler) consumeChallengeCookie(ctx context.Context, name string) (*web
 			Path:     "/api/session/passkey/",
 			MaxAge:   -1,
 			HttpOnly: true,
-			Secure:   isSecureEnvironment(),
+			Secure:   !h.cfg.Development,
 			SameSite: http.SameSiteLaxMode,
 		})
 	}
 
-	parts := strings.SplitN(cookie.Value, ".", 2)
-	if len(parts) != 2 {
+	encoded, sig, ok := strings.Cut(cookie.Value, ".")
+	if !ok {
 		return nil, errPasskeyBadCookie
 	}
-	payload, err := base64.RawURLEncoding.DecodeString(parts[0])
+	payload, err := base64.RawURLEncoding.DecodeString(encoded)
 	if err != nil {
 		return nil, err
 	}
-	if !hmac.Equal([]byte(h.signPayload(payload)), []byte(parts[1])) {
+	if !hmac.Equal([]byte(h.signPayload(payload)), []byte(sig)) {
 		return nil, errPasskeyBadCookie
 	}
 

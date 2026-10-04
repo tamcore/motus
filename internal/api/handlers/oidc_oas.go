@@ -147,7 +147,7 @@ func (h *Handler) OidcCallback(ctx context.Context, params oas.OidcCallbackParam
 		return &oas.Error{Error: "failed to create session"}, nil
 	}
 
-	setSessionCookie(ctx, session.ID, session.ExpiresAt)
+	h.setSessionCookie(ctx, session.ID, session.ExpiresAt)
 	if w := api.ResponseWriterFromContext(ctx); w != nil {
 		w.Header().Set("Location", "/")
 	}

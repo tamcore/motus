@@ -90,7 +90,7 @@ func (c *Config) Validate() error {
 	}
 
 	// CSRF secret validation: required in non-development environments.
-	if c.Security.Env != "development" {
+	if !c.Security.IsDevelopment() {
 		if c.Security.CSRFSecret == "" {
 			errs = append(errs, "MOTUS_CSRF_SECRET must be set in non-development environments (multi-pod deployments require a shared secret)")
 		} else if _, err := ParseCSRFSecret(c.Security.CSRFSecret); err != nil {

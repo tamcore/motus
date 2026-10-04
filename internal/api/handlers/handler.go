@@ -54,6 +54,8 @@ type HandlerConfig struct {
 	UniqueIDPrefix string
 	OIDCConfig     config.OIDCConfig
 	AIEnabled      bool
+	// Development drops the Secure flag from cookies so HTTP works on localhost.
+	Development bool
 }
 
 // Handler is the single implementation of oas.Handler.

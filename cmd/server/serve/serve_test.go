@@ -3,6 +3,8 @@ package serve
 import (
 	"encoding/hex"
 	"testing"
+
+	"github.com/tamcore/motus/internal/config"
 )
 
 func TestLoadCSRFSecret_ValidHex(t *testing.T) {
@@ -12,7 +14,7 @@ func TestLoadCSRFSecret_ValidHex(t *testing.T) {
 	}
 	hexStr := hex.EncodeToString(raw)
 
-	got := loadCSRFSecret(hexStr, "production")
+	got := loadCSRFSecret(config.SecurityConfig{CSRFSecret: hexStr, Env: "production"})
 	if len(got) != 32 {
 		t.Errorf("got %d bytes, want 32", len(got))
 	}
@@ -25,7 +27,7 @@ func TestLoadCSRFSecret_ValidHex(t *testing.T) {
 
 func TestLoadCSRFSecret_EmptyDevelopment(t *testing.T) {
 	// Empty secret in development mode generates a random 32-byte key.
-	secret := loadCSRFSecret("", "development")
+	secret := loadCSRFSecret(config.SecurityConfig{Env: "Development"})
 	if len(secret) != 32 {
 		t.Errorf("got %d bytes, want 32", len(secret))
 	}
@@ -39,5 +41,5 @@ func TestLoadCSRFSecret_EmptyProductionPanics(t *testing.T) {
 			t.Error("expected panic for empty secret in production, got none")
 		}
 	}()
-	loadCSRFSecret("", "production")
+	loadCSRFSecret(config.SecurityConfig{Env: "production"})
 }

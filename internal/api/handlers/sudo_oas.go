@@ -31,7 +31,7 @@ func (h *Handler) AdminStartSudo(ctx context.Context, params oas.AdminStartSudoP
 		return &oas.AdminStartSudoForbidden{Error: "failed to create sudo session"}, nil
 	}
 
-	setSessionCookie(ctx, session.ID, session.ExpiresAt)
+	h.setSessionCookie(ctx, session.ID, session.ExpiresAt)
 
 	h.cfg.AuditLogger.Log(ctx, &currentUser.ID, audit.ActionSessionSudo, audit.ResourceUser, &targetUser.ID,
 		map[string]any{
@@ -76,7 +76,7 @@ func (h *Handler) EndSudo(ctx context.Context) (oas.EndSudoRes, error) {
 		return &oas.Error{Error: "failed to create session"}, nil
 	}
 
-	setSessionCookie(ctx, newSession.ID, newSession.ExpiresAt)
+	h.setSessionCookie(ctx, newSession.ID, newSession.ExpiresAt)
 
 	h.cfg.AuditLogger.Log(ctx, &originalUser.ID, audit.ActionSessionSudoEnd, audit.ResourceUser, &currentUser.ID,
 		map[string]any{

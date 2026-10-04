@@ -371,7 +371,7 @@ re-run via `gh run rerun` — push an empty commit to re-trigger.
   `nosemgrep: <full-rule-id>` comments with a `--` justification.
 - Excluded wholesale, with reasons in `security.yaml`: gosec `G124` and semgrep
   `cookie-missing-secure` (the cookie `Secure` flag is intentionally conditional on
-  `MOTUS_ENV` via `isSecureEnvironment()`; HttpOnly/SameSite are always set).
+  `MOTUS_ENV` via `SecurityConfig.IsDevelopment()`; HttpOnly/SameSite are always set).
 - Path excludes live in `.semgrepignore` (generated `internal/api/oas/`, demo
   tooling, `*_test.go`, `web/build/`). Note: when `.semgrepignore` exists, semgrep's
   built-in default ignores are replaced — keep `.git/`, `node_modules/` listed.

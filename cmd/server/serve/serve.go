@@ -217,9 +217,7 @@ func Run() {
 		}
 		return user.IsAdmin()
 	})
-	if cfg.Security.Env == "development" {
-		hub.SetDevelopmentMode(true)
-	}
+	hub.SetDevelopmentMode(cfg.Security.IsDevelopment())
 	// Inject structured logger into components that produce high-value logs.
 	wsLogger := appLogger.With(slog.String("component", "websocket"))
 	hub.SetLogger(wsLogger)
@@ -229,7 +227,7 @@ func Run() {
 
 	// CSRF secret (loaded early so the passkey challenge-cookie signing key can
 	// be derived from the same shared secret; reused for CSRF below).
-	csrfSecret := loadCSRFSecret(cfg.Security.CSRFSecret, cfg.Security.Env)
+	csrfSecret := loadCSRFSecret(cfg.Security)
 
 	// Passkey (WebAuthn) engine and repository.
 	passkeyRepo := repository.NewPasskeyRepository(pool)
@@ -266,11 +264,9 @@ func Run() {
 		AuditLogger:         auditLogger,
 		UniqueIDPrefix:      cfg.Device.UniqueIDPrefix,
 		OIDCConfig:          cfg.OIDC,
+		Development:         cfg.Security.IsDevelopment(),
 	})
 	secHandler := handlers.NewSecurityHandler(sessionRepo, apiKeyRepo, userRepo)
-
-	// CSRF protection: the 32-byte secret key was loaded above.
-	csrfSecure := cfg.Security.Env != "development"
 
 	// Login rate limiter: Redis-backed (cluster-wide) when Redis is available,
 	// in-process (per-pod only) otherwise.
@@ -365,7 +361,7 @@ func Run() {
 		ChatHistory:     chatHistoryHandler,
 		CSRFProtect: middleware.CSRF(middleware.CSRFConfig{
 			Secret: csrfSecret,
-			Secure: csrfSecure,
+			Secure: !cfg.Security.IsDevelopment(),
 			ValidateXAuthToken: func(ctx context.Context, token string) bool {
 				s, err := sessionRepo.GetByID(ctx, token)
 				return err == nil && s != nil
@@ -430,7 +426,7 @@ func Run() {
 	}
 	// In demo pod mode, force auto-create on so the simulator's devices are
 	// registered to the demo user when they first send a position.
-	if cfg.Demo.Enabled && os.Getenv("MOTUS_DEMO_POD") == "true" {
+	if cfg.Demo.Enabled && cfg.Demo.Pod {
 		autoCreateCfg.Enabled = true
 		autoCreateCfg.DefaultUserEmail = "demo@motus.local"
 	}
@@ -513,9 +509,7 @@ func Run() {
 		demo.Enable()
 		slog.Info("demo mode enabled")
 
-		isDemoPod := os.Getenv("MOTUS_DEMO_POD") == "true"
-
-		if isDemoPod {
+		if cfg.Demo.Pod {
 			slog.Info("demo pod mode: seeding data and starting simulator")
 
 			demoService := demo.NewService(pool, cfg.Demo.ResetTime, cfg.Demo.DeviceIMEIs)
@@ -634,9 +628,9 @@ func Run() {
 // loadCSRFSecret returns the 32-byte CSRF secret. In non-development
 // environments config.Validate() already guarantees a non-empty, valid secret,
 // so reaching the empty branch in production is a programming error.
-func loadCSRFSecret(hexSecret, env string) []byte {
-	if hexSecret != "" {
-		secret, err := config.ParseCSRFSecret(hexSecret)
+func loadCSRFSecret(sec config.SecurityConfig) []byte {
+	if sec.CSRFSecret != "" {
+		secret, err := config.ParseCSRFSecret(sec.CSRFSecret)
 		if err != nil {
 			slog.Error("invalid CSRF secret", slog.Any("error", err))
 			os.Exit(1)
@@ -644,7 +638,7 @@ func loadCSRFSecret(hexSecret, env string) []byte {
 		return secret
 	}
 
-	if env != "development" {
+	if !sec.IsDevelopment() {
 		// Should be unreachable: config.Validate() rejects this combination.
 		panic("MOTUS_CSRF_SECRET must be set in non-development environments")
 	}

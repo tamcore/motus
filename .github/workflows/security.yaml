@@ -26,7 +26,7 @@ jobs:
         # - internal/api/oas: generated ogen code
         # - internal/demo: demo/simulation tooling (math/rand jitter is intentional)
         # - G124: cookie Secure flags are intentionally conditional on MOTUS_ENV
-        #   (isSecureEnvironment() — always true in production); HttpOnly and
+        #   (HandlerConfig.Development — false in production); HttpOnly and
         #   SameSite are set on every cookie. Inline #nosec annotations cover
         #   the remaining per-line false positives.
         run: go tool gosec -exclude-generated -exclude=G124 -exclude-dir=internal/api/oas -exclude-dir=internal/demo ./...

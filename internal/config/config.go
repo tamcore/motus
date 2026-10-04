@@ -195,6 +195,11 @@ type SecurityConfig struct {
 	TrustedProxies []string
 }
 
+// IsDevelopment reports whether MOTUS_ENV is "development" (case-insensitive).
+func (c SecurityConfig) IsDevelopment() bool {
+	return strings.EqualFold(c.Env, "development")
+}
+
 // MetricsConfig holds Prometheus metrics server settings.
 type MetricsConfig struct {
 	// Port is the port for the Prometheus metrics endpoint.
@@ -232,6 +237,9 @@ type DemoConfig struct {
 	// H02Target is the host:port of the H02 GPS server to send demo messages to.
 	// Default: "localhost:5013"
 	H02Target string
+	// Pod marks the dedicated demo pod that runs the simulator and resets.
+	// Loaded from MOTUS_DEMO_POD.
+	Pod bool
 }
 
 // RedisConfig holds Redis connection settings for cross-pod pub/sub.
@@ -388,6 +396,7 @@ func LoadFromEnv() (*Config, error) {
 			SpeedMultiplier:       parseEnv("MOTUS_DEMO_SPEED_MULTIPLIER", 1.0, parseFloat),
 			InterpolationInterval: parseEnv("MOTUS_DEMO_INTERPOLATION_INTERVAL", 100.0, parseFloat),
 			H02Target:             getEnv("MOTUS_DEMO_H02_TARGET", "localhost:5013"),
+			Pod:                   parseEnv("MOTUS_DEMO_POD", false, strconv.ParseBool),
 		},
 		Metrics: MetricsConfig{
 			Port:    getPort("MOTUS_METRICS_PORT", "9090"),

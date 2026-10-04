@@ -184,11 +184,9 @@ func TestLogout_ClearsCookie(t *testing.T) {
 	}
 }
 
-// TestLogout_SecureCookieInProduction verifies the Secure flag is set when
-// MOTUS_ENV is not "development" (default environment is production-like).
+// TestLogout_SecureCookieInProduction verifies the Secure flag is set unless
+// HandlerConfig.Development is true.
 func TestLogout_SecureCookieInProduction(t *testing.T) {
-	t.Setenv("MOTUS_ENV", "")
-
 	h := newSessionTestHandler(&mockUserRepo{}, &mockSessionRepo{}, &mockApiKeyRepo{})
 
 	rr := httptest.NewRecorder()
@@ -210,11 +208,13 @@ func TestLogout_SecureCookieInProduction(t *testing.T) {
 }
 
 // TestLogout_InsecureCookieInDev verifies the Secure flag is NOT set when
-// MOTUS_ENV=development.
+// HandlerConfig.Development is true.
 func TestLogout_InsecureCookieInDev(t *testing.T) {
-	t.Setenv("MOTUS_ENV", "development")
-
-	h := newSessionTestHandler(&mockUserRepo{}, &mockSessionRepo{}, &mockApiKeyRepo{})
+	h := handlers.NewHandler(handlers.HandlerConfig{
+		Sessions:    &mockSessionRepo{},
+		AuditLogger: audit.NewLogger(nil),
+		Development: true,
+	})
 
 	rr := httptest.NewRecorder()
 	ctx := api.ContextWithResponseWriter(context.Background(), rr)

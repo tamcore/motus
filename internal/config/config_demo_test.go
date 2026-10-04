@@ -69,6 +69,21 @@ func TestLoadFromEnv_DemoEnabled(t *testing.T) {
 	if cfg.Demo.InterpolationInterval != 50.0 {
 		t.Errorf("expected InterpolationInterval 50.0, got %f", cfg.Demo.InterpolationInterval)
 	}
+	if cfg.Demo.Pod {
+		t.Error("expected Demo.Pod false when MOTUS_DEMO_POD is unset")
+	}
+	t.Setenv("MOTUS_DEMO_POD", "true")
+	if cfg, _ := config.LoadFromEnv(); !cfg.Demo.Pod {
+		t.Error("expected Demo.Pod true from MOTUS_DEMO_POD=true")
+	}
+}
+
+func TestSecurityConfig_IsDevelopment(t *testing.T) {
+	for env, want := range map[string]bool{"development": true, "Development": true, "production": false, "": false} {
+		if got := (config.SecurityConfig{Env: env}).IsDevelopment(); got != want {
+			t.Errorf("IsDevelopment(%q) = %v, want %v", env, got, want)
+		}
+	}
 }
 
 func TestLoadFromEnv_DemoInvalidValues(t *testing.T) {

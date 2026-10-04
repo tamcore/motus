@@ -10,11 +10,10 @@ import (
 )
 
 func TestSetSessionCookie(t *testing.T) {
-	t.Setenv("MOTUS_ENV", "production")
 	rr := httptest.NewRecorder()
 	ctx := api.ContextWithResponseWriter(t.Context(), rr)
 
-	setSessionCookie(ctx, "abc", time.Now().Add(time.Hour))
+	(&Handler{}).setSessionCookie(ctx, "abc", time.Now().Add(time.Hour))
 
 	cookies := rr.Result().Cookies()
 	if len(cookies) != 1 {
@@ -33,7 +32,7 @@ func TestSetSessionCookie_Clear(t *testing.T) {
 	rr := httptest.NewRecorder()
 	ctx := api.ContextWithResponseWriter(t.Context(), rr)
 
-	setSessionCookie(ctx, "", time.Unix(0, 0))
+	(&Handler{}).setSessionCookie(ctx, "", time.Unix(0, 0))
 
 	c := rr.Result().Cookies()[0]
 	if c.Value != "" || c.MaxAge >= 0 {
@@ -42,5 +41,5 @@ func TestSetSessionCookie_Clear(t *testing.T) {
 }
 
 func TestSetSessionCookie_NoWriter(t *testing.T) {
-	setSessionCookie(t.Context(), "abc", time.Now())
+	(&Handler{}).setSessionCookie(t.Context(), "abc", time.Now())
 }

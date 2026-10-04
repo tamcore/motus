@@ -138,7 +138,7 @@ Database connection env vars
 {{- else -}}
 {{- $db := .Values.externalDatabase }}
 {{- if .Values.postgres.enabled }}
-{{- $db = dict "host" (include "motus.postgres.fullname" .) "port" "5432" "database" .Values.postgres.database "username" .Values.postgres.username "password" (required "postgres.password is required — no default is provided" .Values.postgres.password) "sslmode" "disable" }}
+{{- $db = dict "host" (include "motus.postgres.fullname" .) "port" "5432" "database" .Values.postgres.database "username" .Values.postgres.username "sslmode" "disable" }}
 {{- end -}}
 - name: MOTUS_DATABASE_HOST
   value: {{ $db.host | quote }}
@@ -154,9 +154,12 @@ Database connection env vars
     secretKeyRef:
       name: {{ .Values.externalDatabase.existingSecret }}
       key: {{ .Values.externalDatabase.existingSecretKey | default "password" }}
+{{- else if .Values.postgres.enabled }}
+- name: MOTUS_DATABASE_PASSWORD
+  value: {{ required "postgres.password is required — no default is provided" .Values.postgres.password | quote }}
 {{- else }}
 - name: MOTUS_DATABASE_PASSWORD
-  value: {{ $db.password | quote }}
+  value: {{ .Values.externalDatabase.password | quote }}
 {{- end }}
 - name: MOTUS_DATABASE_SSLMODE
   value: {{ $db.sslmode | quote }}

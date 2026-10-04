@@ -12,26 +12,15 @@ import (
 	"unicode/utf8"
 )
 
-// maxEmailLength is the maximum allowed email address length (RFC 5321).
-const maxEmailLength = 254
-
-// maxNameLength is the maximum allowed name or label length.
-const maxNameLength = 255
-
-// maxDisplayNameLength is the maximum allowed display name length.
-const maxDisplayNameLength = 200
-
-// maxDescriptionLength is the maximum allowed description length.
-const maxDescriptionLength = 2000
-
-// maxDeviceIDLength is the maximum allowed device unique ID length.
-const maxDeviceIDLength = 128
-
-// minPasswordLength is the minimum required password length.
-const minPasswordLength = 8
-
-// maxPasswordLength is the maximum allowed password length.
-const maxPasswordLength = 128
+const (
+	maxEmailLength       = 254 // RFC 5321
+	maxNameLength        = 255
+	maxDisplayNameLength = 200
+	maxDescriptionLength = 2000
+	maxDeviceIDLength    = 128
+	minPasswordLength    = 8
+	maxPasswordLength    = 128
+)
 
 // emailRegex is a basic email validation pattern. It checks for:
 // - non-empty local part with common allowed characters
@@ -51,9 +40,6 @@ func ValidateEmail(email string) error {
 	}
 	if len(email) > maxEmailLength {
 		return fmt.Errorf("email must be at most %d characters", maxEmailLength)
-	}
-	if strings.Contains(email, " ") {
-		return fmt.Errorf("email must not contain spaces")
 	}
 	if !emailRegex.MatchString(email) {
 		return fmt.Errorf("invalid email format")
@@ -107,9 +93,6 @@ func isForbiddenControl(r rune) bool {
 func ValidateDeviceUniqueID(id string) error {
 	if id == "" {
 		return fmt.Errorf("device unique ID is required")
-	}
-	if strings.TrimSpace(id) == "" {
-		return fmt.Errorf("device unique ID must not be blank")
 	}
 	if len(id) > maxDeviceIDLength {
 		return fmt.Errorf("device unique ID must be at most %d characters", maxDeviceIDLength)

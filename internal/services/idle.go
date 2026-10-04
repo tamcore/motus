@@ -46,12 +46,14 @@ func NewIdleService(
 	eventRepo repository.EventRepo,
 	hub *websocket.Hub,
 	notificationService *NotificationService,
+	mileageService *MileageService,
 	logger *slog.Logger,
 ) *IdleService {
 	return &IdleService{
-		eventEmitter: newEventEmitter(eventRepo, hub, notificationService, logger),
-		deviceRepo:   deviceRepo,
-		positionRepo: positionRepo,
+		eventEmitter:   newEventEmitter(eventRepo, hub, notificationService, logger),
+		deviceRepo:     deviceRepo,
+		positionRepo:   positionRepo,
+		mileageService: mileageService,
 	}
 }
 
@@ -60,12 +62,6 @@ func NewIdleService(
 // position's address field in the database.
 func (s *IdleService) SetGeocoder(geocoder AddressGeocoder) {
 	s.geocoder = geocoder
-}
-
-// SetMileageService configures the mileage tracker so the idle service can
-// commit pending mileage for devices that stop sending positions after parking.
-func (s *IdleService) SetMileageService(ms *MileageService) {
-	s.mileageService = ms
 }
 
 // Start begins the idle detection loop. It blocks until the context is cancelled.

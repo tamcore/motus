@@ -78,13 +78,6 @@ func (s *IgnitionService) CheckIgnition(ctx context.Context, position *model.Pos
 // attribute map. Returns (value, true) when the key is present, (false, false)
 // when absent or of an unexpected type.
 func ignitionFromAttributes(attrs map[string]any) (bool, bool) {
-	if attrs == nil {
-		return false, false
-	}
-	v, exists := attrs["ignition"]
-	if !exists {
-		return false, false
-	}
-	b, ok := v.(bool)
+	b, ok := attrs["ignition"].(bool)
 	return b, ok
 }

@@ -45,8 +45,7 @@ func setupCalendarGeofenceTest(t *testing.T) (
 	calRepo := repository.NewCalendarRepository(pool)
 	hub := websocket.NewHub(nil, nil, func(r *http.Request) int64 { return 0 })
 
-	svc := NewGeofenceEventService(geoRepo, eventRepo, posRepo, hub, nil, nil)
-	svc.SetCalendarRepo(calRepo)
+	svc := NewGeofenceEventService(geoRepo, eventRepo, posRepo, calRepo, hub, nil, nil)
 
 	return svc, geoRepo, eventRepo, deviceRepo, posRepo, userRepo, calRepo
 }
@@ -250,54 +249,5 @@ func TestGeofenceCalendar_ExitAlsoSuppressed(t *testing.T) {
 	}
 	if events[0].Type != "geofenceEnter" {
 		t.Errorf("expected 'geofenceEnter', got %q", events[0].Type)
-	}
-}
-
-func TestGeofenceCalendar_NoCalendarRepo_AlwaysTriggers(t *testing.T) {
-	// When calendarRepo is nil (not configured), all geofences should trigger.
-	pool := testutil.SetupTestDB(t)
-	testutil.CleanTables(t, pool)
-
-	geoRepo := repository.NewGeofenceRepository(pool)
-	eventRepo := repository.NewEventRepository(pool)
-	deviceRepo := repository.NewDeviceRepository(pool)
-	posRepo := repository.NewPositionRepository(pool)
-	userRepo := repository.NewUserRepository(pool)
-	calRepo := repository.NewCalendarRepository(pool)
-	hub := websocket.NewHub(nil, nil, func(r *http.Request) int64 { return 0 })
-
-	// Create service WITHOUT setting calendar repo.
-	svc := NewGeofenceEventService(geoRepo, eventRepo, posRepo, hub, nil, nil)
-
-	ctx := context.Background()
-
-	user := &model.User{Email: "cal-norepo@example.com", PasswordHash: "hash", Name: "No Repo"}
-	_ = userRepo.Create(ctx, user)
-
-	device := &model.Device{UniqueID: "cal-norepo-dev", Name: "No Repo Device", Status: "online"}
-	_ = deviceRepo.Create(ctx, device, user.ID)
-
-	// Create a calendar and link geofence to it.
-	cal := &model.Calendar{UserID: user.ID, Name: "Business Hours", Data: businessHoursICal}
-	_ = calRepo.Create(ctx, cal)
-
-	g := &model.Geofence{Name: "Has Calendar", Geometry: testGeoJSON, CalendarID: &cal.ID}
-	_ = geoRepo.Create(ctx, g)
-	_ = geoRepo.AssociateUser(ctx, user.ID, g.ID)
-
-	pos := &model.Position{
-		DeviceID: device.ID, Latitude: 52.52, Longitude: 13.37,
-		Timestamp: time.Now().UTC(),
-	}
-	_ = posRepo.Create(ctx, pos)
-
-	if err := svc.CheckGeofences(ctx, pos); err != nil {
-		t.Fatalf("CheckGeofences failed: %v", err)
-	}
-
-	// Should still trigger because calendarRepo is nil (fail open).
-	events, _ := deviceEvents(t, device.ID)
-	if len(events) != 1 {
-		t.Fatalf("expected 1 event (no calendar repo = always trigger), got %d", len(events))
 	}
 }

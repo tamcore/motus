@@ -214,7 +214,7 @@ func TestGeofenceEventService_CreateEvent_WithNotificationService(t *testing.T) 
 	// Create the services.
 	notifSvc := NewNotificationService(notifRepo, deviceRepo, geoRepo, posRepo, nil, nil)
 	hub := newTestHub()
-	geoSvc := NewGeofenceEventService(geoRepo, eventRepo, posRepo, hub, notifSvc, nil)
+	geoSvc := NewGeofenceEventService(geoRepo, eventRepo, posRepo, nil, hub, notifSvc, nil)
 
 	// Position inside the geofence.
 	pos := &model.Position{

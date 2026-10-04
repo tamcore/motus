@@ -54,16 +54,6 @@ func (s *AlarmService) CheckAlarm(ctx context.Context, position *model.Position)
 // alarmFromAttributes extracts the alarm type string from a position's
 // attribute map. Returns ("", false) when absent or wrong type.
 func alarmFromAttributes(attrs map[string]any) (string, bool) {
-	if attrs == nil {
-		return "", false
-	}
-	v, exists := attrs["alarm"]
-	if !exists {
-		return "", false
-	}
-	s, ok := v.(string)
-	if !ok || s == "" {
-		return "", false
-	}
-	return s, true
+	s, _ := attrs["alarm"].(string)
+	return s, s != ""
 }

@@ -76,17 +76,14 @@ func (s *DeviceTimeoutService) checkTimeouts(ctx context.Context) error {
 			)
 			continue
 		}
+		lastSeen := "never"
 		if device.LastUpdate != nil {
-			s.logger.Info("device marked offline",
-				slog.String("uniqueID", device.UniqueID),
-				slog.String("lastSeen", device.LastUpdate.Format(time.RFC3339)),
-			)
-		} else {
-			s.logger.Info("device marked offline",
-				slog.String("uniqueID", device.UniqueID),
-				slog.String("lastSeen", "never"),
-			)
+			lastSeen = device.LastUpdate.Format(time.RFC3339)
 		}
+		s.logger.Info("device marked offline",
+			slog.String("uniqueID", device.UniqueID),
+			slog.String("lastSeen", lastSeen),
+		)
 		// Broadcast the status change via WebSocket.
 		s.hub.BroadcastDeviceStatus(device)
 		updated++

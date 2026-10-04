@@ -29,7 +29,7 @@ func setupIdleService(t *testing.T) (
 	userRepo := repository.NewUserRepository(pool)
 	hub := websocket.NewHub(nil, nil, func(r *http.Request) int64 { return 0 })
 
-	svc := NewIdleService(deviceRepo, posRepo, eventRepo, hub, nil, nil)
+	svc := NewIdleService(deviceRepo, posRepo, eventRepo, hub, nil, nil, nil)
 	return svc, eventRepo, deviceRepo, posRepo, userRepo
 }
 

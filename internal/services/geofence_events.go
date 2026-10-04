@@ -36,6 +36,7 @@ func NewGeofenceEventService(
 	geofenceRepo repository.GeofenceRepo,
 	eventRepo repository.EventRepo,
 	positionRepo repository.PositionRepo,
+	calendarRepo repository.CalendarRepo,
 	hub *websocket.Hub,
 	notificationService *NotificationService,
 	logger *slog.Logger,
@@ -44,15 +45,9 @@ func NewGeofenceEventService(
 		eventEmitter: newEventEmitter(eventRepo, hub, notificationService, logger),
 		geofenceRepo: geofenceRepo,
 		positionRepo: positionRepo,
+		calendarRepo: calendarRepo,
 		now:          time.Now,
 	}
-}
-
-// SetCalendarRepo sets the calendar repository for time-based geofence filtering.
-// When set, geofences with a calendar_id will only trigger events when the
-// current time matches the calendar schedule.
-func (s *GeofenceEventService) SetCalendarRepo(repo repository.CalendarRepo) {
-	s.calendarRepo = repo
 }
 
 // CheckGeofences determines whether the given position triggers any
@@ -168,11 +163,6 @@ func (s *GeofenceEventService) createEvent(ctx context.Context, position *model.
 // If it has a calendar_id and the calendar is active now, it returns true.
 // If the calendar is not active or cannot be loaded, it returns false.
 func (s *GeofenceEventService) isGeofenceActiveNow(ctx context.Context, geofenceID int64) bool {
-	// No calendar repo configured; all geofences are always active.
-	if s.calendarRepo == nil {
-		return true
-	}
-
 	geofence, err := s.geofenceRepo.GetByID(ctx, geofenceID)
 	if err != nil {
 		s.logger.Error("failed to get geofence for calendar check",

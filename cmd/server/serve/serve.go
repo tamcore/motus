@@ -375,8 +375,7 @@ func Run() {
 	router := api.NewRouter(handler, secHandler, hub, routerCfg)
 
 	// Geofence event detection service.
-	geofenceEventService := services.NewGeofenceEventService(geofenceRepo, eventRepo, positionRepo, hub, notificationService, svcLogger)
-	geofenceEventService.SetCalendarRepo(calendarRepo)
+	geofenceEventService := services.NewGeofenceEventService(geofenceRepo, eventRepo, positionRepo, calendarRepo, hub, notificationService, svcLogger)
 
 	// Motion detection service.
 	motionService := services.NewMotionService(positionRepo, eventRepo, hub, notificationService, svcLogger)
@@ -387,15 +386,14 @@ func Run() {
 	// Alarm detection service (SOS, power cut, vibration, overspeed from H02 flags).
 	alarmService := services.NewAlarmService(eventRepo, hub, notificationService, svcLogger)
 
+	// Mileage tracking service.
+	mileageService := services.NewMileageService(positionRepo, deviceRepo, eventRepo, hub, notificationService, svcLogger)
+
 	// Idle detection service.
-	idleService := services.NewIdleService(deviceRepo, positionRepo, eventRepo, hub, notificationService, svcLogger)
+	idleService := services.NewIdleService(deviceRepo, positionRepo, eventRepo, hub, notificationService, mileageService, svcLogger)
 	if cachedGeocoder != nil {
 		idleService.SetGeocoder(cachedGeocoder)
 	}
-
-	// Mileage tracking service.
-	mileageService := services.NewMileageService(positionRepo, deviceRepo, eventRepo, hub, notificationService, svcLogger)
-	idleService.SetMileageService(mileageService)
 
 	// GPS protocol position handler (stores positions and broadcasts via WebSocket).
 	gpsHandler := protocol.NewPositionHandler(positionRepo, deviceRepo, hub, geofenceEventService)

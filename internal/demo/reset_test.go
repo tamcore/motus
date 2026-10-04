@@ -454,6 +454,22 @@ func TestReset_CleansAutoRegisteredDemoDevices(t *testing.T) {
 	assertRowCount(t, pool, "SELECT COUNT(*) FROM positions WHERE device_id IN (SELECT id FROM devices WHERE unique_id IN ('9000000000001','9000000000002'))", 0)
 }
 
+func TestService_SeedIfNeeded_UsesConfiguredIMEIs(t *testing.T) {
+	pool := setupPool(t)
+	ctx := context.Background()
+	if _, err := pool.Exec(ctx, `
+		INSERT INTO devices (unique_id, name, protocol, status, created_at, updated_at)
+		VALUES ('9000000000099', 'Custom Demo Car', 'h02', 'online', NOW(), NOW())
+	`); err != nil {
+		t.Fatalf("insert device: %v", err)
+	}
+
+	if err := demo.NewService(pool, "00:00", []string{"9000000000099"}).SeedIfNeeded(ctx); err != nil {
+		t.Fatalf("SeedIfNeeded: %v", err)
+	}
+	assertRowCount(t, pool, "SELECT COUNT(*) FROM devices WHERE unique_id = '9000000000099'", 0)
+}
+
 func TestReset_CleansApiKeys(t *testing.T) {
 	pool := setupPool(t)
 	ctx := context.Background()

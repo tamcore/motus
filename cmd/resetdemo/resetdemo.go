@@ -57,7 +57,7 @@ func NewCmd() *cobra.Command {
 				os.Exit(1)
 			}
 
-			result, err := demo.Reset(ctx, pool, demo.DefaultAccounts, demo.DefaultDeviceIMEIs)
+			result, err := demo.Reset(ctx, pool, demo.DefaultAccounts, cfg.Demo.DeviceIMEIs)
 			if err != nil {
 				slog.Error("demo reset failed", slog.Any("error", err))
 				os.Exit(1)

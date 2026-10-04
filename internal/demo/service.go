@@ -26,19 +26,22 @@ var DefaultAccounts = []DemoAccount{
 
 // Service manages demo mode lifecycle: database seeding and periodic resets.
 type Service struct {
-	pool      *pgxpool.Pool
-	resetTime string // "HH:MM" format
-	accounts  []DemoAccount
+	pool        *pgxpool.Pool
+	resetTime   string // "HH:MM" format
+	accounts    []DemoAccount
+	deviceIMEIs []string
 }
 
 // NewService creates a demo service.
 //
 // resetTime should be in "HH:MM" format (e.g., "00:00" for midnight).
-func NewService(pool *pgxpool.Pool, resetTime string) *Service {
+// deviceIMEIs identify the simulated devices removed on each reset.
+func NewService(pool *pgxpool.Pool, resetTime string, deviceIMEIs []string) *Service {
 	return &Service{
-		pool:      pool,
-		resetTime: resetTime,
-		accounts:  DefaultAccounts,
+		pool:        pool,
+		resetTime:   resetTime,
+		accounts:    DefaultAccounts,
+		deviceIMEIs: deviceIMEIs,
 	}
 }
 
@@ -48,7 +51,7 @@ func NewService(pool *pgxpool.Pool, resetTime string) *Service {
 func (s *Service) SeedIfNeeded(ctx context.Context) error {
 	slog.Info("reinitializing demo data")
 
-	result, err := Reset(ctx, s.pool, s.accounts, DefaultDeviceIMEIs)
+	result, err := Reset(ctx, s.pool, s.accounts, s.deviceIMEIs)
 	if err != nil {
 		return fmt.Errorf("reset demo data: %w", err)
 	}
@@ -69,7 +72,7 @@ func (s *Service) Start(ctx context.Context) {
 		}
 		lastResetDay = now.Day()
 		slog.Info("nightly reset triggered")
-		result, err := Reset(ctx, s.pool, s.accounts, DefaultDeviceIMEIs)
+		result, err := Reset(ctx, s.pool, s.accounts, s.deviceIMEIs)
 		if err != nil {
 			slog.Error("nightly reset failed", slog.Any("error", err))
 			return

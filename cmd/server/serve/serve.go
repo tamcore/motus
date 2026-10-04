@@ -533,7 +533,7 @@ func Run() {
 		if isDemoPod {
 			slog.Info("demo pod mode: seeding data and starting simulator")
 
-			demoService := demo.NewService(pool, cfg.Demo.ResetTime)
+			demoService := demo.NewService(pool, cfg.Demo.ResetTime, cfg.Demo.DeviceIMEIs)
 
 			// Seed demo accounts and devices if they don't already exist.
 			if err := demoService.SeedIfNeeded(context.Background()); err != nil {

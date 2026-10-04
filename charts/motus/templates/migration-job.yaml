@@ -21,7 +21,7 @@ spec:
       restartPolicy: OnFailure
       initContainers:
       - name: wait-for-db
-        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}{{- if .Values.image.digest }}@{{ .Values.image.digest }}{{- end }}"
+        image: {{ include "motus.image" . | quote }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         command: ["/motus", "wait-for-db"]
         env:
@@ -30,7 +30,7 @@ spec:
         {{- include "motus.databaseEnv" . | nindent 8 }}
       containers:
       - name: migration
-        image: {{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}{{ with .Values.image.digest }}@{{ . }}{{ end }}
+        image: {{ include "motus.image" . | quote }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         command: ["/motus", "db-migrate"]
         env:

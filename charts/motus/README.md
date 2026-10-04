@@ -60,7 +60,7 @@ No manual migration steps are required.
 | Parameter | Description | Default |
 |---|---|---|
 | `image.repository` | Container image registry/name | `ghcr.io/tamcore/motus` |
-| `image.tag` | Image tag | `latest` |
+| `image.tag` | Image tag | `.Chart.AppVersion` |
 | `image.pullPolicy` | Image pull policy | `Always` |
 
 ### Application
@@ -104,7 +104,7 @@ The chart automatically configures nginx annotations for WebSocket support (3600
 | `postgres.storageClass` | Storage class name | `""` |
 | `postgres.database` | Database name | `motus` |
 | `postgres.username` | Database user | `motus` |
-| `postgres.password` | Database password | `motus123` |
+| `postgres.password` | Database password (required when `postgres.enabled`) | — |
 
 ### External Database
 

@@ -43,6 +43,6 @@ FROM alpine:latest
 RUN apk add --no-cache ca-certificates tzdata curl
 COPY --from=backend /bin/motus /motus
 COPY data/demo /data/demo
-EXPOSE 8080 5013 5093
+EXPOSE 8080 5013 5093 5055
 ENTRYPOINT ["/motus"]
 CMD ["serve"]

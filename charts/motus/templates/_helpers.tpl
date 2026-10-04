@@ -108,69 +108,10 @@ Demo fullname
 {{- end }}
 
 {{/*
-Database host helper
+Container image reference
 */}}
-{{- define "motus.database.host" -}}
-{{- if .Values.postgres.enabled }}
-{{- include "motus.postgres.fullname" . }}
-{{- else }}
-{{- .Values.externalDatabase.host }}
-{{- end }}
-{{- end }}
-
-{{/*
-Database port helper
-*/}}
-{{- define "motus.database.port" -}}
-{{- if .Values.postgres.enabled }}
-{{- "5432" }}
-{{- else }}
-{{- .Values.externalDatabase.port }}
-{{- end }}
-{{- end }}
-
-{{/*
-Database name helper
-*/}}
-{{- define "motus.database.name" -}}
-{{- if .Values.postgres.enabled }}
-{{- .Values.postgres.database }}
-{{- else }}
-{{- .Values.externalDatabase.database }}
-{{- end }}
-{{- end }}
-
-{{/*
-Database user helper
-*/}}
-{{- define "motus.database.user" -}}
-{{- if .Values.postgres.enabled }}
-{{- .Values.postgres.username }}
-{{- else }}
-{{- .Values.externalDatabase.username }}
-{{- end }}
-{{- end }}
-
-{{/*
-Database password helper
-*/}}
-{{- define "motus.database.password" -}}
-{{- if .Values.postgres.enabled }}
-{{- required "postgres.password is required — no default is provided" .Values.postgres.password }}
-{{- else }}
-{{- .Values.externalDatabase.password }}
-{{- end }}
-{{- end }}
-
-{{/*
-Database sslmode helper
-*/}}
-{{- define "motus.database.sslmode" -}}
-{{- if .Values.postgres.enabled }}
-{{- "disable" }}
-{{- else }}
-{{- .Values.externalDatabase.sslmode }}
-{{- end }}
+{{- define "motus.image" -}}
+{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}{{ with .Values.image.digest }}@{{ . }}{{ end }}
 {{- end }}
 
 {{/*
@@ -195,14 +136,18 @@ Database connection env vars
       name: {{ .Values.postgresUriSecret.name }}
       key: {{ .Values.postgresUriSecret.key }}
 {{- else -}}
+{{- $db := .Values.externalDatabase }}
+{{- if .Values.postgres.enabled }}
+{{- $db = dict "host" (include "motus.postgres.fullname" .) "port" "5432" "database" .Values.postgres.database "username" .Values.postgres.username "password" (required "postgres.password is required — no default is provided" .Values.postgres.password) "sslmode" "disable" }}
+{{- end -}}
 - name: MOTUS_DATABASE_HOST
-  value: {{ include "motus.database.host" . | quote }}
+  value: {{ $db.host | quote }}
 - name: MOTUS_DATABASE_PORT
-  value: {{ include "motus.database.port" . | quote }}
+  value: {{ $db.port | quote }}
 - name: MOTUS_DATABASE_NAME
-  value: {{ include "motus.database.name" . | quote }}
+  value: {{ $db.database | quote }}
 - name: MOTUS_DATABASE_USER
-  value: {{ include "motus.database.user" . | quote }}
+  value: {{ $db.username | quote }}
 {{- if .Values.externalDatabase.existingSecret }}
 - name: MOTUS_DATABASE_PASSWORD
   valueFrom:
@@ -211,9 +156,9 @@ Database connection env vars
       key: {{ .Values.externalDatabase.existingSecretKey | default "password" }}
 {{- else }}
 - name: MOTUS_DATABASE_PASSWORD
-  value: {{ include "motus.database.password" . | quote }}
+  value: {{ $db.password | quote }}
 {{- end }}
 - name: MOTUS_DATABASE_SSLMODE
-  value: {{ include "motus.database.sslmode" . | quote }}
+  value: {{ $db.sslmode | quote }}
 {{- end }}
 {{- end }}

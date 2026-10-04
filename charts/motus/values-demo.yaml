@@ -4,8 +4,6 @@
 
 serviceGPS:
   ports:
-    h02:
-      enabled: true
     watch:
       enabled: false
 

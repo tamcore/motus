@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"fmt"
 	"maps"
 	"math"
 	"net"
@@ -113,24 +112,16 @@ func RateLimit(cfg RateLimitConfig) func(http.Handler) http.Handler {
 		burst:   int(max(1, cfg.Max)),
 		ttl:     cfg.Period,
 	}
-	limitHeader := fmt.Sprintf("%.2f", rps)
 	roundedLimit := strconv.Itoa(int(math.Round(rps)))
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			h := w.Header()
-			h.Add("X-Rate-Limit-Limit", limitHeader)
-			h.Add("X-Rate-Limit-Duration", "1")
-			if xff := r.Header.Get("X-Forwarded-For"); strings.TrimSpace(xff) != "" {
-				h.Add("X-Rate-Limit-Request-Forwarded-For", xff)
-			}
-			h.Add("X-Rate-Limit-Request-Remote-Addr", r.RemoteAddr)
-
 			ip := clientIP(r.RemoteAddr)
 			if ip == "" {
 				next.ServeHTTP(w, r)
 				return
 			}
 			allowed, remaining := store.allow(ip + "|" + r.URL.Path)
+			h := w.Header()
 			h.Add("RateLimit-Limit", roundedLimit)
 			h.Add("RateLimit-Reset", "1")
 			h.Add("RateLimit-Remaining", strconv.Itoa(remaining))

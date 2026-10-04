@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -221,21 +222,19 @@ func TestRateLimit_HeadersAndKeys(t *testing.T) {
 		}
 	}
 
-	want(do("/a", "10.9.0.1", "1.1.1.1, 2.2.2.2"), http.StatusOK, map[string]string{
-		"X-Rate-Limit-Limit":                 "0.03",
-		"X-Rate-Limit-Duration":              "1",
-		"X-Rate-Limit-Request-Forwarded-For": "1.1.1.1, 2.2.2.2",
-		"X-Rate-Limit-Request-Remote-Addr":   "10.9.0.1",
-		"RateLimit-Limit":                    "0",
-		"RateLimit-Reset":                    "1",
-		"RateLimit-Remaining":                "1",
+	rr := do("/a", "10.9.0.1", "1.1.1.1, 2.2.2.2")
+	want(rr, http.StatusOK, map[string]string{
+		"RateLimit-Limit":     "0",
+		"RateLimit-Reset":     "1",
+		"RateLimit-Remaining": "1",
 	})
-	want(do("/a", "10.9.0.1:1", ""), http.StatusOK, map[string]string{"RateLimit-Remaining": "0"})
-	rr := do("/a", "10.9.0.1:2", "")
-	want(rr, http.StatusTooManyRequests, map[string]string{"RateLimit-Remaining": "0", "Retry-After": "60"})
-	if rr.Header().Get("X-Rate-Limit-Request-Forwarded-For") != "" {
-		t.Error("unexpected X-Rate-Limit-Request-Forwarded-For without X-Forwarded-For")
+	for k := range rr.Header() {
+		if strings.HasPrefix(k, "X-Rate-Limit") {
+			t.Errorf("unexpected header %s: request metadata must not be echoed", k)
+		}
 	}
+	want(do("/a", "10.9.0.1:1", ""), http.StatusOK, map[string]string{"RateLimit-Remaining": "0"})
+	want(do("/a", "10.9.0.1:2", ""), http.StatusTooManyRequests, map[string]string{"RateLimit-Remaining": "0", "Retry-After": "60"})
 	want(do("/b", "10.9.0.1", ""), http.StatusOK, nil)
 
 	do("/v6", "[2001:db8:1:2:aaaa::1]:5", "")

@@ -135,8 +135,7 @@ func (s *Simulator) simulateDevice(ctx context.Context, imei string, route *Rout
 			slog.Int("pointIndex", progress.pointIndex),
 			slog.Int("loopCount", progress.loopCount))
 
-		// Run route traversal with a watchdog that detects stale connections.
-		err = s.runWithWatchdog(ctx, w, imei, route, reversed, progress)
+		err = s.runConnection(ctx, w, imei, route, reversed, progress)
 		_ = w.Close()
 
 		if err != nil {
@@ -156,11 +155,11 @@ func (s *Simulator) simulateDevice(ctx context.Context, imei string, route *Rout
 	}
 }
 
-// runWithWatchdog runs the route loop alongside a watchdog goroutine.
-// If the watchdog detects a stale connection (no successful write within
-// the threshold) or the command reader hits a read error, it cancels the
-// traversal and forces a reconnection.
-func (s *Simulator) runWithWatchdog(
+// runConnection runs the route loop alongside the command reader. A write
+// error (deadline exceeded, reset) or a read error (EOF when the server
+// closes) ends the connection and forces a reconnection; TCP keepalive
+// detects silently dead peers.
+func (s *Simulator) runConnection(
 	ctx context.Context,
 	w *connWriter,
 	imei string,
@@ -171,12 +170,6 @@ func (s *Simulator) runWithWatchdog(
 	// Create a cancellable context for this connection's lifetime.
 	connCtx, connCancel := context.WithCancel(ctx)
 	defer connCancel()
-
-	// Start the watchdog in a goroutine.
-	watchdogErr := make(chan error, 1)
-	go func() {
-		watchdogErr <- runWatchdog(connCtx, w, defaultStaleThreshold, defaultWatchdogInterval)
-	}()
 
 	// Start the command reader — it owns all reads from w.conn. A read error
 	// (e.g. EOF when the server closes) ends the connection, because writes
@@ -192,24 +185,15 @@ func (s *Simulator) runWithWatchdog(
 		routeErr <- s.runRouteLoop(connCtx, w, imei, route, reversed, progress)
 	}()
 
-	// Wait for either the route loop to finish or the watchdog to fire.
 	select {
 	case err := <-routeErr:
-		connCancel() // Stop the watchdog.
+		connCancel()
 		return err
 	case err := <-readerErr:
 		connCancel()
 		if err != nil {
 			return err
 		}
-		return <-routeErr
-	case err := <-watchdogErr:
-		connCancel() // Stop the route loop.
-		if err != nil {
-			slog.Warn("watchdog triggered", slog.String("device", imei), slog.Any("error", err))
-			return err
-		}
-		// Watchdog exited cleanly (context cancelled). Wait for route to finish.
 		return <-routeErr
 	}
 }
@@ -254,7 +238,7 @@ func (s *Simulator) runRouteLoop(
 		if len(points) > 0 {
 			end := points[len(points)-1]
 			parked := BuildH02Message(imei, end.Lat, end.Lon, 0, end.Course, end.Ele, false, time.Now().UTC())
-			_ = w.WriteString(parked) // best-effort; connection errors caught by watchdog
+			_ = w.WriteString(parked) // best-effort; a dead connection fails the next write or read
 		}
 
 		select {
@@ -326,7 +310,6 @@ func (s *Simulator) traverseRoute(
 		now := time.Now().UTC()
 		msg := BuildH02Message(imei, pt.Lat, pt.Lon, reportedSpeed, pt.Course, pt.Ele, true, now)
 
-		// Write the message using the tracked writer (updates lastWriteAt).
 		if err := w.WriteString(msg); err != nil {
 			return fmt.Errorf("write H02 message at point %d/%d: %w", i+1, totalPoints, err)
 		}

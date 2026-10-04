@@ -1,10 +1,66 @@
 package demo
 
 import (
+	"bufio"
+	"context"
 	"math"
+	"net"
+	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 )
+
+// TestRunConnection_RestStopKeepsConnection drives a 1x route with a
+// 2-minute rest stop over a healthy connection; the simulator must not drop
+// it while parked.
+func TestRunConnection_RestStopKeepsConnection(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		client, server := net.Pipe()
+		defer func() { _ = server.Close() }()
+		lines := make(chan string, 16)
+		go func() {
+			sc := bufio.NewScanner(server)
+			for sc.Scan() {
+				lines <- sc.Text()
+			}
+		}()
+
+		points := []RoutePoint{
+			{Lat: 50, Lon: 10, Speed: 50, Distance: 100},
+			{Lat: 50.001, Lon: 10, Speed: 0, Distance: 100},
+			{Lat: 50.002, Lon: 10, Speed: 50, Distance: 100},
+		}
+		route := &Route{Name: "rest", Points: points}
+		s := NewSimulator([]*Route{route}, "", nil, 1)
+		ctx, cancel := context.WithCancel(t.Context())
+		done := make(chan error, 1)
+		w := newConnWriter(client, writeDeadlineTimeout)
+		go func() {
+			done <- s.runConnection(ctx, w, "1", route, reversePoints(points), &routeProgress{})
+		}()
+
+		time.Sleep(3 * time.Minute)
+		synctest.Wait()
+		select {
+		case err := <-done:
+			t.Fatalf("connection dropped during rest stop: %v", err)
+		default:
+		}
+		var afterRest bool
+		for len(lines) > 0 {
+			if strings.Contains(<-lines, "5000.1200,N") {
+				afterRest = true
+			}
+		}
+		if !afterRest {
+			t.Error("point after the rest stop was not sent on the same connection")
+		}
+		cancel()
+		<-done
+		_ = client.Close()
+	})
+}
 
 func TestBuildH02Message(t *testing.T) {
 	ts := time.Date(2026, 2, 15, 14, 30, 45, 0, time.UTC)

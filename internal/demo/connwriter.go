@@ -4,34 +4,25 @@ import (
 	"fmt"
 	"net"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
-// connWriter wraps a net.Conn and tracks write health.
-//
-// After each successful write, it records the timestamp so the watchdog
-// goroutine can detect stale connections where the TCP write "succeeds"
-// (data accepted into the kernel buffer) but the remote end is gone.
+// tcpKeepAlivePeriod is the interval between OS-level TCP keepalive probes.
+const tcpKeepAlivePeriod = 15 * time.Second
+
+// connWriter wraps a net.Conn and applies a deadline to every write.
 type connWriter struct {
 	conn          net.Conn
 	writeDeadline time.Duration
-	lastWriteAt   atomic.Int64 // unix nanoseconds of last successful write
-	mu            sync.Mutex   // guards SetWriteDeadline + conn.Write
+	mu            sync.Mutex // guards SetWriteDeadline + conn.Write
 }
 
 // newConnWriter creates a connWriter with the given write deadline.
-// It records the current time as the initial "last write" timestamp.
 func newConnWriter(conn net.Conn, writeDeadline time.Duration) *connWriter {
-	w := &connWriter{
-		conn:          conn,
-		writeDeadline: writeDeadline,
-	}
-	w.lastWriteAt.Store(time.Now().UnixNano())
-	return w
+	return &connWriter{conn: conn, writeDeadline: writeDeadline}
 }
 
-// Write sends data with a write deadline and tracks the last successful write time.
+// Write sends data with a write deadline.
 // It is safe to call concurrently (e.g. from the route loop and the command reader).
 func (w *connWriter) Write(data []byte) (int, error) {
 	w.mu.Lock()
@@ -45,8 +36,6 @@ func (w *connWriter) Write(data []byte) (int, error) {
 	if err != nil {
 		return n, fmt.Errorf("write to connection: %w", err)
 	}
-
-	w.lastWriteAt.Store(time.Now().UnixNano())
 	return n, nil
 }
 
@@ -56,18 +45,28 @@ func (w *connWriter) WriteString(msg string) error {
 	return err
 }
 
-// LastWriteAge returns how long ago the last successful write occurred.
-func (w *connWriter) LastWriteAge() time.Duration {
-	lastNano := w.lastWriteAt.Load()
-	return time.Since(time.Unix(0, lastNano))
-}
-
-// IsStale returns true if no successful write has occurred within the given threshold.
-func (w *connWriter) IsStale(threshold time.Duration) bool {
-	return w.LastWriteAge() > threshold
-}
-
 // Close closes the underlying connection.
 func (w *connWriter) Close() error {
 	return w.conn.Close()
+}
+
+// enableTCPKeepAlive enables OS-level TCP keepalive on a connection.
+// If the connection is not a *net.TCPConn (e.g., in tests using net.Pipe),
+// it is silently skipped.
+func enableTCPKeepAlive(conn net.Conn, period time.Duration) error {
+	tcpConn, ok := conn.(*net.TCPConn)
+	if !ok {
+		// Not a TCP connection (e.g., net.Pipe in tests). Skip silently.
+		return nil
+	}
+
+	if err := tcpConn.SetKeepAlive(true); err != nil {
+		return fmt.Errorf("enable TCP keepalive: %w", err)
+	}
+
+	if err := tcpConn.SetKeepAlivePeriod(period); err != nil {
+		return fmt.Errorf("set TCP keepalive period: %w", err)
+	}
+
+	return nil
 }

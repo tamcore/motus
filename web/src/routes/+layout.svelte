@@ -300,6 +300,7 @@
 	.nav-left {
 		display: flex;
 		align-items: center;
+		flex-shrink: 0;
 	}
 
 	.logo {
@@ -316,12 +317,17 @@
 		color: var(--accent-primary);
 	}
 
+	/* 11 links do not fit every desktop width: scroll the links, not the page */
 	.nav-center {
 		display: flex;
 		gap: var(--space-2);
+		min-width: 0;
+		overflow-x: auto;
+		scrollbar-width: none;
 	}
 
 	.nav-link {
+		white-space: nowrap;
 		padding: var(--space-3) var(--space-4);
 		text-decoration: none;
 		color: var(--text-secondary);
@@ -354,6 +360,7 @@
 		display: flex;
 		align-items: center;
 		gap: var(--space-4);
+		flex-shrink: 0;
 	}
 
 	.user-menu {

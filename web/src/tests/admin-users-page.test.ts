@@ -10,7 +10,6 @@ vi.mock("$lib/stores/auth", () => ({
   isAdmin: writable(true),
   currentUser: writable({ id: 1, name: "Admin", email: "admin@example.com" }),
 }));
-vi.mock("$lib/stores/refresh", () => ({ refreshHandler: writable(null) }));
 
 import UsersPage from "../routes/admin/users/+page.svelte";
 

@@ -15,7 +15,6 @@ vi.mock("$lib/stores/auth", () => ({
   currentUser: writable({ id: 1, email: "admin@motus.local", administrator: true }),
   isAdmin: writable(true),
 }));
-vi.mock("$lib/stores/refresh", () => ({ refreshHandler: writable(null) }));
 vi.mock("$lib/stores/theme", () => ({ isDark: writable(false) }));
 vi.mock("$lib/composables/useLeaflet", () => {
   const map = { fitBounds: vi.fn(), removeLayer: vi.fn() };

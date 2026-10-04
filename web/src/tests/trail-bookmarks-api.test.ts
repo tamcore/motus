@@ -1,18 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("$lib/auth-token-store", () => ({ getStoredAuthToken: vi.fn().mockResolvedValue(null) }));
-
 import { api } from "$lib/api/client";
-
-function stubFetch(body: unknown, status = 200) {
-  const fetchMock = vi
-    .fn()
-    .mockResolvedValue(
-      status === 204 ? new Response(null, { status }) : new Response(JSON.stringify(body), { status }),
-    );
-  vi.stubGlobal("fetch", fetchMock);
-  return fetchMock;
-}
+import { stubFetch } from "./helpers/stub-fetch";
 
 const payload = {
   deviceId: 4,

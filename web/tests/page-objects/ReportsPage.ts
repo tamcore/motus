@@ -22,10 +22,6 @@ export class ReportsPage {
     return this.page.locator('button:has-text("Apply")');
   }
 
-  get exportCSVButton() {
-    return this.page.locator('button:has-text("Export CSV")');
-  }
-
   get tripsTab() {
     return this.page.locator('button[role="tab"]:has-text("Trips")');
   }
@@ -36,22 +32,6 @@ export class ReportsPage {
 
   get summaryTab() {
     return this.page.locator('button[role="tab"]:has-text("Summary")');
-  }
-
-  get tripsTable() {
-    return this.page.locator('.trips-table');
-  }
-
-  get tripsTableRows() {
-    return this.page.locator('.trips-table tbody tr');
-  }
-
-  get chartContainer() {
-    return this.page.locator('.chart-container');
-  }
-
-  get statsGrid() {
-    return this.page.locator('.stats-grid');
   }
 
   get emptyState() {

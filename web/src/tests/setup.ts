@@ -2,6 +2,7 @@ import "@testing-library/jest-dom/vitest";
 import { vi } from "vitest";
 
 vi.mock("$app/environment", () => ({ browser: true }));
+vi.mock("$lib/auth-token-store", () => ({ getStoredAuthToken: vi.fn().mockResolvedValue(null) }));
 
 // jsdom lacks the modal dialog API.
 HTMLDialogElement.prototype.showModal ??= function (this: HTMLDialogElement) {

@@ -1,14 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("$lib/auth-token-store", () => ({ getStoredAuthToken: vi.fn().mockResolvedValue(null) }));
-
 import { api } from "$lib/api/client";
-
-function stubFetch(body: unknown) {
-  const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status: 200 }));
-  vi.stubGlobal("fetch", fetchMock);
-  return fetchMock;
-}
+import { stubFetch } from "./helpers/stub-fetch";
 
 describe("api.getPositionPoints", () => {
   beforeEach(() => {

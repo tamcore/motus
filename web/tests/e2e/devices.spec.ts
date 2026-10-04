@@ -55,43 +55,33 @@ test.describe('Devices Page', () => {
     await expect(devicesPage.modal).toHaveCount(0);
   });
 
-  test('should show validation error for missing fields', async () => {
-    await devicesPage.openCreateModal();
-    // Click save with empty form
-    await devicesPage.saveButton.click();
-    await expect(devicesPage.formError).toContainText('required');
-  });
-
-  test('should create a new device', async ({ authedPage }) => {
-    const uniqueId = `pw-create-${Date.now()}`;
-    await devicesPage.openCreateModal();
-    await devicesPage.fillDeviceForm({
-      name: 'PW Created Device',
-      uniqueId,
+  for (const [label, data] of [
+    ['empty form', {}],
+    ['name only', { name: 'Test Device' }],
+    ['identifier only', { uniqueId: 'test-123' }],
+    ['whitespace name', { name: '   ', uniqueId: `ws-test-${Date.now()}` }],
+  ] as const) {
+    test(`should show required error for ${label}`, async () => {
+      await devicesPage.openCreateModal();
+      await devicesPage.fillDeviceForm(data);
+      await devicesPage.saveButton.click();
+      await expect(devicesPage.formError).toContainText('required');
     });
-    await devicesPage.saveButton.click();
-    // Modal closes and device appears in table
-    await expect(devicesPage.modal).toHaveCount(0, { timeout: 10000 });
-    await expect(authedPage.locator('.device-table').locator(`text=${uniqueId}`)).toBeVisible({ timeout: 5000 });
+  }
+
+  test('should create a new device', async () => {
+    await devicesPage.createDevice({ name: 'PW Created Device', uniqueId: `pw-create-${Date.now()}` });
   });
 
-  test('should save and display protocol field', async ({ authedPage }) => {
-    const uniqueId = `pw-proto-${Date.now()}`;
-
-    // Create a device with protocol set
-    await devicesPage.openCreateModal();
-    await devicesPage.fillDeviceForm({ name: 'PW Protocol Device', uniqueId, protocol: 'h02' });
-    await devicesPage.saveButton.click();
-    await expect(devicesPage.modal).toHaveCount(0, { timeout: 10000 });
-
-    // Find the newly created device row
-    const row = authedPage.locator('.device-table').locator(`tr:has-text("${uniqueId}")`);
-    await expect(row).toBeVisible({ timeout: 5000 });
+  test('should save and display protocol field', async () => {
+    const row = await devicesPage.createDevice({ name: 'PW Protocol Device', uniqueId: `pw-proto-${Date.now()}`, protocol: 'h02' });
 
     // Open edit modal and verify protocol is hydrated correctly
     await row.locator('button:has-text("Edit")').click();
     await expect(devicesPage.modal).toBeVisible();
     await expect(devicesPage.formProtocolInput).toHaveValue('h02');
+    // Identifier stays editable so a defective tracker can be swapped without recreating the device.
+    await expect(devicesPage.formUniqueIdInput).toBeEditable();
 
     // Clear protocol by selecting blank option and save
     await devicesPage.formProtocolInput.selectOption('');
@@ -104,18 +94,12 @@ test.describe('Devices Page', () => {
     await devicesPage.cancelButton.click();
   });
 
-  test('should offer the OsmAnd protocol for new and existing devices', async ({ authedPage }) => {
-    const uniqueId = `pw-osmand-${Date.now()}`;
-
+  test('should offer the OsmAnd protocol for new and existing devices', async () => {
     // New device: OsmAnd (Traccar Client) can be selected on create
     await devicesPage.openCreateModal();
     await expect(devicesPage.formProtocolInput.locator('option[value="osmand"]')).toHaveText('OsmAnd (Traccar Client)');
-    await devicesPage.fillDeviceForm({ name: 'PW OsmAnd Device', uniqueId, protocol: 'osmand' });
-    await devicesPage.saveButton.click();
-    await expect(devicesPage.modal).toHaveCount(0, { timeout: 10000 });
-
-    const row = authedPage.locator('.device-table').locator(`tr:has-text("${uniqueId}")`);
-    await expect(row).toBeVisible({ timeout: 5000 });
+    await devicesPage.cancelButton.click();
+    const row = await devicesPage.createDevice({ name: 'PW OsmAnd Device', uniqueId: `pw-osmand-${Date.now()}`, protocol: 'osmand' });
     await row.locator('button:has-text("Edit")').click();
     await expect(devicesPage.formProtocolInput).toHaveValue('osmand');
 
@@ -134,15 +118,8 @@ test.describe('Devices Page', () => {
     await devicesPage.cancelButton.click();
   });
 
-  test('should send commands with and without parameters', async ({ authedPage }) => {
-    const uniqueId = `pw-cmd-${Date.now()}`;
-    await devicesPage.openCreateModal();
-    await devicesPage.fillDeviceForm({ name: 'PW Command Device', uniqueId, protocol: 'h02' });
-    await devicesPage.saveButton.click();
-    await expect(devicesPage.modal).toHaveCount(0, { timeout: 10000 });
-
-    const row = authedPage.locator('.device-table').locator(`tr:has-text("${uniqueId}")`);
-    await expect(row).toBeVisible({ timeout: 5000 });
+  test('should send commands with and without parameters', async () => {
+    const row = await devicesPage.createDevice({ name: 'PW Command Device', uniqueId: `pw-cmd-${Date.now()}`, protocol: 'h02' });
     await row.locator('button:has-text("Commands")').click();
     await expect(devicesPage.modal).toBeVisible();
 
@@ -188,15 +165,9 @@ test.describe('Devices Page', () => {
     await expect(devicesPage.modal.locator('.form-error')).toHaveCount(0);
   });
 
-  test('should only offer commands the device protocol supports', async ({ authedPage }) => {
+  test('should only offer commands the device protocol supports', async () => {
     const openCommands = async (protocol: string) => {
-      const uniqueId = `pw-cmdlist-${protocol}-${Date.now()}`;
-      await devicesPage.openCreateModal();
-      await devicesPage.fillDeviceForm({ name: `PW ${protocol} Commands`, uniqueId, protocol });
-      await devicesPage.saveButton.click();
-      await expect(devicesPage.modal).toHaveCount(0, { timeout: 10000 });
-      const row = authedPage.locator('.device-table').locator(`tr:has-text("${uniqueId}")`);
-      await expect(row).toBeVisible({ timeout: 5000 });
+      const row = await devicesPage.createDevice({ name: `PW ${protocol} Commands`, uniqueId: `pw-cmdlist-${protocol}-${Date.now()}`, protocol });
       await row.locator('button:has-text("Commands")').click();
       await expect(devicesPage.modal).toBeVisible();
     };
@@ -225,53 +196,22 @@ test.describe('Devices Page', () => {
     await devicesPage.modal.locator('button:has-text("Cancel")').click();
   });
 
-  test('should search devices by name', async ({ authedPage }) => {
-    // Get initial count
-    const initialCount = await devicesPage.tableRows.count();
-    if (initialCount === 0) return;
+  test('should search devices by name, identifier and case-insensitively', async () => {
+    const name = `PW Search ${Date.now()}`;
+    const uniqueId = `pw-search-${Date.now()}`;
+    await devicesPage.createDevice({ name, uniqueId });
 
-    // Get first device name
-    const firstName = await devicesPage.tableRows.first().locator('.device-name').textContent();
-    if (!firstName) return;
-
-    await devicesPage.search(firstName);
-    // Filtered results should include at least the searched device
-    await expect(devicesPage.tableRows.first().locator(`.device-name:has-text("${firstName}")`))
-      .toBeVisible();
-  });
-
-  test('should search devices by identifier', async ({ authedPage }) => {
-    const rowCount = await devicesPage.tableRows.count();
-    if (rowCount === 0) return;
-
-    const firstUid = await devicesPage.tableRows.first().locator('.uid-badge').textContent();
-    if (!firstUid) return;
-
-    await devicesPage.search(firstUid);
-    await expect(devicesPage.resultCount).toContainText(/\d+ device/);
+    for (const query of [name, uniqueId, name.toUpperCase()]) {
+      await devicesPage.search(query);
+      await expect(devicesPage.tableRows).toHaveCount(1);
+      await expect(devicesPage.tableRows.first()).toContainText(uniqueId);
+    }
   });
 
   test('should show empty state for no search results', async () => {
     await devicesPage.search('nonexistent-device-xyz-12345');
     await expect(devicesPage.emptyState).toBeVisible();
     await expect(devicesPage.emptyState).toContainText('No devices match');
-  });
-
-  test('should filter case-insensitively', async () => {
-    const rowCount = await devicesPage.tableRows.count();
-    if (rowCount === 0) return;
-
-    const firstName = await devicesPage.tableRows.first().locator('.device-name').textContent();
-    if (!firstName) return;
-
-    await devicesPage.search(firstName.toUpperCase());
-    await expect(devicesPage.tableRows).toHaveCount(rowCount > 0 ? rowCount : 0, {
-      timeout: 3000,
-    }).catch(() => {
-      // At least one result should be visible
-    });
-    const filtered = await devicesPage.tableRows.count();
-    expect(filtered).toBeGreaterThanOrEqual(1);
   });
 });
 

@@ -1,11 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/svelte";
-import { readable, writable } from "svelte/store";
+import { readable } from "svelte/store";
 
 vi.mock("$app/stores", () => ({
   page: readable({ url: new URL("http://localhost/notifications/history?rule=42") }),
 }));
-vi.mock("$lib/stores/refresh", () => ({ refreshHandler: writable(null) }));
 
 vi.mock("$lib/api/client", () => ({
   // Admins with "All users" see other users' rules only through fetchNotifications.

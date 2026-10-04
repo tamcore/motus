@@ -141,17 +141,6 @@ test.describe('Map Interactions', () => {
     await expect(mapPage.selectedDevice).toHaveClass(/selected/);
   });
 
-  test('should show detail panel when device is selected', async ({ authedPage }) => {
-    const count = await mapPage.deviceItems.count();
-    if (count === 0) return;
-
-    await mapPage.clickDevice(0);
-    await authedPage.waitForTimeout(500);
-    // Detail panel may appear if device has position data
-    const panelCount = await mapPage.detailPanel.count();
-    expect(panelCount).toBeGreaterThanOrEqual(0);
-  });
-
   test('should show device name and status in sidebar items', async () => {
     const count = await mapPage.deviceItems.count();
     if (count === 0) return;
@@ -163,31 +152,21 @@ test.describe('Map Interactions', () => {
     expect(nameText).toBeTruthy();
   });
 
-  test('should render device markers on map', async () => {
-    const markerCount = await mapPage.markers.count();
-    // Markers depend on device position data
-    expect(markerCount).toBeGreaterThanOrEqual(0);
-  });
+  test('should render a marker with a speed popup for a device position', async ({ authedPage }) => {
+    const devices = [{ id: 4243, uniqueId: '4243424342', name: 'Marker Device', status: 'online', disabled: false }];
+    const positions = [{ id: 1, deviceId: 4243, fixTime: new Date().toISOString(), valid: true, latitude: 49.8, longitude: 9.95, speed: 10, course: 90 }];
+    await mockFetch(authedPage, [
+      { path: '/api/devices', body: devices },
+      { path: '/api/admin/devices', body: devices },
+      { path: '/api/positions', body: positions },
+      { path: '/api/admin/positions', body: positions },
+    ]);
+    await authedPage.goto('/map');
+    await mapPage.waitForMapLoad();
 
-  test('should show popup when clicking a marker', async ({ authedPage }) => {
-    const markerCount = await mapPage.markers.count();
-    if (markerCount === 0) return;
-
+    await expect(mapPage.markers).toHaveCount(1);
     await mapPage.markers.first().click({ force: true });
-    await authedPage.waitForTimeout(500);
-    await expect(mapPage.popup).toBeVisible();
-  });
-
-  test('should display speed in popup content', async ({ authedPage }) => {
-    const markerCount = await mapPage.markers.count();
-    if (markerCount === 0) return;
-
-    await mapPage.markers.first().click({ force: true });
-    await authedPage.waitForTimeout(500);
-    if (await mapPage.popup.isVisible()) {
-      const text = await mapPage.popupContent.textContent();
-      expect(text).toContain('Speed');
-    }
+    await expect(mapPage.popupContent).toContainText('Speed');
   });
 
   test('should pan map by dragging', async ({ authedPage }) => {

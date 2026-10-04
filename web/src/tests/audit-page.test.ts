@@ -7,7 +7,6 @@ const mocks = vi.hoisted(() => ({ getAuditLog: vi.fn() }));
 vi.mock("$app/navigation", () => ({ goto: vi.fn() }));
 vi.mock("$lib/api/client", () => ({ api: { getAuditLog: mocks.getAuditLog } }));
 vi.mock("$lib/stores/auth", () => ({ isAdmin: writable(true) }));
-vi.mock("$lib/stores/refresh", () => ({ refreshHandler: writable(null) }));
 
 import { formatDate } from "$lib/utils/formatting";
 import AuditPage from "../routes/admin/audit/+page.svelte";

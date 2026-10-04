@@ -25,10 +25,6 @@ export class GeofencesPage {
     return this.page.locator('.fence-count');
   }
 
-  get fenceItems() {
-    return this.page.locator('.fence-item');
-  }
-
   get noFencesMessage() {
     return this.page.locator('.no-fences');
   }
@@ -39,14 +35,6 @@ export class GeofencesPage {
 
   get mapContainer() {
     return this.page.locator('.leaflet-container').first();
-  }
-
-  get drawToolbar() {
-    return this.page.locator('.leaflet-draw-toolbar');
-  }
-
-  get nameModal() {
-    return this.page.locator('[role="dialog"]');
   }
 
   get nameInput() {

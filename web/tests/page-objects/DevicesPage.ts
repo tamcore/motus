@@ -1,4 +1,4 @@
-import { type Page, expect } from '@playwright/test';
+import { type Locator, type Page, expect } from '@playwright/test';
 
 export class DevicesPage {
   constructor(private page: Page) {}
@@ -52,18 +52,6 @@ export class DevicesPage {
     return this.page.locator('[role="dialog"] input[name="uniqueId"]');
   }
 
-  get formPhoneInput() {
-    return this.page.locator('[role="dialog"] input[name="phone"]');
-  }
-
-  get formModelInput() {
-    return this.page.locator('[role="dialog"] input[name="model"]');
-  }
-
-  get formCategoryInput() {
-    return this.page.locator('[role="dialog"] input[name="category"]');
-  }
-
   get formProtocolInput() {
     return this.page.locator('[role="dialog"] select[name="protocol"]');
   }
@@ -93,20 +81,21 @@ export class DevicesPage {
     await expect(this.modal).toBeVisible();
   }
 
-  async fillDeviceForm(data: {
-    name?: string;
-    uniqueId?: string;
-    phone?: string;
-    model?: string;
-    category?: string;
-    protocol?: string;
-  }) {
+  async fillDeviceForm(data: { name?: string; uniqueId?: string; protocol?: string }) {
     if (data.name) await this.formNameInput.fill(data.name);
     if (data.uniqueId) await this.formUniqueIdInput.fill(data.uniqueId);
-    if (data.phone) await this.formPhoneInput.fill(data.phone);
-    if (data.model) await this.formModelInput.fill(data.model);
-    if (data.category) await this.formCategoryInput.fill(data.category);
     if (data.protocol !== undefined) await this.formProtocolInput.selectOption(data.protocol);
+  }
+
+  /** Creates a device through the modal and returns its desktop-table row. */
+  async createDevice(data: { name: string; uniqueId: string; protocol?: string }): Promise<Locator> {
+    await this.openCreateModal();
+    await this.fillDeviceForm(data);
+    await this.saveButton.click();
+    await expect(this.modal).toHaveCount(0, { timeout: 10000 });
+    const row = this.tableRows.filter({ hasText: data.uniqueId });
+    await expect(row).toBeVisible({ timeout: 5000 });
+    return row;
   }
 
   /** Battery cell of the desktop-table row for the named device. */

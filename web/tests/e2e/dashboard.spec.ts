@@ -1,4 +1,5 @@
 import { test, expect } from '../fixtures/auth-fixture';
+import { mockFetch } from '../helpers/mock-fetch';
 import { DashboardPage } from '../page-objects/DashboardPage';
 
 test.describe('Dashboard', () => {
@@ -44,32 +45,15 @@ test.describe('Dashboard', () => {
   });
 
   test('should navigate to devices page from empty state', async ({ authedPage }) => {
-    // Mock empty device list, positions, and session to survive reload
-    await authedPage.route('**/api/devices', (route) => {
-      route.fulfill({ status: 200, body: '[]', contentType: 'application/json' });
-    });
-    await authedPage.route('**/api/positions*', (route) => {
-      route.fulfill({ status: 200, body: '[]', contentType: 'application/json' });
-    });
-    await authedPage.route('**/api/session', (route) => {
-      if (route.request().method() === 'GET') {
-        route.fulfill({
-          status: 200,
-          body: JSON.stringify({ id: 1, email: 'admin@motus.local', name: 'Admin', administrator: true }),
-          contentType: 'application/json',
-        });
-      } else {
-        route.continue();
-      }
-    });
+    await mockFetch(authedPage, [
+      { path: '/api/devices', body: [] },
+      { path: '/api/admin/devices', body: [] },
+      { path: '/api/positions', body: [] },
+      { path: '/api/admin/positions', body: [] },
+    ]);
     await authedPage.reload();
-    await authedPage.waitForSelector('h1:has-text("Dashboard")', { timeout: 15000 });
-    await authedPage.waitForSelector('.empty-state', { timeout: 10000 });
-    const link = authedPage.locator('a:has-text("Add your first device")');
-    if (await link.isVisible()) {
-      await link.click();
-      await authedPage.waitForURL('/devices');
-    }
+    await authedPage.locator('a:has-text("Add your first device")').click();
+    await authedPage.waitForURL('/devices');
   });
 
   test('should show device cards linking to map', async ({ authedPage }) => {

@@ -393,7 +393,7 @@ func (s *Server) handleConnection(ctx context.Context, conn net.Conn) {
 				_ = conn.SetWriteDeadline(time.Time{})
 				s.log().Debug("tx (command)",
 					slog.String("conn", id),
-					slog.String("data", Truncate(string(data), maxLoggedFrame)),
+					slog.String("data", Truncate(string(data), maxLoggedCommand)),
 				)
 			}
 		}
@@ -979,6 +979,9 @@ func h02SplitFunc(data []byte, atEOF bool) (advance int, token []byte, err error
 // log. WATCH voice and image frames carry up to watchMaxFrameSize bytes of
 // binary data.
 const maxLoggedFrame = 1024
+
+// maxLoggedCommand bounds how much of a sent command is written to the debug log.
+const maxLoggedCommand = 200
 
 // connSessionKey is the context key under which handleConnection passes the
 // per-connection *DeviceSession to decoders.

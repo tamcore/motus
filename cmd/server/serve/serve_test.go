@@ -51,12 +51,17 @@ func TestNewLogger(t *testing.T) {
 	for _, tc := range []struct {
 		level, format, env string
 		wantFormat         string
-		wantDebug          bool
+		wantLevel          slog.Level
+		wantWarning        bool
 	}{
-		{"debug", "", "development", "text", true},
-		{"INFO", "", "production", "json", false},
-		{"bogus", "TEXT", "production", "text", false},
-		{"warn", "", "Development", "text", false},
+		{"debug", "", "development", "text", slog.LevelDebug, false},
+		{"INFO", "", "production", "json", slog.LevelInfo, false},
+		{"bogus", "TEXT", "production", "text", slog.LevelInfo, true},
+		{"warn", "", "Development", "text", slog.LevelWarn, false},
+		{"WARN", "json", "production", "json", slog.LevelWarn, false},
+		{"error", "", "production", "json", slog.LevelError, false},
+		{" debug \n", " text ", "production", "text", slog.LevelDebug, false},
+		{"", "", "production", "json", slog.LevelInfo, true},
 	} {
 		cfg := &config.Config{Log: config.LogConfig{Level: tc.level, Format: tc.format}, Security: config.SecurityConfig{Env: tc.env}}
 		var buf bytes.Buffer
@@ -64,10 +69,13 @@ func TestNewLogger(t *testing.T) {
 		if format != tc.wantFormat {
 			t.Errorf("%+v: format = %q, want %q", tc, format, tc.wantFormat)
 		}
-		if got := l.Enabled(t.Context(), slog.LevelDebug); got != tc.wantDebug {
-			t.Errorf("%+v: debug enabled = %v, want %v", tc, got, tc.wantDebug)
+		if !l.Enabled(t.Context(), tc.wantLevel) || l.Enabled(t.Context(), tc.wantLevel-1) {
+			t.Errorf("%+v: logger level is not %v", tc, tc.wantLevel)
 		}
-		l.Info("x")
+		if hasWarning := strings.Contains(buf.String(), "invalid log level"); hasWarning != tc.wantWarning {
+			t.Errorf("%+v: warning logged = %v, want %v (output %q)", tc, hasWarning, tc.wantWarning, buf.String())
+		}
+		l.Error("x")
 		if isJSON := strings.HasPrefix(buf.String(), "{"); isJSON != (tc.wantFormat == "json") {
 			t.Errorf("%+v: output %q does not match format %q", tc, buf.String(), tc.wantFormat)
 		}

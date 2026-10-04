@@ -847,10 +847,16 @@ func resolveCoords(ctx context.Context, req mcp.CallToolRequest, deps Deps) (lat
 		lat, lon, _, err = deps.ForwardGeocoder.ForwardGeocode(ctx, addr)
 		return
 	}
+	args := req.GetArguments()
+	_, hasLat := args["latitude"]
+	_, hasLon := args["longitude"]
+	if !hasLat && !hasLon {
+		return 0, 0, errors.New("address or latitude/longitude is required")
+	}
 	lat, latErr := req.RequireFloat("latitude")
 	lon, lonErr := req.RequireFloat("longitude")
 	if err := errors.Join(latErr, lonErr); err != nil {
-		return 0, 0, fmt.Errorf("address or latitude/longitude is required: %w", err)
+		return 0, 0, err
 	}
 	return lat, lon, nil
 }

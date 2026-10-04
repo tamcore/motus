@@ -17,7 +17,7 @@ set -euo pipefail
 
 TARGET_URL="http://localhost:8080"
 ADMIN_EMAIL="admin@motus.local"
-ADMIN_PASS="admin"
+ADMIN_PASS="${ADMIN_PASS:-admin}"
 TS=$(date +%Y%m%dT%H%M%S)
 REPORT_DIR="security-reports/${TS}"
 SKIP_STACK=false

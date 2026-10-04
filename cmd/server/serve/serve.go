@@ -565,18 +565,26 @@ func Run() {
 // the format defaults to text in development and JSON otherwise.
 func newLogger(w io.Writer, cfg *config.Config) (*slog.Logger, string) {
 	var level slog.Level
-	if err := level.UnmarshalText([]byte(cfg.Log.Level)); err != nil {
+	levelErr := level.UnmarshalText([]byte(strings.TrimSpace(cfg.Log.Level)))
+	if levelErr != nil {
 		level = slog.LevelInfo
 	}
 	opts := &slog.HandlerOptions{Level: level}
-	format := strings.ToLower(cfg.Log.Format)
+	format := strings.ToLower(strings.TrimSpace(cfg.Log.Format))
 	if format == "" && cfg.Security.IsDevelopment() {
 		format = "text"
 	}
+	var logger *slog.Logger
 	if format == "text" {
-		return slog.New(slog.NewTextHandler(w, opts)), format
+		logger = slog.New(slog.NewTextHandler(w, opts))
+	} else {
+		format = "json"
+		logger = slog.New(slog.NewJSONHandler(w, opts))
 	}
-	return slog.New(slog.NewJSONHandler(w, opts)), "json"
+	if levelErr != nil {
+		logger.Warn("invalid log level, using INFO", slog.String("level", cfg.Log.Level), slog.Any("error", levelErr))
+	}
+	return logger, format
 }
 
 // loadCSRFSecret returns the 32-byte CSRF secret. In non-development

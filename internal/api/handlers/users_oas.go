@@ -168,6 +168,7 @@ func (h *Handler) AdminDeleteUser(ctx context.Context, params oas.AdminDeleteUse
 		return &oas.AdminDeleteUserForbidden{Error: "cannot delete your own account"}, nil
 	}
 
+	// Guard skips the user lookup when demo mode is off.
 	if demo.IsEnabled() {
 		target, err := h.cfg.Users.GetByID(ctx, params.ID)
 		if err == nil && demo.IsDemoAccount(target.Email) {

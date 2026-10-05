@@ -13,21 +13,13 @@ func TestCleanupService_CleanExpiredSessions(t *testing.T) {
 	testutil.CleanTables(t, pool)
 
 	// Create a test user first
-	var userID int64
-	err := pool.QueryRow(context.Background(),
-		`INSERT INTO users (email, password_hash, name, role)
-		 VALUES ('test@example.com', 'hash', 'Test User', 'user')
-		 RETURNING id`,
-	).Scan(&userID)
-	if err != nil {
-		t.Fatalf("Failed to create test user: %v", err)
-	}
+	userID := testutil.CreateUser(t, "test@example.com").ID
 
 	// Create test sessions: one expired recently, one expired 8 days ago
 	recentExpired := time.Now().Add(-1 * time.Hour)
 	oldExpired := time.Now().Add(-8 * 24 * time.Hour)
 
-	_, err = pool.Exec(context.Background(),
+	_, err := pool.Exec(context.Background(),
 		`INSERT INTO sessions (id, user_id, expires_at) VALUES
 		 ('recent', $1, $2), ('old', $1, $3)`,
 		userID, recentExpired, oldExpired,
@@ -74,19 +66,11 @@ func TestCleanupService_CleanExpiredShares(t *testing.T) {
 	testutil.CleanTables(t, pool)
 
 	// Create a test user
-	var userID int64
-	err := pool.QueryRow(context.Background(),
-		`INSERT INTO users (email, password_hash, name, role)
-		 VALUES ('test@example.com', 'hash', 'Test User', 'user')
-		 RETURNING id`,
-	).Scan(&userID)
-	if err != nil {
-		t.Fatalf("Failed to create test user: %v", err)
-	}
+	userID := testutil.CreateUser(t, "test@example.com").ID
 
 	// Create a test device
 	var deviceID int64
-	err = pool.QueryRow(context.Background(),
+	err := pool.QueryRow(context.Background(),
 		`INSERT INTO devices (unique_id, name, status)
 		 VALUES ('test-dev', 'Test Device', 'unknown') RETURNING id`,
 	).Scan(&deviceID)

@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"math"
 	"math/rand"
-	"strings"
 	"time"
 
 	"github.com/tamcore/motus/internal/model"
@@ -15,14 +14,6 @@ import (
 // writeDeadlineTimeout is the per-write TCP deadline. If a single write takes
 // longer than this, the connection is considered broken.
 const writeDeadlineTimeout = 5 * time.Second
-
-// resolveTarget normalises the h02Port field into a "host:port" string.
-func resolveTarget(h02Port string) string {
-	if !strings.Contains(h02Port, ":") {
-		return "localhost:" + h02Port
-	}
-	return h02Port
-}
 
 type routeDirection int
 
@@ -68,9 +59,6 @@ type Simulator struct {
 // Each device IMEI is assigned a route (cycling through available routes).
 // speedMultiplier controls playback speed: 1.0 = real time, 10.0 = 10x faster.
 func NewSimulator(routes []*Route, h02Port string, deviceIMEIs []string, speedMultiplier float64) *Simulator {
-	if speedMultiplier <= 0 {
-		speedMultiplier = 1.0
-	}
 	return &Simulator{
 		routes:          routes,
 		h02Port:         h02Port,
@@ -103,7 +91,7 @@ func (s *Simulator) simulateDevice(ctx context.Context, imei string, route *Rout
 		slog.Float64("distanceKm", route.TotalDistance()),
 		slog.Int("points", len(route.Points)))
 
-	target := resolveTarget(s.h02Port)
+	target := s.h02Port
 	b := newBackoff()
 	progress := &routeProgress{}
 	reversed := reversePoints(route.Points)
@@ -122,11 +110,6 @@ func (s *Simulator) simulateDevice(ctx context.Context, imei string, route *Rout
 			// Context was cancelled during connection retry.
 			slog.Info("connection aborted", slog.String("device", imei), slog.Any("error", err))
 			return
-		}
-
-		// Enable OS-level TCP keepalive to detect dead peers faster.
-		if kaErr := enableTCPKeepAlive(conn, tcpKeepAlivePeriod); kaErr != nil {
-			slog.Warn("TCP keepalive failed", slog.String("device", imei), slog.Any("error", kaErr))
 		}
 
 		w := newConnWriter(conn, writeDeadlineTimeout)
@@ -348,11 +331,7 @@ func addSpeedVariation(speed float64) float64 {
 	}
 	// +-5% variation.
 	variation := (rand.Float64() - 0.5) * 0.1
-	result := speed * (1.0 + variation)
-	if result < 1 {
-		result = 1
-	}
-	return result
+	return max(speed*(1.0+variation), 1)
 }
 
 // smoothAcceleration gradually moves currentSpeed toward targetSpeed, clamping
@@ -461,8 +440,8 @@ func reversePoints(points []RoutePoint) []RoutePoint {
 }
 
 // scaledDuration applies the speed multiplier to a duration.
-// Higher multiplier means shorter real-time duration. NewSimulator keeps the
-// multiplier positive.
+// Higher multiplier means shorter real-time duration. config.Validate keeps
+// the multiplier positive.
 func scaledDuration(d time.Duration, multiplier float64) time.Duration {
 	return time.Duration(float64(d) / multiplier)
 }

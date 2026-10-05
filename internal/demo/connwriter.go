@@ -7,9 +7,6 @@ import (
 	"time"
 )
 
-// tcpKeepAlivePeriod is the interval between OS-level TCP keepalive probes.
-const tcpKeepAlivePeriod = 15 * time.Second
-
 // connWriter wraps a net.Conn and applies a deadline to every write.
 type connWriter struct {
 	conn          net.Conn
@@ -48,25 +45,4 @@ func (w *connWriter) WriteString(msg string) error {
 // Close closes the underlying connection.
 func (w *connWriter) Close() error {
 	return w.conn.Close()
-}
-
-// enableTCPKeepAlive enables OS-level TCP keepalive on a connection.
-// If the connection is not a *net.TCPConn (e.g., in tests using net.Pipe),
-// it is silently skipped.
-func enableTCPKeepAlive(conn net.Conn, period time.Duration) error {
-	tcpConn, ok := conn.(*net.TCPConn)
-	if !ok {
-		// Not a TCP connection (e.g., net.Pipe in tests). Skip silently.
-		return nil
-	}
-
-	if err := tcpConn.SetKeepAlive(true); err != nil {
-		return fmt.Errorf("enable TCP keepalive: %w", err)
-	}
-
-	if err := tcpConn.SetKeepAlivePeriod(period); err != nil {
-		return fmt.Errorf("set TCP keepalive period: %w", err)
-	}
-
-	return nil
 }

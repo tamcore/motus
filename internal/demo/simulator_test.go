@@ -276,24 +276,6 @@ func TestScaledDuration(t *testing.T) {
 	}
 }
 
-func TestNewSimulator(t *testing.T) {
-	routes := []*Route{
-		{Name: "test", Points: []RoutePoint{{Lat: 48, Lon: 11}}},
-	}
-
-	// Zero multiplier should default to 1.0.
-	sim := NewSimulator(routes, "5013", []string{"DEMO1"}, 0)
-	if sim.speedMultiplier != 1.0 {
-		t.Errorf("speedMultiplier = %f, want 1.0", sim.speedMultiplier)
-	}
-
-	// Negative multiplier should default to 1.0.
-	sim = NewSimulator(routes, "5013", []string{"DEMO1"}, -5)
-	if sim.speedMultiplier != 1.0 {
-		t.Errorf("speedMultiplier = %f, want 1.0", sim.speedMultiplier)
-	}
-}
-
 func TestAddSpeedVariation(t *testing.T) {
 	// Zero speed should return zero.
 	if v := addSpeedVariation(0); v != 0 {

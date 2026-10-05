@@ -17,12 +17,8 @@ import (
 
 // GPXFile represents a parsed GPX file structure.
 type GPXFile struct {
-	XMLName  xml.Name `xml:"gpx"`
-	Metadata struct {
-		Name string `xml:"name"`
-		Desc string `xml:"desc"`
-	} `xml:"metadata"`
-	Tracks []GPXTrack `xml:"trk"`
+	XMLName xml.Name   `xml:"gpx"`
+	Tracks  []GPXTrack `xml:"trk"`
 }
 
 // GPXTrack represents a track in a GPX file.

@@ -7,12 +7,6 @@ import (
 
 // Default smoothing parameters.
 const (
-	// defaultInterpolationInterval is the default maximum distance (meters)
-	// between consecutive route points after interpolation. This controls
-	// how granular the simulated movement is: at 100m intervals, a vehicle
-	// traveling at 100 km/h sends a position update every ~3.6 seconds.
-	defaultInterpolationInterval = 100.0
-
 	// defaultHighwaySpeed is the base speed (km/h) used for long straight
 	// segments where the GPX file has no speed data.
 	defaultHighwaySpeed = 110.0
@@ -40,15 +34,10 @@ const (
 // A smaller interval produces more points and smoother visual movement on the map. For example, 100m with a 100 km/h speed yields
 // a position update roughly every 3.6 seconds.
 //
-// If interval is <= 0, the default (100m) is used.
 // The original route is not modified; a new Route is returned.
 func SmoothRouteWithInterval(route *Route, interval float64) *Route {
 	if len(route.Points) < 2 {
 		return route
-	}
-
-	if interval <= 0 {
-		interval = defaultInterpolationInterval
 	}
 
 	// Step 1: estimate speeds from geometry if the GPX has no speed data.
@@ -73,15 +62,7 @@ func SmoothRouteWithInterval(route *Route, interval float64) *Route {
 // data (speed == 0). It uses the inter-point distance and bearing change to
 // distinguish highway segments from urban manoeuvring.
 func estimateSpeeds(points []RoutePoint) []RoutePoint {
-	// Check whether any point already has a non-zero speed.
-	hasSpeed := false
-	for _, p := range points {
-		if p.Speed > 0 {
-			hasSpeed = true
-			break
-		}
-	}
-	if hasSpeed {
+	if slices.ContainsFunc(points, func(p RoutePoint) bool { return p.Speed > 0 }) {
 		// GPX has speed data -- keep it as-is.
 		return slices.Clone(points)
 	}
@@ -141,11 +122,7 @@ func speedForSegment(distMeters, bearingChangeDeg float64) float64 {
 		base *= 0.8
 	}
 
-	if base < minMovingSpeed {
-		base = minMovingSpeed
-	}
-
-	return base
+	return max(base, minMovingSpeed)
 }
 
 // angleDiff returns the signed difference between two bearings in degrees,
@@ -170,16 +147,7 @@ func interpolateRoute(points []RoutePoint, maxInterval float64) []RoutePoint {
 		return points
 	}
 
-	// Pre-calculate total expected points to reduce allocations.
-	estimatedPoints := len(points)
-	for i := 1; i < len(points); i++ {
-		if points[i].Distance > maxInterval {
-			estimatedPoints += int(math.Ceil(points[i].Distance/maxInterval)) - 1
-		}
-	}
-
-	out := make([]RoutePoint, 0, estimatedPoints)
-	out = append(out, points[0])
+	out := []RoutePoint{points[0]}
 
 	for i := 1; i < len(points); i++ {
 		prev := points[i-1]
@@ -237,23 +205,14 @@ func smoothSpeeds(points []RoutePoint) []RoutePoint {
 
 	for i := 1; i < len(out)-1; i++ {
 		lo := max(i-window, 0)
-		hi := i + window
-		if hi >= len(out) {
-			hi = len(out) - 1
-		}
+		hi := min(i+window, len(out)-1)
 
 		sum := 0.0
-		count := 0
 		for j := lo; j <= hi; j++ {
 			sum += points[j].Speed
-			count++
 		}
 
-		avg := sum / float64(count)
-		if avg < minMovingSpeed {
-			avg = minMovingSpeed
-		}
-		out[i].Speed = avg
+		out[i].Speed = max(sum/float64(hi-lo+1), minMovingSpeed)
 	}
 
 	return out
@@ -287,9 +246,7 @@ func enforceAccelerationLimits(points []RoutePoint) []RoutePoint {
 
 	// Ensure minimum speed.
 	for i := range out {
-		if out[i].Speed < minMovingSpeed {
-			out[i].Speed = minMovingSpeed
-		}
+		out[i].Speed = max(out[i].Speed, minMovingSpeed)
 	}
 
 	return out

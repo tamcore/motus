@@ -33,10 +33,6 @@ func TestParseGPXFile(t *testing.T) {
 		t.Fatalf("ParseGPXFile: %v", err)
 	}
 
-	if gpx.Metadata.Name != "Test Route" {
-		t.Errorf("metadata name = %q, want %q", gpx.Metadata.Name, "Test Route")
-	}
-
 	if len(gpx.Tracks) != 1 {
 		t.Fatalf("tracks = %d, want 1", len(gpx.Tracks))
 	}

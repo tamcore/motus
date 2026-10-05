@@ -2,6 +2,7 @@ package demo
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -49,16 +50,13 @@ func runCommandReader(ctx context.Context, w *connWriter, imei string) error {
 		if err != nil {
 			// Deadline/timeout errors are expected — the short deadline is used
 			// only to make the read ctx-cancellable. Continue polling.
-			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+			if netErr, ok := errors.AsType[net.Error](err); ok && netErr.Timeout() {
 				// Flush any accumulated bytes that have no '#' or '\n' terminator.
 				// Traccar sends raw commands (e.g. "rconf", "FACTORY") with no
 				// trailing delimiter — we detect them on the first timeout after
 				// the bytes arrive.
-				s := string(acc)
-				if len(acc) > 0 &&
-					strings.IndexByte(s, '#') < 0 &&
-					strings.IndexByte(s, '\n') < 0 {
-					token := strings.TrimSpace(s)
+				if len(acc) > 0 && !strings.ContainsAny(string(acc), "#\n") {
+					token := strings.TrimSpace(string(acc))
 					slog.Debug("commandreader flush",
 						slog.String("device", imei),
 						slog.String("token", token))

@@ -11,7 +11,7 @@ import (
 func TestSmoothRoute_EmptyAndSingle(t *testing.T) {
 	// Empty route.
 	r := &Route{Name: "empty"}
-	smoothed := SmoothRouteWithInterval(r, 0)
+	smoothed := SmoothRouteWithInterval(r, 100)
 	if smoothed.Name != "empty" {
 		t.Error("name changed")
 	}
@@ -24,7 +24,7 @@ func TestSmoothRoute_EmptyAndSingle(t *testing.T) {
 		Name:   "single",
 		Points: []RoutePoint{{Lat: 48.0, Lon: 11.0}},
 	}
-	smoothed = SmoothRouteWithInterval(r, 0)
+	smoothed = SmoothRouteWithInterval(r, 100)
 	if len(smoothed.Points) != 1 {
 		t.Errorf("expected 1 point, got %d", len(smoothed.Points))
 	}
@@ -142,7 +142,7 @@ func TestInterpolateRoute_NoLongSegments(t *testing.T) {
 		{Lat: 48.001, Lon: 11.001, Speed: 50, Distance: 50, Course: 45},
 	}
 
-	result := interpolateRoute(points, defaultInterpolationInterval)
+	result := interpolateRoute(points, 100)
 
 	if len(result) != len(points) {
 		t.Errorf("expected %d points, got %d (no interpolation needed)", len(points), len(result))
@@ -156,7 +156,7 @@ func TestInterpolateRoute_LongSegment(t *testing.T) {
 		{Lat: 48.01, Lon: 11.01, Speed: 80, Distance: 1000, Course: 45},
 	}
 
-	result := interpolateRoute(points, defaultInterpolationInterval)
+	result := interpolateRoute(points, 100)
 
 	// 1000m / 100m interval = 10 sub-segments, so expect 11 points (start + 9 interp + end).
 	expectedPoints := 11
@@ -323,7 +323,7 @@ func TestSmoothRoute_Integration(t *testing.T) {
 		},
 	}
 
-	smoothed := SmoothRouteWithInterval(route, 0)
+	smoothed := SmoothRouteWithInterval(route, 100)
 
 	// Should have more points due to interpolation of long segments.
 	if len(smoothed.Points) <= len(route.Points) {
@@ -370,7 +370,7 @@ func TestSmoothRoute_RealRoutes(t *testing.T) {
 
 	for _, r := range routes {
 		t.Run(r.Name, func(t *testing.T) {
-			smoothed := SmoothRouteWithInterval(r, 0)
+			smoothed := SmoothRouteWithInterval(r, 100)
 
 			t.Logf("original: %d points, %.0f km", len(r.Points), r.TotalDistance())
 			t.Logf("smoothed: %d points, %.0f km", len(smoothed.Points), smoothed.TotalDistance())
@@ -456,18 +456,6 @@ func TestSmoothRouteWithInterval(t *testing.T) {
 			interval: 200.0,
 			wantMin:  4, // 1000/200 = 5 sub-segments + smoothing effects
 			wantMax:  10,
-		},
-		{
-			name:     "zero interval uses default (100m)",
-			interval: 0,
-			wantMin:  9,
-			wantMax:  15,
-		},
-		{
-			name:     "negative interval uses default (100m)",
-			interval: -50,
-			wantMin:  9,
-			wantMax:  15,
 		},
 	}
 

@@ -122,52 +122,6 @@ func TestSimulateDevice_ResumesFromProgress(t *testing.T) {
 	}
 }
 
-func TestEnableTCPKeepAlive(t *testing.T) {
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("listen: %v", err)
-	}
-	defer func() { _ = ln.Close() }()
-
-	go func() {
-		c, err := ln.Accept()
-		if err != nil {
-			return
-		}
-		defer func() { _ = c.Close() }()
-	}()
-
-	conn, err := net.DialTimeout("tcp", ln.Addr().String(), 5*time.Second)
-	if err != nil {
-		t.Fatalf("dial: %v", err)
-	}
-	defer func() { _ = conn.Close() }()
-
-	// enableTCPKeepAlive should not error on a valid TCP connection.
-	err = enableTCPKeepAlive(conn, 15*time.Second)
-	if err != nil {
-		t.Errorf("enableTCPKeepAlive failed: %v", err)
-	}
-}
-
-func TestEnableTCPKeepAlive_NonTCPConn(t *testing.T) {
-	// Pipe connections are not TCP, so keepalive should be a no-op (no error).
-	server, client := net.Pipe()
-	defer func() { _ = server.Close() }()
-	defer func() { _ = client.Close() }()
-
-	err := enableTCPKeepAlive(client, 15*time.Second)
-	// Should not error -- it just logs and skips.
-	if err != nil {
-		t.Errorf("expected no error for non-TCP conn, got: %v", err)
-	}
-}
-
-// TestSimulateDevice_ReconnectsWhenServerCloses reproduces a server pod going
-// away during a rollout: the server half-closes (FIN) but keeps accepting
-// data, so the simulator's writes still succeed and only the read side sees
-// EOF. The simulator must reconnect instead of writing into the closed
-// connection until TCP gives up.
 func TestSimulateDevice_ReconnectsWhenServerCloses(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {

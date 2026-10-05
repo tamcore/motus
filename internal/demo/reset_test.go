@@ -14,6 +14,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+var deviceIMEIs = []string{"9000000000001", "9000000000002"}
+
 func setupPool(t *testing.T) *pgxpool.Pool {
 	t.Helper()
 	pool := testutil.SetupTestDB(t)
@@ -25,7 +27,7 @@ func TestReset_CreatesAllResources(t *testing.T) {
 	pool := setupPool(t)
 	ctx := context.Background()
 
-	result, err := demo.Reset(ctx, pool, demo.DefaultAccounts, demo.DefaultDeviceIMEIs)
+	result, err := demo.Reset(ctx, pool, demo.DefaultAccounts, deviceIMEIs)
 	if err != nil {
 		t.Fatalf("Reset() returned error: %v", err)
 	}
@@ -100,7 +102,7 @@ func TestReset_CleansExistingDemoData(t *testing.T) {
 	ctx := context.Background()
 
 	// First reset: seed users and geofences.
-	_, err := demo.Reset(ctx, pool, demo.DefaultAccounts, demo.DefaultDeviceIMEIs)
+	_, err := demo.Reset(ctx, pool, demo.DefaultAccounts, deviceIMEIs)
 	if err != nil {
 		t.Fatalf("first Reset() failed: %v", err)
 	}
@@ -148,7 +150,7 @@ func TestReset_CleansExistingDemoData(t *testing.T) {
 	}
 
 	// Second reset: should clean all transient data including the auto-registered device.
-	result, err := demo.Reset(ctx, pool, demo.DefaultAccounts, demo.DefaultDeviceIMEIs)
+	result, err := demo.Reset(ctx, pool, demo.DefaultAccounts, deviceIMEIs)
 	if err != nil {
 		t.Fatalf("second Reset() failed: %v", err)
 	}
@@ -181,17 +183,11 @@ func TestReset_PreservesNonDemoResources(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a non-demo user.
-	_, err := pool.Exec(ctx, `
-		INSERT INTO users (email, password_hash, name, role)
-		VALUES ('real@example.com', 'hash123', 'Real User', 'user')
-	`)
-	if err != nil {
-		t.Fatalf("failed to create non-demo user: %v", err)
-	}
+	testutil.CreateUser(t, "real@example.com")
 
 	// Create a non-demo device.
 	var realDeviceID int64
-	err = pool.QueryRow(ctx, `
+	err := pool.QueryRow(ctx, `
 		INSERT INTO devices (unique_id, name, protocol, status, created_at, updated_at)
 		VALUES ('REAL001', 'Real Device', 'h02', 'online', NOW(), NOW())
 		RETURNING id
@@ -219,7 +215,7 @@ func TestReset_PreservesNonDemoResources(t *testing.T) {
 	}
 
 	// Run demo reset.
-	_, err = demo.Reset(ctx, pool, demo.DefaultAccounts, demo.DefaultDeviceIMEIs)
+	_, err = demo.Reset(ctx, pool, demo.DefaultAccounts, deviceIMEIs)
 	if err != nil {
 		t.Fatalf("Reset() returned error: %v", err)
 	}
@@ -247,7 +243,7 @@ func TestReset_Idempotent(t *testing.T) {
 
 	// Run reset three times in a row.
 	for i := range 3 {
-		result, err := demo.Reset(ctx, pool, demo.DefaultAccounts, demo.DefaultDeviceIMEIs)
+		result, err := demo.Reset(ctx, pool, demo.DefaultAccounts, deviceIMEIs)
 		if err != nil {
 			t.Fatalf("Reset() iteration %d returned error: %v", i+1, err)
 		}
@@ -281,7 +277,7 @@ func TestReset_ResetsUserPasswords(t *testing.T) {
 	ctx := context.Background()
 
 	// First reset to seed.
-	_, err := demo.Reset(ctx, pool, demo.DefaultAccounts, demo.DefaultDeviceIMEIs)
+	_, err := demo.Reset(ctx, pool, demo.DefaultAccounts, deviceIMEIs)
 	if err != nil {
 		t.Fatalf("first Reset() failed: %v", err)
 	}
@@ -295,7 +291,7 @@ func TestReset_ResetsUserPasswords(t *testing.T) {
 	}
 
 	// Reset should restore the password.
-	_, err = demo.Reset(ctx, pool, demo.DefaultAccounts, demo.DefaultDeviceIMEIs)
+	_, err = demo.Reset(ctx, pool, demo.DefaultAccounts, deviceIMEIs)
 	if err != nil {
 		t.Fatalf("second Reset() failed: %v", err)
 	}
@@ -400,7 +396,7 @@ func TestReset_CleansAutoRegisteredDemoDevices(t *testing.T) {
 	ctx := context.Background()
 
 	// Seed demo users.
-	_, err := demo.Reset(ctx, pool, demo.DefaultAccounts, demo.DefaultDeviceIMEIs)
+	_, err := demo.Reset(ctx, pool, demo.DefaultAccounts, deviceIMEIs)
 	if err != nil {
 		t.Fatalf("Reset() returned error: %v", err)
 	}
@@ -439,7 +435,7 @@ func TestReset_CleansAutoRegisteredDemoDevices(t *testing.T) {
 	assertRowCount(t, pool, "SELECT COUNT(*) FROM positions WHERE device_id IN (SELECT id FROM devices WHERE unique_id IN ('9000000000001','9000000000002'))", 2)
 
 	// Reset should delete the auto-registered devices and all their data.
-	result, err := demo.Reset(ctx, pool, demo.DefaultAccounts, demo.DefaultDeviceIMEIs)
+	result, err := demo.Reset(ctx, pool, demo.DefaultAccounts, deviceIMEIs)
 	if err != nil {
 		t.Fatalf("second Reset() returned error: %v", err)
 	}
@@ -476,7 +472,7 @@ func TestReset_CleansApiKeys(t *testing.T) {
 	ctx := context.Background()
 
 	// First reset to seed demo users.
-	_, err := demo.Reset(ctx, pool, demo.DefaultAccounts, demo.DefaultDeviceIMEIs)
+	_, err := demo.Reset(ctx, pool, demo.DefaultAccounts, deviceIMEIs)
 	if err != nil {
 		t.Fatalf("first Reset() failed: %v", err)
 	}
@@ -508,15 +504,7 @@ func TestReset_CleansApiKeys(t *testing.T) {
 	assertRowCount(t, pool, "SELECT COUNT(*) FROM api_keys WHERE user_id = ANY($1)", 5, []int64{demoUserID, adminUserID})
 
 	// Create a non-demo user with an API key that should survive reset.
-	var realUserID int64
-	err = pool.QueryRow(ctx, `
-		INSERT INTO users (email, password_hash, name, role)
-		VALUES ('real@example.com', 'hash123', 'Real User', 'user')
-		RETURNING id
-	`).Scan(&realUserID)
-	if err != nil {
-		t.Fatalf("failed to create non-demo user: %v", err)
-	}
+	realUserID := testutil.CreateUser(t, "real@example.com").ID
 	_, err = pool.Exec(ctx, `
 		INSERT INTO api_keys (user_id, token, name, permissions)
 		VALUES ($1, 'real-token-ddd', 'Real Key', 'full')
@@ -526,7 +514,7 @@ func TestReset_CleansApiKeys(t *testing.T) {
 	}
 
 	// Second reset: should clean ALL demo API keys (auto-created + manual) and re-create readonly ones.
-	result, err := demo.Reset(ctx, pool, demo.DefaultAccounts, demo.DefaultDeviceIMEIs)
+	result, err := demo.Reset(ctx, pool, demo.DefaultAccounts, deviceIMEIs)
 	if err != nil {
 		t.Fatalf("second Reset() failed: %v", err)
 	}
@@ -564,7 +552,7 @@ func TestReset_CleansPasskeys(t *testing.T) {
 	ctx := context.Background()
 
 	// First reset to seed demo users.
-	if _, err := demo.Reset(ctx, pool, demo.DefaultAccounts, demo.DefaultDeviceIMEIs); err != nil {
+	if _, err := demo.Reset(ctx, pool, demo.DefaultAccounts, deviceIMEIs); err != nil {
 		t.Fatalf("first Reset() failed: %v", err)
 	}
 
@@ -574,14 +562,7 @@ func TestReset_CleansPasskeys(t *testing.T) {
 	}
 
 	// Create a non-demo user whose passkey must survive the reset.
-	var realUserID int64
-	if err := pool.QueryRow(ctx, `
-		INSERT INTO users (email, password_hash, name, role)
-		VALUES ('real-pk@example.com', 'hash', 'Real User', 'user')
-		RETURNING id
-	`).Scan(&realUserID); err != nil {
-		t.Fatalf("failed to create non-demo user: %v", err)
-	}
+	realUserID := testutil.CreateUser(t, "real-pk@example.com").ID
 
 	// Register a passkey for the demo user (2 credentials) and the real user (1).
 	_, err := pool.Exec(ctx, `
@@ -595,7 +576,7 @@ func TestReset_CleansPasskeys(t *testing.T) {
 	}
 
 	// Second reset: should delete both demo passkeys, keep the real one.
-	result, err := demo.Reset(ctx, pool, demo.DefaultAccounts, demo.DefaultDeviceIMEIs)
+	result, err := demo.Reset(ctx, pool, demo.DefaultAccounts, deviceIMEIs)
 	if err != nil {
 		t.Fatalf("second Reset() failed: %v", err)
 	}
@@ -611,7 +592,7 @@ func TestReset_CleansTrailBookmarks(t *testing.T) {
 	pool := setupPool(t)
 	ctx := context.Background()
 
-	if _, err := demo.Reset(ctx, pool, demo.DefaultAccounts, demo.DefaultDeviceIMEIs); err != nil {
+	if _, err := demo.Reset(ctx, pool, demo.DefaultAccounts, deviceIMEIs); err != nil {
 		t.Fatalf("first Reset() failed: %v", err)
 	}
 
@@ -621,14 +602,8 @@ func TestReset_CleansTrailBookmarks(t *testing.T) {
 	}
 
 	// A non-demo user with a non-demo device whose bookmark must survive.
-	var realUserID, realDeviceID int64
-	if err := pool.QueryRow(ctx, `
-		INSERT INTO users (email, password_hash, name, role)
-		VALUES ('real-bm@example.com', 'hash', 'Real User', 'user')
-		RETURNING id
-	`).Scan(&realUserID); err != nil {
-		t.Fatalf("failed to create non-demo user: %v", err)
-	}
+	realUserID := testutil.CreateUser(t, "real-bm@example.com").ID
+	var realDeviceID int64
 	if err := pool.QueryRow(ctx, `
 		INSERT INTO devices (unique_id, name, status) VALUES ('real-bm-dev', 'Real Device', 'offline')
 		RETURNING id
@@ -647,7 +622,7 @@ func TestReset_CleansTrailBookmarks(t *testing.T) {
 		t.Fatalf("failed to insert bookmarks: %v", err)
 	}
 
-	result, err := demo.Reset(ctx, pool, demo.DefaultAccounts, demo.DefaultDeviceIMEIs)
+	result, err := demo.Reset(ctx, pool, demo.DefaultAccounts, deviceIMEIs)
 	if err != nil {
 		t.Fatalf("second Reset() failed: %v", err)
 	}
@@ -676,7 +651,7 @@ func TestReset_DemoAccountsKeepShortPasswords(t *testing.T) {
 	pool := setupPool(t)
 	ctx := context.Background()
 
-	if _, err := demo.Reset(ctx, pool, demo.DefaultAccounts, demo.DefaultDeviceIMEIs); err != nil {
+	if _, err := demo.Reset(ctx, pool, demo.DefaultAccounts, deviceIMEIs); err != nil {
 		t.Fatalf("Reset() returned error: %v", err)
 	}
 

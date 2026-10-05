@@ -11,10 +11,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// DefaultDeviceIMEIs are the default demo device identifiers.
-// Must be numeric-only for Traccar H02 protocol compatibility.
-var DefaultDeviceIMEIs = []string{"9000000000001", "9000000000002"}
-
 // DemoGeofenceNames are the names of geofences created by demo mode.
 // Used for selective cleanup.
 var DemoGeofenceNames = []string{

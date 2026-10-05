@@ -92,11 +92,8 @@ spec:
         - name: MOTUS_GPS_OSMAND_PORT
           value: {{ .Values.serviceGPS.ports.osmand.port | quote }}
         {{- end }}
-        {{- if .Values.websocket }}
         - name: MOTUS_WS_ALLOWED_ORIGINS
           value: {{ .Values.websocket.allowedOrigins | quote }}
-        {{- end }}
-        {{- if .Values.device }}
         - name: MOTUS_DEVICE_AUTO_CREATE
           value: {{ .Values.device.autoCreate.enabled | quote }}
         - name: MOTUS_DEVICE_AUTO_CREATE_USER
@@ -104,7 +101,6 @@ spec:
         {{- if .Values.device.uniqueIdPrefix }}
         - name: MOTUS_DEVICE_UNIQUE_ID_PREFIX
           value: {{ .Values.device.uniqueIdPrefix | quote }}
-        {{- end }}
         {{- end }}
         {{- if .Values.demo.enabled }}
         - name: MOTUS_DEMO_ENABLED
@@ -182,7 +178,7 @@ spec:
         - name: MOTUS_LOGIN_RATE_LIMIT
           value: {{ .Values.rateLimit.login | quote }}
         {{- end }}
-        {{- if and .Values.security .Values.security.webhookAllowedHosts }}
+        {{- if .Values.security.webhookAllowedHosts }}
         - name: MOTUS_WEBHOOK_ALLOWED_HOSTS
           value: {{ join "," .Values.security.webhookAllowedHosts | quote }}
         {{- end }}

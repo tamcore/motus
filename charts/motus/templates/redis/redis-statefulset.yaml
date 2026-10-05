@@ -1,4 +1,4 @@
-{{- if and .Values.redis.enabled .Values.redis.builtin.enabled }}
+{{- if and .Values.redis.enabled (not .Values.redis.external.url) }}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:

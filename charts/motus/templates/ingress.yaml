@@ -13,10 +13,8 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
     nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
     nginx.ingress.kubernetes.io/upstream-hash-by: "$request_uri"
-    {{- if .Values.ingress.annotations }}
     {{- range $key, $value := .Values.ingress.annotations }}
     {{ $key }}: {{ $value | quote }}
-    {{- end }}
     {{- end }}
 spec:
   ingressClassName: {{ .Values.ingress.className }}

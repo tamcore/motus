@@ -132,9 +132,7 @@ Redis is required for multi-replica WebSocket broadcasting. Without it, each pod
 | Parameter | Description | Default |
 |---|---|---|
 | `redis.enabled` | Enable Redis pub/sub | `false` |
-| `redis.external.enabled` | Use an external Redis instance | `false` |
-| `redis.external.url` | External Redis URL | `""` |
-| `redis.builtin.enabled` | Deploy a built-in Redis StatefulSet | `false` |
+| `redis.external.url` | External Redis URL; empty deploys the built-in Redis StatefulSet | `""` |
 | `redis.builtin.image` | Redis image | `redis:8-alpine` |
 
 ### WebSocket

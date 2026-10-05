@@ -1,4 +1,4 @@
-{{- if and .Values.redis.enabled .Values.redis.builtin.enabled }}
+{{- if and .Values.redis.enabled (not .Values.redis.external.url) }}
 apiVersion: v1
 kind: Service
 metadata:

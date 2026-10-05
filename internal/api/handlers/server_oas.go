@@ -9,7 +9,7 @@ import (
 )
 
 // NewError maps a handler error to an HTTP error response.
-// Uses the error's Code() method when available (e.g. 401 for SecurityError, 400 for DecodeRequestError).
+// Uses the error's Code() method when available (ogen's SecurityError 401, DecodeRequestError 400).
 func (h *Handler) NewError(_ context.Context, err error) *oas.UnexpectedErrorStatusCode {
 	code := http.StatusInternalServerError
 	type coder interface{ Code() int }

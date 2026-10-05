@@ -19,16 +19,16 @@ import (
 )
 
 // TestOidcLogin_Disabled_Returns404 verifies that calling OidcLogin when OIDC
-// is not enabled produces an error that NewError maps to 404, not 500.
+// is not enabled returns a 404 status error, not 500.
 func TestOidcLogin_Disabled_Returns404(t *testing.T) {
 	h := NewHandler(HandlerConfig{OIDCConfig: config.OIDCConfig{Enabled: false}})
 	err := h.OidcLogin(context.Background())
 	if err == nil {
 		t.Fatal("expected an error when OIDC is disabled")
 	}
-	resp := h.NewError(context.Background(), err)
-	if resp.StatusCode != http.StatusNotFound {
-		t.Errorf("expected NewError to produce 404, got %d (error: %v)", resp.StatusCode, err)
+	resp, ok := errors.AsType[*oas.UnexpectedErrorStatusCode](err)
+	if !ok || resp.StatusCode != http.StatusNotFound {
+		t.Errorf("expected 404 status error, got %v", err)
 	}
 }
 

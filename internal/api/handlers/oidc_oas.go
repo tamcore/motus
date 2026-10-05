@@ -36,7 +36,7 @@ func (h *Handler) GetOIDCConfig(ctx context.Context) (*oas.OIDCConfig, error) {
 // GET /api/auth/oidc/login
 func (h *Handler) OidcLogin(ctx context.Context) error {
 	if !h.cfg.OIDCConfig.Enabled {
-		return &httpStatusError{code: http.StatusNotFound, msg: "OIDC not enabled"}
+		return &oas.UnexpectedErrorStatusCode{StatusCode: http.StatusNotFound, Response: oas.Error{Error: "OIDC not enabled"}}
 	}
 
 	state := repository.NewToken()

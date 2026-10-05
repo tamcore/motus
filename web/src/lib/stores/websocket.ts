@@ -58,14 +58,10 @@ export class WebSocketManager {
     // Clean up any existing dead socket before creating a new one
     this.detach();
 
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const url = `${protocol}//${window.location.host}/api/socket${this.query}`;
-    const ws = new WebSocket(url);
+    const ws = new WebSocket("/api/socket" + this.query);
     this.ws = ws;
 
     ws.onopen = () => {
-      // Only update state if this is still the active socket
-      if (this.ws !== ws) return;
       this.connected.set(true);
 
       // Send ping every 30 seconds to keep connection alive
@@ -73,8 +69,6 @@ export class WebSocketManager {
     };
 
     ws.onmessage = (event) => {
-      // Only process messages from the active socket
-      if (this.ws !== ws) return;
       try {
         const data: WebSocketMessage = JSON.parse(event.data);
         if (data.positions?.length) data.positions = data.positions.map(speedToKmh);
@@ -95,8 +89,6 @@ export class WebSocketManager {
     };
 
     ws.onclose = () => {
-      // Only update state and reconnect if this is still the active socket
-      if (this.ws !== ws) return;
       this.connected.set(false);
       this.stopPingInterval();
       this.ws = null;

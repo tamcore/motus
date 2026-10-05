@@ -39,18 +39,7 @@ const guardrailSystemPrompt = "You are a topic classifier for motus, a GPS track
 // contextual follow-ups classify correctly. Errors are returned to the caller,
 // which fails open (proceeds to the main model).
 func (s *Service) classifyTopic(ctx context.Context, msgs []Message) (bool, error) {
-	recent := recentTextMessages(msgs, guardrailHistoryWindow)
-
-	history := make([]openai.ChatCompletionMessageParamUnion, 0, len(recent)+1)
-	history = append(history, openai.SystemMessage(guardrailSystemPrompt))
-	for _, m := range recent {
-		switch m.Role {
-		case "user":
-			history = append(history, openai.UserMessage(m.Content))
-		case "assistant":
-			history = append(history, openai.AssistantMessage(m.Content))
-		}
-	}
+	history := toOpenAIMessages(guardrailSystemPrompt, recentTextMessages(msgs, guardrailHistoryWindow))
 
 	completion, err := s.client.Chat.Completions.New(ctx, openai.ChatCompletionNewParams{
 		Model:       s.cfg.GuardrailModel,

@@ -289,6 +289,11 @@ func (s *Service) buildHistory(msgs []Message) []openai.ChatCompletionMessagePar
 			"Today's date: " + time.Now().UTC().Format("2006-01-02") + "."
 	}
 
+	return toOpenAIMessages(sysMsg, msgs)
+}
+
+// toOpenAIMessages converts msgs to OpenAI format, prepending a system message.
+func toOpenAIMessages(sysMsg string, msgs []Message) []openai.ChatCompletionMessageParamUnion {
 	history := make([]openai.ChatCompletionMessageParamUnion, 0, len(msgs)+1)
 	history = append(history, openai.SystemMessage(sysMsg))
 

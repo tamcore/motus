@@ -308,7 +308,6 @@ func (h *Hub) HandleConnect(w http.ResponseWriter, r *http.Request) {
 	clientCount := len(h.clients)
 	h.mu.Unlock()
 	metrics.WebSocketConnections.Inc()
-	metrics.WebSocketConnectionsByPod.WithLabelValues(h.podID).Inc()
 
 	if sharedDeviceID > 0 {
 		h.logger.Info("share client connected",
@@ -369,7 +368,6 @@ func (h *Hub) HandleConnect(w http.ResponseWriter, r *http.Request) {
 			h.mu.Unlock()
 			_ = conn.Close()
 			metrics.WebSocketConnections.Dec()
-			metrics.WebSocketConnectionsByPod.WithLabelValues(h.podID).Dec()
 			if sharedDeviceID > 0 {
 				h.logger.Info("share client disconnected",
 					slog.Int64("deviceID", sharedDeviceID),

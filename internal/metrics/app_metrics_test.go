@@ -6,28 +6,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/testutil"
 )
 
-func TestWebSocketConnectionsByPod(t *testing.T) {
-	// Verify the gauge can be incremented and decremented per pod.
-	podID := "test-pod-abc123"
-
-	WebSocketConnectionsByPod.WithLabelValues(podID).Inc()
-	WebSocketConnectionsByPod.WithLabelValues(podID).Inc()
-
-	got := testutil.ToFloat64(WebSocketConnectionsByPod.WithLabelValues(podID))
-	if got != 2 {
-		t.Errorf("WebSocketConnectionsByPod = %v, want 2", got)
-	}
-
-	WebSocketConnectionsByPod.WithLabelValues(podID).Dec()
-	got = testutil.ToFloat64(WebSocketConnectionsByPod.WithLabelValues(podID))
-	if got != 1 {
-		t.Errorf("WebSocketConnectionsByPod after Dec = %v, want 1", got)
-	}
-
-	// Clean up to avoid affecting other tests.
-	WebSocketConnectionsByPod.WithLabelValues(podID).Set(0)
-}
-
 func TestWebSocketMessagesSent(t *testing.T) {
 	tests := []struct {
 		messageType string

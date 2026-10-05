@@ -6,17 +6,6 @@ import (
 )
 
 var (
-	// WebSocketConnectionsByPod tracks current WebSocket connections per pod instance.
-	// This complements the existing WebSocketConnections gauge by adding pod_id
-	// dimensionality for multi-replica deployments.
-	WebSocketConnectionsByPod = promauto.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "motus_websocket_connections_by_pod",
-			Help: "Current WebSocket connections by pod instance",
-		},
-		[]string{"pod_id"},
-	)
-
 	// WebSocketMessagesSent counts WebSocket messages sent to clients by message type.
 	// message_type is one of: position, device, event.
 	WebSocketMessagesSent = promauto.NewCounterVec(

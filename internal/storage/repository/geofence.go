@@ -183,15 +183,7 @@ func (r *GeofenceRepository) AssociateUser(ctx context.Context, userID, geofence
 
 // UserHasAccess checks if a user has access to a geofence.
 func (r *GeofenceRepository) UserHasAccess(ctx context.Context, user *model.User, geofenceID int64) bool {
-	if user.IsAdmin() {
-		return true
-	}
-	var exists bool
-	err := r.pool.QueryRow(ctx,
-		`SELECT EXISTS(SELECT 1 FROM user_geofences WHERE user_id = $1 AND geofence_id = $2)`,
-		user.ID, geofenceID,
-	).Scan(&exists)
-	return err == nil && exists
+	return userHasAccess(ctx, r.pool, `SELECT EXISTS(SELECT 1 FROM user_geofences WHERE user_id = $1 AND geofence_id = $2)`, user, geofenceID)
 }
 
 // CheckContainmentForDevice returns the deduplicated IDs of geofences associated

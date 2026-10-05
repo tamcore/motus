@@ -129,13 +129,5 @@ func (r *CalendarRepository) Delete(ctx context.Context, id int64) error {
 
 // UserHasAccess checks if a user has access to a calendar.
 func (r *CalendarRepository) UserHasAccess(ctx context.Context, user *model.User, calendarID int64) bool {
-	if user.IsAdmin() {
-		return true
-	}
-	var exists bool
-	err := r.pool.QueryRow(ctx,
-		`SELECT EXISTS(SELECT 1 FROM user_calendars WHERE user_id = $1 AND calendar_id = $2)`,
-		user.ID, calendarID,
-	).Scan(&exists)
-	return err == nil && exists
+	return userHasAccess(ctx, r.pool, `SELECT EXISTS(SELECT 1 FROM user_calendars WHERE user_id = $1 AND calendar_id = $2)`, user, calendarID)
 }

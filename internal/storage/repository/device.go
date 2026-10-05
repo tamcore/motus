@@ -48,15 +48,7 @@ func scanDevice(row pgx.Row, d *model.Device, extra ...any) error {
 
 // UserHasAccess checks if a user has access to a device.
 func (r *DeviceRepository) UserHasAccess(ctx context.Context, user *model.User, deviceID int64) bool {
-	if user.IsAdmin() {
-		return true
-	}
-	var exists bool
-	err := r.pool.QueryRow(ctx,
-		`SELECT EXISTS(SELECT 1 FROM user_devices WHERE user_id = $1 AND device_id = $2)`,
-		user.ID, deviceID,
-	).Scan(&exists)
-	return err == nil && exists
+	return userHasAccess(ctx, r.pool, `SELECT EXISTS(SELECT 1 FROM user_devices WHERE user_id = $1 AND device_id = $2)`, user, deviceID)
 }
 
 // GetByID retrieves a device by its ID.

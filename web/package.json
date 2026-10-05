@@ -32,7 +32,6 @@
     "vitest": "^5.0.0"
   },
   "dependencies": {
-    "@simplewebauthn/browser": "^14.0.0",
     "chart.js": "^4.5.1",
     "dompurify": "^3.4.16",
     "jsqr": "^1.4.0",

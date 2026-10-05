@@ -1,5 +1,4 @@
 import { describe, it, expect, vi } from "vitest";
-import { WebAuthnError } from "@simplewebauthn/browser";
 
 // The module under test transitively imports the API client, which pulls in
 // $lib/stores/auth. That store reads localStorage at module-load time. The
@@ -17,52 +16,18 @@ vi.stubGlobal("localStorage", {
 
 const { isPasskeyCancellation } = await import("./webauthn");
 
-/** Build a WebAuthnError with the given code and optional cause. */
-function makeWebAuthnError(
-  code: WebAuthnError["code"],
-  cause: Error = new Error("cause"),
-): WebAuthnError {
-  return new WebAuthnError({ message: "test", code, cause });
-}
-
-/** Build a DOMException-like error with a specific name. */
-function makeNamedError(name: string): Error {
-  const err = new Error(name);
-  err.name = name;
-  return err;
-}
-
 describe("isPasskeyCancellation", () => {
-  it("returns true for a WebAuthnError with ERROR_CEREMONY_ABORTED", () => {
+  it("returns true for a NotAllowedError DOMException", () => {
     // Arrange
-    const error = makeWebAuthnError("ERROR_CEREMONY_ABORTED");
+    const error = new DOMException("dismissed", "NotAllowedError");
 
     // Act & Assert
     expect(isPasskeyCancellation(error)).toBe(true);
   });
 
-  it("returns true when a WebAuthnError wraps a NotAllowedError cause", () => {
+  it("returns false for another DOMException", () => {
     // Arrange
-    const error = makeWebAuthnError(
-      "ERROR_PASSTHROUGH_SEE_CAUSE_PROPERTY",
-      makeNamedError("NotAllowedError"),
-    );
-
-    // Act & Assert
-    expect(isPasskeyCancellation(error)).toBe(true);
-  });
-
-  it("returns true for a bare NotAllowedError DOMException", () => {
-    // Arrange
-    const error = makeNamedError("NotAllowedError");
-
-    // Act & Assert
-    expect(isPasskeyCancellation(error)).toBe(true);
-  });
-
-  it("returns false for an unrelated WebAuthnError code", () => {
-    // Arrange
-    const error = makeWebAuthnError("ERROR_INVALID_RP_ID");
+    const error = new DOMException("bad rp", "SecurityError");
 
     // Act & Assert
     expect(isPasskeyCancellation(error)).toBe(false);

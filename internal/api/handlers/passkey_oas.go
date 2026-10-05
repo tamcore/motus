@@ -61,8 +61,8 @@ func (h *Handler) PasskeyRegisterBegin(ctx context.Context) (oas.PasskeyRegister
 	}
 
 	// Return the inner PublicKeyCredentialCreationOptions (creation.Response),
-	// not the {"publicKey": ...} wrapper: @simplewebauthn/browser's
-	// startRegistration expects the options object directly.
+	// not the {"publicKey": ...} wrapper: the browser's
+	// PublicKeyCredential.parseCreationOptionsFromJSON expects the options object directly.
 	opts, err := toRawObject[oas.WebAuthnCredentialCreationOptions](creation.Response)
 	if err != nil {
 		return &oas.PasskeyRegisterBeginUnauthorized{Error: "failed to encode options"}, nil
@@ -133,8 +133,8 @@ func (h *Handler) PasskeyLoginBegin(ctx context.Context) (oas.PasskeyLoginBeginR
 	}
 
 	// Return the inner PublicKeyCredentialRequestOptions (assertion.Response),
-	// not the {"publicKey": ...} wrapper: @simplewebauthn/browser's
-	// startAuthentication expects the options object directly.
+	// not the {"publicKey": ...} wrapper: the browser's
+	// PublicKeyCredential.parseRequestOptionsFromJSON expects the options object directly.
 	opts, err := toRawObject[oas.WebAuthnCredentialRequestOptions](assertion.Response)
 	if err != nil {
 		return &oas.Error{Error: "failed to encode options"}, nil

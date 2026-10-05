@@ -1,10 +1,4 @@
 import type {
-  AuthenticationResponseJSON,
-  PublicKeyCredentialCreationOptionsJSON,
-  PublicKeyCredentialRequestOptionsJSON,
-  RegistrationResponseJSON,
-} from "@simplewebauthn/browser";
-import type {
   ApiKey,
   AuditLogResponse,
   Calendar,
@@ -141,7 +135,7 @@ export const api = {
   getCurrentUser: () => request<User>("/session"),
   generateToken: () => request<TokenResponse>("/session/token", { method: "POST" }),
 
-  /** Returns the raw options JSON for @simplewebauthn/browser's startRegistration. */
+  /** Returns the raw options JSON for PublicKeyCredential.parseCreationOptionsFromJSON. */
   passkeyRegisterBegin: () =>
     request<PublicKeyCredentialCreationOptionsJSON>("/session/passkey/register/begin", { method: "POST" }),
   passkeyRegisterFinish: (attestationJSON: RegistrationResponseJSON, name: string) =>
@@ -149,7 +143,7 @@ export const api = {
       `/session/passkey/register/finish${query({ name })}`,
       send("POST", attestationJSON),
     ),
-  /** Public. Returns the raw options JSON for @simplewebauthn/browser's startAuthentication. */
+  /** Public. Returns the raw options JSON for PublicKeyCredential.parseRequestOptionsFromJSON. */
   passkeyLoginBegin: () =>
     request<PublicKeyCredentialRequestOptionsJSON>("/session/passkey/login/begin", { method: "POST" }),
   /** Public. On success the session cookie is set. */

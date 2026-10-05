@@ -1,10 +1,10 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
-	"strings"
 )
 
 // Validate checks the configuration for invalid or inconsistent values.
@@ -12,148 +12,137 @@ import (
 // if the configuration is valid. This method is called automatically by
 // LoadFromEnv to fail fast on startup.
 func (c *Config) Validate() error {
-	var errs []string
+	var errs []error
 
-	if err := validatePort(c.Server.Port, "MOTUS_SERVER_PORT"); err != nil {
-		errs = append(errs, err.Error())
-	}
-
-	if err := validatePort(c.GPS.H02Port, "MOTUS_GPS_H02_PORT"); err != nil {
-		errs = append(errs, err.Error())
-	}
-	if err := validatePort(c.GPS.WatchPort, "MOTUS_GPS_WATCH_PORT"); err != nil {
-		errs = append(errs, err.Error())
-	}
-	if err := validatePort(c.GPS.OsmAndPort, "MOTUS_GPS_OSMAND_PORT"); err != nil {
-		errs = append(errs, err.Error())
-	}
+	errs = append(errs,
+		validatePort(c.Server.Port, "MOTUS_SERVER_PORT"),
+		validatePort(c.GPS.H02Port, "MOTUS_GPS_H02_PORT"),
+		validatePort(c.GPS.WatchPort, "MOTUS_GPS_WATCH_PORT"),
+		validatePort(c.GPS.OsmAndPort, "MOTUS_GPS_OSMAND_PORT"),
+	)
 
 	if c.Metrics.Enabled {
-		if err := validatePort(c.Metrics.Port, "MOTUS_METRICS_PORT"); err != nil {
-			errs = append(errs, err.Error())
-		}
+		errs = append(errs, validatePort(c.Metrics.Port, "MOTUS_METRICS_PORT"))
 	}
 
 	// Database validation: must have either URI or host configured.
 	if c.Database.URI == "" && c.Database.Host == "" {
-		errs = append(errs, "database: either POSTGRES_URI or MOTUS_DATABASE_HOST must be set")
+		errs = append(errs, errors.New("database: either POSTGRES_URI or MOTUS_DATABASE_HOST must be set"))
 	}
 
 	if c.Database.URI == "" {
-		if err := validatePort(c.Database.Port, "MOTUS_DATABASE_PORT"); err != nil {
-			errs = append(errs, err.Error())
-		}
+		errs = append(errs, validatePort(c.Database.Port, "MOTUS_DATABASE_PORT"))
 		if c.Database.Password == "" {
-			errs = append(errs, "MOTUS_DATABASE_PASSWORD must be set (no default; set POSTGRES_URI to skip individual fields)")
+			errs = append(errs, errors.New("MOTUS_DATABASE_PASSWORD must be set (no default; set POSTGRES_URI to skip individual fields)"))
 		}
 	}
 
 	if c.Database.Pool.MaxConns <= 0 {
-		errs = append(errs, "MOTUS_DB_MAX_CONNS must be > 0")
+		errs = append(errs, errors.New("MOTUS_DB_MAX_CONNS must be > 0"))
 	}
 	if c.Database.Pool.MinConns < 0 {
-		errs = append(errs, "MOTUS_DB_MIN_CONNS must be >= 0")
+		errs = append(errs, errors.New("MOTUS_DB_MIN_CONNS must be >= 0"))
 	}
 	if c.Database.Pool.MinConns > c.Database.Pool.MaxConns {
-		errs = append(errs, "MOTUS_DB_MIN_CONNS must be <= MOTUS_DB_MAX_CONNS")
+		errs = append(errs, errors.New("MOTUS_DB_MIN_CONNS must be <= MOTUS_DB_MAX_CONNS"))
 	}
 	if c.Database.Pool.MaxConnLifetime <= 0 {
-		errs = append(errs, "MOTUS_DB_MAX_CONN_LIFETIME must be > 0")
+		errs = append(errs, errors.New("MOTUS_DB_MAX_CONN_LIFETIME must be > 0"))
 	}
 	if c.Database.Pool.MaxConnIdleTime <= 0 {
-		errs = append(errs, "MOTUS_DB_MAX_CONN_IDLE_TIME must be > 0")
+		errs = append(errs, errors.New("MOTUS_DB_MAX_CONN_IDLE_TIME must be > 0"))
 	}
 
 	if c.Device.TimeoutMinutes <= 0 {
-		errs = append(errs, "MOTUS_DEVICE_TIMEOUT_MINUTES must be > 0")
+		errs = append(errs, errors.New("MOTUS_DEVICE_TIMEOUT_MINUTES must be > 0"))
 	}
 	if c.Device.CheckIntervalMinutes <= 0 {
-		errs = append(errs, "MOTUS_DEVICE_CHECK_INTERVAL_MINUTES must be > 0")
+		errs = append(errs, errors.New("MOTUS_DEVICE_CHECK_INTERVAL_MINUTES must be > 0"))
 	}
 	if c.Device.AutoCreateDevices && c.Device.AutoCreateDefaultUser == "" {
-		errs = append(errs, "MOTUS_DEVICE_AUTO_CREATE_USER must be set when device auto-creation is enabled")
+		errs = append(errs, errors.New("MOTUS_DEVICE_AUTO_CREATE_USER must be set when device auto-creation is enabled"))
 	}
 
 	if c.Demo.Enabled {
 		if c.Demo.SpeedMultiplier <= 0 {
-			errs = append(errs, "MOTUS_DEMO_SPEED_MULTIPLIER must be > 0")
+			errs = append(errs, errors.New("MOTUS_DEMO_SPEED_MULTIPLIER must be > 0"))
 		}
 		if c.Demo.InterpolationInterval <= 0 {
-			errs = append(errs, "MOTUS_DEMO_INTERPOLATION_INTERVAL must be > 0")
+			errs = append(errs, errors.New("MOTUS_DEMO_INTERPOLATION_INTERVAL must be > 0"))
 		}
 		if c.Demo.GPXDir == "" {
-			errs = append(errs, "MOTUS_DEMO_GPX_DIR must be set when demo mode is enabled")
+			errs = append(errs, errors.New("MOTUS_DEMO_GPX_DIR must be set when demo mode is enabled"))
 		}
 		if len(c.Demo.DeviceIMEIs) == 0 {
-			errs = append(errs, "MOTUS_DEMO_DEVICE_IMEIS must have at least one device when demo mode is enabled")
+			errs = append(errs, errors.New("MOTUS_DEMO_DEVICE_IMEIS must have at least one device when demo mode is enabled"))
 		}
 	}
 
 	// CSRF secret validation: required in non-development environments.
 	if !c.Security.IsDevelopment() {
 		if c.Security.CSRFSecret == "" {
-			errs = append(errs, "MOTUS_CSRF_SECRET must be set in non-development environments (multi-pod deployments require a shared secret)")
+			errs = append(errs, errors.New("MOTUS_CSRF_SECRET must be set in non-development environments (multi-pod deployments require a shared secret)"))
 		} else if _, err := ParseCSRFSecret(c.Security.CSRFSecret); err != nil {
-			errs = append(errs, err.Error())
+			errs = append(errs, err)
 		}
 	}
 
 	if _, err := c.Security.TrustedProxyPrefixes(); err != nil {
-		errs = append(errs, err.Error())
+		errs = append(errs, err)
 	}
 
 	if c.Redis.Enabled && c.Redis.URL == "" {
-		errs = append(errs, "MOTUS_REDIS_URL must be set when Redis is enabled")
+		errs = append(errs, errors.New("MOTUS_REDIS_URL must be set when Redis is enabled"))
 	}
 
 	if c.Positions.RetentionDays < 0 {
-		errs = append(errs, "MOTUS_POSITION_RETENTION_DAYS must be >= 0 (0 disables retention)")
+		errs = append(errs, errors.New("MOTUS_POSITION_RETENTION_DAYS must be >= 0 (0 disables retention)"))
 	}
 
 	if c.Geocoding.Enabled {
 		if c.Geocoding.URL == "" {
-			errs = append(errs, "MOTUS_GEOCODING_URL must be set when geocoding is enabled")
+			errs = append(errs, errors.New("MOTUS_GEOCODING_URL must be set when geocoding is enabled"))
 		}
 		if c.Geocoding.CacheTTL <= 0 {
-			errs = append(errs, "MOTUS_GEOCODING_CACHE_TTL must be > 0")
+			errs = append(errs, errors.New("MOTUS_GEOCODING_CACHE_TTL must be > 0"))
 		}
 		if c.Geocoding.RateLimit <= 0 {
-			errs = append(errs, "MOTUS_GEOCODING_RATE_LIMIT must be > 0")
+			errs = append(errs, errors.New("MOTUS_GEOCODING_RATE_LIMIT must be > 0"))
 		}
 	}
 
 	if c.OIDC.Enabled {
 		if c.OIDC.Issuer == "" {
-			errs = append(errs, "MOTUS_OIDC_ISSUER must be set when OIDC is enabled")
+			errs = append(errs, errors.New("MOTUS_OIDC_ISSUER must be set when OIDC is enabled"))
 		}
 		if c.OIDC.ClientID == "" {
-			errs = append(errs, "MOTUS_OIDC_CLIENT_ID must be set when OIDC is enabled")
+			errs = append(errs, errors.New("MOTUS_OIDC_CLIENT_ID must be set when OIDC is enabled"))
 		}
 		if c.OIDC.ClientSecret == "" {
-			errs = append(errs, "MOTUS_OIDC_CLIENT_SECRET must be set when OIDC is enabled")
+			errs = append(errs, errors.New("MOTUS_OIDC_CLIENT_SECRET must be set when OIDC is enabled"))
 		}
 		if c.OIDC.RedirectURL == "" {
-			errs = append(errs, "MOTUS_OIDC_REDIRECT_URL must be set when OIDC is enabled")
+			errs = append(errs, errors.New("MOTUS_OIDC_REDIRECT_URL must be set when OIDC is enabled"))
 		}
 		if c.OIDC.AdminEmailRegex != "" {
 			if _, err := regexp.Compile(c.OIDC.AdminEmailRegex); err != nil {
-				errs = append(errs, fmt.Sprintf("MOTUS_OIDC_ADMIN_EMAIL_REGEX: invalid regular expression: %v", err))
+				errs = append(errs, fmt.Errorf("MOTUS_OIDC_ADMIN_EMAIL_REGEX: invalid regular expression: %v", err))
 			}
 		}
 	}
 
 	if c.AI.Enabled {
 		if c.AI.BaseURL == "" {
-			errs = append(errs, "MOTUS_AI_BASE_URL must be set when AI is enabled")
+			errs = append(errs, errors.New("MOTUS_AI_BASE_URL must be set when AI is enabled"))
 		}
 		if c.AI.APIKey == "" {
-			errs = append(errs, "MOTUS_AI_API_KEY must be set when AI is enabled")
+			errs = append(errs, errors.New("MOTUS_AI_API_KEY must be set when AI is enabled"))
 		}
 		if c.AI.MaxToolLoops <= 0 {
-			errs = append(errs, "MOTUS_AI_MAX_TOOL_LOOPS must be > 0")
+			errs = append(errs, errors.New("MOTUS_AI_MAX_TOOL_LOOPS must be > 0"))
 		}
 		if c.AI.Timeout <= 0 {
-			errs = append(errs, "MOTUS_AI_TIMEOUT must be > 0")
+			errs = append(errs, errors.New("MOTUS_AI_TIMEOUT must be > 0"))
 		}
 	}
 
@@ -161,15 +150,15 @@ func (c *Config) Validate() error {
 	// derived from a request, so they must be configured explicitly.
 	if c.WebAuthn.Enabled {
 		if c.WebAuthn.RPID == "" {
-			errs = append(errs, "MOTUS_WEBAUTHN_RPID must be set when passkeys are enabled")
+			errs = append(errs, errors.New("MOTUS_WEBAUTHN_RPID must be set when passkeys are enabled"))
 		}
 		if len(c.WebAuthn.RPOrigins) == 0 {
-			errs = append(errs, "MOTUS_WEBAUTHN_ORIGINS must have at least one origin when passkeys are enabled")
+			errs = append(errs, errors.New("MOTUS_WEBAUTHN_ORIGINS must have at least one origin when passkeys are enabled"))
 		}
 	}
 
-	if len(errs) > 0 {
-		return fmt.Errorf("configuration validation failed:\n  - %s", strings.Join(errs, "\n  - "))
+	if err := errors.Join(errs...); err != nil {
+		return fmt.Errorf("configuration validation failed:\n%w", err)
 	}
 	return nil
 }

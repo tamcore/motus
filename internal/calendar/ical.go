@@ -261,6 +261,12 @@ func isActiveInRecurrence(rrule string, dtstart, dtend time.Time, t time.Time) (
 		byDay = append(byDay, icsWeekdays[d.Day])
 	}
 
+	// Without COUNT, occurrence indexes do not matter, so start near t:
+	// the expansion cap would otherwise end long-running rules.
+	if rule.Count == 0 {
+		dtstart = skipPeriods(dtstart, eventDuration, freq, interval, t)
+	}
+
 	// Expand occurrences up to time t.
 	// Limit expansion to prevent unbounded iteration.
 	maxExpansions := 1000
@@ -351,6 +357,20 @@ func isActiveInWeeklyByDay(dtstart time.Time, eventDuration time.Duration, byDay
 	}
 
 	return false, nil
+}
+
+// skipPeriods moves dtstart forward by whole DAILY or WEEKLY periods, keeping
+// one period of margin before the last occurrence that could still cover t.
+func skipPeriods(dtstart time.Time, eventDuration time.Duration, freq string, interval int, t time.Time) time.Time {
+	periodDays := map[string]int{"DAILY": 1, "WEEKLY": 7}[freq] * interval
+	if periodDays == 0 {
+		return dtstart
+	}
+	n := int(t.Sub(dtstart.Add(eventDuration)).Hours()/24)/periodDays - 1
+	if n <= 0 {
+		return dtstart
+	}
+	return dtstart.AddDate(0, 0, n*periodDays)
 }
 
 // advanceOccurrence moves an occurrence forward by the given frequency and interval.

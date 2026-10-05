@@ -823,15 +823,7 @@ func accessibleDevices(ctx context.Context, user *model.User, deps Deps) ([]*mod
 	if !user.IsAdmin() {
 		return deps.Devices.GetByUser(ctx, user.ID)
 	}
-	all, err := deps.Devices.GetAllWithOwners(ctx)
-	if err != nil {
-		return nil, err
-	}
-	devices := make([]*model.Device, len(all))
-	for i := range all {
-		devices[i] = &all[i]
-	}
-	return devices, nil
+	return deps.Devices.GetAllWithOwners(ctx)
 }
 
 // resolveCoords returns lat/lon from the request, geocoding address if needed.

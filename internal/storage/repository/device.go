@@ -127,7 +127,7 @@ func (r *DeviceRepository) GetAll(ctx context.Context) ([]model.Device, error) {
 }
 
 // GetAllWithOwners returns all devices with owner name from user_devices join.
-func (r *DeviceRepository) GetAllWithOwners(ctx context.Context) ([]model.Device, error) {
+func (r *DeviceRepository) GetAllWithOwners(ctx context.Context) ([]*model.Device, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT `+deviceColumns+`, COALESCE(
 			(SELECT u.name FROM user_devices ud JOIN users u ON u.id = ud.user_id WHERE ud.device_id = d.id LIMIT 1),
@@ -139,12 +139,12 @@ func (r *DeviceRepository) GetAllWithOwners(ctx context.Context) ([]model.Device
 	if err != nil {
 		return nil, fmt.Errorf("get all devices with owners: %w", err)
 	}
-	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (model.Device, error) {
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (*model.Device, error) {
 		var d model.Device
 		if err := scanDevice(row, &d, &d.OwnerName); err != nil {
-			return model.Device{}, fmt.Errorf("scan device with owner: %w", err)
+			return nil, fmt.Errorf("scan device with owner: %w", err)
 		}
-		return d, nil
+		return &d, nil
 	})
 }
 

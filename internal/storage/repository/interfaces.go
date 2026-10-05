@@ -16,7 +16,7 @@ type DeviceRepo interface {
 	GetByUniqueID(ctx context.Context, uniqueID string) (*model.Device, error)
 	GetByUser(ctx context.Context, userID int64) ([]*model.Device, error)
 	GetAll(ctx context.Context) ([]model.Device, error)
-	GetAllWithOwners(ctx context.Context) ([]model.Device, error)
+	GetAllWithOwners(ctx context.Context) ([]*model.Device, error)
 	GetTimedOut(ctx context.Context, cutoff time.Time) ([]model.Device, error)
 	GetUserIDs(ctx context.Context, deviceID int64) ([]int64, error)
 	Create(ctx context.Context, d *model.Device, userID int64) error

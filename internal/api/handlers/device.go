@@ -137,11 +137,7 @@ func (h *Handler) AdminListDevices(ctx context.Context) (oas.AdminListDevicesRes
 	if err != nil {
 		return &oas.AdminListDevicesForbidden{Error: "failed to list devices"}, nil
 	}
-	result := make(oas.AdminListDevicesOKApplicationJSON, len(devices))
-	for i := range devices {
-		result[i] = deviceToOAS(&devices[i])
-	}
-	return &result, nil
+	return new(mapSlice[oas.AdminListDevicesOKApplicationJSON](devices, deviceToOAS)), nil
 }
 
 // AdminListUserDevices returns all devices for a specific user (admin only).

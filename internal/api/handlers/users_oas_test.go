@@ -590,8 +590,8 @@ func TestAdminDeleteUser_NonAdminForbidden(t *testing.T) {
 
 func TestAdminListDevices_Success(t *testing.T) {
 	devices := &mockDeviceRepo{
-		getAllFn: func(_ context.Context) ([]model.Device, error) {
-			return []model.Device{
+		getAllWithOwnersFn: func(_ context.Context) ([]*model.Device, error) {
+			return []*model.Device{
 				{ID: 1, UniqueID: "admin-dev-0", Name: "Device 0", Status: "online"},
 				{ID: 2, UniqueID: "admin-dev-1", Name: "Device 1", Status: "online"},
 			}, nil

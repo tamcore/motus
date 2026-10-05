@@ -255,13 +255,13 @@ func (m *mockApiKeyRepo) UpdateLastUsed(ctx context.Context, id int64) error {
 // unit testing handlers without a database.
 type mockDeviceRepo struct {
 	// Configurable return values.
-	userHasAccessFn func(ctx context.Context, user *model.User, deviceID int64) bool
-	getByIDFn       func(ctx context.Context, id int64) (*model.Device, error)
-	getByUserFn     func(ctx context.Context, userID int64) ([]*model.Device, error)
-	getAllFn        func(ctx context.Context) ([]model.Device, error)
-	createFn        func(ctx context.Context, d *model.Device, userID int64) error
-	updateFn        func(ctx context.Context, d *model.Device) error
-	deleteFn        func(ctx context.Context, id int64) error
+	userHasAccessFn    func(ctx context.Context, user *model.User, deviceID int64) bool
+	getByIDFn          func(ctx context.Context, id int64) (*model.Device, error)
+	getByUserFn        func(ctx context.Context, userID int64) ([]*model.Device, error)
+	getAllWithOwnersFn func(ctx context.Context) ([]*model.Device, error)
+	createFn           func(ctx context.Context, d *model.Device, userID int64) error
+	updateFn           func(ctx context.Context, d *model.Device) error
+	deleteFn           func(ctx context.Context, id int64) error
 }
 
 // Compile-time assertion that mockDeviceRepo satisfies repository.DeviceRepo.
@@ -292,10 +292,7 @@ func (m *mockDeviceRepo) GetByUser(ctx context.Context, userID int64) ([]*model.
 	return nil, nil
 }
 
-func (m *mockDeviceRepo) GetAll(ctx context.Context) ([]model.Device, error) {
-	if m.getAllFn != nil {
-		return m.getAllFn(ctx)
-	}
+func (m *mockDeviceRepo) GetAll(_ context.Context) ([]model.Device, error) {
 	return nil, nil
 }
 
@@ -328,9 +325,9 @@ func (m *mockDeviceRepo) GetTimedOut(_ context.Context, _ time.Time) ([]model.De
 	return nil, nil
 }
 
-func (m *mockDeviceRepo) GetAllWithOwners(ctx context.Context) ([]model.Device, error) {
-	if m.getAllFn != nil {
-		return m.getAllFn(ctx)
+func (m *mockDeviceRepo) GetAllWithOwners(ctx context.Context) ([]*model.Device, error) {
+	if m.getAllWithOwnersFn != nil {
+		return m.getAllWithOwnersFn(ctx)
 	}
 	return nil, nil
 }

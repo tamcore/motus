@@ -8,7 +8,6 @@ interface BeforeInstallPromptEvent extends Event {
 
 interface PwaState {
   installable: boolean;
-  installed: boolean;
   /** A new service worker version is waiting to activate. */
   updateAvailable: boolean;
   /** Remembered for this session. */
@@ -17,7 +16,6 @@ interface PwaState {
 
 const initialState: PwaState = {
   installable: false,
-  installed: false,
   updateAvailable: false,
   installDismissed: false,
 };
@@ -30,15 +28,6 @@ function createPwaStore() {
 
   function initialize(): void {
     if (!("serviceWorker" in navigator)) return;
-
-    // Check if already installed as standalone
-    const isStandalone =
-      window.matchMedia("(display-mode: standalone)").matches ||
-      (navigator as unknown as Record<string, unknown>).standalone === true;
-
-    if (isStandalone) {
-      update((s) => ({ ...s, installed: true }));
-    }
 
     // Listen for the beforeinstallprompt event
     window.addEventListener("beforeinstallprompt", (e) => {
@@ -59,19 +48,8 @@ function createPwaStore() {
     // Listen for app installed event
     window.addEventListener("appinstalled", () => {
       deferredPrompt = null;
-      update((s) => ({
-        ...s,
-        installable: false,
-        installed: true,
-      }));
+      update((s) => ({ ...s, installable: false }));
     });
-
-    // Listen for display-mode changes (user might install through browser menu)
-    window
-      .matchMedia("(display-mode: standalone)")
-      .addEventListener("change", (e) => {
-        update((s) => ({ ...s, installed: e.matches }));
-      });
 
     // Register the service worker
     registerServiceWorker();
@@ -164,5 +142,5 @@ export const pwa = createPwaStore();
 
 export const showInstallBanner = derived(
   pwa,
-  ($pwa) => $pwa.installable && !$pwa.installDismissed && !$pwa.installed,
+  ($pwa) => $pwa.installable && !$pwa.installDismissed,
 );

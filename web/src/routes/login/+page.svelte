@@ -2,13 +2,10 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { api } from '$lib/api/client';
-	import { setAuthToken } from '$lib/auth-token-store';
-	import { currentUser, isAuthenticated } from '$lib/stores/auth';
-	import { wsManager } from '$lib/stores/websocket';
+	import { completeLogin } from '$lib/stores/auth';
 	import {
 		isNativeEnvironment,
 		nativePostMessage,
-		generateLoginToken,
 		changeServerUrl,
 	} from '$lib/utils/native-interface';
 	import Input from '$lib/components/Input.svelte';
@@ -67,9 +64,7 @@
 			// Use the token query param to create a session. The server
 			// validates the token, creates a session cookie, and returns
 			// the user object -- matching the pytraccar/Traccar flow.
-			currentUser.set(await api.loginWithToken(token));
-			isAuthenticated.set(true);
-			wsManager.connect();
+			await completeLogin(await api.loginWithToken(token));
 			redirectAfterLogin();
 		} catch {
 			// Token login failed; let the user log in manually.
@@ -108,10 +103,7 @@
 		// a valid auth token in localStorage/IndexedDB — without this check
 		// they'd stare at the login form despite being authenticated.
 		try {
-			const user = await api.getCurrentUser();
-			currentUser.set(user);
-			isAuthenticated.set(true);
-			wsManager.connect();
+			await completeLogin(await api.getCurrentUser());
 			redirectAfterLogin();
 			return;
 		} catch {
@@ -147,22 +139,15 @@
 
 		try {
 			const user = await api.login(email, password, rememberMe);
-			currentUser.set(user);
-			isAuthenticated.set(true);
-
 			// Persist the server-issued auth token to both localStorage and
 			// IndexedDB so iOS PWA cold starts (which purge localStorage) can
 			// re-hydrate the token via the X-Auth-Token header. Only set for
 			// remember-me logins.
 			const authToken = (user as { authToken?: string }).authToken;
-			await setAuthToken(rememberMe && authToken ? authToken : null);
-
-			wsManager.connect();
-
-			// Generate and send a login token to the native app so it can
-			// auto-login on subsequent launches without re-entering credentials.
-			generateLoginToken();
-
+			await completeLogin(user, {
+				authToken: rememberMe && authToken ? authToken : null,
+				sendNativeLoginToken: true,
+			});
 			redirectAfterLogin();
 		} catch {
 			error = 'Invalid email or password';
@@ -177,18 +162,8 @@
 
 		try {
 			const user = await loginWithPasskey();
-
-			// Mirror the handleLogin() store sequence exactly.
-			currentUser.set(user);
-			isAuthenticated.set(true);
-
 			const authToken = (user as { authToken?: string }).authToken;
-			await setAuthToken(authToken ?? null);
-
-			wsManager.connect();
-
-			generateLoginToken();
-
+			await completeLogin(user, { authToken: authToken ?? null, sendNativeLoginToken: true });
 			redirectAfterLogin();
 		} catch (e: unknown) {
 			// User dismissed the browser prompt: do nothing.

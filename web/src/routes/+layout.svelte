@@ -3,7 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { theme } from '$lib/stores/theme';
-	import { currentUser, currentUserName, isAdmin, isAuthenticated } from '$lib/stores/auth';
+	import { completeLogin, currentUser, currentUserName, isAdmin, isAuthenticated } from '$lib/stores/auth';
 	import { serverInfo, loadServerInfo } from '$lib/stores/server';
 	import { wsManager } from '$lib/stores/websocket';
 	import { pwa } from '$lib/stores/pwa';
@@ -12,7 +12,6 @@
 	import { buildLoginUrl } from '$lib/utils/returnTo';
 	import PullToRefresh from '$lib/components/PullToRefresh.svelte';
 	import {
-		generateLoginToken,
 		notifyNativeLogout,
 		isNativeEnvironment,
 		changeServerUrl,
@@ -61,9 +60,7 @@
 		const urlToken = $page.url.searchParams.get('token');
 		if (urlToken && !$isAuthenticated) {
 			try {
-				currentUser.set(await api.loginWithToken(urlToken));
-				isAuthenticated.set(true);
-				wsManager.connect();
+				await completeLogin(await api.loginWithToken(urlToken));
 				// Remove token from URL for security
 				window.history.replaceState({}, '', $page.url.pathname);
 				loading = false;
@@ -83,14 +80,8 @@
 			// Always try the session cookie. This handles both returning users
 			// (localStorage says authenticated) and OIDC callback redirects
 			// (server just set a session cookie but localStorage is stale).
-			const user = await api.getCurrentUser();
-			currentUser.set(user);
-			isAuthenticated.set(true);
-			wsManager.connect();
-
-			// Generate and send login token to native app for persistent storage.
-			// This enables auto-login when the Traccar Manager app is reopened.
-			generateLoginToken();
+			// Also hand the native app a login token for auto-login on reopen.
+			await completeLogin(await api.getCurrentUser(), { sendNativeLoginToken: true });
 		} catch (err) {
 			// Only clear auth state on actual authentication failures (401),
 			// not on aborted requests (e.g., user refreshing rapidly) or

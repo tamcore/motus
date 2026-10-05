@@ -5,6 +5,8 @@ import (
 	"net/netip"
 	"slices"
 	"strings"
+
+	"github.com/tamcore/motus/internal/audit"
 )
 
 // RealIP sets r.RemoteAddr to the client IP. Proxy headers are honoured only
@@ -22,7 +24,7 @@ func RealIP(trusted []netip.Prefix) func(http.Handler) http.Handler {
 }
 
 func realIP(r *http.Request, trusted []netip.Prefix) (netip.Addr, bool) {
-	peer, ok := parseRemoteAddr(r.RemoteAddr)
+	peer, ok := audit.ParseRemoteAddr(r.RemoteAddr)
 	if !ok || !isTrusted(peer, trusted) {
 		return netip.Addr{}, false
 	}
@@ -46,14 +48,6 @@ func realIP(r *http.Request, trusted []netip.Prefix) (netip.Addr, bool) {
 		return ip.Unmap(), true
 	}
 	return netip.Addr{}, false
-}
-
-func parseRemoteAddr(remoteAddr string) (netip.Addr, bool) {
-	if ap, err := netip.ParseAddrPort(remoteAddr); err == nil {
-		return ap.Addr().Unmap(), true
-	}
-	ip, err := netip.ParseAddr(remoteAddr)
-	return ip.Unmap(), err == nil
 }
 
 func isTrusted(ip netip.Addr, trusted []netip.Prefix) bool {

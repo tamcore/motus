@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/tamcore/motus/internal/api"
+	"github.com/tamcore/motus/internal/audit"
 	"golang.org/x/time/rate"
 )
 
@@ -59,7 +60,7 @@ func (s *bucketStore) allow(key string) (bool, int) {
 // clientIP returns the RemoteAddr host (chi's RealIP has already rewritten
 // it to the client IP), reduced to its /64 prefix for IPv6.
 func clientIP(remoteAddr string) string {
-	ip, ok := parseRemoteAddr(remoteAddr)
+	ip, ok := audit.ParseRemoteAddr(remoteAddr)
 	if !ok {
 		return remoteAddr
 	}

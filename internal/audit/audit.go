@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/netip"
 	"regexp"
 	"time"
 
@@ -118,13 +119,12 @@ type Entry struct {
 
 // Logger provides audit logging backed by a PostgreSQL table.
 type Logger struct {
-	pool   *pgxpool.Pool
-	logger *slog.Logger
+	pool *pgxpool.Pool
 }
 
 // NewLogger creates a new audit logger.
 func NewLogger(pool *pgxpool.Pool) *Logger {
-	return &Logger{pool: pool, logger: slog.Default()}
+	return &Logger{pool: pool}
 }
 
 type requestMetaKey struct{}
@@ -153,7 +153,7 @@ func (l *Logger) Log(ctx context.Context, userID *int64, action, resourceType st
 		var err error
 		detailsJSON, err = json.Marshal(details)
 		if err != nil {
-			l.logger.Warn("failed to marshal audit details",
+			slog.Warn("failed to marshal audit details",
 				slog.String("action", action),
 				slog.Any("error", err),
 			)
@@ -172,7 +172,7 @@ func (l *Logger) Log(ctx context.Context, userID *int64, action, resourceType st
 		VALUES ($1, $2, NULLIF($3, ''), $4, $5, NULLIF($6, '')::inet, NULLIF($7, ''))
 	`, userID, action, resourceType, resourceID, detailsJSON, ip, meta.userAgent)
 	if err != nil {
-		l.logger.Error("failed to write audit log",
+		slog.Error("failed to write audit log",
 			slog.String("action", action),
 			slog.Any("error", err),
 		)
@@ -198,7 +198,7 @@ func (l *Logger) Log(ctx context.Context, userID *int64, action, resourceType st
 	if details != nil {
 		attrs = append(attrs, slog.Any("details", details))
 	}
-	l.logger.LogAttrs(ctx, slog.LevelInfo, "audit", attrs...)
+	slog.LogAttrs(ctx, slog.LevelInfo, "audit", attrs...)
 }
 
 // Query retrieves audit log entries with optional filtering.
@@ -267,12 +267,21 @@ func (l *Logger) Query(ctx context.Context, params QueryParams) ([]Entry, int64,
 	return entries, total, nil
 }
 
-// ExtractIP returns the client IP from a request. Chi's RealIP middleware
-// rewrites RemoteAddr to the real IP, so we only need to strip the port.
+// ExtractIP returns the client IP from a request, or RemoteAddr unchanged if
+// it does not parse. The RealIP middleware has already rewritten RemoteAddr.
 func ExtractIP(r *http.Request) string {
-	ip, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		return r.RemoteAddr
+	if ip, ok := ParseRemoteAddr(r.RemoteAddr); ok {
+		return ip.String()
 	}
-	return ip
+	return r.RemoteAddr
+}
+
+// ParseRemoteAddr parses an "ip:port" or bare IP address, unmapping
+// IPv4-mapped IPv6 addresses.
+func ParseRemoteAddr(remoteAddr string) (netip.Addr, bool) {
+	if ap, err := netip.ParseAddrPort(remoteAddr); err == nil {
+		return ap.Addr().Unmap(), true
+	}
+	ip, err := netip.ParseAddr(remoteAddr)
+	return ip.Unmap(), err == nil
 }

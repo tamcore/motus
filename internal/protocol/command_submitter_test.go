@@ -86,7 +86,7 @@ func TestCommandSubmitter_OnlineDeviceSendsImmediately(t *testing.T) {
 
 func TestCommandSubmitter_UnsupportedByProtocol(t *testing.T) {
 	repo := &submitCommandRepo{}
-	s := &protocol.CommandSubmitter{Commands: repo, Encoders: protocol.NewEncoderRegistry(nil)}
+	s := &protocol.CommandSubmitter{Commands: repo, Encoders: protocol.NewEncoderRegistry(protocol.NewDeviceRegistry()), Registry: protocol.NewDeviceRegistry()}
 	dev := &model.Device{ID: 1, UniqueID: "w1", Protocol: "watch"}
 
 	_, err := s.Submit(context.Background(), dev, model.CommandSetSpeedAlarm, map[string]any{"speed": 80})
@@ -103,7 +103,7 @@ func TestCommandSubmitter_UnsupportedByProtocol(t *testing.T) {
 
 func TestCommandSubmitter_EncodeError(t *testing.T) {
 	repo := &submitCommandRepo{}
-	s := &protocol.CommandSubmitter{Commands: repo, Encoders: protocol.NewEncoderRegistry(nil)}
+	s := &protocol.CommandSubmitter{Commands: repo, Encoders: protocol.NewEncoderRegistry(protocol.NewDeviceRegistry()), Registry: protocol.NewDeviceRegistry()}
 
 	_, err := s.Submit(context.Background(), h02Device(), model.CommandPositionPeriodic, nil)
 	if !errors.Is(err, protocol.ErrCommandEncode) {
@@ -116,7 +116,7 @@ func TestCommandSubmitter_EncodeError(t *testing.T) {
 
 func TestCommandSubmitter_NoEncoderForProtocol(t *testing.T) {
 	repo := &submitCommandRepo{}
-	s := &protocol.CommandSubmitter{Commands: repo, Encoders: protocol.NewEncoderRegistry(nil)}
+	s := &protocol.CommandSubmitter{Commands: repo, Encoders: protocol.NewEncoderRegistry(protocol.NewDeviceRegistry()), Registry: protocol.NewDeviceRegistry()}
 	dev := &model.Device{ID: 1, UniqueID: "o1", Protocol: "osmand"}
 
 	// osmand supports no commands at all.
@@ -129,29 +129,10 @@ func TestCommandSubmitter_NoEncoderForProtocol(t *testing.T) {
 func TestCommandSubmitter_StoreError(t *testing.T) {
 	dbErr := errors.New("db down")
 	repo := &submitCommandRepo{createErr: dbErr}
-	s := &protocol.CommandSubmitter{Commands: repo, Encoders: protocol.NewEncoderRegistry(nil)}
+	s := &protocol.CommandSubmitter{Commands: repo, Encoders: protocol.NewEncoderRegistry(protocol.NewDeviceRegistry()), Registry: protocol.NewDeviceRegistry()}
 
 	_, err := s.Submit(context.Background(), h02Device(), model.CommandPositionSingle, nil)
 	if !errors.Is(err, dbErr) {
 		t.Fatalf("err = %v, want wrapped store error", err)
-	}
-}
-
-func TestCommandSubmitter_NilEncodersQueuesWithoutPayload(t *testing.T) {
-	repo := &submitCommandRepo{}
-	registry := protocol.NewDeviceRegistry()
-	ch := make(chan []byte, 1)
-	registry.Register("9000000000001", ch)
-	s := &protocol.CommandSubmitter{Commands: repo, Registry: registry}
-
-	cmd, err := s.Submit(context.Background(), h02Device(), model.CommandPositionSingle, nil)
-	if err != nil {
-		t.Fatalf("Submit: %v", err)
-	}
-	if cmd.Status != model.CommandStatusPending {
-		t.Errorf("status = %q, want pending (no encoder registry)", cmd.Status)
-	}
-	if len(ch) != 0 {
-		t.Error("nothing must be written without an encoded payload")
 	}
 }

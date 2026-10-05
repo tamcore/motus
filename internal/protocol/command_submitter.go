@@ -28,10 +28,7 @@ var (
 // Callers are responsible for authorization (device access, readonly keys).
 type CommandSubmitter struct {
 	Commands repository.CommandRepo
-	// Encoders may be nil: every command type is then accepted and only
-	// queued (custom commands are still encoded verbatim).
 	Encoders *EncoderRegistry
-	// Registry may be nil, in which case commands are only queued.
 	Registry *DeviceRegistry
 }
 
@@ -44,18 +41,12 @@ func (s *CommandSubmitter) Submit(ctx context.Context, device *model.Device, cmd
 			ErrCommandUnsupported, cmdType, device.Protocol)
 	}
 
-	// Custom commands are framed by the protocol encoder when there is one
-	// (WATCH) and sent verbatim otherwise.
-	var payload []byte
-	if cmdType == model.CommandCustom || s.Encoders != nil {
-		var err error
-		payload, err = s.Encoders.Encode(device.Protocol, &model.Command{Type: cmdType, Attributes: attrs}, device.UniqueID)
-		if errors.Is(err, ErrNoEncoder) {
-			return nil, err
-		}
-		if err != nil {
-			return nil, fmt.Errorf("%w: %w", ErrCommandEncode, err)
-		}
+	payload, err := s.Encoders.Encode(device.Protocol, &model.Command{Type: cmdType, Attributes: attrs}, device.UniqueID)
+	if errors.Is(err, ErrNoEncoder) {
+		return nil, err
+	}
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrCommandEncode, err)
 	}
 
 	// Save command as pending before dispatching (device can respond within ms).
@@ -70,8 +61,7 @@ func (s *CommandSubmitter) Submit(ctx context.Context, device *model.Device, cmd
 	}
 
 	// Attempt immediate delivery if the device is connected here.
-	online := s.Registry != nil && s.Registry.IsOnline(device.UniqueID)
-	if online && payload != nil {
+	if s.Registry.IsOnline(device.UniqueID) {
 		if sent, _ := deliver(ctx, s.Commands, s.Registry, device.UniqueID, cmd.ID, payload); sent {
 			cmd.Status = model.CommandStatusSent
 		}

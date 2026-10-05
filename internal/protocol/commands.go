@@ -145,15 +145,13 @@ func (e *WatchCommandEncoder) EncodeCommand(cmd *model.Command, deviceID string)
 	}
 
 	manufacturer, index := "CS", ""
-	if e.sessions != nil {
-		if s, ok := e.sessions.Session(deviceID); ok && s.Manufacturer != "" {
-			manufacturer = s.Manufacturer
-			if manufacturer == "3G" {
-				manufacturer = "SG"
-			}
-			if s.Indexed {
-				index = "0001"
-			}
+	if s, ok := e.sessions.Session(deviceID); ok && s.Manufacturer != "" {
+		manufacturer = s.Manufacturer
+		if manufacturer == "3G" {
+			manufacturer = "SG"
+		}
+		if s.Indexed {
+			index = "0001"
 		}
 	}
 	return []byte(watch.EncodeResponse(manufacturer, deviceID, index, content)), nil
@@ -165,7 +163,7 @@ type EncoderRegistry struct {
 }
 
 // NewEncoderRegistry creates a registry with the H02 and WATCH encoders.
-// sessions is passed to the WATCH encoder and may be nil.
+// sessions is passed to the WATCH encoder.
 func NewEncoderRegistry(sessions *DeviceRegistry) *EncoderRegistry {
 	return &EncoderRegistry{encoders: map[string]CommandEncoder{
 		"h02":   &H02CommandEncoder{},
@@ -175,10 +173,9 @@ func NewEncoderRegistry(sessions *DeviceRegistry) *EncoderRegistry {
 
 // SupportedCommands lists the command types a device speaking protocol can
 // receive. A device whose protocol is not known yet ("") may receive any
-// command; a protocol without an encoder (e.g. osmand) receives none. Safe to
-// call on a nil registry, which allows every command.
+// command; a protocol without an encoder (e.g. osmand) receives none.
 func (r *EncoderRegistry) SupportedCommands(protocol string) []string {
-	if r == nil || protocol == "" {
+	if protocol == "" {
 		return model.SupportedCommandTypes()
 	}
 	enc := r.encoders[protocol]
@@ -194,13 +191,9 @@ var ErrNoEncoder = errors.New("no command encoder for protocol")
 
 // Encode returns the wire bytes for cmd sent to a device speaking protocol.
 // Custom commands are passed through the protocol's encoder (so WATCH frames
-// them) and sent verbatim when the protocol has no encoder. Safe to call on a
-// nil registry.
+// them) and sent verbatim when the protocol has no encoder.
 func (r *EncoderRegistry) Encode(protocol string, cmd *model.Command, uniqueID string) ([]byte, error) {
-	var enc CommandEncoder
-	if r != nil {
-		enc = r.encoders[protocol]
-	}
+	enc := r.encoders[protocol]
 	if enc == nil {
 		if cmd.Type == model.CommandCustom {
 			text, _ := cmd.Attributes["text"].(string)

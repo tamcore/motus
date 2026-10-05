@@ -142,7 +142,7 @@ func TestH02CommandEncoder_FactoryReset(t *testing.T) {
 }
 
 func TestEncoderRegistry(t *testing.T) {
-	reg := protocol.NewEncoderRegistry(nil)
+	reg := protocol.NewEncoderRegistry(protocol.NewDeviceRegistry())
 
 	if _, err := reg.Encode("h02", &model.Command{Type: model.CommandRebootDevice}, testIMEI); err != nil {
 		t.Fatalf("expected h02 encoder to be registered: %v", err)
@@ -183,10 +183,10 @@ func TestWatchCommandEncoder_Commands(t *testing.T) {
 		{"sos number with index", &model.Command{Type: model.CommandSosNumber, Attributes: map[string]any{"phoneNumber": "123", "index": 3}}, "[CS*8800000015*0008*SOS3,123]"},
 		{"custom", &model.Command{Type: model.CommandCustom, Attributes: map[string]any{"text": "LZ,1,+1"}}, "[CS*8800000015*0007*LZ,1,+1]"},
 	}
-	enc := &protocol.WatchCommandEncoder{}
+	reg := protocol.NewEncoderRegistry(protocol.NewDeviceRegistry())
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			data, err := enc.EncodeCommand(tt.cmd, watchID)
+			data, err := reg.Encode("watch", tt.cmd, watchID)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -198,7 +198,7 @@ func TestWatchCommandEncoder_Commands(t *testing.T) {
 }
 
 func TestWatchCommandEncoder_Errors(t *testing.T) {
-	enc := &protocol.WatchCommandEncoder{}
+	reg := protocol.NewEncoderRegistry(protocol.NewDeviceRegistry())
 	for _, cmd := range []*model.Command{
 		{Type: model.CommandPositionPeriodic},
 		{Type: model.CommandSosNumber},
@@ -208,7 +208,7 @@ func TestWatchCommandEncoder_Errors(t *testing.T) {
 		{Type: model.CommandFactoryReset},
 		{Type: "unknownCommand"},
 	} {
-		if _, err := enc.EncodeCommand(cmd, watchID); err == nil {
+		if _, err := reg.Encode("watch", cmd, watchID); err == nil {
 			t.Errorf("%s %v: expected error", cmd.Type, cmd.Attributes)
 		}
 	}
@@ -242,7 +242,7 @@ func TestWatchCommandEncoder_UsesConnectionSession(t *testing.T) {
 }
 
 func TestEncoderRegistry_SupportedCommands(t *testing.T) {
-	reg := protocol.NewEncoderRegistry(nil)
+	reg := protocol.NewEncoderRegistry(protocol.NewDeviceRegistry())
 	tests := []struct {
 		protocol string
 		want     []string
@@ -262,11 +262,6 @@ func TestEncoderRegistry_SupportedCommands(t *testing.T) {
 			t.Errorf("%q: got %v, want %v", tt.protocol, got, tt.want)
 		}
 	}
-
-	var nilReg *protocol.EncoderRegistry
-	if got := nilReg.SupportedCommands("watch"); strings.Join(got, ",") != strings.Join(model.SupportedCommandTypes(), ",") {
-		t.Errorf("nil registry: got %v", got)
-	}
 }
 
 // Every command type an encoder advertises must encode, and every other
@@ -278,7 +273,7 @@ func TestEncoders_SupportedCommandsMatchEncoding(t *testing.T) {
 		model.CommandCustom:           {"text": "CR"},
 		model.CommandSetSpeedAlarm:    {"speed": 80},
 	}
-	reg := protocol.NewEncoderRegistry(nil)
+	reg := protocol.NewEncoderRegistry(protocol.NewDeviceRegistry())
 	for _, name := range []string{"h02", "watch"} {
 		supported := map[string]bool{}
 		for _, typ := range reg.SupportedCommands(name) {

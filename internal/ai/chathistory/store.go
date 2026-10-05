@@ -30,11 +30,11 @@ func histKey(userID int64) string {
 // no history exists (missing key or expired TTL) — never an error in that case.
 func (s *Store) Get(ctx context.Context, userID int64) ([]chat.Message, error) {
 	vals, err := s.rdb.LRange(ctx, histKey(userID), 0, -1).Result()
-	if err == redis.Nil || len(vals) == 0 {
-		return nil, nil
-	}
 	if err != nil {
 		return nil, err
+	}
+	if len(vals) == 0 {
+		return nil, nil
 	}
 
 	msgs := make([]chat.Message, 0, len(vals))

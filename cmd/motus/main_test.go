@@ -334,6 +334,8 @@ func TestPrintCSVTo_Empty(t *testing.T) {
 // --- deviceOwnerEmail ---
 
 func TestDeviceOwnerEmail(t *testing.T) {
+	t.Setenv("MOTUS_ENV", "development")
+	t.Setenv("MOTUS_DATABASE_PASSWORD", "test")
 	t.Setenv("MOTUS_DEVICE_AUTO_CREATE_USER", "")
 	if got := deviceOwnerEmail(""); got != "admin@motus.local" {
 		t.Errorf("default: got %q, want admin@motus.local", got)

@@ -92,11 +92,16 @@ func dbURLOrConfig(flagURL string) string {
 	if flagURL != "" {
 		return flagURL
 	}
+	return loadConfig().Database.URL()
+}
+
+// loadConfig loads the environment configuration, exiting on error.
+func loadConfig() *config.Config {
 	cfg, err := config.LoadFromEnv()
 	if err != nil {
 		fatal("failed to load config", slog.Any("error", err))
 	}
-	return cfg.Database.URL()
+	return cfg
 }
 
 // withDB runs fn with a connected pool and a 10s context, exiting on connection failure.

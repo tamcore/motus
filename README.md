@@ -8,7 +8,7 @@ A production-ready GPS tracking system with real-time updates, geofencing, notif
 
 - **GPS Tracking** — H02, WATCH and OsmAnd / Traccar Client (Android/iOS) protocol support, real-time WebSocket updates, device status monitoring
 - **Geofencing** — Draw polygons/rectangles/circles on a map, real-time enter/exit detection via PostGIS
-- **Notifications** — Webhook delivery with template variables, or a device command sent to the triggering device (e.g. set the reporting interval when a pet leaves or returns home); event types: geofence (optionally limited to selected geofences), online/offline, overspeed, motion, idle
+- **Notifications** — Webhook delivery with template variables, or a device command sent to the triggering device (e.g. set the reporting interval when a pet leaves or returns home); event types: geofence (optionally limited to selected geofences), online/offline, motion, idle, ignition on/off, device alarms (e.g. overspeed, SOS), trip completed
 - **Reports** — Trip detection, route playback with animation, heatmaps, distance charts, CSV/GPX export
 - **Trail Bookmarks** — Save a device trail time range as a named bookmark (e.g. a hike) with an optional description, and reopen it on the map or from the Bookmarks page
 - **Security** — Session cookies + Bearer tokens, RBAC (admin/user/readonly), CSRF protection, audit logging

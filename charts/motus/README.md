@@ -49,7 +49,7 @@ helm install motus ./charts/motus \
 
 ## Database Migrations
 
-Migrations run automatically as a Helm post-install/post-upgrade Job. The job uses a `wait-for-db` init container to ensure the database is reachable before applying migrations with goose.
+Migrations run automatically as a Helm pre-install/pre-upgrade hook Job. The job uses a `wait-for-db` init container to ensure the database is reachable before applying migrations with goose.
 
 No manual migration steps are required.
 

@@ -506,9 +506,9 @@ func TestDecodeIgnition(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := decodeIgnition(tt.flags)
+			got, _ := decodeFlags(tt.flags)
 			if got != tt.wantIgn {
-				t.Errorf("decodeIgnition(%q) = %v, want %v", tt.flags, got, tt.wantIgn)
+				t.Errorf("decodeFlags(%q) ignition = %v, want %v", tt.flags, got, tt.wantIgn)
 			}
 		})
 	}
@@ -673,9 +673,9 @@ func TestDecodeAlarm(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := decodeAlarm(tt.flags)
+			_, got := decodeFlags(tt.flags)
 			if got != tt.wantAlarm {
-				t.Errorf("decodeAlarm(%q) = %q, want %q", tt.flags, got, tt.wantAlarm)
+				t.Errorf("decodeFlags(%q) alarm = %q, want %q", tt.flags, got, tt.wantAlarm)
 			}
 		})
 	}

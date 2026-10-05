@@ -149,11 +149,8 @@ func decodePosition(msg *Message, fields []string) (*Message, error) {
 	msg.Timestamp = ts
 
 	// Parse flags, ignition state, and alarm bits.
-	if len(fields) > 11 {
-		msg.Flags = fields[11]
-		msg.Ignition = decodeIgnition(fields[11])
-		msg.Alarm = decodeAlarm(fields[11])
-	}
+	msg.Flags = fields[11]
+	msg.Ignition, msg.Alarm = decodeFlags(fields[11])
 
 	// Parse optional altitude (meters) at field 12.
 	// This is a demo-simulator extension: the simulator appends altitude after
@@ -226,52 +223,37 @@ func decodeSMS(msg *Message, fields []string) (*Message, error) {
 	return msg, nil
 }
 
-// decodeIgnition extracts the ACC/ignition state from the H02 flags hex word.
-// Bit 10 of the status word is the ignition bit: 1 = on, 0 = off.
-// This matches the Traccar H02 decoder (BitUtil.check(status, 10)).
-func decodeIgnition(flags string) bool {
-	if flags == "" {
-		return false
-	}
-	val, err := strconv.ParseUint(flags, 16, 32)
-	if err != nil {
-		return false
-	}
-	return (val>>10)&1 == 1
-}
-
-// decodeAlarm extracts the highest-priority active alarm from the H02 flags
-// word. Alarm bits are active-low (0 = alarm triggered). Priority order
-// matches Traccar: SOS > power cut > vibration > overspeed.
+// decodeFlags extracts the ignition state and the highest-priority active
+// alarm from the H02 flags hex word.
 //
-// Bit mapping:
+// Bit 10 is the ignition bit: 1 = on, 0 = off (Traccar BitUtil.check(status, 10)).
+// Alarm bits are active-low (0 = alarm triggered). Priority order matches
+// Traccar: SOS > power cut > vibration > overspeed.
+//
+// Alarm bit mapping:
 //
 //	1 or 18: SOS / panic button
 //	19:      power cut (external power disconnected)
 //	0:       vibration / movement alarm
 //	2:       overspeed (hardware-level, distinct from the software check)
-func decodeAlarm(flags string) string {
-	if flags == "" {
-		return ""
-	}
+func decodeFlags(flags string) (ignition bool, alarm string) {
 	val, err := strconv.ParseUint(flags, 16, 32)
 	if err != nil {
-		return ""
+		return false, ""
 	}
 	check := func(bit uint) bool { return (val>>bit)&1 == 0 }
 
 	switch {
 	case check(1) || check(18):
-		return "sos"
+		alarm = "sos"
 	case check(19):
-		return "powerCut"
+		alarm = "powerCut"
 	case check(0):
-		return "vibration"
+		alarm = "vibration"
 	case check(2):
-		return "overspeed"
-	default:
-		return ""
+		alarm = "overspeed"
 	}
+	return (val>>10)&1 == 1, alarm
 }
 
 // parseCoordinate converts NMEA coordinate format (DDMM.MMMM or DDDMM.MMMM)

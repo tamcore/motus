@@ -36,8 +36,8 @@ func (r *NotificationRepository) Create(ctx context.Context, rule *model.Notific
 // GetByID retrieves a single notification rule by its ID.
 func (r *NotificationRepository) GetByID(ctx context.Context, id int64) (*model.NotificationRule, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT id, user_id, name, event_types, channel, config, template, enabled, geofence_ids, created_at, updated_at
-		FROM notification_rules
+		SELECT `+notificationRuleColumns+`
+		FROM notification_rules nr
 		WHERE id = $1
 	`, id)
 	if err != nil {
@@ -53,8 +53,8 @@ func (r *NotificationRepository) GetByID(ctx context.Context, id int64) (*model.
 // GetByUser retrieves all notification rules for a user.
 func (r *NotificationRepository) GetByUser(ctx context.Context, userID int64) ([]*model.NotificationRule, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT id, user_id, name, event_types, channel, config, template, enabled, geofence_ids, created_at, updated_at
-		FROM notification_rules
+		SELECT `+notificationRuleColumns+`
+		FROM notification_rules nr
 		WHERE user_id = $1
 		ORDER BY name
 	`, userID)
@@ -67,8 +67,7 @@ func (r *NotificationRepository) GetByUser(ctx context.Context, userID int64) ([
 // GetAll retrieves all notification rules with owner names.
 func (r *NotificationRepository) GetAll(ctx context.Context) ([]*model.NotificationRule, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT nr.id, nr.user_id, nr.name, nr.event_types, nr.channel, nr.config, nr.template, nr.enabled, nr.geofence_ids, nr.created_at, nr.updated_at,
-			COALESCE(u.name, '') AS owner_name
+		SELECT `+notificationRuleColumns+`, COALESCE(u.name, '') AS owner_name
 		FROM notification_rules nr
 		LEFT JOIN users u ON u.id = nr.user_id
 		ORDER BY nr.name
@@ -82,8 +81,8 @@ func (r *NotificationRepository) GetAll(ctx context.Context) ([]*model.Notificat
 // GetByEventType retrieves enabled notification rules for a user matching a given event type.
 func (r *NotificationRepository) GetByEventType(ctx context.Context, userID int64, eventType string) ([]*model.NotificationRule, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT id, user_id, name, event_types, channel, config, template, enabled, geofence_ids, created_at, updated_at
-		FROM notification_rules
+		SELECT `+notificationRuleColumns+`
+		FROM notification_rules nr
 		WHERE user_id = $1 AND $2 = ANY(event_types) AND enabled = true
 	`, userID, eventType)
 	if err != nil {
@@ -170,6 +169,9 @@ func geofenceIDsParam(ids []int64) []int64 {
 	}
 	return ids
 }
+
+const notificationRuleColumns = `nr.id, nr.user_id, nr.name, nr.event_types, nr.channel, nr.config,
+	nr.template, nr.enabled, nr.geofence_ids, nr.created_at, nr.updated_at`
 
 func rowToNotificationRule(withOwner bool) pgx.RowToFunc[*model.NotificationRule] {
 	return func(row pgx.CollectableRow) (*model.NotificationRule, error) {

@@ -44,8 +44,7 @@ type PendingCommand struct {
 // query, oldest first.
 func (r *CommandRepository) GetPendingByUniqueIDs(ctx context.Context, uniqueIDs []string) ([]PendingCommand, error) {
 	rows, err := r.pool.Query(ctx,
-		`SELECT c.id, c.device_id, c.type, c.attributes, c.status, c.result, c.created_at, c.executed_at,
-		        d.unique_id, d.protocol
+		`SELECT `+commandColumns+`, d.unique_id, d.protocol
 		 FROM commands c
 		 JOIN devices d ON d.id = c.device_id
 		 WHERE c.status = 'pending' AND d.unique_id = ANY($1)
@@ -79,8 +78,8 @@ func (r *CommandRepository) UpdateStatus(ctx context.Context, id int64, status s
 // ListByDevice returns the most recent limit commands for a device, ordered newest first.
 func (r *CommandRepository) ListByDevice(ctx context.Context, deviceID int64, limit int) ([]*model.Command, error) {
 	rows, err := r.pool.Query(ctx,
-		`SELECT id, device_id, type, attributes, status, result, created_at, executed_at
-		 FROM commands
+		`SELECT `+commandColumns+`
+		 FROM commands c
 		 WHERE device_id = $1
 		 ORDER BY created_at DESC
 		 LIMIT $2`,
@@ -114,8 +113,8 @@ func (r *CommandRepository) AppendResult(ctx context.Context, id int64, chunk st
 // triggered them.
 func (r *CommandRepository) GetLatestSentByDevice(ctx context.Context, deviceID int64) (*model.Command, error) {
 	rows, err := r.pool.Query(ctx,
-		`SELECT id, device_id, type, attributes, status, result, created_at, executed_at
-		 FROM commands
+		`SELECT `+commandColumns+`
+		 FROM commands c
 		 WHERE device_id = $1 AND status IN ('sent', 'executed')
 		 ORDER BY created_at DESC
 		 LIMIT 1`,
@@ -130,6 +129,8 @@ func (r *CommandRepository) GetLatestSentByDevice(ctx context.Context, deviceID 
 	}
 	return cmd, nil
 }
+
+const commandColumns = `c.id, c.device_id, c.type, c.attributes, c.status, c.result, c.created_at, c.executed_at`
 
 // scanCommand scans a command row, followed by extra, into cmd.
 func scanCommand(row pgx.Row, cmd *model.Command, extra ...any) error {

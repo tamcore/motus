@@ -20,11 +20,12 @@
 	import SudoBar from '$lib/components/SudoBar.svelte';
 	import PwaInstallBanner from '$lib/components/PwaInstallBanner.svelte';
 	import PwaUpdateNotification from '$lib/components/PwaUpdateNotification.svelte';
+	import { placeBelowInvoker } from '$lib/utils/popover';
 	import '$lib/styles/app.css';
 
 	let loading = true;
 	let menuOpen = false;
-	let dropdownOpen = false;
+	let userDropdown: HTMLElement;
 	let sudoBarActive = false;
 	let sudoBarHeight = 0;
 	let navBarHeight = 0;
@@ -130,19 +131,7 @@
 		menuOpen = !menuOpen;
 	}
 
-	function toggleDropdown() {
-		dropdownOpen = !dropdownOpen;
-	}
-
-	function handleClickOutside(e: MouseEvent) {
-		const target = e.target as HTMLElement;
-		if (dropdownOpen && !target.closest('.user-menu')) {
-			dropdownOpen = false;
-		}
-	}
 </script>
-
-<svelte:window on:click={handleClickOutside} />
 
 {#if loading}
 	<div class="loading-screen">
@@ -180,25 +169,30 @@
 				<div class="nav-right">
 					<ThemeSwitcher />
 					<div class="user-menu">
-						<button class="user-button" on:click={toggleDropdown}>
+						<button class="user-button" popovertarget="user-dropdown" style="anchor-name: --user-menu">
 							{$currentUserName}
 						</button>
-						{#if dropdownOpen}
-							<div class="user-dropdown">
-								<a href="/settings" class="dropdown-item" on:click={() => dropdownOpen = false}>
-									Settings
-								</a>
-								<div class="dropdown-divider"></div>
-								<button on:click={handleLogout} class="dropdown-item dropdown-danger">
-									Logout
+						<div
+							id="user-dropdown"
+							class="user-dropdown menu-popover"
+							popover
+							style="position-anchor: --user-menu"
+							bind:this={userDropdown}
+							on:toggle={placeBelowInvoker}
+						>
+							<a href="/settings" class="dropdown-item" on:click={() => userDropdown.hidePopover()}>
+								Settings
+							</a>
+							<div class="dropdown-divider"></div>
+							<button on:click={handleLogout} class="dropdown-item dropdown-danger">
+								Logout
+							</button>
+							{#if isNative}
+								<button on:click={handleChangeServer} class="dropdown-item">
+									Change Server
 								</button>
-								{#if isNative}
-									<button on:click={handleChangeServer} class="dropdown-item">
-										Change Server
-									</button>
-								{/if}
-							</div>
-						{/if}
+							{/if}
+						</div>
 					</div>
 
 					<button class="menu-toggle" on:click={toggleMenu} aria-label="Toggle menu">
@@ -317,10 +311,6 @@
 		flex-shrink: 0;
 	}
 
-	.user-menu {
-		position: relative;
-	}
-
 	.user-button {
 		padding: var(--space-2) var(--space-4);
 		background-color: var(--bg-secondary);
@@ -337,15 +327,11 @@
 	}
 
 	.user-dropdown {
-		position: absolute;
-		top: calc(100% + var(--space-2));
-		right: 0;
 		background-color: var(--bg-secondary);
 		border: 1px solid var(--border-color);
 		border-radius: var(--radius-md);
 		box-shadow: var(--shadow-lg);
 		min-width: 150px;
-		z-index: 10000; /* Above all Leaflet elements and modals */
 	}
 
 	.dropdown-item {

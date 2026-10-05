@@ -786,3 +786,12 @@ input[type="range"] {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
 }
+
+.menu-popover {
+  inset: auto;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  color: var(--text-primary);
+  position-area: bottom span-left;
+  position-try-fallbacks: flip-inline;
+}

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
 	import { MAP_OVERLAYS } from '$lib/utils/map-overlays';
+	import { placeBelowInvoker } from '$lib/utils/popover';
 
 	export let selectedOverlayId: string = 'none';
 	export let opacity: number = 80;
@@ -8,8 +9,6 @@
 	const dispatch = createEventDispatcher<{
 		change: { overlayId: string; opacity: number };
 	}>();
-
-	let expanded = false;
 
 	$: hasActiveOverlay = selectedOverlayId !== 'none';
 
@@ -23,27 +22,15 @@
 		opacity = parseInt(target.value, 10);
 		dispatch('change', { overlayId: selectedOverlayId, opacity });
 	}
-
-	function togglePanel() {
-		expanded = !expanded;
-	}
-
-	function handleKeydown(event: KeyboardEvent) {
-		if (event.key === 'Escape' && expanded) {
-			expanded = false;
-		}
-	}
 </script>
 
-<svelte:window on:keydown={handleKeydown} />
-
-<div class="layer-control" class:expanded>
+<div class="layer-control">
 	<button
 		class="layer-toggle"
 		class:active={hasActiveOverlay}
-		on:click={togglePanel}
+		popovertarget="layer-panel"
+		style="anchor-name: --layer-toggle"
 		aria-label="Map layers"
-		aria-expanded={expanded}
 		title="Map layers"
 	>
 		<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -53,45 +40,51 @@
 		</svg>
 	</button>
 
-	{#if expanded}
-		<div class="layer-panel" role="dialog" aria-label="Map layer selection">
-			<div class="panel-header">
-				<span class="panel-title">Map Layers</span>
-			</div>
-
-			<div class="overlay-list" role="radiogroup" aria-label="Map overlay">
-				{#each MAP_OVERLAYS as overlay (overlay.id)}
-					<label class="overlay-option" class:selected={selectedOverlayId === overlay.id}>
-						<input
-							type="radio"
-							name="map-overlay"
-							checked={selectedOverlayId === overlay.id}
-							on:change={() => selectOverlay(overlay.id)}
-						/>
-						<span class="overlay-name">{overlay.name}</span>
-					</label>
-				{/each}
-			</div>
-
-			{#if hasActiveOverlay}
-				<div class="opacity-control">
-					<label for="overlay-opacity" class="opacity-label">
-						Opacity: {opacity}%
-					</label>
-					<input
-						id="overlay-opacity"
-						type="range"
-						min="10"
-						max="100"
-						step="5"
-						value={opacity}
-						on:input={handleOpacityChange}
-						class="opacity-slider"
-					/>
-				</div>
-			{/if}
+	<div
+		id="layer-panel"
+		class="layer-panel menu-popover"
+		popover
+		style="position-anchor: --layer-toggle"
+		on:toggle={placeBelowInvoker}
+		role="dialog"
+		aria-label="Map layer selection"
+	>
+		<div class="panel-header">
+			<span class="panel-title">Map Layers</span>
 		</div>
-	{/if}
+
+		<div class="overlay-list" role="radiogroup" aria-label="Map overlay">
+			{#each MAP_OVERLAYS as overlay (overlay.id)}
+				<label class="overlay-option" class:selected={selectedOverlayId === overlay.id}>
+					<input
+						type="radio"
+						name="map-overlay"
+						checked={selectedOverlayId === overlay.id}
+						on:change={() => selectOverlay(overlay.id)}
+					/>
+					<span class="overlay-name">{overlay.name}</span>
+				</label>
+			{/each}
+		</div>
+
+		{#if hasActiveOverlay}
+			<div class="opacity-control">
+				<label for="overlay-opacity" class="opacity-label">
+					Opacity: {opacity}%
+				</label>
+				<input
+					id="overlay-opacity"
+					type="range"
+					min="10"
+					max="100"
+					step="5"
+					value={opacity}
+					on:input={handleOpacityChange}
+					class="opacity-slider"
+				/>
+			</div>
+		{/if}
+	</div>
 </div>
 
 <style>
@@ -128,9 +121,6 @@
 	}
 
 	.layer-panel {
-		position: absolute;
-		top: calc(100% + var(--space-2));
-		right: 0;
 		min-width: 220px;
 		background-color: var(--bg-secondary);
 		border: 1px solid var(--border-color);

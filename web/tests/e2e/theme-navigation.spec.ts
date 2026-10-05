@@ -139,7 +139,27 @@ test.describe('Navigation', () => {
 
   test('should show user dropdown on click', async ({ authedPage }) => {
     await authedPage.click('.user-button');
-    await expect(authedPage.locator('.user-dropdown')).toBeVisible();
+    const dropdown = authedPage.locator('.user-dropdown');
+    await expect(dropdown).toBeVisible();
     await expect(authedPage.locator('.dropdown-item:has-text("Logout")')).toBeVisible();
+
+    const button = (await authedPage.locator('.user-button').boundingBox())!;
+    const menu = (await dropdown.boundingBox())!;
+    const viewport = authedPage.viewportSize()!;
+    expect(menu.y).toBeGreaterThanOrEqual(button.y + button.height);
+    expect(menu.y - (button.y + button.height)).toBeLessThan(16);
+    expect(Math.abs(menu.x + menu.width - (button.x + button.width))).toBeLessThan(2);
+    expect(menu.x).toBeGreaterThanOrEqual(0);
+    expect(menu.x + menu.width).toBeLessThanOrEqual(viewport.width);
+
+    await authedPage.keyboard.press('Escape');
+    await expect(dropdown).toBeHidden();
+  });
+
+  test('should close user dropdown when navigating to settings', async ({ authedPage }) => {
+    await authedPage.click('.user-button');
+    await authedPage.locator('.dropdown-item:has-text("Settings")').click();
+    await authedPage.waitForURL(/\/settings/);
+    await expect(authedPage.locator('.user-dropdown')).toBeHidden();
   });
 });

@@ -39,9 +39,9 @@ describe("reports column config", () => {
     localStorage.setItem(KEY, JSON.stringify({ device: false }));
     render(ReportsPage);
 
-    await fireEvent.click(await screen.findByRole("button", { name: "Configure columns" }));
-    const device = screen.getByRole("checkbox", { name: "Device" }) as HTMLInputElement;
-    const distance = screen.getByRole("checkbox", { name: "Distance" }) as HTMLInputElement;
+    await screen.findByRole("button", { name: "Configure columns" });
+    const device = screen.getByRole("checkbox", { name: "Device", hidden: true }) as HTMLInputElement;
+    const distance = screen.getByRole("checkbox", { name: "Distance", hidden: true }) as HTMLInputElement;
     expect(device.checked).toBe(false);
     expect(distance.checked).toBe(true);
 

@@ -102,22 +102,18 @@ func (h *Handler) OidcCallback(ctx context.Context, params oas.OidcCallbackParam
 		return &oas.Error{Error: "id_token verification failed"}, nil
 	}
 
-	var stdClaims struct {
-		Email string `json:"email"`
-		Name  string `json:"name"`
-	}
-	if err := idToken.Claims(&stdClaims); err != nil {
+	var allClaims map[string]any
+	if err := idToken.Claims(&allClaims); err != nil {
 		slog.Warn("oidc: failed to decode id_token claims", slog.Any("error", err))
 		return &oas.Error{Error: "failed to decode id_token claims"}, nil
 	}
-
-	var allClaims map[string]any
-	_ = idToken.Claims(&allClaims)
+	email, _ := allClaims["email"].(string)
+	name, _ := allClaims["name"].(string)
 
 	// email_verified is read from the raw claims map because some IdPs emit
 	// it as the string "true" rather than a JSON boolean.
 	emailVerified := claimBool(allClaims, "email_verified")
-	user, err := h.resolveOIDCUserFromCtx(ctx, idToken.Subject, stdClaims.Email, stdClaims.Name, emailVerified)
+	user, err := h.resolveOIDCUserFromCtx(ctx, idToken.Subject, email, name, emailVerified)
 	if errors.Is(err, errSignupDisabled) {
 		if w := api.ResponseWriterFromContext(ctx); w != nil {
 			w.Header().Set("Location", "/login?error=signup_disabled")
@@ -129,7 +125,7 @@ func (h *Handler) OidcCallback(ctx context.Context, params oas.OidcCallbackParam
 		return &oas.Error{Error: "failed to resolve user"}, nil
 	}
 
-	if user.Role != model.RoleAdmin && h.oidcIsAdminByFilter(stdClaims.Email, allClaims) {
+	if user.Role != model.RoleAdmin && h.oidcIsAdminByFilter(email, allClaims) {
 		user.Role = model.RoleAdmin
 		if err := h.cfg.Users.Update(ctx, user); err != nil {
 			slog.Warn("oidc: failed to set admin role", slog.Any("error", err))

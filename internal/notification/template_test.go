@@ -118,3 +118,13 @@ func TestRenderTemplate_NilSpeed(t *testing.T) {
 		t.Errorf("RenderTemplate() with nil speed = %q, want unreplaced variable", got)
 	}
 }
+
+func TestRenderTemplate_ValuesNotReexpanded(t *testing.T) {
+	ctx := &TemplateContext{
+		Device:   &model.Device{Name: "{{geofence.name}}"},
+		Geofence: &model.Geofence{Name: "Home"},
+	}
+	if got := RenderTemplate("{{device.name}} at {{geofence.name}}", ctx); got != "{{geofence.name}} at Home" {
+		t.Errorf("RenderTemplate() = %q, want device name kept literally", got)
+	}
+}

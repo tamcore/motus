@@ -2,8 +2,6 @@ package repository
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
@@ -21,24 +19,11 @@ func NewDeviceShareRepository(pool *pgxpool.Pool) *DeviceShareRepository {
 	return &DeviceShareRepository{pool: pool}
 }
 
-// generateToken creates a cryptographically random 32-byte hex token.
-func generateToken() (string, error) {
-	b := make([]byte, 32)
-	if _, err := rand.Read(b); err != nil {
-		return "", fmt.Errorf("generate share token: %w", err)
-	}
-	return hex.EncodeToString(b), nil
-}
-
 // Create inserts a new device share link.
 func (r *DeviceShareRepository) Create(ctx context.Context, share *model.DeviceShare) error {
-	token, err := generateToken()
-	if err != nil {
-		return err
-	}
-	share.Token = token
+	share.Token = NewToken()
 
-	err = r.pool.QueryRow(ctx,
+	err := r.pool.QueryRow(ctx,
 		`INSERT INTO device_shares (device_id, token, created_by, expires_at)
 		 VALUES ($1, $2, $3, $4)
 		 RETURNING id, created_at`,

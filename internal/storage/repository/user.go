@@ -2,8 +2,6 @@ package repository
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
@@ -184,11 +182,7 @@ func (r *UserRepository) UnassignDevice(ctx context.Context, userID, deviceID in
 // GenerateToken creates a random API token, stores its SHA-256 hash, and
 // returns the raw token to the caller.
 func (r *UserRepository) GenerateToken(ctx context.Context, userID int64) (string, error) {
-	b := make([]byte, 32)
-	if _, err := rand.Read(b); err != nil {
-		return "", fmt.Errorf("generate random bytes: %w", err)
-	}
-	token := hex.EncodeToString(b)
+	token := NewToken()
 
 	_, err := r.pool.Exec(ctx,
 		`UPDATE users SET token = $1 WHERE id = $2`,

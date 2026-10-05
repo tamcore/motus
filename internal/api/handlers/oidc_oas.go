@@ -2,8 +2,6 @@ package handlers
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -18,6 +16,7 @@ import (
 	oas "github.com/tamcore/motus/internal/api/oas"
 	"github.com/tamcore/motus/internal/audit"
 	"github.com/tamcore/motus/internal/model"
+	"github.com/tamcore/motus/internal/storage/repository"
 	"golang.org/x/oauth2"
 )
 
@@ -40,11 +39,7 @@ func (h *Handler) OidcLogin(ctx context.Context) error {
 		return &httpStatusError{code: http.StatusNotFound, msg: "OIDC not enabled"}
 	}
 
-	b := make([]byte, 16)
-	if _, err := rand.Read(b); err != nil {
-		return fmt.Errorf("failed to generate state")
-	}
-	state := hex.EncodeToString(b)
+	state := repository.NewToken()
 
 	if err := h.cfg.OIDCStateRepo.Create(ctx, state); err != nil {
 		return fmt.Errorf("failed to store state")

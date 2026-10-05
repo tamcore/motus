@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"crypto/rand"
 	"encoding/hex"
 
 	"golang.org/x/crypto/argon2"
@@ -19,4 +20,11 @@ const (
 func HashToken(raw string) string {
 	h := argon2.IDKey([]byte(raw), []byte(tokenHashSalt), tokenHashTime, tokenHashMemory, tokenHashThreads, tokenHashLen)
 	return hex.EncodeToString(h)
+}
+
+// NewToken returns 32 random bytes, hex-encoded.
+func NewToken() string {
+	b := make([]byte, 32)
+	_, _ = rand.Read(b)
+	return hex.EncodeToString(b)
 }

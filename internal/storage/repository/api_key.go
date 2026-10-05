@@ -2,8 +2,6 @@ package repository
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
@@ -21,31 +19,19 @@ func NewApiKeyRepository(pool *pgxpool.Pool) *ApiKeyRepository {
 	return &ApiKeyRepository{pool: pool}
 }
 
-// generateApiKeyToken creates a cryptographically random 32-byte hex token.
-func generateApiKeyToken() (string, error) {
-	b := make([]byte, 32)
-	if _, err := rand.Read(b); err != nil {
-		return "", fmt.Errorf("generate api key token: %w", err)
-	}
-	return hex.EncodeToString(b), nil
-}
-
 // Create inserts a new API key with an auto-generated token.
 // The raw token is stored in key.Token for the caller; only the SHA-256 hash
 // is persisted in the database.
 // If key.ExpiresAt is set, the key will expire at that time.
 func (r *ApiKeyRepository) Create(ctx context.Context, key *model.ApiKey) error {
-	token, err := generateApiKeyToken()
-	if err != nil {
-		return err
-	}
+	token := NewToken()
 	key.Token = token // return raw token to caller
 
 	if key.Permissions == "" {
 		key.Permissions = model.PermissionFull
 	}
 
-	err = r.pool.QueryRow(ctx,
+	err := r.pool.QueryRow(ctx,
 		`INSERT INTO api_keys (user_id, token, name, permissions, expires_at)
 		 VALUES ($1, $2, $3, $4, $5)
 		 RETURNING id, created_at`,

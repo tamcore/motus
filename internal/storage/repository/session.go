@@ -2,8 +2,6 @@ package repository
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -53,11 +51,7 @@ func (r *SessionRepository) CreateSudo(ctx context.Context, targetUserID, origin
 
 // insert assigns s a random ID and creation time and stores it.
 func (r *SessionRepository) insert(ctx context.Context, s *model.Session) (*model.Session, error) {
-	b := make([]byte, 32)
-	if _, err := rand.Read(b); err != nil {
-		return nil, fmt.Errorf("generate session id: %w", err)
-	}
-	s.ID = hex.EncodeToString(b)
+	s.ID = NewToken()
 	s.CreatedAt = time.Now()
 
 	_, err := r.pool.Exec(ctx,

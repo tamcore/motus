@@ -606,10 +606,7 @@ func loadCSRFSecret(sec config.SecurityConfig) []byte {
 	}
 
 	secret := make([]byte, 32)
-	if _, err := rand.Read(secret); err != nil {
-		slog.Error("failed to generate CSRF secret", slog.Any("error", err))
-		os.Exit(1)
-	}
+	_, _ = rand.Read(secret)
 	slog.Warn("no MOTUS_CSRF_SECRET set, using random key (tokens will not survive restarts)")
 	return secret
 }

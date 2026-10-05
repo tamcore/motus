@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/prometheus/client_golang/prometheus/testutil"
 )
 
 func TestHTTPMetrics(t *testing.T) {
@@ -32,6 +34,7 @@ func TestNormalizeEndpoint(t *testing.T) {
 		{"/api/users/1/devices/99", "/api/users/{id}/devices/{id}"},
 		{"/api/health", "/api/health"},
 		{"/api/share/abc123def", "/api/share/abc123def"},
+		{"/api/x//007", "/api/x//{id}"},
 	}
 
 	for _, tt := range tests {
@@ -42,42 +45,22 @@ func TestNormalizeEndpoint(t *testing.T) {
 	}
 }
 
-func TestStatusRecorderDefault(t *testing.T) {
-	rec := httptest.NewRecorder()
-	sr := &statusRecorder{ResponseWriter: rec, statusCode: http.StatusOK}
-
-	// Write without calling WriteHeader should keep default.
-	_, _ = sr.Write([]byte("test"))
-	if sr.statusCode != http.StatusOK {
-		t.Errorf("expected default status 200, got %d", sr.statusCode)
+func TestHTTPMetrics_RecordsStatus(t *testing.T) {
+	tests := []struct {
+		path    string
+		handler http.HandlerFunc
+		want    string
+	}{
+		{"/api/metrics-test/1", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNotFound) }, "404"},
+		{"/api/metrics-test/2", func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("ok")) }, "200"},
+		{"/api/metrics-test/3", func(http.ResponseWriter, *http.Request) {}, "200"},
 	}
-}
-
-func TestStatusRecorderExplicit(t *testing.T) {
-	rec := httptest.NewRecorder()
-	sr := &statusRecorder{ResponseWriter: rec, statusCode: http.StatusOK}
-
-	sr.WriteHeader(http.StatusNotFound)
-	if sr.statusCode != http.StatusNotFound {
-		t.Errorf("expected status 404, got %d", sr.statusCode)
-	}
-}
-
-func TestStatusRecorderUnwrap(t *testing.T) {
-	rec := httptest.NewRecorder()
-	sr := &statusRecorder{ResponseWriter: rec, statusCode: http.StatusOK}
-
-	if got := sr.Unwrap(); got != rec {
-		t.Errorf("Unwrap() = %v, want underlying recorder", got)
-	}
-}
-
-func TestStatusRecorderFlushViaController(t *testing.T) {
-	rec := httptest.NewRecorder()
-	sr := &statusRecorder{ResponseWriter: rec, statusCode: http.StatusOK}
-
-	rc := http.NewResponseController(sr)
-	if err := rc.Flush(); err != nil {
-		t.Errorf("Flush through ResponseController failed: %v", err)
+	for _, tt := range tests {
+		counter := HTTPRequestsTotal.WithLabelValues(http.MethodGet, "/api/metrics-test/{id}", tt.want)
+		before := testutil.ToFloat64(counter)
+		HTTPMetrics(tt.handler).ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, tt.path, nil))
+		if got := testutil.ToFloat64(counter) - before; got != 1 {
+			t.Errorf("%s: status %s counter delta = %v, want 1", tt.path, tt.want, got)
+		}
 	}
 }

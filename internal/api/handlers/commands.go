@@ -173,7 +173,7 @@ func (h *Handler) SendCommand(ctx context.Context, req *oas.SendCommandRequest) 
 		"deviceName":    device.Name,
 	}
 	h.cfg.AuditLogger.Log(ctx, &user.ID,
-		audit.ActionCommandSend, audit.ResourceCommand, &cmd.ID, details, "", "")
+		audit.ActionCommandSend, audit.ResourceCommand, &cmd.ID, details)
 
 	out := commandToOAS(cmd)
 	return &out, nil

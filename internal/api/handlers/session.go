@@ -68,14 +68,14 @@ func (h *Handler) Login(ctx context.Context, req oas.LoginReq) (oas.LoginRes, er
 	if err != nil {
 		h.loginLimiter.recordFailure(email)
 		h.cfg.AuditLogger.Log(ctx, nil, audit.ActionSessionLoginFailed, audit.ResourceSession, nil,
-			map[string]any{"email": email, "reason": "unknown_email"}, "", "")
+			map[string]any{"email": email, "reason": "unknown_email"})
 		return &oas.LoginUnauthorized{Error: "invalid credentials"}, nil
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
 		h.loginLimiter.recordFailure(email)
 		h.cfg.AuditLogger.Log(ctx, &user.ID, audit.ActionSessionLoginFailed, audit.ResourceSession, nil,
-			map[string]any{"email": email, "reason": "wrong_password"}, "", "")
+			map[string]any{"email": email, "reason": "wrong_password"})
 		return &oas.LoginUnauthorized{Error: "invalid credentials"}, nil
 	}
 
@@ -96,7 +96,7 @@ func (h *Handler) Login(ctx context.Context, req oas.LoginReq) (oas.LoginRes, er
 	h.setSessionCookie(ctx, session.ID, session.ExpiresAt)
 
 	h.cfg.AuditLogger.Log(ctx, &user.ID, audit.ActionSessionLogin, audit.ResourceSession, nil,
-		map[string]any{"email": user.Email}, "", "")
+		map[string]any{"email": user.Email})
 
 	out := userToOAS(user)
 	return &out, nil
@@ -106,7 +106,7 @@ func (h *Handler) Login(ctx context.Context, req oas.LoginReq) (oas.LoginRes, er
 func (h *Handler) Logout(ctx context.Context) (oas.LogoutRes, error) {
 	user := api.UserFromContext(ctx)
 	if user != nil {
-		h.cfg.AuditLogger.Log(ctx, &user.ID, audit.ActionSessionLogout, audit.ResourceSession, nil, nil, "", "")
+		h.cfg.AuditLogger.Log(ctx, &user.ID, audit.ActionSessionLogout, audit.ResourceSession, nil, nil)
 	}
 
 	session := api.SessionFromContext(ctx)
@@ -136,7 +136,7 @@ func (h *Handler) LogoutAll(ctx context.Context) (oas.LogoutAllRes, error) {
 	}
 
 	h.cfg.AuditLogger.Log(ctx, &user.ID, audit.ActionSessionRevoke, audit.ResourceSession, nil,
-		map[string]any{"scope": "all_other_sessions"}, "", "")
+		map[string]any{"scope": "all_other_sessions"})
 
 	return &oas.LogoutAllNoContent{}, nil
 }
@@ -188,7 +188,7 @@ func (h *Handler) tokenLogin(ctx context.Context, token string) (oas.GetSessionR
 	if apiKey != nil {
 		details["apiKeyId"] = apiKey.ID
 	}
-	h.cfg.AuditLogger.Log(ctx, &user.ID, audit.ActionSessionLogin, audit.ResourceSession, nil, details, "", "")
+	h.cfg.AuditLogger.Log(ctx, &user.ID, audit.ActionSessionLogin, audit.ResourceSession, nil, details)
 
 	out := userToOAS(user)
 	return &out, nil
@@ -260,7 +260,7 @@ func (h *Handler) DeleteSession(ctx context.Context, params oas.DeleteSessionPar
 	}
 
 	h.cfg.AuditLogger.Log(ctx, &user.ID, audit.ActionSessionRevoke, audit.ResourceSession, nil,
-		map[string]any{"revokedSessionId": target.TruncatedID(), "sessionOwnerUserId": target.UserID}, "", "")
+		map[string]any{"revokedSessionId": target.TruncatedID(), "sessionOwnerUserId": target.UserID})
 
 	return &oas.DeleteSessionNoContent{}, nil
 }

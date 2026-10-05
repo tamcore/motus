@@ -68,7 +68,7 @@ func (s *GeofenceService) UpdateForUser(ctx context.Context, user *model.User, g
 	}
 	s.auditLogger.Log(ctx, &user.ID,
 		audit.ActionGeofenceUpdate, audit.ResourceGeofence, &updated.ID,
-		map[string]any{"name": updated.Name}, "", "")
+		map[string]any{"name": updated.Name})
 	return &updated, nil
 }
 
@@ -91,7 +91,7 @@ func (s *GeofenceService) DeleteForUser(ctx context.Context, user *model.User, g
 	}
 	s.auditLogger.Log(ctx, &user.ID,
 		audit.ActionGeofenceDelete, audit.ResourceGeofence, &geofenceID,
-		nil, "", "")
+		nil)
 	return nil
 }
 
@@ -158,6 +158,6 @@ func (s *GeofenceService) CreateForUser(ctx context.Context, user *model.User, i
 
 	s.auditLogger.Log(ctx, &user.ID,
 		audit.ActionGeofenceCreate, audit.ResourceGeofence, &g.ID,
-		map[string]any{"name": g.Name}, "", "")
+		map[string]any{"name": g.Name})
 	return g, nil
 }

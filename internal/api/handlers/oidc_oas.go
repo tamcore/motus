@@ -148,7 +148,7 @@ func (h *Handler) OidcCallback(ctx context.Context, params oas.OidcCallbackParam
 	}
 
 	h.cfg.AuditLogger.Log(ctx, &user.ID, audit.ActionSessionLogin, audit.ResourceSession, nil,
-		map[string]any{"method": "oidc", "email": user.Email}, "", "")
+		map[string]any{"method": "oidc", "email": user.Email})
 
 	return &oas.OidcCallbackFound{}, nil
 }

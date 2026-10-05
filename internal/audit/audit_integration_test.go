@@ -2,25 +2,38 @@ package audit
 
 import (
 	"context"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/tamcore/motus/internal/storage/repository/testutil"
 )
 
+// requestContext returns the context Middleware hands to handlers for a
+// request with the given remote address and User-Agent.
+func requestContext(remoteAddr, userAgent string) context.Context {
+	req := httptest.NewRequest("POST", "/api/test", nil)
+	req.RemoteAddr = remoteAddr
+	req.Header.Set("User-Agent", userAgent)
+	var ctx context.Context
+	Middleware(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		ctx = r.Context()
+	})).ServeHTTP(httptest.NewRecorder(), req)
+	return ctx
+}
+
 func TestLogger_LogAction(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	testutil.CleanTables(t, pool)
 
 	logger := NewLogger(pool)
-	ctx := context.Background()
+	ctx := requestContext("10.0.0.1:1234", "Mozilla/5.0")
 
 	userID := testutil.CreateUser(t, "audit-test@example.com").ID
 	resourceID := new(int64(42))
 
 	logger.Log(ctx, &userID, ActionSessionLogin, ResourceSession, resourceID,
-		map[string]any{"browser": "firefox"},
-		"10.0.0.1", "Mozilla/5.0")
+		map[string]any{"browser": "firefox"})
 
 	// Verify the entry was written.
 	entries, total, err := logger.Query(ctx, QueryParams{})
@@ -69,7 +82,7 @@ func TestLogger_LogAction_NullableFields(t *testing.T) {
 	ctx := context.Background()
 
 	// Log with no user ID, no resource ID, no details, no IP, no user agent.
-	logger.Log(ctx, nil, ActionDeviceCreate, "", nil, nil, "", "")
+	logger.Log(ctx, nil, ActionDeviceCreate, "", nil, nil)
 
 	entries, total, err := logger.Query(ctx, QueryParams{})
 	if err != nil {
@@ -105,10 +118,10 @@ func TestLogger_LogAction_InvalidIP(t *testing.T) {
 	testutil.CleanTables(t, pool)
 
 	logger := NewLogger(pool)
-	ctx := context.Background()
+	ctx := requestContext("not-an-ip", "")
 
 	// An invalid IP should be silently dropped (not stored, not error).
-	logger.Log(ctx, nil, ActionSessionLogin, ResourceSession, nil, nil, "not-an-ip", "")
+	logger.Log(ctx, nil, ActionSessionLogin, ResourceSession, nil, nil)
 
 	entries, _, err := logger.Query(ctx, QueryParams{})
 	if err != nil {
@@ -133,7 +146,9 @@ func TestLogger_LogRequestMetadata(t *testing.T) {
 	req.RemoteAddr = "192.168.1.100:54321"
 	req.Header.Set("User-Agent", "HomeAssistant/2025.11")
 
-	logger.Log(req.Context(), &userID, ActionSessionLogin, ResourceSession, nil, nil, ExtractIP(req), req.UserAgent())
+	Middleware(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		logger.Log(r.Context(), &userID, ActionSessionLogin, ResourceSession, nil, nil)
+	})).ServeHTTP(httptest.NewRecorder(), req)
 
 	entries, _, err := logger.Query(req.Context(), QueryParams{})
 	if err != nil {
@@ -168,7 +183,7 @@ func TestLogger_MetadataEncoding(t *testing.T) {
 		"isActive": true,
 	}
 
-	logger.Log(ctx, nil, ActionUserCreate, ResourceUser, new(int64(10)), details, "10.0.0.1", "")
+	logger.Log(ctx, nil, ActionUserCreate, ResourceUser, new(int64(10)), details)
 
 	entries, _, err := logger.Query(ctx, QueryParams{})
 	if err != nil {
@@ -225,9 +240,9 @@ func TestQuery_FilterByUserID(t *testing.T) {
 	user2 := testutil.CreateUser(t, "filter-user2@example.com").ID
 
 	// Insert entries for two different users.
-	logger.Log(ctx, &user1, ActionSessionLogin, ResourceSession, nil, nil, "10.0.0.1", "")
-	logger.Log(ctx, &user1, ActionSessionLogout, ResourceSession, nil, nil, "10.0.0.1", "")
-	logger.Log(ctx, &user2, ActionSessionLogin, ResourceSession, nil, nil, "10.0.0.2", "")
+	logger.Log(ctx, &user1, ActionSessionLogin, ResourceSession, nil, nil)
+	logger.Log(ctx, &user1, ActionSessionLogout, ResourceSession, nil, nil)
+	logger.Log(ctx, &user2, ActionSessionLogin, ResourceSession, nil, nil)
 
 	// Query for user 1.
 	entries, total, err := logger.Query(ctx, QueryParams{UserID: &user1})
@@ -258,9 +273,9 @@ func TestQuery_FilterByAction(t *testing.T) {
 
 	user1 := testutil.CreateUser(t, "action-filter@example.com").ID
 
-	logger.Log(ctx, &user1, ActionSessionLogin, ResourceSession, nil, nil, "", "")
-	logger.Log(ctx, &user1, ActionSessionLogout, ResourceSession, nil, nil, "", "")
-	logger.Log(ctx, &user1, ActionSessionSudo, ResourceSession, nil, nil, "", "")
+	logger.Log(ctx, &user1, ActionSessionLogin, ResourceSession, nil, nil)
+	logger.Log(ctx, &user1, ActionSessionLogout, ResourceSession, nil, nil)
+	logger.Log(ctx, &user1, ActionSessionSudo, ResourceSession, nil, nil)
 
 	entries, total, err := logger.Query(ctx, QueryParams{Action: ActionSessionLogin})
 	if err != nil {
@@ -284,9 +299,9 @@ func TestQuery_FilterByResourceType(t *testing.T) {
 	logger := NewLogger(pool)
 	ctx := context.Background()
 
-	logger.Log(ctx, nil, ActionDeviceCreate, ResourceDevice, nil, nil, "", "")
-	logger.Log(ctx, nil, ActionSessionLogin, ResourceSession, nil, nil, "", "")
-	logger.Log(ctx, nil, ActionNotifCreate, ResourceNotification, nil, nil, "", "")
+	logger.Log(ctx, nil, ActionDeviceCreate, ResourceDevice, nil, nil)
+	logger.Log(ctx, nil, ActionSessionLogin, ResourceSession, nil, nil)
+	logger.Log(ctx, nil, ActionNotifCreate, ResourceNotification, nil, nil)
 
 	entries, total, err := logger.Query(ctx, QueryParams{ResourceType: ResourceDevice})
 	if err != nil {
@@ -313,10 +328,10 @@ func TestQuery_CombinedFilters(t *testing.T) {
 	user1 := testutil.CreateUser(t, "combined1@example.com").ID
 	user2 := testutil.CreateUser(t, "combined2@example.com").ID
 
-	logger.Log(ctx, &user1, ActionSessionLogin, ResourceSession, nil, nil, "", "")
-	logger.Log(ctx, &user1, ActionUserCreate, ResourceUser, nil, nil, "", "")
-	logger.Log(ctx, &user2, ActionSessionLogin, ResourceSession, nil, nil, "", "")
-	logger.Log(ctx, &user2, ActionUserCreate, ResourceUser, nil, nil, "", "")
+	logger.Log(ctx, &user1, ActionSessionLogin, ResourceSession, nil, nil)
+	logger.Log(ctx, &user1, ActionUserCreate, ResourceUser, nil, nil)
+	logger.Log(ctx, &user2, ActionSessionLogin, ResourceSession, nil, nil)
+	logger.Log(ctx, &user2, ActionUserCreate, ResourceUser, nil, nil)
 
 	// Filter: user 1 + action user.create.
 	entries, total, err := logger.Query(ctx, QueryParams{
@@ -346,7 +361,7 @@ func TestQuery_Pagination(t *testing.T) {
 	// Insert 10 entries.
 	for i := range 10 {
 		logger.Log(ctx, &user1, ActionSessionLogin, ResourceSession, nil,
-			map[string]any{"seq": i}, "", "")
+			map[string]any{"seq": i})
 	}
 
 	// Page 1: limit=3, offset=0.
@@ -400,7 +415,7 @@ func TestQuery_DefaultLimit(t *testing.T) {
 	ctx := context.Background()
 
 	// Default limit (0) should be normalised to 50 inside Query().
-	logger.Log(ctx, nil, ActionSessionLogin, ResourceSession, nil, nil, "", "")
+	logger.Log(ctx, nil, ActionSessionLogin, ResourceSession, nil, nil)
 
 	entries, _, err := logger.Query(ctx, QueryParams{Limit: 0})
 	if err != nil {
@@ -420,7 +435,7 @@ func TestQuery_LimitClampedTo100(t *testing.T) {
 	ctx := context.Background()
 
 	// Limit > 100 should be clamped to 50.
-	logger.Log(ctx, nil, ActionSessionLogin, ResourceSession, nil, nil, "", "")
+	logger.Log(ctx, nil, ActionSessionLogin, ResourceSession, nil, nil)
 
 	entries, _, err := logger.Query(ctx, QueryParams{Limit: 200})
 	if err != nil {
@@ -438,7 +453,7 @@ func TestQuery_NegativeOffset(t *testing.T) {
 	logger := NewLogger(pool)
 	ctx := context.Background()
 
-	logger.Log(ctx, nil, ActionSessionLogin, ResourceSession, nil, nil, "", "")
+	logger.Log(ctx, nil, ActionSessionLogin, ResourceSession, nil, nil)
 
 	// Negative offset should be normalised to 0.
 	entries, _, err := logger.Query(ctx, QueryParams{Offset: -5})
@@ -458,9 +473,9 @@ func TestQuery_OrderByTimestampDesc(t *testing.T) {
 	ctx := context.Background()
 
 	// Insert entries in order.
-	logger.Log(ctx, nil, ActionSessionLogin, ResourceSession, nil, map[string]any{"order": "first"}, "", "")
-	logger.Log(ctx, nil, ActionSessionLogout, ResourceSession, nil, map[string]any{"order": "second"}, "", "")
-	logger.Log(ctx, nil, ActionSessionSudo, ResourceSession, nil, map[string]any{"order": "third"}, "", "")
+	logger.Log(ctx, nil, ActionSessionLogin, ResourceSession, nil, map[string]any{"order": "first"})
+	logger.Log(ctx, nil, ActionSessionLogout, ResourceSession, nil, map[string]any{"order": "second"})
+	logger.Log(ctx, nil, ActionSessionSudo, ResourceSession, nil, map[string]any{"order": "third"})
 
 	entries, _, err := logger.Query(ctx, QueryParams{})
 	if err != nil {
@@ -506,13 +521,10 @@ func TestLogger_LogRequestMetadata_IPv6(t *testing.T) {
 
 	logger := NewLogger(pool)
 
-	req := httptest.NewRequest("POST", "/api/test", nil)
-	req.RemoteAddr = "[::1]:54321"
-	req.Header.Set("User-Agent", "TestAgent/1.0")
+	ctx := requestContext("[::1]:54321", "TestAgent/1.0")
+	logger.Log(ctx, nil, ActionSessionLogin, ResourceSession, nil, nil)
 
-	logger.Log(req.Context(), nil, ActionSessionLogin, ResourceSession, nil, nil, ExtractIP(req), req.UserAgent())
-
-	entries, _, err := logger.Query(req.Context(), QueryParams{})
+	entries, _, err := logger.Query(ctx, QueryParams{})
 	if err != nil {
 		t.Fatalf("query error: %v", err)
 	}
@@ -532,9 +544,9 @@ func TestLogger_LogAction_DetailsNilVsEmpty(t *testing.T) {
 	ctx := context.Background()
 
 	// nil details.
-	logger.Log(ctx, nil, ActionSessionLogin, ResourceSession, nil, nil, "", "")
+	logger.Log(ctx, nil, ActionSessionLogin, ResourceSession, nil, nil)
 	// Empty map details.
-	logger.Log(ctx, nil, ActionSessionLogout, ResourceSession, nil, map[string]any{}, "", "")
+	logger.Log(ctx, nil, ActionSessionLogout, ResourceSession, nil, map[string]any{})
 
 	entries, _, err := logger.Query(ctx, QueryParams{})
 	if err != nil {
@@ -554,9 +566,9 @@ func TestQuery_FilterByAllThreeFields(t *testing.T) {
 
 	user1 := testutil.CreateUser(t, "all-filters@example.com").ID
 
-	logger.Log(ctx, &user1, ActionSessionLogin, ResourceSession, nil, nil, "", "")
-	logger.Log(ctx, &user1, ActionUserCreate, ResourceUser, nil, nil, "", "")
-	logger.Log(ctx, nil, ActionSessionLogin, ResourceSession, nil, nil, "", "")
+	logger.Log(ctx, &user1, ActionSessionLogin, ResourceSession, nil, nil)
+	logger.Log(ctx, &user1, ActionUserCreate, ResourceUser, nil, nil)
+	logger.Log(ctx, nil, ActionSessionLogin, ResourceSession, nil, nil)
 
 	// Filter by all three: user + action + resource type.
 	entries, total, err := logger.Query(ctx, QueryParams{

@@ -145,7 +145,7 @@ func (s *NotificationRuleService) logAudit(ctx context.Context, user *model.User
 	if rule != nil {
 		details = map[string]any{"name": rule.Name, "eventTypes": rule.EventTypes, "channel": rule.Channel}
 	}
-	s.auditLogger.Log(ctx, &user.ID, action, audit.ResourceNotification, &ruleID, details, "", "")
+	s.auditLogger.Log(ctx, &user.ID, action, audit.ResourceNotification, &ruleID, details)
 }
 
 // CreateForUser validates, persists, and audits a new rule owned by user.

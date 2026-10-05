@@ -127,7 +127,7 @@ func (h *Handler) CreateTrailBookmark(ctx context.Context, req *oas.TrailBookmar
 
 	h.cfg.AuditLogger.Log(ctx, &user.ID,
 		audit.ActionTrailBookmarkCreate, audit.ResourceTrailBookmark, &b.ID,
-		map[string]any{"name": b.Name, "deviceId": b.DeviceID}, "", "")
+		map[string]any{"name": b.Name, "deviceId": b.DeviceID})
 	out := trailBookmarkToOAS(b)
 	return &out, nil
 }
@@ -168,7 +168,7 @@ func (h *Handler) UpdateTrailBookmark(ctx context.Context, req *oas.TrailBookmar
 
 	h.cfg.AuditLogger.Log(ctx, &user.ID,
 		audit.ActionTrailBookmarkUpdate, audit.ResourceTrailBookmark, &updated.ID,
-		map[string]any{"name": updated.Name, "deviceId": updated.DeviceID}, "", "")
+		map[string]any{"name": updated.Name, "deviceId": updated.DeviceID})
 	out := trailBookmarkToOAS(&updated)
 	return &out, nil
 }
@@ -192,7 +192,7 @@ func (h *Handler) DeleteTrailBookmark(ctx context.Context, params oas.DeleteTrai
 	}
 	h.cfg.AuditLogger.Log(ctx, &user.ID,
 		audit.ActionTrailBookmarkDelete, audit.ResourceTrailBookmark, &params.ID,
-		nil, "", "")
+		nil)
 	return &oas.DeleteTrailBookmarkNoContent{}, nil
 }
 

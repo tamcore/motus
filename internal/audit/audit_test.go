@@ -9,13 +9,13 @@ import (
 func TestLogWithNilLogger(t *testing.T) {
 	// A nil logger should not panic.
 	var l *Logger
-	l.Log(context.Background(), nil, ActionSessionLogin, ResourceSession, nil, nil, "", "")
+	l.Log(context.Background(), nil, ActionSessionLogin, ResourceSession, nil, nil)
 }
 
 func TestLogWithNilPool(t *testing.T) {
 	// A logger with nil pool should not panic.
 	l := NewLogger(nil)
-	l.Log(context.Background(), nil, ActionSessionLogin, ResourceSession, nil, nil, "127.0.0.1", "test-agent")
+	l.Log(context.Background(), nil, ActionSessionLogin, ResourceSession, nil, nil)
 }
 
 func TestExtractIP(t *testing.T) {

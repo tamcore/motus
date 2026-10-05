@@ -111,7 +111,7 @@ func (h *Handler) PasskeyRegisterFinish(ctx context.Context, req oas.WebAuthnAtt
 	}
 
 	h.cfg.AuditLogger.Log(ctx, &user.ID, audit.ActionUserUpdate, audit.ResourceUser, &user.ID,
-		map[string]any{"passkeyRegistered": name}, "", "")
+		map[string]any{"passkeyRegistered": name})
 
 	return new(passkeyToOAS(mc)), nil
 }
@@ -203,7 +203,7 @@ func (h *Handler) PasskeyLoginFinish(ctx context.Context, req oas.WebAuthnAssert
 			slog.Warn("passkey: authenticator clone warning — signature counter did not increase",
 				slog.Int64("userId", user.ID), slog.Int64("credentialId", stored.ID))
 			h.cfg.AuditLogger.Log(ctx, &user.ID, audit.ActionSessionLogin, audit.ResourceSession, nil,
-				map[string]any{"method": "passkey", "cloneWarning": true}, "", "")
+				map[string]any{"method": "passkey", "cloneWarning": true})
 		}
 	}
 
@@ -215,7 +215,7 @@ func (h *Handler) PasskeyLoginFinish(ctx context.Context, req oas.WebAuthnAssert
 	h.setSessionCookie(ctx, session.ID, session.ExpiresAt)
 
 	h.cfg.AuditLogger.Log(ctx, &user.ID, audit.ActionSessionLogin, audit.ResourceSession, nil,
-		map[string]any{"method": "passkey"}, "", "")
+		map[string]any{"method": "passkey"})
 
 	out := userToOAS(user)
 	return &out, nil
@@ -261,7 +261,7 @@ func (h *Handler) DeletePasskey(ctx context.Context, params oas.DeletePasskeyPar
 		return &oas.DeletePasskeyNotFound{Error: "passkey not found"}, nil
 	}
 	h.cfg.AuditLogger.Log(ctx, &user.ID, audit.ActionUserUpdate, audit.ResourceUser, &user.ID,
-		map[string]any{"passkeyDeleted": params.ID}, "", "")
+		map[string]any{"passkeyDeleted": params.ID})
 	return &oas.DeletePasskeyNoContent{}, nil
 }
 

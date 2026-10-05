@@ -84,7 +84,7 @@ func (h *Handler) UpdateProfile(ctx context.Context, req *oas.UpdateProfileReque
 	}
 
 	if len(changes) > 0 {
-		h.cfg.AuditLogger.Log(ctx, &existing.ID, audit.ActionUserUpdate, audit.ResourceUser, &existing.ID, changes, "", "")
+		h.cfg.AuditLogger.Log(ctx, &existing.ID, audit.ActionUserUpdate, audit.ResourceUser, &existing.ID, changes)
 	}
 
 	result := userToOAS(existing)

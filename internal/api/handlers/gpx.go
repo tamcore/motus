@@ -70,7 +70,7 @@ func (h *Handler) ImportGPX(ctx context.Context, req oas.ImportGPXReq, params oa
 
 	h.cfg.AuditLogger.Log(ctx, &user.ID,
 		audit.ActionGPXImport, audit.ResourceDevice, &params.ID,
-		map[string]any{"deviceId": params.ID, "positions": imported}, "", "")
+		map[string]any{"deviceId": params.ID, "positions": imported})
 
 	return &oas.ImportGPXOK{
 		Imported: oas.OptInt{Value: imported, Set: true},

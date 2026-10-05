@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/csrf"
 	"github.com/tamcore/motus/docs"
 	oas "github.com/tamcore/motus/internal/api/oas"
+	"github.com/tamcore/motus/internal/audit"
 	"github.com/tamcore/motus/internal/metrics"
 	"github.com/tamcore/motus/internal/version"
 	"github.com/tamcore/motus/internal/websocket"
@@ -128,6 +129,7 @@ func NewRouter(h oas.Handler, sec oas.SecurityHandler, hub *websocket.Hub, cfg R
 	if cfg.RealIP != nil {
 		r.Use(cfg.RealIP)
 	}
+	r.Use(audit.Middleware)
 	r.Use(limitRequestBody)
 	if cfg.SecurityHeaders != nil {
 		r.Use(cfg.SecurityHeaders)

@@ -107,7 +107,7 @@ func logEntries(t *testing.T, logger *audit.Logger, userID int64, actions []stri
 	t.Helper()
 	ctx := context.Background()
 	for _, action := range actions {
-		logger.Log(ctx, &userID, action, "", nil, nil, "", "")
+		logger.Log(ctx, &userID, action, "", nil, nil)
 	}
 }
 

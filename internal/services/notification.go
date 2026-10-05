@@ -256,7 +256,7 @@ func (s *NotificationService) sendCommand(ctx context.Context, rule *model.Notif
 				"commandStatus":      cmd.Status,
 				"deviceName":         device.Name,
 				"notificationRuleId": rule.ID,
-			}, "", "")
+			})
 	}
 
 	if logErr := s.notificationRepo.LogDelivery(ctx, logEntry); logErr != nil {

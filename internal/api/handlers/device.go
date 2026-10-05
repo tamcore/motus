@@ -70,8 +70,7 @@ func (h *Handler) CreateDevice(ctx context.Context, req *oas.DeviceInput) (oas.C
 	}
 	h.cfg.AuditLogger.Log(ctx, &user.ID,
 		audit.ActionDeviceCreate, audit.ResourceDevice, &device.ID,
-		map[string]any{"name": device.Name, "uniqueId": device.UniqueID},
-		"", "")
+		map[string]any{"name": device.Name, "uniqueId": device.UniqueID})
 	return new(h.deviceOut(ctx, device)), nil
 }
 
@@ -107,8 +106,7 @@ func (h *Handler) UpdateDevice(ctx context.Context, req *oas.DeviceInput, params
 	}
 	h.cfg.AuditLogger.Log(ctx, &user.ID,
 		audit.ActionDeviceUpdate, audit.ResourceDevice, &device.ID,
-		map[string]any{"name": device.Name},
-		"", "")
+		map[string]any{"name": device.Name})
 	return new(h.deviceOut(ctx, device)), nil
 }
 
@@ -126,7 +124,7 @@ func (h *Handler) DeleteDevice(ctx context.Context, params oas.DeleteDeviceParam
 	}
 	h.cfg.AuditLogger.Log(ctx, &user.ID,
 		audit.ActionDeviceDelete, audit.ResourceDevice, &params.ID,
-		nil, "", "")
+		nil)
 	return &oas.DeleteDeviceNoContent{}, nil
 }
 
@@ -174,8 +172,7 @@ func (h *Handler) AdminAssignDevice(ctx context.Context, params oas.AdminAssignD
 	}
 	h.cfg.AuditLogger.Log(ctx, &admin.ID,
 		audit.ActionDeviceAssign, audit.ResourceDevice, &params.DeviceId,
-		map[string]any{"userId": params.ID},
-		"", "")
+		map[string]any{"userId": params.ID})
 	return &oas.AdminAssignDeviceNoContent{}, nil
 }
 
@@ -195,8 +192,7 @@ func (h *Handler) AdminUnassignDevice(ctx context.Context, params oas.AdminUnass
 	}
 	h.cfg.AuditLogger.Log(ctx, &admin.ID,
 		audit.ActionDeviceUnassign, audit.ResourceDevice, &params.DeviceId,
-		map[string]any{"userId": params.ID},
-		"", "")
+		map[string]any{"userId": params.ID})
 	return &oas.AdminUnassignDeviceNoContent{}, nil
 }
 

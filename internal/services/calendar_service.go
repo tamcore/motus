@@ -83,7 +83,7 @@ func (s *CalendarService) UpdateForUser(ctx context.Context, user *model.User, c
 
 	s.auditLogger.Log(ctx, &user.ID,
 		audit.ActionCalendarUpdate, audit.ResourceCalendar, &updated.ID,
-		map[string]any{"name": updated.Name}, "", "")
+		map[string]any{"name": updated.Name})
 	return &updated, nil
 }
 
@@ -104,6 +104,6 @@ func (s *CalendarService) CreateForUser(ctx context.Context, user *model.User, i
 
 	s.auditLogger.Log(ctx, &user.ID,
 		audit.ActionCalendarCreate, audit.ResourceCalendar, &c.ID,
-		map[string]any{"name": c.Name}, "", "")
+		map[string]any{"name": c.Name})
 	return c, nil
 }

@@ -127,9 +127,23 @@ func NewLogger(pool *pgxpool.Pool) *Logger {
 	return &Logger{pool: pool, logger: slog.Default()}
 }
 
-// Log records an audit event. Errors are logged but never returned to
-// callers, because audit logging must not break application flow.
-func (l *Logger) Log(ctx context.Context, userID *int64, action, resourceType string, resourceID *int64, details map[string]any, ip, userAgent string) {
+type requestMetaKey struct{}
+
+type requestMeta struct{ ip, userAgent string }
+
+// Middleware stores the client IP and User-Agent in the request context so
+// Log records them.
+func Middleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), requestMetaKey{}, requestMeta{ip: ExtractIP(r), userAgent: r.UserAgent()})
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// Log records an audit event, with the client IP and User-Agent stored by
+// Middleware. Errors are logged but never returned to callers, because audit
+// logging must not break application flow.
+func (l *Logger) Log(ctx context.Context, userID *int64, action, resourceType string, resourceID *int64, details map[string]any) {
 	if l == nil || l.pool == nil {
 		return
 	}
@@ -147,29 +161,16 @@ func (l *Logger) Log(ctx context.Context, userID *int64, action, resourceType st
 		}
 	}
 
-	var resType *string
-	if resourceType != "" {
-		resType = &resourceType
-	}
-
-	var ipAddr *string
-	if ip != "" {
-		// Validate the IP to avoid INET parse errors.
-		if parsed := net.ParseIP(ip); parsed != nil {
-			ipStr := parsed.String()
-			ipAddr = &ipStr
-		}
-	}
-
-	var ua *string
-	if userAgent != "" {
-		ua = &userAgent
+	meta, _ := ctx.Value(requestMetaKey{}).(requestMeta)
+	var ip string
+	if parsed := net.ParseIP(meta.ip); parsed != nil {
+		ip = parsed.String()
 	}
 
 	_, err := l.pool.Exec(ctx, `
 		INSERT INTO audit_log (user_id, action, resource_type, resource_id, details, ip_address, user_agent)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-	`, userID, action, resType, resourceID, detailsJSON, ipAddr, ua)
+		VALUES ($1, $2, NULLIF($3, ''), $4, $5, NULLIF($6, '')::inet, NULLIF($7, ''))
+	`, userID, action, resourceType, resourceID, detailsJSON, ip, meta.userAgent)
 	if err != nil {
 		l.logger.Error("failed to write audit log",
 			slog.String("action", action),

@@ -76,7 +76,7 @@ func (h *Handler) DeleteCalendar(ctx context.Context, params oas.DeleteCalendarP
 	}
 	h.cfg.AuditLogger.Log(ctx, &user.ID,
 		audit.ActionCalendarDelete, audit.ResourceCalendar, &params.ID,
-		nil, "", "")
+		nil)
 	return &oas.DeleteCalendarNoContent{}, nil
 }
 

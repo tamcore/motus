@@ -68,7 +68,7 @@ func (h *Handler) AdminCreateUser(ctx context.Context, req *oas.UserInput) (oas.
 	}
 
 	h.cfg.AuditLogger.Log(ctx, &admin.ID, audit.ActionUserCreate, audit.ResourceUser, &user.ID,
-		map[string]any{"email": user.Email, "role": user.Role}, "", "")
+		map[string]any{"email": user.Email, "role": user.Role})
 
 	result := userToOAS(user)
 	return &result, nil
@@ -150,7 +150,7 @@ func (h *Handler) AdminUpdateUser(ctx context.Context, req *oas.UserInput, param
 		changes["sessionsRevoked"] = true
 	}
 
-	h.cfg.AuditLogger.Log(ctx, &admin.ID, audit.ActionUserUpdate, audit.ResourceUser, &existing.ID, changes, "", "")
+	h.cfg.AuditLogger.Log(ctx, &admin.ID, audit.ActionUserUpdate, audit.ResourceUser, &existing.ID, changes)
 
 	result := userToOAS(existing)
 	return &result, nil
@@ -181,7 +181,7 @@ func (h *Handler) AdminDeleteUser(ctx context.Context, params oas.AdminDeleteUse
 	}
 
 	h.cfg.AuditLogger.Log(ctx, &admin.ID, audit.ActionUserDelete, audit.ResourceUser, &params.ID,
-		map[string]any{}, "", "")
+		map[string]any{})
 
 	return &oas.AdminDeleteUserNoContent{}, nil
 }

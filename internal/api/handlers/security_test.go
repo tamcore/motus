@@ -267,3 +267,33 @@ func TestHandleXAuthToken_invalid(t *testing.T) {
 		t.Fatal("expected error for invalid X-Auth-Token")
 	}
 }
+
+// TestHandleBearerAuth_legacyUserToken verifies that a legacy users.token
+// bearer token authenticates through the ogen SecurityHandler.
+func TestHandleBearerAuth_legacyUserToken(t *testing.T) {
+	user := &model.User{ID: 7, Email: "legacy@example.com", Role: "user"}
+	sh := handlers.NewSecurityHandler(
+		&mockSessionRepo{},
+		&mockApiKeyRepo{},
+		&mockUserRepo{
+			getByTokenFn: func(_ context.Context, token string) (*model.User, error) {
+				if token == "legacy-token" {
+					return user, nil
+				}
+				return nil, errors.New("not found")
+			},
+		},
+	)
+
+	ctx, err := sh.HandleBearerAuth(context.Background(), "listDevices", oas.BearerAuth{Token: "legacy-token"})
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if got := api.UserFromContext(ctx); got == nil || got.ID != user.ID {
+		t.Fatalf("expected user %d in context, got %v", user.ID, got)
+	}
+	if api.ApiKeyFromContext(ctx) != nil {
+		t.Error("expected no API key in context for legacy token")
+	}
+}

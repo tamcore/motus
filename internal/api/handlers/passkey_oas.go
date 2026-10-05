@@ -225,7 +225,7 @@ func (h *Handler) PasskeyLoginFinish(ctx context.Context, req oas.WebAuthnAssert
 // linked to their read-only API key so read-only enforcement carries over; if
 // that key is missing the login fails closed rather than granting full access.
 func (h *Handler) createPasskeySession(ctx context.Context, user *model.User) (*model.Session, error) {
-	expiry := time.Now().Add(sessionExpiryRememberMe)
+	expiry := time.Now().Add(api.SessionExpiryRememberMe)
 
 	if demo.IsDemoAccount(user.Email) {
 		token, _, _ := strings.Cut(user.Email, "@")

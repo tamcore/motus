@@ -6,7 +6,6 @@ import (
 	"github.com/ogen-go/ogen/ogenerrors"
 	"github.com/tamcore/motus/internal/api"
 	oas "github.com/tamcore/motus/internal/api/oas"
-	"github.com/tamcore/motus/internal/model"
 	"github.com/tamcore/motus/internal/storage/repository"
 )
 
@@ -39,35 +38,23 @@ func (s *SecurityHandler) HandleXAuthToken(ctx context.Context, _ oas.OperationN
 	return s.sessionAuth(ctx, t.APIKey)
 }
 
-// HandleBearerAuth validates a Bearer API key token.
+// HandleBearerAuth validates a Bearer API key or legacy users.token.
 func (s *SecurityHandler) HandleBearerAuth(ctx context.Context, _ oas.OperationName, t oas.BearerAuth) (context.Context, error) {
-	key, err := s.apikeys.GetByToken(ctx, t.Token)
-	if err != nil || key == nil || key.IsExpired() {
-		return ctx, ogenerrors.ErrSkipServerSecurity
-	}
-	user := s.user(ctx, key.UserID)
-	if user == nil {
+	user, key := api.ResolveToken(ctx, s.users, s.apikeys, t.Token)
+	if user == nil || (key != nil && key.IsExpired()) {
 		return ctx, ogenerrors.ErrSkipServerSecurity
 	}
 	return api.ContextWithApiKey(api.ContextWithUser(ctx, user), key), nil
 }
 
 func (s *SecurityHandler) sessionAuth(ctx context.Context, sessionID string) (context.Context, error) {
-	session, err := s.sessions.GetByID(ctx, sessionID)
-	if err != nil || session == nil {
+	user, session, key := api.ResolveSession(ctx, s.users, s.sessions, s.apikeys, sessionID)
+	if user == nil || (key != nil && key.IsExpired()) {
 		return ctx, ogenerrors.ErrSkipServerSecurity
 	}
-	user := s.user(ctx, session.UserID)
-	if user == nil {
-		return ctx, ogenerrors.ErrSkipServerSecurity
+	ctx = api.ContextWithSession(api.ContextWithUser(ctx, user), session)
+	if key != nil {
+		ctx = api.ContextWithApiKey(ctx, key)
 	}
-	return api.ContextWithSession(api.ContextWithUser(ctx, user), session), nil
-}
-
-func (s *SecurityHandler) user(ctx context.Context, id int64) *model.User {
-	user, err := s.users.GetByID(ctx, id)
-	if err != nil || user == nil {
-		return nil
-	}
-	return user
+	return ctx, nil
 }

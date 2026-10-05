@@ -3,7 +3,6 @@ package middleware
 import (
 	"context"
 	"net/http"
-	"strings"
 
 	gorillacsrf "github.com/gorilla/csrf"
 	"github.com/tamcore/motus/internal/api"
@@ -61,7 +60,7 @@ func CSRF(cfg CSRFConfig) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Bearer token requests are always CSRF-exempt — they originate
 			// from API clients that use token-based auth, not cookie auth.
-			if isBearerTokenRequest(r) {
+			if bearerToken(r) != "" {
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -96,13 +95,6 @@ func CSRF(cfg CSRFConfig) func(http.Handler) http.Handler {
 			csrfProtected.ServeHTTP(w, r)
 		})
 	}
-}
-
-// isBearerTokenRequest returns true if the request carries a non-empty
-// Authorization: Bearer token.
-func isBearerTokenRequest(r *http.Request) bool {
-	token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
-	return ok && token != ""
 }
 
 // csrfErrorHandler writes a JSON 403 response for CSRF validation failures.

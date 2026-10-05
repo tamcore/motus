@@ -51,6 +51,10 @@ spec:
         - containerPort: {{ .Values.serviceGPS.ports.osmand.port }}
           name: gps-osmand
         {{- end }}
+        {{- if .Values.metrics.enabled }}
+        - containerPort: {{ .Values.metrics.port }}
+          name: metrics
+        {{- end }}
         env:
         {{- include "motus.databaseEnv" . | nindent 8 }}
         {{- if .Values.config.csrf.secret }}
@@ -115,6 +119,10 @@ spec:
           value: {{ .Values.demo.speedMultiplier | quote }}
         - name: MOTUS_DEMO_INTERPOLATION_INTERVAL
           value: {{ .Values.demo.interpolationInterval | quote }}
+        {{- end }}
+        {{- if .Values.metrics.enabled }}
+        - name: MOTUS_METRICS_PORT
+          value: {{ .Values.metrics.port | quote }}
         {{- end }}
         {{- if .Values.metrics.pprof.enabled }}
         - name: MOTUS_PPROF_ENABLED

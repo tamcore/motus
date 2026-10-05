@@ -15,25 +15,22 @@ const (
 	MaxBytes = 64 * 1024
 )
 
-// trimKey enforces the MaxTurns and MaxBytes caps by popping oldest entries
+// trimKey enforces the MaxTurns and MaxBytes caps by dropping oldest entries
 // from the head. It always leaves the head at a "user" or "assistant" message
 // so the list remains a valid conversation for replay.
 func trimKey(ctx context.Context, rdb redis.Cmdable, k string) error {
-	for {
-		vals, err := rdb.LRange(ctx, k, 0, -1).Result()
-		if err != nil || len(vals) == 0 {
-			return err
-		}
-		if withinLimits(vals) {
-			return nil
-		}
-		toDrop := dropCount(vals)
-		for range toDrop {
-			if err := rdb.LPop(ctx, k).Err(); err != nil && err != redis.Nil {
-				return err
-			}
-		}
+	vals, err := rdb.LRange(ctx, k, 0, -1).Result()
+	if err != nil {
+		return err
 	}
+	start := 0
+	for start < len(vals) && !withinLimits(vals[start:]) {
+		start += dropCount(vals[start:])
+	}
+	if start == 0 {
+		return nil
+	}
+	return rdb.LTrim(ctx, k, int64(start), -1).Err()
 }
 
 // withinLimits returns true when both caps are satisfied.

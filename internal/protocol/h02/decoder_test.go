@@ -321,6 +321,8 @@ func TestParseTimestamp_Error(t *testing.T) {
 		{"non-numeric month", "212250", "11ab26"},
 		// Non-numeric year.
 		{"non-numeric year", "212250", "1102ab"},
+		{"out-of-range hour", "250000", "110226"},
+		{"out-of-range day", "212250", "320226"},
 	}
 
 	for _, tt := range tests {

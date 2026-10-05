@@ -308,35 +308,7 @@ func parseTimestamp(timeStr, dateStr string) (time.Time, error) {
 		return time.Time{}, fmt.Errorf("invalid date format %q: expected 6 digits (DDMMYY)", dateStr)
 	}
 
-	hour, err := strconv.Atoi(timeStr[0:2])
-	if err != nil {
-		return time.Time{}, fmt.Errorf("parse hour: %w", err)
-	}
-	min, err := strconv.Atoi(timeStr[2:4])
-	if err != nil {
-		return time.Time{}, fmt.Errorf("parse minute: %w", err)
-	}
-	sec, err := strconv.Atoi(timeStr[4:6])
-	if err != nil {
-		return time.Time{}, fmt.Errorf("parse second: %w", err)
-	}
-
-	day, err := strconv.Atoi(dateStr[0:2])
-	if err != nil {
-		return time.Time{}, fmt.Errorf("parse day: %w", err)
-	}
-	month, err := strconv.Atoi(dateStr[2:4])
-	if err != nil {
-		return time.Time{}, fmt.Errorf("parse month: %w", err)
-	}
-	year, err := strconv.Atoi(dateStr[4:6])
-	if err != nil {
-		return time.Time{}, fmt.Errorf("parse year: %w", err)
-	}
-
-	year += 2000
-
-	return time.Date(year, time.Month(month), day, hour, min, sec, 0, time.UTC), nil
+	return time.Parse("15040502012006", timeStr+dateStr[:4]+"20"+dateStr[4:])
 }
 
 // EncodeResponse creates an H02 acknowledgment response.

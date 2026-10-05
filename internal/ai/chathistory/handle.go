@@ -3,7 +3,6 @@ package chathistory
 import (
 	"context"
 	"log/slog"
-	"slices"
 
 	"github.com/tamcore/motus/internal/ai/chat"
 )
@@ -18,15 +17,20 @@ type RedisHandle struct {
 
 // NewRedisHandle loads the current history for userID and returns a handle
 // ready for use. Errors loading from Redis are logged and treated as empty
-// history so a Redis outage never breaks the chat endpoint.
+// history so a Redis outage never breaks the chat endpoint. A nil store
+// yields a non-persistent, in-memory handle.
 func NewRedisHandle(ctx context.Context, store *Store, userID int64) *RedisHandle {
+	h := &RedisHandle{store: store, userID: userID}
+	if store == nil {
+		return h
+	}
 	msgs, err := store.Get(ctx, userID)
 	if err != nil {
 		slog.Warn("chathistory: failed to load history, starting fresh",
 			slog.Int64("userID", userID), slog.Any("error", err))
-		msgs = nil
 	}
-	return &RedisHandle{store: store, userID: userID, cached: msgs}
+	h.cached = msgs
+	return h
 }
 
 // Messages returns the conversation messages (not including the system prompt).
@@ -46,10 +50,4 @@ func (h *RedisHandle) Append(ctx context.Context, msgs ...chat.Message) error {
 	}
 	h.cached = append(h.cached, msgs...)
 	return nil
-}
-
-// NewMemHandle returns a non-persistent handle pre-populated with msgs, used
-// when Redis is unavailable.
-func NewMemHandle(msgs ...chat.Message) *RedisHandle {
-	return &RedisHandle{cached: slices.Clone(msgs)}
 }

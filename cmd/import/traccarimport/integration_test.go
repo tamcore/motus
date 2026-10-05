@@ -3,38 +3,13 @@ package traccarimport
 import (
 	"context"
 	"encoding/base64"
-	"fmt"
-	"net/url"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/tamcore/motus/internal/storage/repository/testutil"
 )
-
-// connStrToConfig parses a postgres:// URL into the Config target fields.
-// Example: postgres://postgres:test@localhost:32768/motus_test?sslmode=disable
-func connStrToConfig(connStr string) (host string, port int, dbname, user, password string, err error) {
-	u, err := url.Parse(connStr)
-	if err != nil {
-		return "", 0, "", "", "", fmt.Errorf("parse conn str: %w", err)
-	}
-	host = u.Hostname()
-	portStr := u.Port()
-	if portStr == "" {
-		portStr = "5432"
-	}
-	p, err := strconv.Atoi(portStr)
-	if err != nil {
-		return "", 0, "", "", "", fmt.Errorf("parse port: %w", err)
-	}
-	port = p
-	dbname = strings.TrimPrefix(u.Path, "/")
-	user = u.User.Username()
-	password, _ = u.User.Password()
-	return host, port, dbname, user, password, nil
-}
 
 // TestImportDevices_Integration verifies that importDevices inserts rows into
 // the devices and user_devices tables and returns the correct ID mapping.
@@ -44,14 +19,7 @@ func TestImportDevices_Integration(t *testing.T) {
 	ctx := context.Background()
 
 	// Seed admin user.
-	var adminID int64
-	err := pool.QueryRow(ctx,
-		"INSERT INTO users (email, password_hash, name, role) VALUES ($1, 'hash', 'Admin', 'admin') RETURNING id",
-		"admin@test.local",
-	).Scan(&adminID)
-	if err != nil {
-		t.Fatalf("seed admin: %v", err)
-	}
+	adminID := testutil.CreateAdmin(t, "admin@test.local").ID
 
 	devices := []TraccarDevice{
 		{ID: 1, Name: "Car A", UniqueID: "ANON-001", Phone: "+4900000001", Model: "GPS-4G Tracker", Status: "offline"},
@@ -62,8 +30,7 @@ func TestImportDevices_Integration(t *testing.T) {
 		{ID: 4, Name: "Car D", UniqueID: "ANON-004", Status: ""},
 	}
 
-	config := &Config{Verbose: true}
-	deviceMap := importDevices(ctx, pool, devices, adminID, config)
+	deviceMap := importDevices(ctx, pool, devices, adminID)
 
 	if len(deviceMap) != 4 {
 		t.Errorf("deviceMap len = %d, want 4", len(deviceMap))
@@ -76,7 +43,7 @@ func TestImportDevices_Integration(t *testing.T) {
 
 	// Verify device row in DB.
 	var name, protocol string
-	err = pool.QueryRow(ctx, "SELECT name, protocol FROM devices WHERE unique_id = $1", "ANON-001").Scan(&name, &protocol)
+	err := pool.QueryRow(ctx, "SELECT name, protocol FROM devices WHERE unique_id = $1", "ANON-001").Scan(&name, &protocol)
 	if err != nil {
 		t.Fatalf("query device ANON-001: %v", err)
 	}
@@ -116,7 +83,7 @@ func TestImportDevices_Integration(t *testing.T) {
 	}
 
 	// Re-importing the same devices (upsert) must not error.
-	importDevices(ctx, pool, devices[:1], adminID, config)
+	importDevices(ctx, pool, devices[:1], adminID)
 }
 
 // TestImportPositions_Integration verifies batch insertion, device mapping,
@@ -126,19 +93,12 @@ func TestImportPositions_Integration(t *testing.T) {
 	testutil.CleanTables(t, pool)
 	ctx := context.Background()
 
-	var adminID int64
-	if err := pool.QueryRow(ctx,
-		"INSERT INTO users (email, password_hash, name, role) VALUES ($1, 'hash', 'Admin', 'admin') RETURNING id",
-		"admin@positions.local",
-	).Scan(&adminID); err != nil {
-		t.Fatalf("seed admin: %v", err)
-	}
+	adminID := testutil.CreateAdmin(t, "admin@positions.local").ID
 
 	devices := []TraccarDevice{
 		{ID: 10, Name: "TestCar", UniqueID: "POS-001", Status: "offline"},
 	}
-	config := &Config{Verbose: true}
-	deviceMap := importDevices(ctx, pool, devices, adminID, config)
+	deviceMap := importDevices(ctx, pool, devices, adminID)
 
 	now := time.Now().UTC()
 	positions := []TraccarPosition{
@@ -153,7 +113,7 @@ func TestImportPositions_Integration(t *testing.T) {
 		{ID: 5, DeviceID: 999, Valid: true, Latitude: 52.004, Longitude: 10.004, FixTime: now},
 	}
 
-	if err := importPositions(ctx, pool, positions, deviceMap, config); err != nil {
+	if err := importPositions(ctx, pool, positions, deviceMap); err != nil {
 		t.Fatalf("importPositions: %v", err)
 	}
 
@@ -166,7 +126,7 @@ func TestImportPositions_Integration(t *testing.T) {
 	}
 
 	// Empty positions slice → no-op.
-	if err := importPositions(ctx, pool, nil, deviceMap, config); err != nil {
+	if err := importPositions(ctx, pool, nil, deviceMap); err != nil {
 		t.Errorf("empty importPositions: %v", err)
 	}
 }
@@ -178,18 +138,11 @@ func TestUpdateDeviceLastUpdate_Integration(t *testing.T) {
 	testutil.CleanTables(t, pool)
 	ctx := context.Background()
 
-	var adminID int64
-	if err := pool.QueryRow(ctx,
-		"INSERT INTO users (email, password_hash, name, role) VALUES ($1, 'hash', 'Admin', 'admin') RETURNING id",
-		"admin@lastupdate.local",
-	).Scan(&adminID); err != nil {
-		t.Fatalf("seed admin: %v", err)
-	}
+	adminID := testutil.CreateAdmin(t, "admin@lastupdate.local").ID
 
-	config := &Config{}
 	deviceMap := importDevices(ctx, pool, []TraccarDevice{
 		{ID: 20, Name: "LU Car", UniqueID: "LU-001", Status: "offline"},
-	}, adminID, config)
+	}, adminID)
 
 	oldest := time.Date(2026, 1, 1, 8, 0, 0, 0, time.UTC)
 	newest := time.Date(2026, 1, 2, 9, 0, 0, 0, time.UTC)
@@ -197,7 +150,7 @@ func TestUpdateDeviceLastUpdate_Integration(t *testing.T) {
 		{ID: 1, DeviceID: 20, Valid: true, Latitude: 52.0, Longitude: 10.0, FixTime: oldest},
 		{ID: 2, DeviceID: 20, Valid: true, Latitude: 52.1, Longitude: 10.1, FixTime: newest},
 	}
-	if err := importPositions(ctx, pool, positions, deviceMap, config); err != nil {
+	if err := importPositions(ctx, pool, positions, deviceMap); err != nil {
 		t.Fatalf("importPositions: %v", err)
 	}
 
@@ -223,13 +176,7 @@ func TestImportCalendars_Integration(t *testing.T) {
 	testutil.CleanTables(t, pool)
 	ctx := context.Background()
 
-	var adminID int64
-	if err := pool.QueryRow(ctx,
-		"INSERT INTO users (email, password_hash, name, role) VALUES ($1, 'hash', 'Admin', 'admin') RETURNING id",
-		"admin@calendars.local",
-	).Scan(&adminID); err != nil {
-		t.Fatalf("seed admin: %v", err)
-	}
+	adminID := testutil.CreateAdmin(t, "admin@calendars.local").ID
 
 	// Calendar 1: raw (not base64) iCal text.
 	rawICal := "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\n" +
@@ -254,8 +201,7 @@ func TestImportCalendars_Integration(t *testing.T) {
 		{ID: 3, Name: "Maintenance", Data: needsNorm},
 	}
 
-	config := &Config{Verbose: true}
-	calMap := importCalendars(ctx, pool, calendars, adminID, config)
+	calMap := importCalendars(ctx, pool, calendars, adminID)
 
 	if len(calMap) != 3 {
 		t.Fatalf("calMap len = %d, want 3", len(calMap))
@@ -292,13 +238,7 @@ func TestImportGeofences_Integration(t *testing.T) {
 	testutil.CleanTables(t, pool)
 	ctx := context.Background()
 
-	var adminID int64
-	if err := pool.QueryRow(ctx,
-		"INSERT INTO users (email, password_hash, name, role) VALUES ($1, 'hash', 'Admin', 'admin') RETURNING id",
-		"admin@geofences.local",
-	).Scan(&adminID); err != nil {
-		t.Fatalf("seed admin: %v", err)
-	}
+	adminID := testutil.CreateAdmin(t, "admin@geofences.local").ID
 
 	// Seed a calendar to link to a geofence.
 	var calMotusID int64
@@ -327,8 +267,7 @@ func TestImportGeofences_Integration(t *testing.T) {
 		},
 	}
 
-	config := &Config{Verbose: true}
-	importGeofences(ctx, pool, geofences, adminID, calMap, config)
+	importGeofences(ctx, pool, geofences, adminID, calMap)
 
 	var count int
 	if err := pool.QueryRow(ctx, "SELECT COUNT(*) FROM geofences").Scan(&count); err != nil {
@@ -378,13 +317,7 @@ func TestGeocodeRecentPositions_Integration(t *testing.T) {
 	ctx := context.Background()
 
 	// Insert a device and a position with an address already set (→ no geocoding needed).
-	var adminID int64
-	if err := pool.QueryRow(ctx,
-		"INSERT INTO users (email, password_hash, name, role) VALUES ($1, 'hash', 'Admin', 'admin') RETURNING id",
-		"admin@geocode.local",
-	).Scan(&adminID); err != nil {
-		t.Fatalf("seed admin: %v", err)
-	}
+	testutil.CreateAdmin(t, "admin@geocode.local")
 	var devID int64
 	if err := pool.QueryRow(ctx,
 		"INSERT INTO devices (unique_id, name, protocol, status, created_at, updated_at) VALUES ('GEO-001','GeoTest','h02','offline',NOW(),NOW()) RETURNING id",
@@ -515,14 +448,9 @@ func TestRunImport_WithDB(t *testing.T) {
 	ctx := context.Background()
 
 	// Seed admin user.
-	if _, err := pool.Exec(ctx,
-		"INSERT INTO users (email, password_hash, name, role) VALUES ($1, 'hash', 'Admin', 'admin')",
-		"admin@runimport.local",
-	); err != nil {
-		t.Fatalf("seed admin: %v", err)
-	}
+	testutil.CreateAdmin(t, "admin@runimport.local")
 
-	host, port, dbname, user, password, err := connStrToConfig(connStr)
+	pc, err := pgconn.ParseConfig(connStr)
 	if err != nil {
 		t.Fatalf("parse connStr: %v", err)
 	}
@@ -558,11 +486,11 @@ func TestRunImport_WithDB(t *testing.T) {
 
 	config := &Config{
 		SourceDump:      dumpPath,
-		TargetHost:      host,
-		TargetPort:      port,
-		TargetDB:        dbname,
-		TargetUser:      user,
-		TargetPassword:  password,
+		TargetHost:      pc.Host,
+		TargetPort:      int(pc.Port),
+		TargetDB:        pc.Database,
+		TargetUser:      pc.User,
+		TargetPassword:  pc.Password,
 		AdminEmail:      "admin@runimport.local",
 		RecentDays:      0,
 		MaxPositions:    0,
@@ -628,7 +556,7 @@ func TestExtractFromDB_Integration(t *testing.T) {
 	ctx := context.Background()
 	connStr := testutil.ConnStr(t)
 
-	host, port, dbname, user, password, err := connStrToConfig(connStr)
+	pc, err := pgconn.ParseConfig(connStr)
 	if err != nil {
 		t.Fatalf("parse connStr: %v", err)
 	}
@@ -729,11 +657,11 @@ func TestExtractFromDB_Integration(t *testing.T) {
 
 	// Basic extraction: all scopes enabled.
 	config := &Config{
-		SourceDBHost:    host,
-		SourceDBPort:    port,
-		SourceDBName:    dbname,
-		SourceDBUser:    user,
-		SourceDBPass:    password,
+		SourceDBHost:    pc.Host,
+		SourceDBPort:    int(pc.Port),
+		SourceDBName:    pc.Database,
+		SourceDBUser:    pc.User,
+		SourceDBPass:    pc.Password,
 		ImportDevices:   true,
 		ImportPositions: true,
 		ImportGeofences: true,
@@ -825,20 +753,13 @@ func TestImportGeofences_CircleParseError(t *testing.T) {
 	testutil.CleanTables(t, pool)
 	ctx := context.Background()
 
-	var adminID int64
-	if err := pool.QueryRow(ctx,
-		"INSERT INTO users (email, password_hash, name, role) VALUES ($1, 'hash', 'Admin', 'admin') RETURNING id",
-		"admin@circleerr.local",
-	).Scan(&adminID); err != nil {
-		t.Fatalf("seed admin: %v", err)
-	}
+	adminID := testutil.CreateAdmin(t, "admin@circleerr.local").ID
 
 	// A CIRCLE geofence with no comma — parseTraccarCircle returns error.
 	geofences := []TraccarGeofence{
 		{ID: 1, Name: "Bad Circle", Area: "CIRCLE (no comma here)"},
 	}
-	config := &Config{Verbose: true}
-	importGeofences(ctx, pool, geofences, adminID, nil, config)
+	importGeofences(ctx, pool, geofences, adminID, nil)
 
 	// The geofence should NOT have been inserted.
 	var count int
@@ -857,20 +778,13 @@ func TestImportGeofences_InvalidWKT(t *testing.T) {
 	testutil.CleanTables(t, pool)
 	ctx := context.Background()
 
-	var adminID int64
-	if err := pool.QueryRow(ctx,
-		"INSERT INTO users (email, password_hash, name, role) VALUES ($1, 'hash', 'Admin', 'admin') RETURNING id",
-		"admin@invalidwkt.local",
-	).Scan(&adminID); err != nil {
-		t.Fatalf("seed admin: %v", err)
-	}
+	adminID := testutil.CreateAdmin(t, "admin@invalidwkt.local").ID
 
 	// Area is not CIRCLE and is invalid WKT → ST_GeomFromText fails.
 	geofences := []TraccarGeofence{
 		{ID: 1, Name: "Bad WKT Fence", Area: "NOTVALID_WKT"},
 	}
-	config := &Config{Verbose: true}
-	importGeofences(ctx, pool, geofences, adminID, nil, config)
+	importGeofences(ctx, pool, geofences, adminID, nil)
 
 	var count int
 	if err := pool.QueryRow(ctx, "SELECT COUNT(*) FROM geofences").Scan(&count); err != nil {

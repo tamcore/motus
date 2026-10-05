@@ -1700,18 +1700,6 @@ COPY public.tc_positions (id, protocol, deviceid, servertime, devicetime, fixtim
 	})
 }
 
-func TestSourceMode(t *testing.T) {
-	cfg := &Config{SourceDump: "path/to/dump.xml"}
-	if got := cfg.sourceMode(); got != "dump" {
-		t.Errorf("sourceMode with dump = %q, want %q", got, "dump")
-	}
-
-	cfg2 := &Config{SourceDump: ""}
-	if got := cfg2.sourceMode(); got != "db" {
-		t.Errorf("sourceMode without dump = %q, want %q", got, "db")
-	}
-}
-
 func TestParseTraccarCircle_Errors(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -1949,12 +1937,11 @@ func TestLogParsedData(t *testing.T) {
 	calendars := []TraccarCalendar{
 		{ID: 1, Name: "Maintenance", Data: "BEGIN:VCALENDAR\nVERSION:2.0\nEND:VCALENDAR"},
 	}
-	config := &Config{Verbose: true}
 	// Must not panic; no return value to check.
-	logParsedData(devices, positions, geofences, calendars, config)
+	logParsedData(devices, positions, geofences, calendars)
 
 	// Also call with no positions to cover the empty-positions branch.
-	logParsedData(devices, nil, geofences, calendars, config)
+	logParsedData(devices, nil, geofences, calendars)
 }
 
 // TestParseDump_RealisticDump exercises parseDump with a realistic production-like

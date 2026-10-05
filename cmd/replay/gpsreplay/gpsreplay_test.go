@@ -165,8 +165,8 @@ func TestExtractFromPcap(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	config := &Config{InputFile: f.Name()}
-	msgs, err := extractFromPcap(config)
+	config := &Config{InputFile: f.Name(), InputType: "pcap"}
+	msgs, err := extractMessages(config)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -191,8 +191,8 @@ func TestExtractFromPcap_DeviceIDReplacement(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	config := &Config{InputFile: f.Name(), DeviceID: "REPLACED"}
-	msgs, err := extractFromPcap(config)
+	config := &Config{InputFile: f.Name(), InputType: "pcap", DeviceID: "REPLACED"}
+	msgs, err := extractMessages(config)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -201,14 +201,6 @@ func TestExtractFromPcap_DeviceIDReplacement(t *testing.T) {
 	}
 	if msgs[0] != "*HQ,REPLACED,V1,120000,A,5000.0000,N,00800.0000,E,000,000,010124,FFFFFFFF#" {
 		t.Errorf("unexpected message: %q", msgs[0])
-	}
-}
-
-func TestExtractFromPcap_NotFound(t *testing.T) {
-	config := &Config{InputFile: "/nonexistent/file.pcap"}
-	_, err := extractFromPcap(config)
-	if err == nil {
-		t.Error("expected error for missing file")
 	}
 }
 

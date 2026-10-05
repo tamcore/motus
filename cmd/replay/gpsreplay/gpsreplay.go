@@ -6,6 +6,7 @@ package gpsreplay
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"os"
@@ -39,6 +40,9 @@ func NewCmd() *cobra.Command {
 		Long: `Send GPS protocol messages from a log file or pcap capture to a GPS server,
 simulating live device traffic. Useful for testing, demonstration, and load testing.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if config.Verbose {
+				slog.SetLogLoggerLevel(slog.LevelDebug)
+			}
 			if err := runReplay(config); err != nil {
 				slog.Error("replay failed", slog.Any("error", err))
 				os.Exit(1)
@@ -104,11 +108,10 @@ func runReplay(config *Config) error {
 			}
 
 			count++
-			if config.Verbose {
-				slog.Debug("sent message",
-					slog.Int("seq", count),
-					slog.String("msg", protocol.Truncate(msg, 80)))
-			} else if count%100 == 0 {
+			slog.Debug("sent message",
+				slog.Int("seq", count),
+				slog.String("msg", protocol.Truncate(msg, 80)))
+			if count%100 == 0 {
 				slog.Info("replay progress", slog.Int("sent", count))
 			}
 
@@ -149,7 +152,7 @@ func extractMessages(config *Config) ([]string, error) {
 	case "h02log":
 		messages, err = extractFromH02Log(f, config)
 	case "pcap":
-		messages, err = extractFromPcap(config)
+		messages, err = extractFromPcap(f, config)
 	default:
 		return nil, fmt.Errorf("unsupported input type: %s", config.InputType)
 	}
@@ -183,8 +186,8 @@ func extractFromH02Log(f *os.File, config *Config) ([]string, error) {
 }
 
 // extractFromPcap scans the raw pcap bytes for H02 messages; it does not parse pcap framing.
-func extractFromPcap(config *Config) ([]string, error) {
-	data, err := os.ReadFile(config.InputFile)
+func extractFromPcap(f *os.File, config *Config) ([]string, error) {
+	data, err := io.ReadAll(f)
 	if err != nil {
 		return nil, err
 	}

@@ -23,6 +23,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/spf13/cobra"
 	"github.com/tamcore/motus/internal/calendar"
+	motusconfig "github.com/tamcore/motus/internal/config"
 	"github.com/tamcore/motus/internal/geocoding"
 	"github.com/tamcore/motus/internal/model"
 	"github.com/tamcore/motus/internal/storage/repository"
@@ -58,14 +59,6 @@ type Config struct {
 
 	ExcludeUnknown bool
 	GeocodeLastN   int
-}
-
-// sourceMode returns "dump" or "db" based on which source flags were set.
-func (c *Config) sourceMode() string {
-	if c.SourceDump != "" {
-		return "dump"
-	}
-	return "db"
 }
 
 // validateConfig validates source and target configuration before running import.
@@ -192,6 +185,9 @@ Examples:
 			if err := validateConfig(config); err != nil {
 				return err
 			}
+			if config.Verbose {
+				slog.SetLogLoggerLevel(slog.LevelDebug)
+			}
 			if err := runImport(config); err != nil {
 				slog.Error("import failed", slog.Any("error", err))
 				os.Exit(1)
@@ -264,8 +260,13 @@ func runImport(config *Config) error {
 		err       error
 	)
 
-	switch config.sourceMode() {
-	case "db":
+	if config.SourceDump != "" {
+		slog.Info("parsing dump file", slog.String("file", config.SourceDump))
+		devices, positions, geofences, calendars, err = parseDump(config)
+		if err != nil {
+			return fmt.Errorf("parse dump: %w", err)
+		}
+	} else {
 		slog.Info("extracting from live traccar database",
 			slog.String("host", config.SourceDBHost),
 			slog.Int("port", config.SourceDBPort),
@@ -273,12 +274,6 @@ func runImport(config *Config) error {
 		devices, positions, geofences, calendars, err = extractFromDB(ctx, config)
 		if err != nil {
 			return fmt.Errorf("extract from traccar db: %w", err)
-		}
-	default: // "dump"
-		slog.Info("parsing dump file", slog.String("file", config.SourceDump))
-		devices, positions, geofences, calendars, err = parseDump(config)
-		if err != nil {
-			return fmt.Errorf("parse dump: %w", err)
 		}
 	}
 
@@ -289,16 +284,12 @@ func runImport(config *Config) error {
 		slog.Int("calendars", len(calendars)))
 
 	if config.DryRun {
-		logParsedData(devices, positions, geofences, calendars, config)
+		logParsedData(devices, positions, geofences, calendars)
 		slog.Info("dry run complete - no data written")
 		return nil
 	}
 
-	pool, err := repository.Connect(ctx, fmt.Sprintf(
-		"postgres://%s:%s@%s:%d/%s?sslmode=disable",
-		config.TargetUser, config.TargetPassword,
-		config.TargetHost, config.TargetPort, config.TargetDB,
-	))
+	pool, err := repository.Connect(ctx, motusconfig.DatabaseConfig{User: config.TargetUser, Password: config.TargetPassword, Host: config.TargetHost, Port: strconv.Itoa(config.TargetPort), Name: config.TargetDB, SSLMode: "disable"}.URL())
 	if err != nil {
 		return fmt.Errorf("target: %w", err)
 	}
@@ -315,11 +306,11 @@ func runImport(config *Config) error {
 
 	var deviceMap map[int64]int64
 	if config.ImportDevices && len(devices) > 0 {
-		deviceMap = importDevices(ctx, pool, devices, adminID, config)
+		deviceMap = importDevices(ctx, pool, devices, adminID)
 	}
 
 	if config.ImportPositions && len(positions) > 0 && len(deviceMap) > 0 {
-		if err := importPositions(ctx, pool, positions, deviceMap, config); err != nil {
+		if err := importPositions(ctx, pool, positions, deviceMap); err != nil {
 			return fmt.Errorf("import positions: %w", err)
 		}
 		updateDeviceLastUpdate(ctx, pool, deviceMap)
@@ -328,11 +319,11 @@ func runImport(config *Config) error {
 	// Calendars go first because geofences reference them.
 	var calendarMap map[int64]int64
 	if config.ImportCalendars && len(calendars) > 0 {
-		calendarMap = importCalendars(ctx, pool, calendars, adminID, config)
+		calendarMap = importCalendars(ctx, pool, calendars, adminID)
 	}
 
 	if config.ImportGeofences && len(geofences) > 0 {
-		importGeofences(ctx, pool, geofences, adminID, calendarMap, config)
+		importGeofences(ctx, pool, geofences, adminID, calendarMap)
 	}
 
 	if config.GeocodeLastN > 0 {
@@ -370,7 +361,6 @@ func parseDump(config *Config) ([]TraccarDevice, []TraccarPosition, []TraccarGeo
 		cutoffTime     time.Time
 		allowedDevIDs  map[int64]bool // Track device IDs that match filter (populated after devices parsed)
 		excludedDevIDs map[int64]bool // Track device IDs excluded by --exclude-unknown
-		excludedCount  int            // Count of devices excluded by --exclude-unknown
 	)
 
 	if config.RecentDays > 0 {
@@ -393,7 +383,6 @@ func parseDump(config *Config) ([]TraccarDevice, []TraccarPosition, []TraccarGeo
 	scanner.Buffer(make([]byte, 0, 1024*1024), 10*1024*1024)
 
 	lineNum := 0
-	positionCount := 0
 
 	for scanner.Scan() {
 		lineNum++
@@ -404,16 +393,14 @@ func parseDump(config *Config) ([]TraccarDevice, []TraccarPosition, []TraccarGeo
 			table, _, found := strings.Cut(rest, " ")
 			if name, known := dumpSections[table]; found && known {
 				section = name
-				if config.Verbose {
-					slog.Debug("found COPY section", slog.String("table", table), slog.Int("line", lineNum))
-				}
+				slog.Debug("found COPY section", slog.String("table", table), slog.Int("line", lineNum))
 				continue
 			}
 		}
 
 		// End of COPY section
 		if line == `\.` {
-			if section != "" && config.Verbose {
+			if section != "" {
 				slog.Debug("end of COPY section", slog.String("section", section), slog.Int("line", lineNum))
 			}
 			section = ""
@@ -434,13 +421,10 @@ func parseDump(config *Config) ([]TraccarDevice, []TraccarPosition, []TraccarGeo
 			// Exclude devices with status "unknown" if flag is set
 			if config.ExcludeUnknown && d.Status == "unknown" {
 				excludedDevIDs[d.ID] = true
-				excludedCount++
-				if config.Verbose {
-					slog.Debug("excluding unknown device",
-						slog.Int64("id", d.ID),
-						slog.String("name", d.Name),
-						slog.String("uniqueID", d.UniqueID))
-				}
+				slog.Debug("excluding unknown device",
+					slog.Int64("id", d.ID),
+					slog.String("name", d.Name),
+					slog.String("uniqueID", d.UniqueID))
 				continue
 			}
 			// Apply device filter if specified
@@ -456,14 +440,12 @@ func parseDump(config *Config) ([]TraccarDevice, []TraccarPosition, []TraccarGeo
 			if !config.ImportPositions {
 				continue
 			}
-			if config.MaxPositions > 0 && positionCount >= config.MaxPositions {
+			if config.MaxPositions > 0 && len(positions) >= config.MaxPositions {
 				continue
 			}
 			p, err := parsePosition(line)
 			if err != nil {
-				if config.Verbose {
-					slog.Debug("skipping position", slog.Int("line", lineNum), slog.Any("error", err))
-				}
+				slog.Debug("skipping position", slog.Int("line", lineNum), slog.Any("error", err))
 				continue
 			}
 			// Skip positions for devices excluded by --exclude-unknown
@@ -479,10 +461,9 @@ func parseDump(config *Config) ([]TraccarDevice, []TraccarPosition, []TraccarGeo
 				continue
 			}
 			positions = append(positions, p)
-			positionCount++
 
-			if positionCount%10000 == 0 {
-				slog.Info("parsing positions", slog.Int("count", positionCount))
+			if len(positions)%10000 == 0 {
+				slog.Info("parsing positions", slog.Int("count", len(positions)))
 			}
 
 		case "geofences":
@@ -509,8 +490,8 @@ func parseDump(config *Config) ([]TraccarDevice, []TraccarPosition, []TraccarGeo
 		}
 	}
 
-	if config.ExcludeUnknown && excludedCount > 0 {
-		slog.Info("excluded devices with status 'unknown'", slog.Int("count", excludedCount))
+	if len(excludedDevIDs) > 0 {
+		slog.Info("excluded devices with status 'unknown'", slog.Int("count", len(excludedDevIDs)))
 	}
 
 	return devices, positions, geofences, calendars, scanner.Err()
@@ -520,9 +501,7 @@ func parseDump(config *Config) ([]TraccarDevice, []TraccarPosition, []TraccarGeo
 // devices, positions, geofences, and calendars. The signature mirrors parseDump
 // so all downstream import functions are unchanged.
 func extractFromDB(ctx context.Context, config *Config) ([]TraccarDevice, []TraccarPosition, []TraccarGeofence, []TraccarCalendar, error) {
-	pool, err := repository.Connect(ctx, fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable",
-		config.SourceDBUser, config.SourceDBPass,
-		config.SourceDBHost, config.SourceDBPort, config.SourceDBName))
+	pool, err := repository.Connect(ctx, motusconfig.DatabaseConfig{User: config.SourceDBUser, Password: config.SourceDBPass, Host: config.SourceDBHost, Port: strconv.Itoa(config.SourceDBPort), Name: config.SourceDBName, SSLMode: "disable"}.URL())
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("source: %w", err)
 	}
@@ -573,13 +552,11 @@ func extractFromDB(ctx context.Context, config *Config) ([]TraccarDevice, []Trac
 			d.Status = strings.TrimSpace(d.Status)
 			allowedIDs = append(allowedIDs, d.ID)
 
-			if config.Verbose {
-				slog.Debug("loaded device",
-					slog.Int64("id", d.ID),
-					slog.String("name", d.Name),
-					slog.String("uniqueID", d.UniqueID),
-					slog.String("status", d.Status))
-			}
+			slog.Debug("loaded device",
+				slog.Int64("id", d.ID),
+				slog.String("name", d.Name),
+				slog.String("uniqueID", d.UniqueID),
+				slog.String("status", d.Status))
 		}
 		slog.Info("devices loaded", slog.Int("count", len(devices)))
 	}
@@ -814,7 +791,7 @@ func parseCalendar(line string) (TraccarCalendar, error) {
 
 // importDevices inserts devices into the Motus database and returns a mapping
 // from Traccar device ID to Motus device ID.
-func importDevices(ctx context.Context, pool *pgxpool.Pool, devices []TraccarDevice, adminID int64, config *Config) map[int64]int64 {
+func importDevices(ctx context.Context, pool *pgxpool.Pool, devices []TraccarDevice, adminID int64) map[int64]int64 {
 	slog.Info("importing devices")
 
 	deviceMap := make(map[int64]int64) // traccar ID -> motus ID
@@ -838,14 +815,12 @@ func importDevices(ctx context.Context, pool *pgxpool.Pool, devices []TraccarDev
 			name = fmt.Sprintf("Device %s", d.UniqueID[:min(8, len(d.UniqueID))])
 		}
 
-		if config.Verbose {
-			slog.Debug("importing device",
-				slog.String("name", name),
-				slog.String("uniqueID", d.UniqueID),
-				slog.String("model", d.Model),
-				slog.String("phone", d.Phone),
-				slog.String("protocol", protocol))
-		}
+		slog.Debug("importing device",
+			slog.String("name", name),
+			slog.String("uniqueID", d.UniqueID),
+			slog.String("model", d.Model),
+			slog.String("phone", d.Phone),
+			slog.String("protocol", protocol))
 
 		// Convert empty strings to nil for nullable TEXT columns
 		phone := nullToNil(d.Phone)
@@ -892,7 +867,7 @@ func importDevices(ctx context.Context, pool *pgxpool.Pool, devices []TraccarDev
 }
 
 // importPositions inserts positions into the Motus database in batches.
-func importPositions(ctx context.Context, pool *pgxpool.Pool, positions []TraccarPosition, deviceMap map[int64]int64, config *Config) error {
+func importPositions(ctx context.Context, pool *pgxpool.Pool, positions []TraccarPosition, deviceMap map[int64]int64) error {
 	slog.Info("importing positions", slog.Int("count", len(positions)))
 
 	const batchSize = 500
@@ -929,12 +904,10 @@ func importPositions(ctx context.Context, pool *pgxpool.Pool, positions []Tracca
 				model.KnotsToKmh(p.Speed), p.Course, p.FixTime, p.DeviceTime, p.ServerTime)
 
 			if err != nil {
-				if config.Verbose {
-					slog.Debug("failed to insert position",
-						slog.Int64("deviceID", motusDeviceID),
-						slog.String("fixTime", p.FixTime.Format(time.RFC3339)),
-						slog.Any("error", err))
-				}
+				slog.Debug("failed to insert position",
+					slog.Int64("deviceID", motusDeviceID),
+					slog.String("fixTime", p.FixTime.Format(time.RFC3339)),
+					slog.Any("error", err))
 				skipped++
 				continue
 			}
@@ -986,17 +959,11 @@ func updateDeviceLastUpdate(ctx context.Context, pool *pgxpool.Pool, deviceMap m
 }
 
 // logParsedData prints a summary of parsed data in dry-run mode.
-func logParsedData(devices []TraccarDevice, positions []TraccarPosition, geofences []TraccarGeofence, calendars []TraccarCalendar, config *Config) {
+func logParsedData(devices []TraccarDevice, positions []TraccarPosition, geofences []TraccarGeofence, calendars []TraccarCalendar) {
 	slog.Info("=== DRY RUN SUMMARY ===")
 
 	for _, d := range devices {
-		hasPositions := false
-		for _, p := range positions {
-			if p.DeviceID == d.ID {
-				hasPositions = true
-				break
-			}
-		}
+		hasPositions := slices.ContainsFunc(positions, func(p TraccarPosition) bool { return p.DeviceID == d.ID })
 		slog.Info("device",
 			slog.Int64("traccarID", d.ID),
 			slog.String("name", d.Name),
@@ -1039,16 +1006,14 @@ func logParsedData(devices []TraccarDevice, positions []TraccarPosition, geofenc
 // Traccar stores WKT in latitude,longitude order but PostGIS expects longitude,latitude.
 // We swap the coordinates before inserting, and handle Traccar's CIRCLE format by converting
 // it to a buffered point using ST_Buffer.
-func importGeofences(ctx context.Context, pool *pgxpool.Pool, geofences []TraccarGeofence, adminID int64, calendarMap map[int64]int64, config *Config) {
+func importGeofences(ctx context.Context, pool *pgxpool.Pool, geofences []TraccarGeofence, adminID int64, calendarMap map[int64]int64) {
 	slog.Info("importing geofences", slog.Int("count", len(geofences)))
 
 	imported := 0
 	for _, g := range geofences {
-		if config.Verbose {
-			slog.Debug("importing geofence",
-				slog.String("name", g.Name),
-				slog.String("areaPreview", g.Area[:min(60, len(g.Area))]))
-		}
+		slog.Debug("importing geofence",
+			slog.String("name", g.Name),
+			slog.String("areaPreview", g.Area[:min(60, len(g.Area))]))
 
 		var geofenceID int64
 		var err error
@@ -1061,12 +1026,10 @@ func importGeofences(ctx context.Context, pool *pgxpool.Pool, geofences []Tracca
 				slog.Warn("failed to parse CIRCLE for geofence", slog.String("name", g.Name), slog.Any("error", parseErr))
 				continue
 			}
-			if config.Verbose {
-				slog.Debug("converting CIRCLE geofence",
-					slog.Float64("lat", lat),
-					slog.Float64("lon", lon),
-					slog.Float64("radiusM", radius))
-			}
+			slog.Debug("converting CIRCLE geofence",
+				slog.Float64("lat", lat),
+				slog.Float64("lon", lon),
+				slog.Float64("radiusM", radius))
 			err = pool.QueryRow(ctx, `
 				INSERT INTO geofences (name, description, geometry, created_at, updated_at)
 				VALUES ($1, $2, ST_Buffer(ST_MakePoint($3, $4)::geography, $5)::geometry, NOW(), NOW())
@@ -1107,7 +1070,7 @@ func importGeofences(ctx context.Context, pool *pgxpool.Pool, geofences []Tracca
 						slog.Int64("calendarID", motusCalID),
 						slog.Int64("geofenceID", geofenceID),
 						slog.Any("error", err))
-				} else if config.Verbose {
+				} else {
 					slog.Debug("linked geofence to calendar",
 						slog.Int64("geofenceID", geofenceID),
 						slog.Int64("calendarID", motusCalID))
@@ -1124,23 +1087,21 @@ func importGeofences(ctx context.Context, pool *pgxpool.Pool, geofences []Tracca
 // importCalendars inserts calendars into the Motus database and returns a mapping
 // from Traccar calendar ID to Motus calendar ID.
 // Traccar stores calendar data as base64-encoded iCalendar.
-func importCalendars(ctx context.Context, pool *pgxpool.Pool, calendars []TraccarCalendar, adminID int64, config *Config) map[int64]int64 {
+func importCalendars(ctx context.Context, pool *pgxpool.Pool, calendars []TraccarCalendar, adminID int64) map[int64]int64 {
 	slog.Info("importing calendars", slog.Int("count", len(calendars)))
 
 	calendarMap := make(map[int64]int64) // traccar ID -> motus ID
 	imported := 0
 
 	for _, c := range calendars {
-		if config.Verbose {
-			slog.Debug("importing calendar", slog.String("name", c.Name), slog.Int64("traccarID", c.ID))
-		}
+		slog.Debug("importing calendar", slog.String("name", c.Name), slog.Int64("traccarID", c.ID))
 
 		// Decode base64 iCalendar data (Traccar stores it encoded).
 		// Note: parseCalendar already decoded bytea hex format, so c.Data is readable text.
 		icalData := c.Data
 		if decoded, err := base64.StdEncoding.DecodeString(c.Data); err == nil {
 			icalData = string(decoded)
-		} else if config.Verbose {
+		} else {
 			slog.Debug("calendar data is not base64-encoded", slog.String("name", c.Name))
 		}
 
@@ -1148,7 +1109,7 @@ func importCalendars(ctx context.Context, pool *pgxpool.Pool, calendars []Tracca
 		// represents the series end date rather than a single-event end.
 		before := icalData
 		icalData = normalizeTraccarCalendar(icalData)
-		if config.Verbose && icalData != before {
+		if icalData != before {
 			slog.Debug("normalized calendar RRULE", slog.String("name", c.Name))
 		}
 
@@ -1409,51 +1370,39 @@ func geocodeRecentPositions(ctx context.Context, pool *pgxpool.Pool, config *Con
 	failed := 0
 
 	for i, p := range positions {
-		if config.Verbose && i%10 == 0 {
+		if i%10 == 0 {
 			slog.Debug("geocoding progress", slog.Int("current", i), slog.Int("total", len(positions)))
 		}
 
 		address, err := geocoder.ReverseGeocode(ctx, p.lat, p.lon)
 		if err != nil {
-			if config.Verbose {
-				slog.Debug("geocoding failed for position",
-					slog.Int64("positionID", p.id),
-					slog.Float64("lat", p.lat),
-					slog.Float64("lon", p.lon),
-					slog.Any("error", err))
-			}
+			slog.Debug("geocoding failed for position",
+				slog.Int64("positionID", p.id),
+				slog.Float64("lat", p.lat),
+				slog.Float64("lon", p.lon),
+				slog.Any("error", err))
 			failed++
 			// Use coordinate fallback
 			address = geocoding.CoordinateFallback(p.lat, p.lon)
 		}
 
 		// Update position with address
-		result, err := pool.Exec(ctx, `
+		_, err = pool.Exec(ctx, `
 			UPDATE positions
 			SET address = $1
 			WHERE id = $2
 		`, address, p.id)
 		if err != nil {
-			if config.Verbose {
-				slog.Debug("failed to update address for position",
-					slog.Int64("positionID", p.id),
-					slog.Any("error", err))
-			}
+			slog.Debug("failed to update address for position",
+				slog.Int64("positionID", p.id),
+				slog.Any("error", err))
 			failed++
 			continue
 		}
 
-		rowsAffected := result.RowsAffected()
-		if rowsAffected == 0 {
-			if config.Verbose {
-				slog.Debug("UPDATE affected 0 rows for position", slog.Int64("positionID", p.id))
-			}
-			failed++
-		} else {
-			geocoded++
-			if config.Verbose && geocoded%10 == 0 {
-				slog.Debug("geocoded positions", slog.Int("geocoded", geocoded), slog.Int("total", len(positions)))
-			}
+		geocoded++
+		if geocoded%10 == 0 {
+			slog.Debug("geocoded positions", slog.Int("geocoded", geocoded), slog.Int("total", len(positions)))
 		}
 	}
 

@@ -147,20 +147,16 @@ func TestParseDuration_EdgeCases(t *testing.T) {
 	}
 }
 
-func TestParseBYDAY_NumericPrefix(t *testing.T) {
-	// "1MO" means first Monday of the month; the numeric prefix should be stripped.
-	days := parseBYDAY("1MO,2TU,-1FR")
-	if len(days) != 3 {
-		t.Fatalf("expected 3 days, got %d: %v", len(days), days)
+func TestIsActiveInRecurrence_BYDAYNumericPrefix(t *testing.T) {
+	dtstart := time.Date(2026, 1, 5, 9, 0, 0, 0, time.UTC) // Monday
+	dtend := dtstart.Add(time.Hour)
+	active, err := isActiveInRecurrence("FREQ=WEEKLY;BYDAY=1MO,-1FR", dtstart, dtend,
+		time.Date(2026, 1, 9, 9, 30, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-	if days[0] != time.Monday {
-		t.Errorf("expected Monday, got %v", days[0])
-	}
-	if days[1] != time.Tuesday {
-		t.Errorf("expected Tuesday, got %v", days[1])
-	}
-	if days[2] != time.Friday {
-		t.Errorf("expected Friday, got %v", days[2])
+	if !active {
+		t.Error("expected active on Friday from -1FR")
 	}
 }
 

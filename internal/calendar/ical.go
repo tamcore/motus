@@ -240,46 +240,32 @@ func parseDurationSegments(s string, suffixes map[byte]time.Duration) time.Durat
 // within any recurrence of the event. Supports FREQ=DAILY, WEEKLY, MONTHLY, YEARLY
 // with optional INTERVAL, UNTIL/COUNT, and BYDAY.
 func isActiveInRecurrence(rrule string, dtstart, dtend time.Time, t time.Time) (bool, error) {
-	params := parseRRULE(rrule)
-
-	freq := params["FREQ"]
-	if freq == "" {
-		return false, fmt.Errorf("RRULE missing FREQ")
+	rule, err := ics.ParseRecurrenceRule(rrule)
+	if err != nil {
+		return false, err
 	}
 
-	interval := 1
-	if n, err := strconv.Atoi(params["INTERVAL"]); err == nil && n > 0 {
-		interval = n
-	}
+	freq := string(rule.Freq)
+	interval := max(rule.Interval, 1)
 
 	// Determine the event duration.
 	eventDuration := dtend.Sub(dtstart)
 
-	// Parse UNTIL or COUNT for termination.
 	var until *time.Time
-	maxCount := 0
-	if v, ok := params["UNTIL"]; ok {
-		parsed, err := ParseValue(v)
-		if err != nil {
-			return false, nil
-		}
-		until = &parsed
-	}
-	if v, ok := params["COUNT"]; ok {
-		maxCount, _ = strconv.Atoi(v)
+	if !rule.Until.IsZero() {
+		until = &rule.Until
 	}
 
-	// Parse BYDAY for WEEKLY frequency.
 	var byDay []time.Weekday
-	if v, ok := params["BYDAY"]; ok {
-		byDay = parseBYDAY(v)
+	for _, d := range rule.ByDay {
+		byDay = append(byDay, icsWeekdays[d.Day])
 	}
 
 	// Expand occurrences up to time t.
 	// Limit expansion to prevent unbounded iteration.
 	maxExpansions := 1000
-	if maxCount > 0 && maxCount < maxExpansions {
-		maxExpansions = maxCount
+	if rule.Count > 0 && rule.Count < maxExpansions {
+		maxExpansions = rule.Count
 	}
 
 	// For WEEKLY with BYDAY, we expand each week's specified days individually.
@@ -311,44 +297,14 @@ func isActiveInRecurrence(rrule string, dtstart, dtend time.Time, t time.Time) (
 	return false, nil
 }
 
-// parseRRULE splits an RRULE string into key=value pairs.
-func parseRRULE(rrule string) map[string]string {
-	result := make(map[string]string)
-	for part := range strings.SplitSeq(rrule, ";") {
-		if k, v, ok := strings.Cut(part, "="); ok {
-			result[k] = v
-		}
-	}
-	return result
-}
-
-// parseBYDAY parses BYDAY values like "MO,WE,FR" into Go Weekday values.
-func parseBYDAY(val string) []time.Weekday {
-	dayMap := map[string]time.Weekday{
-		"SU": time.Sunday,
-		"MO": time.Monday,
-		"TU": time.Tuesday,
-		"WE": time.Wednesday,
-		"TH": time.Thursday,
-		"FR": time.Friday,
-		"SA": time.Saturday,
-	}
-
-	var days []time.Weekday
-	for d := range strings.SplitSeq(val, ",") {
-		d = strings.TrimSpace(d)
-		// Strip numeric prefix (e.g., "1MO" -> "MO").
-		for len(d) > 2 && d[0] >= '0' && d[0] <= '9' {
-			d = d[1:]
-		}
-		if len(d) > 2 {
-			d = d[len(d)-2:]
-		}
-		if wd, ok := dayMap[strings.ToUpper(d)]; ok {
-			days = append(days, wd)
-		}
-	}
-	return days
+var icsWeekdays = map[ics.Weekday]time.Weekday{
+	ics.WeekdaySunday:    time.Sunday,
+	ics.WeekdayMonday:    time.Monday,
+	ics.WeekdayTuesday:   time.Tuesday,
+	ics.WeekdayWednesday: time.Wednesday,
+	ics.WeekdayThursday:  time.Thursday,
+	ics.WeekdayFriday:    time.Friday,
+	ics.WeekdaySaturday:  time.Saturday,
 }
 
 // isActiveInWeeklyByDay expands weekly recurrence with BYDAY by checking each

@@ -638,7 +638,7 @@ END:VCALENDAR`
 }
 
 func TestIsActiveAt_RRULEWithUnparseableUNTIL(t *testing.T) {
-	// UNTIL value that cannot be parsed in any format → isActiveInRecurrence returns false, nil.
+	// UNTIL value that cannot be parsed in any format → the event is skipped.
 	badUntil := `BEGIN:VCALENDAR
 VERSION:2.0
 PRODID:-//Test//EN

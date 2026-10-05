@@ -5,7 +5,6 @@ import (
 	"io/fs"
 	"net/http"
 	"strings"
-	"sync"
 
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
@@ -165,7 +164,6 @@ func NewRouter(h oas.Handler, sec oas.SecurityHandler, hub *websocket.Hub, cfg R
 		if cfg.Auth != nil {
 			chatHandler = cfg.Auth(chatHandler)
 		}
-		chatHandler = injectHTTP(chatHandler)
 		r.Post("/api/chat", chatHandler.ServeHTTP)
 	}
 
@@ -175,7 +173,6 @@ func NewRouter(h oas.Handler, sec oas.SecurityHandler, hub *websocket.Hub, cfg R
 		if cfg.Auth != nil {
 			histHandler = cfg.Auth(histHandler)
 		}
-		histHandler = injectHTTP(histHandler)
 		r.Get("/api/chat/history", histHandler.ServeHTTP)
 		r.Delete("/api/chat/history", histHandler.ServeHTTP)
 	}
@@ -228,6 +225,10 @@ func NewRouter(h oas.Handler, sec oas.SecurityHandler, hub *websocket.Hub, cfg R
 	if err2 == nil {
 		if entries, _ := fs.ReadDir(webFS, "."); len(entries) > 1 || (len(entries) == 1 && entries[0].Name() != ".gitkeep") {
 			indexHTML, _ := fs.ReadFile(webFS, "index.html")
+			var swJS []byte
+			if raw, err := fs.ReadFile(webFS, "sw.js"); err == nil {
+				swJS = bytes.ReplaceAll(raw, []byte("__CACHE_VERSION__"), []byte(version.Version))
+			}
 			fileServer := http.FileServerFS(webFS)
 			r.Get("/*", func(w http.ResponseWriter, r *http.Request) {
 				if strings.HasPrefix(r.URL.Path, "/api") {
@@ -235,12 +236,10 @@ func NewRouter(h oas.Handler, sec oas.SecurityHandler, hub *websocket.Hub, cfg R
 					return
 				}
 				cleanPath := strings.TrimPrefix(r.URL.Path, "/")
-				if cleanPath == "sw.js" {
-					if body, ok := versionedSW(webFS); ok {
-						w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
-						_, _ = w.Write(body)
-						return
-					}
+				if cleanPath == "sw.js" && swJS != nil {
+					w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+					_, _ = w.Write(swJS)
+					return
 				}
 				for _, p := range []string{cleanPath, cleanPath + ".html", cleanPath + "/index.html"} {
 					if _, err := fs.Stat(webFS, p); err == nil && cleanPath != "" {
@@ -260,20 +259,4 @@ func NewRouter(h oas.Handler, sec oas.SecurityHandler, hub *websocket.Hub, cfg R
 	}
 
 	return r
-}
-
-var (
-	swOnce  sync.Once
-	swBytes []byte
-)
-
-func versionedSW(webFS fs.FS) ([]byte, bool) {
-	swOnce.Do(func() {
-		raw, err := fs.ReadFile(webFS, "sw.js")
-		if err != nil {
-			return
-		}
-		swBytes = bytes.ReplaceAll(raw, []byte("__CACHE_VERSION__"), []byte(version.Version))
-	})
-	return swBytes, len(swBytes) > 0
 }

@@ -27,7 +27,7 @@ func NewChatHandler(svc *chat.Service, histStore *chathistory.Store) http.Handle
 func (h *ChatHandler) serve(w http.ResponseWriter, r *http.Request) {
 	user := api.UserFromContext(r.Context())
 	if user == nil {
-		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+		api.RespondError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
@@ -35,11 +35,11 @@ func (h *ChatHandler) serve(w http.ResponseWriter, r *http.Request) {
 		Message chat.Message `json:"message"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+		api.RespondError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 	if body.Message.Role != "user" || body.Message.Content == "" {
-		http.Error(w, `{"error":"message must be a non-empty user message"}`, http.StatusBadRequest)
+		api.RespondError(w, http.StatusBadRequest, "message must be a non-empty user message")
 		return
 	}
 

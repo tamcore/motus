@@ -10,23 +10,20 @@ import (
 )
 
 // NewChatHistoryHandler returns an http.Handler for GET and DELETE
-// /api/chat/history. It dispatches by method internally.
+// /api/chat/history; the router registers it for those two methods only.
 func NewChatHistoryHandler(store *chathistory.Store) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := api.UserFromContext(r.Context())
 		if user == nil {
-			http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+			api.RespondError(w, http.StatusUnauthorized, "unauthorized")
 			return
 		}
 
-		switch r.Method {
-		case http.MethodGet:
-			serveChatHistoryGet(w, r, store, user.ID)
-		case http.MethodDelete:
+		if r.Method == http.MethodDelete {
 			serveChatHistoryDelete(w, r, store, user.ID)
-		default:
-			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+			return
 		}
+		serveChatHistoryGet(w, r, store, user.ID)
 	})
 }
 
@@ -36,7 +33,7 @@ func serveChatHistoryGet(w http.ResponseWriter, r *http.Request, store *chathist
 		var err error
 		msgs, err = store.Get(r.Context(), userID)
 		if err != nil {
-			http.Error(w, `{"error":"failed to load history"}`, http.StatusInternalServerError)
+			api.RespondError(w, http.StatusInternalServerError, "failed to load history")
 			return
 		}
 	}
@@ -51,7 +48,7 @@ func serveChatHistoryGet(w http.ResponseWriter, r *http.Request, store *chathist
 func serveChatHistoryDelete(w http.ResponseWriter, r *http.Request, store *chathistory.Store, userID int64) {
 	if store != nil {
 		if err := store.Clear(r.Context(), userID); err != nil {
-			http.Error(w, `{"error":"failed to clear history"}`, http.StatusInternalServerError)
+			api.RespondError(w, http.StatusInternalServerError, "failed to clear history")
 			return
 		}
 	}

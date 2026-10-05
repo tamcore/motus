@@ -159,11 +159,6 @@
 		return perm === 'full' ? 'Full Access' : 'Read-Only';
 	}
 
-	function formatExpiration(expiresAt: string | null | undefined): string {
-		if (!expiresAt) return 'Never';
-		return formatDate(expiresAt);
-	}
-
 	/** Returns a minimum date string for the custom date picker (tomorrow). */
 	function getMinDate(): string {
 		const tomorrow = new Date();
@@ -222,7 +217,7 @@
 							<span class="key-last-used">Last used: {formatLastUsed(key.lastUsedAt)}</span>
 							<span class="meta-separator">|</span>
 							<span class="key-expires" class:text-expired={isExpired(key.expiresAt)}>
-								Expires: {formatExpiration(key.expiresAt)}
+								Expires: {formatLastUsed(key.expiresAt)}
 							</span>
 						</div>
 					</div>

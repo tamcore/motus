@@ -11,14 +11,25 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+var demoGeofences = []struct {
+	Name     string
+	Lat, Lon float64
+}{
+	{"Cologne Start", 50.9375, 6.9603},
+	{"Munich End", 48.1351, 11.5820},
+	{"Berlin Start", 52.5200, 13.4050},
+	{"Stuttgart End", 48.7758, 9.1829},
+}
+
 // DemoGeofenceNames are the names of geofences created by demo mode.
 // Used for selective cleanup.
-var DemoGeofenceNames = []string{
-	"Cologne Start",
-	"Munich End",
-	"Berlin Start",
-	"Stuttgart End",
-}
+var DemoGeofenceNames = func() []string {
+	names := make([]string, len(demoGeofences))
+	for i, gf := range demoGeofences {
+		names[i] = gf.Name
+	}
+	return names
+}()
 
 // DemoNotificationPrefix is the prefix for demo notification rules.
 const DemoNotificationPrefix = "Demo "
@@ -149,17 +160,6 @@ func Reset(ctx context.Context, pool *pgxpool.Pool, accounts []DemoAccount, devi
 
 	// Demo devices are not pre-registered; the protocol server auto-registers them.
 	demoUserID := userIDs["demo@motus.local"]
-
-	demoGeofences := []struct {
-		Name string
-		Lat  float64
-		Lon  float64
-	}{
-		{"Cologne Start", 50.9375, 6.9603},
-		{"Munich End", 48.1351, 11.5820},
-		{"Berlin Start", 52.5200, 13.4050},
-		{"Stuttgart End", 48.7758, 9.1829},
-	}
 
 	for _, gf := range demoGeofences {
 		_, err = tx.Exec(ctx, `

@@ -22,13 +22,6 @@ import (
 // Set to 16 MB to accommodate GPX file imports; all JSON endpoints use far less.
 const maxRequestBodySize = 16 << 20
 
-func limitRequestBody(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		r.Body = http.MaxBytesReader(w, r.Body, maxRequestBodySize)
-		next.ServeHTTP(w, r)
-	})
-}
-
 // RouterConfig holds optional middleware for the router.
 type RouterConfig struct {
 	// RealIP rewrites RemoteAddr to the client IP from trusted proxy headers.
@@ -129,7 +122,7 @@ func NewRouter(h oas.Handler, sec oas.SecurityHandler, hub *websocket.Hub, cfg R
 		r.Use(cfg.RealIP)
 	}
 	r.Use(audit.Middleware)
-	r.Use(limitRequestBody)
+	r.Use(chimw.RequestSize(maxRequestBodySize))
 	if cfg.SecurityHeaders != nil {
 		r.Use(cfg.SecurityHeaders)
 	}

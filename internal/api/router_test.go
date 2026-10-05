@@ -6,9 +6,11 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	chimw "github.com/go-chi/chi/v5/middleware"
 )
 
-func TestLimitRequestBody(t *testing.T) {
+func TestRequestSizeLimit(t *testing.T) {
 	// Handler that reads the entire body.
 	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, err := io.ReadAll(r.Body)
@@ -19,7 +21,7 @@ func TestLimitRequestBody(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	handler := limitRequestBody(inner)
+	handler := chimw.RequestSize(maxRequestBodySize)(inner)
 
 	t.Run("small body accepted", func(t *testing.T) {
 		body := strings.NewReader("hello")
@@ -33,7 +35,6 @@ func TestLimitRequestBody(t *testing.T) {
 	})
 
 	t.Run("oversized body rejected", func(t *testing.T) {
-		// Create a body larger than maxRequestBodySize (1 MB).
 		bigBody := strings.NewReader(strings.Repeat("x", maxRequestBodySize+1))
 		req := httptest.NewRequest(http.MethodPost, "/", bigBody)
 		rr := httptest.NewRecorder()

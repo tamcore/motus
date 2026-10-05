@@ -5,7 +5,7 @@ package handlers_test
 //
 // Dropped tests (no live equivalent):
 //   - TestGPXHandler_Import_BodyTooLarge: request size limiting is enforced
-//     by the router-level limitRequestBody middleware, not the handler.
+//     by the router-level chimw.RequestSize middleware, not the handler.
 //   - TestGPXHandler_Import_InvalidDeviceID: ogen decodes the typed int64
 //     path param; invalid IDs are rejected before the handler runs.
 

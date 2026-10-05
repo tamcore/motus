@@ -12,7 +12,6 @@
 		getAvailableMetrics,
 		buildDatasets,
 		buildScales,
-		chartColors,
 		exportChartDataToCSV,
 	} from '$lib/utils/chart-metrics';
 	import type { Device, Position } from '$lib/types/api';
@@ -20,9 +19,7 @@
 	import Skeleton from '$lib/components/Skeleton.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import AllDevicesToggle from '$lib/components/AllDevicesToggle.svelte';
-	import { Chart, registerables } from 'chart.js';
-
-	Chart.register(...registerables);
+	import { Chart } from '$lib/utils/chart';
 
 	let loading = true;
 	let fetching = false;
@@ -44,7 +41,8 @@
 	let chartInstance: Chart | null = null;
 
 	$: if (chartCanvas && positions.length > 0 && selectedMetrics.length > 0) {
-		rebuildChart($isDark);
+		$isDark;
+		rebuildChart();
 	}
 
 	function toggleMetric(metricId: string) {
@@ -104,7 +102,7 @@
 		}
 	}
 
-	function rebuildChart(dark: boolean) {
+	function rebuildChart() {
 		if (!chartCanvas || positions.length === 0 || selectedMetrics.length === 0) return;
 
 		if (chartInstance) {
@@ -116,8 +114,7 @@
 		if (!ctx) return;
 
 		const { labels, datasets } = buildDatasets(positions, selectedMetrics);
-		const scales = buildScales(selectedMetrics, dark, labels[labels.length - 1] - labels[0]);
-		const colors = chartColors(dark);
+		const scales = buildScales(selectedMetrics, labels[labels.length - 1] - labels[0]);
 
 		chartInstance = new Chart(ctx, {
 			type: 'line',
@@ -135,17 +132,11 @@
 				plugins: {
 					legend: {
 						labels: {
-							color: colors.tick,
 							usePointStyle: true,
 							padding: 16,
 						},
 					},
 					tooltip: {
-						backgroundColor: colors.tooltipBg,
-						titleColor: colors.tooltipText,
-						bodyColor: colors.tooltipText,
-						borderColor: colors.tooltipBorder,
-						borderWidth: 1,
 						padding: 12,
 						callbacks: {
 							title: (items) => (items.length > 0 ? formatDate(new Date(items[0].parsed.x ?? NaN)) : ''),

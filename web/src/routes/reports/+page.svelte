@@ -12,16 +12,13 @@
 	import { formatDate, formatDuration, formatDistance, formatSpeed } from '$lib/utils/formatting';
 	import type { Trip } from '$lib/utils/trips';
 	import type { Stop } from '$lib/utils/stops';
-	import { Chart, registerables } from 'chart.js';
-	import { chartColors } from '$lib/utils/chart-metrics';
+	import { Chart } from '$lib/utils/chart';
 	import { isDark } from '$lib/stores/theme';
 	import Skeleton from '$lib/components/Skeleton.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import AllDevicesToggle from '$lib/components/AllDevicesToggle.svelte';
 	import DateRangeFilter from '$lib/components/DateRangeFilter.svelte';
 	import { placeBelowInvoker } from '$lib/utils/popover';
-
-	Chart.register(...registerables);
 
 	let chartCanvas: HTMLCanvasElement;
 	let chartInstance: Chart | null = null;
@@ -96,7 +93,6 @@
 		if (chartInstance) chartInstance.destroy();
 		const ctx = chartCanvas.getContext('2d');
 		if (!ctx) return;
-		const c = chartColors($isDark);
 		const sorted = [...trips].sort(
 			(a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
 		);
@@ -114,11 +110,7 @@
 			},
 			options: {
 				responsive: true, maintainAspectRatio: false,
-				plugins: { legend: { labels: { color: c.tick } } },
-				scales: {
-					x: { ticks: { color: c.tick, maxRotation: 45 }, grid: { color: c.grid } },
-					y: { ticks: { color: c.tick }, grid: { color: c.grid } }
-				}
+				scales: { x: { ticks: { maxRotation: 45 } } }
 			}
 		});
 	}

@@ -186,17 +186,13 @@ export function formatTimeTick(this: Pick<Scale, "min" | "max">, value: string |
  */
 export function buildScales(
   selectedMetricIds: string[],
-  isDark: boolean,
   spanMs = 0,
 ): Record<string, object> {
-  const { grid: gridColor, tick: tickColor } = chartColors(isDark);
-
   const scales: Record<string, object> = {
     x: {
       type: "linear" as const,
-      ticks: { color: tickColor, maxRotation: 45, autoSkip: true, stepSize: timeStep(spanMs), callback: formatTimeTick },
-      grid: { color: gridColor },
-      title: { display: true, text: "Time", color: tickColor },
+      ticks: { maxRotation: 45, autoSkip: true, stepSize: timeStep(spanMs), callback: formatTimeTick },
+      title: { display: true, text: "Time" },
     },
   };
 
@@ -211,15 +207,13 @@ export function buildScales(
       type: "linear" as const,
       display: true,
       position,
-      ticks: { color: tickColor },
       grid: {
-        color: idx === 0 ? gridColor : "transparent",
+        color: idx === 0 ? undefined : "transparent",
         drawOnChartArea: idx === 0,
       },
       title: {
         display: true,
         text: am.unit,
-        color: tickColor,
       },
     };
   });

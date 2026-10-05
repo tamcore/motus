@@ -2,17 +2,19 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, waitFor } from "@testing-library/svelte";
 import { readable } from "svelte/store";
 
-Object.defineProperty(window, "matchMedia", {
-  writable: true,
-  value: vi.fn().mockImplementation((query: string) => ({
-    matches: false,
-    media: query,
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    addListener: vi.fn(),
-    removeListener: vi.fn(),
-  })),
-});
+vi.hoisted(() =>
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+    })),
+  }),
+);
 
 const pageUrl ={ current: new URL("http://localhost/reports/replay") };
 
@@ -60,6 +62,7 @@ vi.mock("$lib/composables/useLeaflet", () => ({
 vi.mock("chart.js", () => {
   class Chart {
     static register() {}
+    static defaults = { plugins: { tooltip: {} } };
     data: { datasets: { data: unknown[] }[] };
     constructor(_ctx: unknown, cfg: { data: { datasets: { data: unknown[] }[] } }) {
       this.data = cfg.data;

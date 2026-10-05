@@ -283,7 +283,7 @@ describe("Chart Metrics", () => {
 
   describe("buildScales", () => {
     it("always includes a linear ms-timestamp x axis", () => {
-      const scales = buildScales(["speed"], true) as Record<string, any>;
+      const scales = buildScales(["speed"]) as Record<string, any>;
       expect(scales.x.type).toBe("linear");
       expect(scales.x.ticks.callback).toBe(formatTimeTick);
     });
@@ -336,51 +336,33 @@ describe("Chart Metrics", () => {
     });
 
     it("sets the x tick step from the span", () => {
-      const scales = buildScales(["speed"], true, 3 * 3_600_000) as Record<string, any>;
+      const scales = buildScales(["speed"], 3 * 3_600_000) as Record<string, any>;
       expect(scales.x.ticks.stepSize).toBe(30 * 60_000);
     });
 
     it("includes y axis for each unique axisId", () => {
-      const scales = buildScales(["speed", "altitude"], true);
+      const scales = buildScales(["speed", "altitude"]);
       expect(scales).toHaveProperty("speed");
       expect(scales).toHaveProperty("altitude");
     });
 
     it("does not duplicate axis for metrics sharing an axisId", () => {
       // latitude and longitude share the "coords" axisId
-      const scales = buildScales(["latitude", "longitude"], true);
+      const scales = buildScales(["latitude", "longitude"]);
       expect(scales).toHaveProperty("coords");
       const keys = Object.keys(scales).filter((k) => k !== "x");
       expect(keys).toHaveLength(1);
     });
 
     it("alternates axis position left/right", () => {
-      const scales = buildScales(
-        ["speed", "altitude", "accuracy"],
-        true,
-      ) as Record<string, any>;
+      const scales = buildScales(["speed", "altitude", "accuracy"]) as Record<string, any>;
       expect(scales.speed.position).toBe("left");
       expect(scales.altitude.position).toBe("right");
       expect(scales.accuracy.position).toBe("left");
     });
 
-    it("uses dark theme colors when isDark is true", () => {
-      const scales = buildScales(["speed"], true) as Record<string, any>;
-      expect(scales.x.ticks.color).toBe("#a0a0a0");
-      expect(scales.x.grid.color).toBe("#3a3a3a");
-    });
-
-    it("uses light theme colors when isDark is false", () => {
-      const scales = buildScales(["speed"], false) as Record<string, any>;
-      expect(scales.x.ticks.color).toBe("#666666");
-      expect(scales.x.grid.color).toBe("#e0e0e0");
-    });
-
     it("only first y axis draws grid on chart area", () => {
-      const scales = buildScales(
-        ["speed", "altitude"],
-        true,
-      ) as Record<string, any>;
+      const scales = buildScales(["speed", "altitude"]) as Record<string, any>;
       expect(scales.speed.grid.drawOnChartArea).toBe(true);
       expect(scales.altitude.grid.drawOnChartArea).toBe(false);
     });

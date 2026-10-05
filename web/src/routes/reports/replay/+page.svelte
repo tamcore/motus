@@ -14,13 +14,11 @@
 	import { downloadGPX } from '$lib/utils/gpx';
 	import { formatDate, formatDuration, formatSpeed, formatDistance } from '$lib/utils/formatting';
 	import type { Device } from '$lib/types/api';
-	import { Chart, registerables } from 'chart.js';
+	import { Chart } from '$lib/utils/chart';
 	import Skeleton from '$lib/components/Skeleton.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import AllDevicesToggle from '$lib/components/AllDevicesToggle.svelte';
 	import DateRangeFilter from '$lib/components/DateRangeFilter.svelte';
-
-	Chart.register(...registerables);
 
 	const leafletMap = useLeaflet();
 
@@ -465,8 +463,6 @@
 
 		const chartData = getChartData();
 
-		const { grid: gridColor, tick: tickColor, tooltipBg, tooltipText, tooltipBorder } = chartColors($isDark);
-
 		chartInstance = new Chart(ctx, {
 			type: 'line',
 			data: {
@@ -496,11 +492,6 @@
 						display: false,
 					},
 					tooltip: {
-						backgroundColor: tooltipBg,
-						titleColor: tooltipText,
-						bodyColor: tooltipText,
-						borderColor: tooltipBorder,
-						borderWidth: 1,
 						padding: 10,
 					},
 				},
@@ -508,18 +499,15 @@
 					x: {
 						display: true,
 						ticks: {
-							color: tickColor,
 							maxRotation: 0,
 							autoSkip: true,
 							maxTicksLimit: 10,
 							font: { size: 10 },
 						},
-						grid: { color: gridColor },
 					},
 					y: {
 						display: true,
-						ticks: { color: tickColor, font: { size: 10 } },
-						grid: { color: gridColor },
+						ticks: { font: { size: 10 } },
 					},
 				},
 				onClick: (_event, elements) => {

@@ -229,17 +229,13 @@ func TestParsePosition(t *testing.T) {
 				"t", "49.7913", "9.9534", "200.0", "45.5", "180.0", "Main Street", `{"batteryLevel":85}`,
 			}, "\t"),
 			wantPos: TraccarPosition{
-				ID:         100,
-				Protocol:   "h02",
-				DeviceID:   1,
-				Valid:      true,
-				Latitude:   49.7913,
-				Longitude:  9.9534,
-				Altitude:   200.0,
-				Speed:      45.5,
-				Course:     180.0,
-				Address:    "Main Street",
-				Attributes: `{"batteryLevel":85}`,
+				DeviceID:  1,
+				Valid:     true,
+				Latitude:  49.7913,
+				Longitude: 9.9534,
+				Altitude:  200.0,
+				Speed:     45.5,
+				Course:    180.0,
 			},
 		},
 		{
@@ -249,17 +245,13 @@ func TestParsePosition(t *testing.T) {
 				"f", "50.0", "10.0", "0", "0", "0", "\\N", "{}",
 			}, "\t"),
 			wantPos: TraccarPosition{
-				ID:         101,
-				Protocol:   "watch",
-				DeviceID:   2,
-				Valid:      false,
-				Latitude:   50.0,
-				Longitude:  10.0,
-				Altitude:   0,
-				Speed:      0,
-				Course:     0,
-				Address:    "",
-				Attributes: "{}",
+				DeviceID:  2,
+				Valid:     false,
+				Latitude:  50.0,
+				Longitude: 10.0,
+				Altitude:  0,
+				Speed:     0,
+				Course:    0,
 			},
 		},
 		{
@@ -286,12 +278,6 @@ func TestParsePosition(t *testing.T) {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
-			if got.ID != tt.wantPos.ID {
-				t.Errorf("ID = %d, want %d", got.ID, tt.wantPos.ID)
-			}
-			if got.Protocol != tt.wantPos.Protocol {
-				t.Errorf("Protocol = %q, want %q", got.Protocol, tt.wantPos.Protocol)
-			}
 			if got.DeviceID != tt.wantPos.DeviceID {
 				t.Errorf("DeviceID = %d, want %d", got.DeviceID, tt.wantPos.DeviceID)
 			}
@@ -303,12 +289,6 @@ func TestParsePosition(t *testing.T) {
 			}
 			if math.Abs(got.Longitude-tt.wantPos.Longitude) > 0.0001 {
 				t.Errorf("Longitude = %f, want %f", got.Longitude, tt.wantPos.Longitude)
-			}
-			if got.Address != tt.wantPos.Address {
-				t.Errorf("Address = %q, want %q", got.Address, tt.wantPos.Address)
-			}
-			if got.Attributes != tt.wantPos.Attributes {
-				t.Errorf("Attributes = %q, want %q", got.Attributes, tt.wantPos.Attributes)
 			}
 		})
 	}
@@ -323,7 +303,6 @@ func TestParsePosition_ErrorCases(t *testing.T) {
 	}
 
 	tests := []struct{ name, input string }{
-		{"invalid id", makeFields("notanint", "1", "2025-01-15 10:30:00")},
 		{"invalid deviceid", makeFields("1", "notanint", "2025-01-15 10:30:00")},
 		{"invalid timestamp", makeFields("1", "1", "not-a-time")},
 	}
@@ -1926,9 +1905,9 @@ func TestLogParsedData(t *testing.T) {
 		{ID: 2, Name: "TestWatch", UniqueID: "ANON-002", Model: "SmartWatch", Status: "online"},
 	}
 	positions := []TraccarPosition{
-		{ID: 10, DeviceID: 1, FixTime: time.Date(2026, 1, 1, 8, 0, 0, 0, time.UTC)},
-		{ID: 11, DeviceID: 1, FixTime: time.Date(2026, 1, 2, 9, 0, 0, 0, time.UTC)},   // after → updates latest
-		{ID: 12, DeviceID: 2, FixTime: time.Date(2025, 12, 31, 6, 0, 0, 0, time.UTC)}, // before → updates earliest
+		{DeviceID: 1, FixTime: time.Date(2026, 1, 1, 8, 0, 0, 0, time.UTC)},
+		{DeviceID: 1, FixTime: time.Date(2026, 1, 2, 9, 0, 0, 0, time.UTC)},   // after → updates latest
+		{DeviceID: 2, FixTime: time.Date(2025, 12, 31, 6, 0, 0, 0, time.UTC)}, // before → updates earliest
 	}
 	geofences := []TraccarGeofence{
 		{ID: 1, Name: "Home Base", Area: "POLYGON ((10.0 52.0, 10.1 52.0, 10.1 52.1, 10.0 52.1, 10.0 52.0))", CalendarID: &calID},
@@ -2036,9 +2015,6 @@ func TestParseDump_RealisticDump(t *testing.T) {
 	}
 	if positions[0].DeviceID != 1 {
 		t.Errorf("positions[0].DeviceID = %d, want 1", positions[0].DeviceID)
-	}
-	if positions[0].Protocol != "h02" {
-		t.Errorf("positions[0].Protocol = %q, want h02", positions[0].Protocol)
 	}
 	if positions[0].Valid != true {
 		t.Errorf("positions[0].Valid = false, want true")

@@ -103,14 +103,14 @@ func TestImportPositions_Integration(t *testing.T) {
 	now := time.Now().UTC()
 	positions := []TraccarPosition{
 		// Valid positions.
-		{ID: 1, DeviceID: 10, Valid: true, Latitude: 52.001, Longitude: 10.001, Speed: 5.0, FixTime: now.Add(-2 * time.Hour)},
-		{ID: 2, DeviceID: 10, Valid: true, Latitude: 52.002, Longitude: 10.002, Speed: 10.0, FixTime: now.Add(-1 * time.Hour)},
+		{DeviceID: 10, Valid: true, Latitude: 52.001, Longitude: 10.001, Speed: 5.0, FixTime: now.Add(-2 * time.Hour)},
+		{DeviceID: 10, Valid: true, Latitude: 52.002, Longitude: 10.002, Speed: 10.0, FixTime: now.Add(-1 * time.Hour)},
 		// Invalid: coordinates (0,0) — skipped.
-		{ID: 3, DeviceID: 10, Valid: true, Latitude: 0, Longitude: 0, FixTime: now.Add(-30 * time.Minute)},
+		{DeviceID: 10, Valid: true, Latitude: 0, Longitude: 0, FixTime: now.Add(-30 * time.Minute)},
 		// Invalid: valid=false — skipped.
-		{ID: 4, DeviceID: 10, Valid: false, Latitude: 52.003, Longitude: 10.003, FixTime: now.Add(-20 * time.Minute)},
+		{DeviceID: 10, Valid: false, Latitude: 52.003, Longitude: 10.003, FixTime: now.Add(-20 * time.Minute)},
 		// Unknown device ID — skipped.
-		{ID: 5, DeviceID: 999, Valid: true, Latitude: 52.004, Longitude: 10.004, FixTime: now},
+		{DeviceID: 999, Valid: true, Latitude: 52.004, Longitude: 10.004, FixTime: now},
 	}
 
 	if err := importPositions(ctx, pool, positions, deviceMap); err != nil {
@@ -147,8 +147,8 @@ func TestUpdateDeviceLastUpdate_Integration(t *testing.T) {
 	oldest := time.Date(2026, 1, 1, 8, 0, 0, 0, time.UTC)
 	newest := time.Date(2026, 1, 2, 9, 0, 0, 0, time.UTC)
 	positions := []TraccarPosition{
-		{ID: 1, DeviceID: 20, Valid: true, Latitude: 52.0, Longitude: 10.0, FixTime: oldest},
-		{ID: 2, DeviceID: 20, Valid: true, Latitude: 52.1, Longitude: 10.1, FixTime: newest},
+		{DeviceID: 20, Valid: true, Latitude: 52.0, Longitude: 10.0, FixTime: oldest},
+		{DeviceID: 20, Valid: true, Latitude: 52.1, Longitude: 10.1, FixTime: newest},
 	}
 	if err := importPositions(ctx, pool, positions, deviceMap); err != nil {
 		t.Fatalf("importPositions: %v", err)

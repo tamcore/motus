@@ -97,8 +97,6 @@ type TraccarDevice struct {
 
 // TraccarPosition represents a row from tc_positions COPY data.
 type TraccarPosition struct {
-	ID         int64
-	Protocol   string
 	DeviceID   int64
 	ServerTime time.Time
 	DeviceTime time.Time
@@ -109,8 +107,6 @@ type TraccarPosition struct {
 	Altitude   float64
 	Speed      float64
 	Course     float64
-	Address    string
-	Attributes string
 }
 
 // TraccarGeofence represents a row from tc_geofences COPY data.
@@ -562,10 +558,9 @@ func extractFromDB(ctx context.Context, config *Config) ([]TraccarDevice, []Trac
 	}
 
 	if config.ImportPositions {
-		posQ := `SELECT id, COALESCE(protocol,''), deviceid,
+		posQ := `SELECT deviceid,
 			servertime, devicetime, fixtime, valid,
-			latitude, longitude, altitude, speed, course,
-			COALESCE(address,''), COALESCE(attributes,'')
+			latitude, longitude, altitude, speed, course
 		FROM tc_positions`
 		var conditions []string
 		var posArgs []any
@@ -683,11 +678,6 @@ func parsePosition(line string) (TraccarPosition, error) {
 		return TraccarPosition{}, fmt.Errorf("expected at least 14 fields, got %d", len(fields))
 	}
 
-	id, err := strconv.ParseInt(fields[0], 10, 64)
-	if err != nil {
-		return TraccarPosition{}, fmt.Errorf("parse id: %w", err)
-	}
-
 	deviceID, err := strconv.ParseInt(fields[2], 10, 64)
 	if err != nil {
 		return TraccarPosition{}, fmt.Errorf("parse deviceid: %w", err)
@@ -706,18 +696,14 @@ func parsePosition(line string) (TraccarPosition, error) {
 	course, _ := strconv.ParseFloat(fields[11], 64)
 
 	return TraccarPosition{
-		ID:         id,
-		Protocol:   fields[1],
-		DeviceID:   deviceID,
-		FixTime:    fixTime,
-		Valid:      valid,
-		Latitude:   lat,
-		Longitude:  lon,
-		Altitude:   alt,
-		Speed:      speed,
-		Course:     course,
-		Address:    nullStr(fields[12]),
-		Attributes: nullStr(fields[13]),
+		DeviceID:  deviceID,
+		FixTime:   fixTime,
+		Valid:     valid,
+		Latitude:  lat,
+		Longitude: lon,
+		Altitude:  alt,
+		Speed:     speed,
+		Course:    course,
 	}, nil
 }
 

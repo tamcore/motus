@@ -184,6 +184,15 @@ func (UnimplementedHandler) CheckCalendar(ctx context.Context, params CheckCalen
 	return r, ht.ErrNotImplemented
 }
 
+// CheckCalendarData implements checkCalendarData operation.
+//
+// Check if unsaved iCalendar data is currently active.
+//
+// POST /api/calendars/check
+func (UnimplementedHandler) CheckCalendarData(ctx context.Context, req *CalendarCheckInput) (r CheckCalendarDataRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // CountPositions implements countPositions operation.
 //
 // Counts positions of the caller's devices with a timestamp in [from, to]. With `all=true`, counts

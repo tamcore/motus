@@ -399,6 +399,49 @@ func TestCheckCalendar_Forbidden(t *testing.T) {
 	}
 }
 
+func TestCheckCalendarData(t *testing.T) {
+	const alwaysActive = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Motus//Test//EN
+BEGIN:VEVENT
+DTSTART:20200101T000000Z
+DTEND:21000101T000000Z
+END:VEVENT
+END:VCALENDAR`
+	h := newCalendarTestHandler(&auditMockCalendarRepo{})
+
+	tests := []struct {
+		name string
+		ctx  context.Context
+		data string
+		want func(oas.CheckCalendarDataRes) bool
+	}{
+		{"active", ctxAs(1, model.RoleUser), alwaysActive, func(r oas.CheckCalendarDataRes) bool {
+			c, ok := r.(*oas.CalendarCheckResult)
+			return ok && c.Active
+		}},
+		{"invalid", ctxAs(1, model.RoleUser), "not ical", func(r oas.CheckCalendarDataRes) bool {
+			_, ok := r.(*oas.CheckCalendarDataBadRequest)
+			return ok
+		}},
+		{"unauthenticated", context.Background(), alwaysActive, func(r oas.CheckCalendarDataRes) bool {
+			_, ok := r.(*oas.CheckCalendarDataUnauthorized)
+			return ok
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res, err := h.CheckCalendarData(tt.ctx, &oas.CalendarCheckInput{Data: tt.data})
+			if err != nil {
+				t.Fatalf("CheckCalendarData returned error: %v", err)
+			}
+			if !tt.want(res) {
+				t.Fatalf("unexpected result %#v", res)
+			}
+		})
+	}
+}
+
 // ---------------------------------------------------------------------------
 // AdminListCalendars
 // ---------------------------------------------------------------------------

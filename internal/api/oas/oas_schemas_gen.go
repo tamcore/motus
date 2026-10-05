@@ -2163,6 +2163,21 @@ func (s *Calendar) SetUpdatedAt(val time.Time) {
 func (*Calendar) createCalendarRes() {}
 func (*Calendar) updateCalendarRes() {}
 
+// Ref: #/components/schemas/CalendarCheckInput
+type CalendarCheckInput struct {
+	Data string `json:"data"`
+}
+
+// GetData returns the value of Data.
+func (s *CalendarCheckInput) GetData() string {
+	return s.Data
+}
+
+// SetData sets the value of Data.
+func (s *CalendarCheckInput) SetData(val string) {
+	s.Data = val
+}
+
 // Ref: #/components/schemas/CalendarCheckResult
 type CalendarCheckResult struct {
 	Active      bool           `json:"active"`
@@ -2189,7 +2204,8 @@ func (s *CalendarCheckResult) SetNextTrigger(val OptNilDateTime) {
 	s.NextTrigger = val
 }
 
-func (*CalendarCheckResult) checkCalendarRes() {}
+func (*CalendarCheckResult) checkCalendarDataRes() {}
+func (*CalendarCheckResult) checkCalendarRes()     {}
 
 // Ref: #/components/schemas/CalendarInput
 type CalendarInput struct {
@@ -2216,6 +2232,14 @@ func (s *CalendarInput) SetName(val string) {
 func (s *CalendarInput) SetData(val string) {
 	s.Data = val
 }
+
+type CheckCalendarDataBadRequest Error
+
+func (*CheckCalendarDataBadRequest) checkCalendarDataRes() {}
+
+type CheckCalendarDataUnauthorized Error
+
+func (*CheckCalendarDataUnauthorized) checkCalendarDataRes() {}
 
 type CheckCalendarNotFound Error
 

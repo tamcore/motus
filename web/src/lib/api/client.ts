@@ -262,6 +262,8 @@ export const api = {
     request<Calendar>(`/calendars/${id}`, send("PUT", payload)),
   deleteCalendar: (id: number) => request<void>(`/calendars/${id}`, { method: "DELETE" }),
   checkCalendar: (id: number) => request<CalendarCheckResponse>(`/calendars/${id}/check`),
+  checkCalendarData: (data: string) =>
+    request<CalendarCheckResponse>("/calendars/check", send("POST", { data })),
 
   getTrailBookmarks: (deviceId?: number) => request<TrailBookmark[]>(`/trail-bookmarks${query({ deviceId })}`),
   createTrailBookmark: (payload: TrailBookmarkPayload) =>

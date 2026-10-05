@@ -759,6 +759,12 @@ components:
         name: { type: string }
         data: { type: string }
 
+    CalendarCheckInput:
+      type: object
+      required: [data]
+      properties:
+        data: { type: string }
+
     CalendarCheckResult:
       type: object
       required: [active]
@@ -2105,6 +2111,35 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Calendar'
+        "400":
+          $ref: '#/components/responses/BadRequest'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+
+  /api/calendars/check:
+    post:
+      operationId: checkCalendarData
+      summary: Check if unsaved iCalendar data is currently active
+      tags: [calendars]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+        - xAuthToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalendarCheckInput'
+      responses:
+        "200":
+          description: Calendar active status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarCheckResult'
         "400":
           $ref: '#/components/responses/BadRequest'
         "401":

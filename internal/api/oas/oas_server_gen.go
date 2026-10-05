@@ -122,6 +122,12 @@ type Handler interface {
 	//
 	// GET /api/calendars/{id}/check
 	CheckCalendar(ctx context.Context, params CheckCalendarParams) (CheckCalendarRes, error)
+	// CheckCalendarData implements checkCalendarData operation.
+	//
+	// Check if unsaved iCalendar data is currently active.
+	//
+	// POST /api/calendars/check
+	CheckCalendarData(ctx context.Context, req *CalendarCheckInput) (CheckCalendarDataRes, error)
 	// CountPositions implements countPositions operation.
 	//
 	// Counts positions of the caller's devices with a timestamp in [from, to]. With `all=true`, counts

@@ -73,6 +73,10 @@ type AdminUpdateUserRes interface {
 	adminUpdateUserRes()
 }
 
+type CheckCalendarDataRes interface {
+	checkCalendarDataRes()
+}
+
 type CheckCalendarRes interface {
 	checkCalendarRes()
 }

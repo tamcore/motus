@@ -105,6 +105,18 @@ func (h *Handler) CheckCalendar(ctx context.Context, params oas.CheckCalendarPar
 	}, nil
 }
 
+// CheckCalendarData tests if the current time matches unsaved iCalendar data.
+func (h *Handler) CheckCalendarData(ctx context.Context, req *oas.CalendarCheckInput) (oas.CheckCalendarDataRes, error) {
+	if api.UserFromContext(ctx) == nil {
+		return &oas.CheckCalendarDataUnauthorized{Error: "unauthorized"}, nil
+	}
+	active, err := calendar.IsActiveAt(req.Data, time.Now().UTC())
+	if err != nil {
+		return &oas.CheckCalendarDataBadRequest{Error: "invalid calendar data"}, nil
+	}
+	return &oas.CalendarCheckResult{Active: active}, nil
+}
+
 // AdminListCalendars returns all calendars in the system (admin only).
 func (h *Handler) AdminListCalendars(ctx context.Context) (oas.AdminListCalendarsRes, error) {
 	if _, err := requireAdminCtx(ctx); err != nil {

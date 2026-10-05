@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
+	import { createEventDispatcher, onDestroy } from 'svelte';
+	import { api } from '$lib/api/client';
 	import Modal from './Modal.svelte';
 	import Button from './Button.svelte';
 	import Input from './Input.svelte';
@@ -63,6 +64,32 @@
 	// Compute preview data based on active mode
 	$: previewData = computePreviewData(activeMode, selectedTemplate, icalData, startDate, endDate, startHour, startMinute, endHour, endMinute, recurrence, weeklyDays);
 	$: scheduleSummary = getScheduleSummary(previewData);
+	$: if (open) checkPreviewStatus(previewData);
+
+	const PREVIEW_CHECK_DELAY_MS = 300;
+	let activeStatus = { active: false, label: '' };
+	let previewTimer: ReturnType<typeof setTimeout> | undefined;
+	let previewSeq = 0;
+	onDestroy(() => clearTimeout(previewTimer));
+
+	function checkPreviewStatus(data: string) {
+		clearTimeout(previewTimer);
+		const seq = ++previewSeq;
+		if (!data.trim()) {
+			activeStatus = { active: false, label: 'No schedule' };
+			return;
+		}
+		previewTimer = setTimeout(async () => {
+			let next = { active: false, label: 'Unknown' };
+			try {
+				const { active } = await api.checkCalendarData(data);
+				next = { active, label: active ? 'Active now' : 'Inactive' };
+			} catch {
+				// Invalid or partial input while typing; keep the neutral label.
+			}
+			if (seq === previewSeq) activeStatus = next;
+		}, PREVIEW_CHECK_DELAY_MS);
+	}
 
 	// Compute visual builder validation error
 	$: visualBuilderError = activeMode === 'visual' ? computeVisualBuilderError() : '';
@@ -521,6 +548,12 @@
 						</svg>
 						<span>{scheduleSummary}</span>
 					</div>
+					{#if activeStatus.label}
+						<div class="preview-status" class:active={activeStatus.active}>
+							<span class="status-dot"></span>
+							<span>{activeStatus.label}</span>
+						</div>
+					{/if}
 				</div>
 			</div>
 		{/if}
@@ -862,6 +895,29 @@
 	.preview-summary svg {
 		color: var(--text-secondary);
 		flex-shrink: 0;
+	}
+
+	.preview-status {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		font-size: var(--text-sm);
+		color: var(--text-secondary);
+	}
+
+	.status-dot {
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		background-color: var(--status-offline);
+	}
+
+	.preview-status.active .status-dot {
+		background-color: var(--status-online);
+	}
+
+	.preview-status.active {
+		color: var(--status-online);
 	}
 
 	@media (max-width: 480px) {

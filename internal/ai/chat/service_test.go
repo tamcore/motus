@@ -257,3 +257,38 @@ func TestStream_Timeout_SendsTimeoutMessage(t *testing.T) {
 		t.Errorf("expected timeout message %q, got %q", timeoutErrorMessage, errEvent.Message)
 	}
 }
+
+func TestStreamOnce_AccumulatesToolCalls(t *testing.T) {
+	chunks := []string{
+		`{"index":0,"delta":{"role":"assistant","content":"let me "}}`,
+		`{"index":0,"delta":{"content":"check","tool_calls":[{"index":0,"id":"call_a","type":"function","function":{"name":"get_x","arguments":"{\"a\""}}]}}`,
+		`{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":":1}"}},{"index":1,"id":"call_b","type":"function","function":{"name":"get_y","arguments":"{}"}}]}}`,
+		`{"index":0,"delta":{},"finish_reason":"tool_calls"}`,
+	}
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		for _, c := range chunks {
+			_, _ = w.Write([]byte(`data: {"id":"c1","object":"chat.completion.chunk","created":1,"model":"test-model","choices":[` + c + "]}\n\n"))
+		}
+		_, _ = w.Write([]byte("data: [DONE]\n\n"))
+	}))
+	defer upstream.Close()
+
+	svc := newTestService(t, upstream.URL, 5*time.Second)
+	sink := &captureSink{}
+
+	calls, text, err := svc.streamOnce(context.Background(), svc.buildHistory(nil), sink)
+	if err != nil {
+		t.Fatalf("streamOnce: %v", err)
+	}
+	want := []ToolCall{{ID: "call_a", Name: "get_x", Arguments: `{"a":1}`}, {ID: "call_b", Name: "get_y", Arguments: `{}`}}
+	if len(calls) != len(want) || calls[0] != want[0] || calls[1] != want[1] {
+		t.Errorf("calls = %+v, want %+v", calls, want)
+	}
+	if text != "let me check" {
+		t.Errorf("text = %q, want %q", text, "let me check")
+	}
+	if len(sink.events) != 2 || sink.events[0].Delta != "let me " || sink.events[1].Delta != "check" {
+		t.Errorf("token events = %+v", sink.events)
+	}
+}

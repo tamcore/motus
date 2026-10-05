@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"strings"
 	"time"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -184,42 +183,15 @@ func (s *Service) streamOnce(ctx context.Context, history []openai.ChatCompletio
 	stream := s.client.Chat.Completions.NewStreaming(ctx, params)
 	defer func() { _ = stream.Close() }()
 
-	type callBuf struct {
-		id   string
-		name string
-		args strings.Builder
-	}
-	callBufs := map[int64]*callBuf{}
-	finishReason := ""
-	var textBuf strings.Builder
-
+	var acc openai.ChatCompletionAccumulator
 	for stream.Next() {
 		chunk := stream.Current()
-		if len(chunk.Choices) == 0 {
-			continue
+		if !acc.AddChunk(chunk) {
+			return nil, "", errors.New("stream error: inconsistent chunk")
 		}
-		choice := chunk.Choices[0]
-		finishReason = choice.FinishReason
-
-		if choice.Delta.Content != "" {
-			textBuf.WriteString(choice.Delta.Content)
-			_ = sink.Send(ChatEvent{Type: "token", Delta: choice.Delta.Content})
+		if len(chunk.Choices) > 0 && chunk.Choices[0].Delta.Content != "" {
+			_ = sink.Send(ChatEvent{Type: "token", Delta: chunk.Choices[0].Delta.Content})
 			_ = sink.Flush()
-		}
-
-		for _, tc := range choice.Delta.ToolCalls {
-			buf, ok := callBufs[tc.Index]
-			if !ok {
-				buf = &callBuf{}
-				callBufs[tc.Index] = buf
-			}
-			if tc.ID != "" {
-				buf.id = tc.ID
-			}
-			if tc.Function.Name != "" {
-				buf.name = tc.Function.Name
-			}
-			buf.args.WriteString(tc.Function.Arguments)
 		}
 	}
 
@@ -233,19 +205,18 @@ func (s *Service) streamOnce(ctx context.Context, history []openai.ChatCompletio
 		return nil, "", fmt.Errorf("stream error: %w", err)
 	}
 
-	if finishReason != "tool_calls" {
-		return nil, textBuf.String(), nil
+	if len(acc.Choices) == 0 {
+		return nil, "", nil
 	}
-
-	calls := make([]ToolCall, 0, len(callBufs))
-	for i := int64(0); i < int64(len(callBufs)); i++ {
-		buf, ok := callBufs[i]
-		if !ok {
-			continue
-		}
-		calls = append(calls, ToolCall{ID: buf.id, Name: buf.name, Arguments: buf.args.String()})
+	choice := acc.Choices[0]
+	if choice.FinishReason != "tool_calls" {
+		return nil, choice.Message.Content, nil
 	}
-	return calls, textBuf.String(), nil
+	calls := make([]ToolCall, 0, len(choice.Message.ToolCalls))
+	for _, tc := range choice.Message.ToolCalls {
+		calls = append(calls, ToolCall{ID: tc.ID, Name: tc.Function.Name, Arguments: tc.Function.Arguments})
+	}
+	return calls, choice.Message.Content, nil
 }
 
 // dispatchTool invokes an MCP tool by name and returns the JSON result string.

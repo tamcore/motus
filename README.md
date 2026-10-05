@@ -11,6 +11,7 @@ A production-ready GPS tracking system with real-time updates, geofencing, notif
 - **Notifications** — Webhook delivery with template variables, or a device command sent to the triggering device (e.g. set the reporting interval when a pet leaves or returns home); event types: geofence (optionally limited to selected geofences), online/offline, motion, idle, ignition on/off, device alarms (e.g. overspeed, SOS), trip completed
 - **Reports** — Trip detection, route playback with animation, heatmaps, distance charts, CSV/GPX export
 - **Trail Bookmarks** — Save a device trail time range as a named bookmark (e.g. a hike) with an optional description, and reopen it on the map or from the Bookmarks page
+- **QR Login** — A new API key in Settings shows a QR code with the server URL and token; scan it with Traccar Manager to connect and log in
 - **Security** — Session cookies + Bearer tokens, RBAC (admin/user/readonly), CSRF protection, audit logging
 - **UI** — Dark/light themes, mobile responsive, metric/imperial units, timezone preferences
 - **AI Assistant** — Natural-language control of geofences, calendars, notifications, and device queries via any OpenAI-compatible API (opt-in, requires API key). See [docs/ai-assistant.md](docs/ai-assistant.md).

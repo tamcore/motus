@@ -11,24 +11,24 @@ import (
 
 // PlatformStats holds platform-wide aggregate statistics.
 type PlatformStats struct {
-	TotalUsers        int64            `json:"totalUsers"`
-	TotalDevices      int64            `json:"totalDevices"`
-	TotalPositions    int64            `json:"totalPositions"`
-	TotalEvents       int64            `json:"totalEvents"`
-	NotificationsSent int64            `json:"notificationsSent"`
-	DevicesByStatus   map[string]int64 `json:"devicesByStatus"`
-	PositionsToday    int64            `json:"positionsToday"`
-	ActiveUsers       int64            `json:"activeUsers"`
+	TotalUsers        int64
+	TotalDevices      int64
+	TotalPositions    int64
+	TotalEvents       int64
+	NotificationsSent int64
+	DevicesByStatus   map[string]int64
+	PositionsToday    int64
+	ActiveUsers       int64
 }
 
 // UserStats holds statistics for a specific user.
 type UserStats struct {
-	UserID          int64      `json:"userId"`
-	DevicesOwned    int64      `json:"devicesOwned"`
-	TotalPositions  int64      `json:"totalPositions"`
-	LastLogin       *time.Time `json:"lastLogin"`
-	EventsTriggered int64      `json:"eventsTriggered"`
-	GeofencesOwned  int64      `json:"geofencesOwned"`
+	UserID          int64
+	DevicesOwned    int64
+	TotalPositions  int64
+	LastLogin       *time.Time
+	EventsTriggered int64
+	GeofencesOwned  int64
 }
 
 // StatisticsRepository provides aggregate statistics queries.

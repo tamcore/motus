@@ -452,31 +452,24 @@ func handleCreateCalendar(ctx context.Context, req mcp.CallToolRequest, deps Dep
 
 	spec := CalendarSpec{Name: name}
 
-	startStr := req.GetString("start_time", "")
-	endStr := req.GetString("end_time", "")
-	weekdaysStr := req.GetString("weekdays", "")
-	dailyStart := req.GetString("daily_start_time", "")
-	dailyEnd := req.GetString("daily_end_time", "")
-
-	switch {
-	case startStr != "" && endStr != "":
-		start, err := requireTime(req, "start_time")
+	for key, dst := range map[string]**time.Time{"start_time": &spec.StartTime, "end_time": &spec.EndTime} {
+		if req.GetString(key, "") == "" {
+			continue
+		}
+		t, err := requireTime(req, key)
 		if err != nil {
 			return mcp.NewToolResultError(err.Error()), nil
 		}
-		end, err := requireTime(req, "end_time")
-		if err != nil {
-			return mcp.NewToolResultError(err.Error()), nil
-		}
-		spec.StartTime = &start
-		spec.EndTime = &end
-	case weekdaysStr != "" && dailyStart != "" && dailyEnd != "":
-		days := config.SplitList(weekdaysStr)
-		spec.Weekdays = days
-		spec.DailyStartTime = &dailyStart
-		spec.DailyEndTime = &dailyEnd
-	default:
-		return mcp.NewToolResultError("provide either (start_time + end_time) or (weekdays + daily_start_time + daily_end_time)"), nil
+		*dst = &t
+	}
+	if s := req.GetString("weekdays", ""); s != "" {
+		spec.Weekdays = config.SplitList(s)
+	}
+	if s := req.GetString("daily_start_time", ""); s != "" {
+		spec.DailyStartTime = &s
+	}
+	if s := req.GetString("daily_end_time", ""); s != "" {
+		spec.DailyEndTime = &s
 	}
 
 	ical, err := BuildICalendar(spec)

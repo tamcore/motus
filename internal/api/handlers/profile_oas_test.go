@@ -3,6 +3,7 @@ package handlers_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/tamcore/motus/internal/api"
 	"github.com/tamcore/motus/internal/api/handlers"
@@ -48,7 +49,7 @@ func TestUpdateProfile_PasswordChange_RequiresCurrentPassword(t *testing.T) {
 	h, userRepo, sessionRepo, user := setupProfileHandler(t)
 	ctx := context.Background()
 
-	session, err := sessionRepo.Create(ctx, user.ID)
+	session, err := sessionRepo.CreateWithExpiry(ctx, user.ID, time.Now().Add(24*time.Hour), false)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
@@ -114,15 +115,15 @@ func TestUpdateProfile_PasswordChange_RevokesOtherSessions(t *testing.T) {
 	h, _, sessionRepo, user := setupProfileHandler(t)
 	ctx := context.Background()
 
-	current, err := sessionRepo.Create(ctx, user.ID)
+	current, err := sessionRepo.CreateWithExpiry(ctx, user.ID, time.Now().Add(24*time.Hour), false)
 	if err != nil {
 		t.Fatalf("create current session: %v", err)
 	}
-	other1, err := sessionRepo.Create(ctx, user.ID)
+	other1, err := sessionRepo.CreateWithExpiry(ctx, user.ID, time.Now().Add(24*time.Hour), false)
 	if err != nil {
 		t.Fatalf("create other session: %v", err)
 	}
-	other2, err := sessionRepo.Create(ctx, user.ID)
+	other2, err := sessionRepo.CreateWithExpiry(ctx, user.ID, time.Now().Add(24*time.Hour), false)
 	if err != nil {
 		t.Fatalf("create other session: %v", err)
 	}
@@ -154,11 +155,11 @@ func TestUpdateProfile_NameOnlyUpdate_KeepsSessions(t *testing.T) {
 	h, _, sessionRepo, user := setupProfileHandler(t)
 	ctx := context.Background()
 
-	current, err := sessionRepo.Create(ctx, user.ID)
+	current, err := sessionRepo.CreateWithExpiry(ctx, user.ID, time.Now().Add(24*time.Hour), false)
 	if err != nil {
 		t.Fatalf("create current session: %v", err)
 	}
-	other, err := sessionRepo.Create(ctx, user.ID)
+	other, err := sessionRepo.CreateWithExpiry(ctx, user.ID, time.Now().Add(24*time.Hour), false)
 	if err != nil {
 		t.Fatalf("create other session: %v", err)
 	}
@@ -196,11 +197,11 @@ func TestAdminUpdateUser_PasswordReset_RevokesAllTargetSessions(t *testing.T) {
 		t.Fatalf("create admin: %v", err)
 	}
 
-	s1, err := sessionRepo.Create(ctx, target.ID)
+	s1, err := sessionRepo.CreateWithExpiry(ctx, target.ID, time.Now().Add(24*time.Hour), false)
 	if err != nil {
 		t.Fatalf("create target session: %v", err)
 	}
-	s2, err := sessionRepo.Create(ctx, target.ID)
+	s2, err := sessionRepo.CreateWithExpiry(ctx, target.ID, time.Now().Add(24*time.Hour), false)
 	if err != nil {
 		t.Fatalf("create target session: %v", err)
 	}
@@ -240,7 +241,7 @@ func TestAdminUpdateUser_NoPasswordChange_KeepsSessions(t *testing.T) {
 		t.Fatalf("create admin: %v", err)
 	}
 
-	s1, err := sessionRepo.Create(ctx, target.ID)
+	s1, err := sessionRepo.CreateWithExpiry(ctx, target.ID, time.Now().Add(24*time.Hour), false)
 	if err != nil {
 		t.Fatalf("create target session: %v", err)
 	}

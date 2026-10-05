@@ -125,7 +125,6 @@ func (m *mockUserRepo) GenerateToken(ctx context.Context, userID int64) (string,
 
 // mockSessionRepo is a mock implementation of repository.SessionRepo.
 type mockSessionRepo struct {
-	createFn           func(ctx context.Context, userID int64) (*model.Session, error)
 	createWithExpiryFn func(ctx context.Context, userID int64, expiresAt time.Time, rememberMe bool) (*model.Session, error)
 	createWithApiKeyFn func(ctx context.Context, userID int64, apiKeyID int64, expiresAt time.Time, rememberMe bool) (*model.Session, error)
 	createSudoFn       func(ctx context.Context, targetUserID, originalUserID int64) (*model.Session, error)
@@ -138,12 +137,6 @@ type mockSessionRepo struct {
 
 var _ repository.SessionRepo = (*mockSessionRepo)(nil)
 
-func (m *mockSessionRepo) Create(ctx context.Context, userID int64) (*model.Session, error) {
-	if m.createFn != nil {
-		return m.createFn(ctx, userID)
-	}
-	return &model.Session{ID: "mock-session-id", UserID: userID, ExpiresAt: time.Now().Add(24 * time.Hour)}, nil
-}
 func (m *mockSessionRepo) CreateWithExpiry(ctx context.Context, userID int64, expiresAt time.Time, rememberMe bool) (*model.Session, error) {
 	if m.createWithExpiryFn != nil {
 		return m.createWithExpiryFn(ctx, userID, expiresAt, rememberMe)

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/tamcore/motus/internal/api"
 	"github.com/tamcore/motus/internal/api/handlers"
@@ -191,7 +192,7 @@ func TestRouter_ReadonlyApiKey_BlocksDelete(t *testing.T) {
 			t.Fatalf("create device3: %v", err)
 		}
 
-		session, err := sessionRepo.Create(ctx, user.ID)
+		session, err := sessionRepo.CreateWithExpiry(ctx, user.ID, time.Now().Add(24*time.Hour), false)
 		if err != nil {
 			t.Fatalf("create session: %v", err)
 		}

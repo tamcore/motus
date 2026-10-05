@@ -207,7 +207,7 @@ func TestStatisticsRepository_GetUserStats_WithData(t *testing.T) {
 	}
 
 	// Create a session (LastLogin should be set).
-	if _, err := sessionRepo.Create(ctx, u.ID); err != nil {
+	if _, err := sessionRepo.CreateWithExpiry(ctx, u.ID, time.Now().Add(24*time.Hour), false); err != nil {
 		t.Fatalf("create session: %v", err)
 	}
 

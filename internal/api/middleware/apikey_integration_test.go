@@ -413,7 +413,7 @@ func TestSessionAuth_NoApiKeyInContext(t *testing.T) {
 
 	user := testutil.CreateUser(t, "session-no-key@example.com")
 
-	session, err := sessionRepo.Create(context.Background(), user.ID)
+	session, err := sessionRepo.CreateWithExpiry(context.Background(), user.ID, time.Now().Add(24*time.Hour), false)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
@@ -572,7 +572,7 @@ func TestSessionWithApiKey_PasswordLoginUnrestricted(t *testing.T) {
 	}
 
 	// Session created via password login (no api_key_id).
-	session, err := sessionRepo.Create(context.Background(), user.ID)
+	session, err := sessionRepo.CreateWithExpiry(context.Background(), user.ID, time.Now().Add(24*time.Hour), false)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}

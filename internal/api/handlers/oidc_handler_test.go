@@ -112,9 +112,6 @@ type oidcTestSessionRepo struct {
 
 var _ repository.SessionRepo = (*oidcTestSessionRepo)(nil)
 
-func (m *oidcTestSessionRepo) Create(_ context.Context, _ int64) (*model.Session, error) {
-	return nil, errors.New("not implemented")
-}
 func (m *oidcTestSessionRepo) CreateWithExpiry(ctx context.Context, userID int64, expiresAt time.Time, rememberMe bool) (*model.Session, error) {
 	if m.createWithExpiryFn != nil {
 		return m.createWithExpiryFn(ctx, userID, expiresAt, rememberMe)

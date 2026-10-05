@@ -1035,7 +1035,7 @@ func TestAdminDeleteUserSession_Success(t *testing.T) {
 	admin.Role = model.RoleAdmin
 	target := createIntegrationUser(t, userRepo, "target-del@example.com", "pw")
 
-	session, err := sessionRepo.Create(ctx, target.ID)
+	session, err := sessionRepo.CreateWithExpiry(ctx, target.ID, time.Now().Add(24*time.Hour), false)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
@@ -1067,7 +1067,7 @@ func TestAdminDeleteUserSession_WrongUser(t *testing.T) {
 	owner := createIntegrationUser(t, userRepo, "owner-del@example.com", "pw")
 	other := createIntegrationUser(t, userRepo, "other-del@example.com", "pw")
 
-	session, err := sessionRepo.Create(ctx, owner.ID)
+	session, err := sessionRepo.CreateWithExpiry(ctx, owner.ID, time.Now().Add(24*time.Hour), false)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
@@ -1112,7 +1112,7 @@ func TestAdminDeleteUserSession_NonAdminForbidden(t *testing.T) {
 	user := createIntegrationUser(t, userRepo, "non-admin-del@example.com", "pw")
 	target := createIntegrationUser(t, userRepo, "target-del2@example.com", "pw")
 
-	session, err := sessionRepo.Create(ctx, target.ID)
+	session, err := sessionRepo.CreateWithExpiry(ctx, target.ID, time.Now().Add(24*time.Hour), false)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}

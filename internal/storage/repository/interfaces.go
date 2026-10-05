@@ -56,7 +56,6 @@ type OIDCStateRepo interface {
 // SessionRepo defines the operations on the sessions table used by auth
 // middleware, session handler, and sudo handler.
 type SessionRepo interface {
-	Create(ctx context.Context, userID int64) (*model.Session, error)
 	CreateWithExpiry(ctx context.Context, userID int64, expiresAt time.Time, rememberMe bool) (*model.Session, error)
 	CreateWithApiKey(ctx context.Context, userID int64, apiKeyID int64, expiresAt time.Time, rememberMe bool) (*model.Session, error)
 	CreateSudo(ctx context.Context, targetUserID, originalUserID int64) (*model.Session, error)

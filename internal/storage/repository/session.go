@@ -20,11 +20,6 @@ func NewSessionRepository(pool *pgxpool.Pool) *SessionRepository {
 	return &SessionRepository{pool: pool}
 }
 
-// Create generates a new session for the given user with a default 24-hour expiry.
-func (r *SessionRepository) Create(ctx context.Context, userID int64) (*model.Session, error) {
-	return r.CreateWithExpiry(ctx, userID, time.Now().Add(24*time.Hour), false)
-}
-
 // CreateWithExpiry generates a new session with a specific expiration time.
 func (r *SessionRepository) CreateWithExpiry(ctx context.Context, userID int64, expiresAt time.Time, rememberMe bool) (*model.Session, error) {
 	return r.insert(ctx, &model.Session{UserID: userID, RememberMe: rememberMe, ExpiresAt: expiresAt})

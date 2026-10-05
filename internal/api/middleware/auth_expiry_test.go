@@ -72,9 +72,6 @@ type mockSessionRepo struct {
 
 var _ repository.SessionRepo = (*mockSessionRepo)(nil)
 
-func (m *mockSessionRepo) Create(_ context.Context, _ int64) (*model.Session, error) {
-	return nil, nil
-}
 func (m *mockSessionRepo) CreateWithExpiry(_ context.Context, _ int64, _ time.Time, _ bool) (*model.Session, error) {
 	return nil, nil
 }

@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/tamcore/motus/internal/api"
 	"github.com/tamcore/motus/internal/api/middleware"
@@ -72,7 +73,7 @@ func TestAuthMiddleware_ValidSessionCookie(t *testing.T) {
 	// Create a user and session.
 	user := testutil.CreateUser(t, "session@example.com")
 
-	session, err := sessionRepo.Create(context.Background(), user.ID)
+	session, err := sessionRepo.CreateWithExpiry(context.Background(), user.ID, time.Now().Add(24*time.Hour), false)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
@@ -112,7 +113,7 @@ func TestAuthMiddleware_InvalidBearerFallsToSession(t *testing.T) {
 	// Create a user and session.
 	user := testutil.CreateUser(t, "fallback@example.com")
 
-	session, err := sessionRepo.Create(context.Background(), user.ID)
+	session, err := sessionRepo.CreateWithExpiry(context.Background(), user.ID, time.Now().Add(24*time.Hour), false)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}

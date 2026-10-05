@@ -18,7 +18,7 @@ func TestSessionRepository_Create(t *testing.T) {
 
 	user := testutil.CreateUser(t, "session@example.com")
 
-	session, err := sessionRepo.Create(ctx, user.ID)
+	session, err := sessionRepo.CreateWithExpiry(ctx, user.ID, time.Now().Add(24*time.Hour), false)
 	if err != nil {
 		t.Fatalf("Create session failed: %v", err)
 	}
@@ -42,7 +42,7 @@ func TestSessionRepository_GetByID(t *testing.T) {
 
 	user := testutil.CreateUser(t, "sess-get@example.com")
 
-	session, err := sessionRepo.Create(ctx, user.ID)
+	session, err := sessionRepo.CreateWithExpiry(ctx, user.ID, time.Now().Add(24*time.Hour), false)
 	if err != nil {
 		t.Fatalf("Create session failed: %v", err)
 	}
@@ -156,7 +156,7 @@ func TestSessionRepository_CreateWithApiKey_NilApiKeyID_OnGetByID(t *testing.T) 
 	user := testutil.CreateUser(t, "sess-no-apikey@example.com")
 
 	// Regular session creation -- no api_key_id.
-	session, err := sessionRepo.Create(ctx, user.ID)
+	session, err := sessionRepo.CreateWithExpiry(ctx, user.ID, time.Now().Add(24*time.Hour), false)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -178,7 +178,7 @@ func TestSessionRepository_Delete(t *testing.T) {
 
 	user := testutil.CreateUser(t, "sess-del@example.com")
 
-	session, err := sessionRepo.Create(ctx, user.ID)
+	session, err := sessionRepo.CreateWithExpiry(ctx, user.ID, time.Now().Add(24*time.Hour), false)
 	if err != nil {
 		t.Fatalf("Create session failed: %v", err)
 	}
@@ -209,7 +209,7 @@ func TestSessionRepository_ListByUser(t *testing.T) {
 	}
 
 	// Session 1: regular session (created first, should appear last in DESC order).
-	s1, err := sessionRepo.Create(ctx, user.ID)
+	s1, err := sessionRepo.CreateWithExpiry(ctx, user.ID, time.Now().Add(24*time.Hour), false)
 	if err != nil {
 		t.Fatalf("Create session 1 failed: %v", err)
 	}
@@ -327,7 +327,7 @@ func TestSessionRepository_UpdateLastSeen(t *testing.T) {
 
 	user := testutil.CreateUser(t, "sess-lastseen@example.com")
 
-	session, err := sessionRepo.Create(ctx, user.ID)
+	session, err := sessionRepo.CreateWithExpiry(ctx, user.ID, time.Now().Add(24*time.Hour), false)
 	if err != nil {
 		t.Fatalf("Create session: %v", err)
 	}

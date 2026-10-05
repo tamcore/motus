@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -58,6 +59,16 @@ func isWKT(s string) bool {
 		strings.HasPrefix(upper, "MULTIPOLYGON")
 }
 
+// geomParam returns the SQL expression for parameter $3 and its value, taken
+// from Geometry (GeoJSON or WKT) or, if empty, Area (WKT).
+func geomParam(g *model.Geofence) (string, string) {
+	input := cmp.Or(g.Geometry, g.Area)
+	if isWKT(input) {
+		return "ST_GeomFromText($3, 4326)", input
+	}
+	return "ST_GeomFromGeoJSON($3)", input
+}
+
 // Create inserts a new geofence. The geometry field accepts GeoJSON or WKT.
 func (r *GeofenceRepository) Create(ctx context.Context, g *model.Geofence) error {
 	attrs, err := json.Marshal(g.Attributes)
@@ -65,19 +76,7 @@ func (r *GeofenceRepository) Create(ctx context.Context, g *model.Geofence) erro
 		return fmt.Errorf("marshal attributes: %w", err)
 	}
 
-	// Determine which input we have: the Area (WKT) or Geometry (GeoJSON).
-	geomInput := g.Geometry
-	if geomInput == "" {
-		geomInput = g.Area
-	}
-
-	var geomExpr string
-	if isWKT(geomInput) {
-		geomExpr = "ST_GeomFromText($3, 4326)"
-	} else {
-		geomExpr = "ST_GeomFromGeoJSON($3)"
-	}
-
+	geomExpr, geomInput := geomParam(g)
 	query := fmt.Sprintf(`
 		INSERT INTO geofences (name, description, geometry, attributes, calendar_id, created_at, updated_at)
 		VALUES ($1, $2, %s, $4, $5, NOW(), NOW())
@@ -156,19 +155,7 @@ func (r *GeofenceRepository) Update(ctx context.Context, g *model.Geofence) erro
 		return fmt.Errorf("marshal attributes: %w", err)
 	}
 
-	// Use Area (WKT) or Geometry (GeoJSON) as geometry input.
-	geomInput := g.Geometry
-	if geomInput == "" {
-		geomInput = g.Area
-	}
-
-	var geomExpr string
-	if isWKT(geomInput) {
-		geomExpr = "ST_GeomFromText($3, 4326)"
-	} else {
-		geomExpr = "ST_GeomFromGeoJSON($3)"
-	}
-
+	geomExpr, geomInput := geomParam(g)
 	query := fmt.Sprintf(`
 		UPDATE geofences
 		SET name = $1, description = $2, geometry = %s, attributes = $4, calendar_id = $5, updated_at = NOW()

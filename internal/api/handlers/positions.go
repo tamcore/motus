@@ -65,11 +65,9 @@ func (h *Handler) GetPositions(ctx context.Context, params oas.GetPositionsParam
 			slog.Error("GetLatestByUser failed", slog.Int64("userID", user.ID), slog.Any("error", err))
 			return &oas.Error{Error: "failed to get positions"}, nil
 		}
-		result := make(oas.GetPositionsOKApplicationJSON, len(positions))
-		for i, p := range positions {
-			result[i] = positionToOAS(p.InKnots())
-		}
-		return &result, nil
+		return new(mapSlice[oas.GetPositionsOKApplicationJSON](positions, func(p *model.Position) oas.Position {
+			return positionToOAS(p.InKnots())
+		})), nil
 	}
 
 	// Time range (default: last 24 h) for one device or all user devices.

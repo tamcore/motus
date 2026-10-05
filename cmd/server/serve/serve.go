@@ -154,11 +154,6 @@ func Run() {
 	// WebSocket hub with origin validation and per-user filtering.
 	// Since /api/socket is outside auth middleware, we must parse session cookie manually.
 	hub := websocket.NewHub(cfg.WebSocket.AllowedOrigins, deviceRepo, func(r *http.Request) int64 {
-		user := api.UserFromContext(r.Context())
-		if user != nil {
-			return user.ID
-		}
-
 		cookie, err := r.Cookie("session_id")
 		if err != nil {
 			return 0
@@ -483,10 +478,8 @@ func Run() {
 				)
 
 				for i, r := range routes {
-					routes[i] = demo.SmoothRouteWithInterval(r, cfg.Demo.InterpolationInterval)
-				}
-
-				for _, r := range routes {
+					r = demo.SmoothRouteWithInterval(r, cfg.Demo.InterpolationInterval)
+					routes[i] = r
 					slog.Debug("demo route loaded",
 						slog.String("name", r.Name),
 						slog.Int("points", len(r.Points)),

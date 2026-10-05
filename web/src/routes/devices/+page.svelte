@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import type { Device } from '$lib/types/api';
-	import { slide } from 'svelte/transition';
 	import { api, fetchDevices } from '$lib/api/client';
 	import { refreshHandler } from '$lib/stores/refresh';
 	import { mileageToDisplay, mileageFromDisplay, formatMileage, formatRelative, formatDate } from '$lib/utils/formatting';
@@ -26,7 +25,6 @@
 	let editingDevice: Device | null = null;
 	let saving = false;
 	let error = '';
-	let expandedIds: Set<number> = new Set();
 
 	// GPX import state
 	let gpxFileInput: HTMLInputElement;
@@ -170,23 +168,6 @@
 			console.error('Failed to load devices');
 		} finally {
 			loading = false;
-		}
-	}
-
-	function toggleDevice(deviceId: number) {
-		const next = new Set(expandedIds);
-		if (next.has(deviceId)) {
-			next.delete(deviceId);
-		} else {
-			next.add(deviceId);
-		}
-		expandedIds = next;
-	}
-
-	function handleRowKeydown(event: KeyboardEvent, deviceId: number) {
-		if (event.key === 'Enter' || event.key === ' ') {
-			event.preventDefault();
-			toggleDevice(deviceId);
 		}
 	}
 
@@ -420,23 +401,13 @@
 			<div class="mobile-view">
 				<div class="device-list" role="list">
 					{#each filtered as device (device.id)}
-						{@const isExpanded = expandedIds.has(device.id)}
-						<div
+						<div role="listitem">
+						<details
 							class="device-card list-card"
-							class:expanded={isExpanded}
 							class:other-user={device.ownerName}
-							role="listitem"
 						>
 							<!-- Collapsed summary row - always visible -->
-							<div
-								class="device-summary list-card-summary"
-								role="button"
-								tabindex="0"
-								aria-expanded={isExpanded}
-								aria-controls="device-detail-{device.id}"
-								on:click={() => toggleDevice(device.id)}
-								on:keydown={(e) => handleRowKeydown(e, device.id)}
-							>
+							<summary class="device-summary list-card-summary">
 								<div class="summary-main">
 									<div class="summary-name-status">
 										<StatusIndicator status={device.status} />
@@ -461,7 +432,6 @@
 
 								<svg
 									class="chevron"
-									class:chevron-open={isExpanded}
 									viewBox="0 0 24 24"
 									width="20"
 									height="20"
@@ -474,15 +444,10 @@
 								>
 									<polyline points="6 9 12 15 18 9"></polyline>
 								</svg>
-							</div>
+							</summary>
 
 							<!-- Expanded detail section -->
-							{#if isExpanded}
-								<div
-									id="device-detail-{device.id}"
-									class="device-detail list-card-detail"
-									transition:slide={{ duration: 200 }}
-								>
+								<div class="device-detail list-card-detail">
 									<div class="detail-grid">
 										<div class="detail-item">
 											<span class="detail-label">Identifier</span>
@@ -612,7 +577,7 @@
 										</div>
 									{/if}
 								</div>
-							{/if}
+						</details>
 						</div>
 					{/each}
 				</div>

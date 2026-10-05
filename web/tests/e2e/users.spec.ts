@@ -93,7 +93,7 @@ test.describe('Admin users mobile cards', () => {
     await expect(users.table).toBeHidden();
 
     await users.cardSummaries.first().click();
-    await expect(users.cardSummaries.first()).toHaveAttribute('aria-expanded', 'true');
+    await expect(users.cards.first()).toHaveJSProperty('open', true);
 
     const items = users.detailGrid.locator('.detail-item');
     const a = (await items.nth(0).boundingBox())!;
@@ -112,6 +112,6 @@ test.describe('Admin users mobile cards', () => {
 
     await actions.locator('.btn:has-text("Devices")').click();
     await expect(authedPage.locator('.modal[role="dialog"]')).toBeVisible();
-    await expect(users.cardSummaries.first()).toHaveAttribute('aria-expanded', 'true');
+    await expect(users.cards.first()).toHaveJSProperty('open', true);
   });
 });

@@ -499,7 +499,7 @@ input[type="range"] {
   border-color: var(--border-hover);
 }
 
-.mobile-view .list-card.expanded {
+.mobile-view .list-card[open] {
   border-color: var(--accent-primary);
   box-shadow: 0 0 0 1px var(--accent-primary);
 }
@@ -512,6 +512,11 @@ input[type="range"] {
   cursor: pointer;
   user-select: none;
   -webkit-user-select: none;
+  list-style: none;
+}
+
+.mobile-view .list-card-summary::-webkit-details-marker {
+  display: none;
 }
 
 .mobile-view .list-card-summary:hover {
@@ -544,7 +549,7 @@ input[type="range"] {
   transition: transform var(--transition-fast);
 }
 
-.mobile-view .chevron-open {
+.mobile-view .list-card[open] .chevron {
   transform: rotate(180deg);
 }
 

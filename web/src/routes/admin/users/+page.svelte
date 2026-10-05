@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { slide } from 'svelte/transition';
 	import { goto } from '$app/navigation';
 	import { currentUser, isAdmin } from '$lib/stores/auth';
 	import { refreshHandler } from '$lib/stores/refresh';
@@ -28,7 +27,6 @@
 	let loading = true;
 	let error = '';
 	let users: User[] = [];
-	let expandedIds: Set<number> = new Set();
 
 	// User form modal
 	let showUserModal = false;
@@ -81,23 +79,6 @@
 			console.error(err);
 		} finally {
 			loading = false;
-		}
-	}
-
-	function toggleUser(userId: number) {
-		const next = new Set(expandedIds);
-		if (next.has(userId)) {
-			next.delete(userId);
-		} else {
-			next.add(userId);
-		}
-		expandedIds = next;
-	}
-
-	function handleRowKeydown(event: KeyboardEvent, userId: number) {
-		if (event.key === 'Enter' || event.key === ' ') {
-			event.preventDefault();
-			toggleUser(userId);
 		}
 	}
 
@@ -383,24 +364,14 @@
 			<div class="mobile-view">
 				<div class="user-list" role="list">
 					{#each users as user (user.id)}
-						{@const isExpanded = expandedIds.has(user.id)}
 						{@const userRole = getRoleFromUser(user)}
-						<div
+						<div role="listitem">
+						<details
 							class="user-card list-card"
-							class:expanded={isExpanded}
 							class:is-self={user.id === currentUserId}
-							role="listitem"
 						>
 							<!-- Collapsed summary row - always visible -->
-							<div
-								class="user-summary list-card-summary"
-								role="button"
-								tabindex="0"
-								aria-expanded={isExpanded}
-								aria-controls="user-detail-{user.id}"
-								on:click={() => toggleUser(user.id)}
-								on:keydown={(e) => handleRowKeydown(e, user.id)}
-							>
+							<summary class="user-summary list-card-summary">
 								<div class="user-avatar" aria-hidden="true">
 									{(user.name || user.email).charAt(0).toUpperCase()}
 								</div>
@@ -424,7 +395,6 @@
 
 								<svg
 									class="chevron"
-									class:chevron-open={isExpanded}
 									viewBox="0 0 24 24"
 									width="20"
 									height="20"
@@ -437,15 +407,10 @@
 								>
 									<polyline points="6 9 12 15 18 9"></polyline>
 								</svg>
-							</div>
+							</summary>
 
 							<!-- Expanded detail section -->
-							{#if isExpanded}
-								<div
-									id="user-detail-{user.id}"
-									class="user-detail list-card-detail"
-									transition:slide={{ duration: 200 }}
-								>
+								<div class="user-detail list-card-detail">
 									<div class="detail-grid">
 										<div class="detail-item">
 											<span class="detail-label">Name</span>
@@ -509,7 +474,7 @@
 										</Button>
 									</div>
 								</div>
-							{/if}
+						</details>
 						</div>
 					{/each}
 				</div>

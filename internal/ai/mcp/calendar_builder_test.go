@@ -131,17 +131,14 @@ func TestBuildICalendar_InvalidHHMM(t *testing.T) {
 	}
 }
 
-func TestIcalEscape(t *testing.T) {
-	cases := []struct{ in, want string }{
-		{"hello", "hello"},
-		{"a;b", "a\\;b"},
-		{"a,b", "a\\,b"},
-		{"a\\b", "a\\\\b"},
-		{"a\nb", "a\\nb"},
+func TestBuildICalendar_EscapesSummary(t *testing.T) {
+	start := time.Date(2026, 6, 6, 18, 0, 0, 0, time.UTC)
+	end := start.Add(time.Hour)
+	ical, err := BuildICalendar(CalendarSpec{Name: "a;b,c\\d\ne", StartTime: &start, EndTime: &end})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-	for _, c := range cases {
-		if got := icalEscaper.Replace(c.in); got != c.want {
-			t.Errorf("icalEscape(%q) = %q, want %q", c.in, got, c.want)
-		}
+	if !strings.Contains(ical, `SUMMARY:a\;b\,c\\d\ne`) {
+		t.Errorf("summary not escaped, got:\n%s", ical)
 	}
 }

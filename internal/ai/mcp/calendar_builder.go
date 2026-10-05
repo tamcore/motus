@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	ics "github.com/arran4/golang-ical"
 )
 
 // CalendarSpec describes what kind of iCalendar event to generate.
@@ -19,40 +21,30 @@ type CalendarSpec struct {
 	DailyEndTime   *string  // "HH:MM" UTC
 }
 
-var validWeekdaySet = map[string]bool{
-	"MO": true, "TU": true, "WE": true,
-	"TH": true, "FR": true, "SA": true, "SU": true,
-}
-
 // BuildICalendar generates an RFC 5545 iCalendar string from spec.
 // CalendarService validates the result and the name on create.
 func BuildICalendar(spec CalendarSpec) (string, error) {
-	var lines []string
-	lines = append(lines, "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//motus//AI//EN")
+	cal := ics.NewCalendar()
+	cal.SetProductId("-//motus//AI//EN")
 
 	switch {
 	case spec.StartTime != nil && spec.EndTime != nil:
 		if !spec.EndTime.After(*spec.StartTime) {
 			return "", fmt.Errorf("end_time must be after start_time")
 		}
-		uid := fmt.Sprintf("motus-once-%d@motus", spec.StartTime.UnixNano())
-		lines = append(lines,
-			"BEGIN:VEVENT",
-			"UID:"+uid,
-			"SUMMARY:"+icalEscaper.Replace(spec.Name),
-			"DTSTART:"+spec.StartTime.UTC().Format("20060102T150405Z"),
-			"DTEND:"+spec.EndTime.UTC().Format("20060102T150405Z"),
-			"END:VEVENT",
-		)
+		event := cal.AddEvent(fmt.Sprintf("motus-once-%d@motus", spec.StartTime.UnixNano()))
+		event.SetSummary(spec.Name)
+		event.SetStartAt(*spec.StartTime)
+		event.SetEndAt(*spec.EndTime)
 
 	case len(spec.Weekdays) > 0 && spec.DailyStartTime != nil && spec.DailyEndTime != nil:
 		upperDays := make([]string, 0, len(spec.Weekdays))
 		for _, wd := range spec.Weekdays {
-			u := strings.ToUpper(strings.TrimSpace(wd))
-			if !validWeekdaySet[u] {
-				return "", fmt.Errorf("invalid weekday %q (use MO TU WE TH FR SA SU)", wd)
-			}
-			upperDays = append(upperDays, u)
+			upperDays = append(upperDays, strings.ToUpper(strings.TrimSpace(wd)))
+		}
+		rrule := "FREQ=WEEKLY;BYDAY=" + strings.Join(upperDays, ",")
+		if _, err := ics.ParseRecurrenceRule(rrule); err != nil {
+			return "", fmt.Errorf("invalid weekdays %v (use MO TU WE TH FR SA SU): %w", spec.Weekdays, err)
 		}
 		start, err := time.Parse("15:04", *spec.DailyStartTime)
 		if err != nil {
@@ -67,25 +59,15 @@ func BuildICalendar(spec CalendarSpec) (string, error) {
 		}
 
 		now := time.Now().UTC()
-		dtstart := time.Date(now.Year(), now.Month(), now.Day(), start.Hour(), start.Minute(), 0, 0, time.UTC)
-		dtend := time.Date(now.Year(), now.Month(), now.Day(), end.Hour(), end.Minute(), 0, 0, time.UTC)
-		uid := fmt.Sprintf("motus-weekly-%d@motus", now.UnixNano())
-		lines = append(lines,
-			"BEGIN:VEVENT",
-			"UID:"+uid,
-			"SUMMARY:"+icalEscaper.Replace(spec.Name),
-			"DTSTART:"+dtstart.Format("20060102T150405Z"),
-			"DTEND:"+dtend.Format("20060102T150405Z"),
-			"RRULE:FREQ=WEEKLY;BYDAY="+strings.Join(upperDays, ","),
-			"END:VEVENT",
-		)
+		event := cal.AddEvent(fmt.Sprintf("motus-weekly-%d@motus", now.UnixNano()))
+		event.SetSummary(spec.Name)
+		event.SetStartAt(time.Date(now.Year(), now.Month(), now.Day(), start.Hour(), start.Minute(), 0, 0, time.UTC))
+		event.SetEndAt(time.Date(now.Year(), now.Month(), now.Day(), end.Hour(), end.Minute(), 0, 0, time.UTC))
+		event.AddRrule(rrule)
 
 	default:
 		return "", fmt.Errorf("provide either (start_time + end_time) or (weekdays + daily_start_time + daily_end_time)")
 	}
 
-	lines = append(lines, "END:VCALENDAR")
-	return strings.Join(lines, "\r\n"), nil
+	return cal.Serialize(ics.WithNewLineWindows), nil
 }
-
-var icalEscaper = strings.NewReplacer(`\`, `\\`, ";", `\;`, ",", `\,`, "\n", `\n`)

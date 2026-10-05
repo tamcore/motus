@@ -6,7 +6,7 @@
 	import CalendarEditorModal from '$lib/components/CalendarEditorModal.svelte';
 	import AllDevicesToggle from '$lib/components/AllDevicesToggle.svelte';
 	import type { Calendar } from '$lib/types/api';
-	import { getScheduleSummary, getActiveStatus, getDateRange } from '$lib/utils/ical';
+	import { getScheduleSummary, getDateRange } from '$lib/utils/ical';
 	import { formatDate } from '$lib/utils/formatting';
 
 	let calendars: Calendar[] = [];
@@ -17,8 +17,7 @@
 	let saving = false;
 	let deletingId: number | null = null;
 
-	// Track active status for each calendar (checked via API)
-	let activeStatuses: Record<number, { active: boolean; label: string }> = {};
+	let activeStatuses: Record<number, boolean> = {};
 
 	onMount(async () => {
 		await loadCalendars();
@@ -32,12 +31,7 @@
 		error = '';
 		try {
 			calendars = await fetchCalendars();
-			// Check active status for each calendar via client-side approximation
-			const statuses: Record<number, { active: boolean; label: string }> = {};
-			for (const cal of calendars) {
-				statuses[cal.id] = getActiveStatus(cal.data);
-			}
-			activeStatuses = statuses;
+			await Promise.all(calendars.map(checkCalendarStatus));
 		} catch (err: unknown) {
 			const message = err instanceof Error ? err.message : 'Unknown error';
 			error = `Failed to load calendars: ${message}`;
@@ -105,20 +99,16 @@
 	async function checkCalendarStatus(calendar: Calendar) {
 		try {
 			const result = await api.checkCalendar(calendar.id);
-			activeStatuses = {
-				...activeStatuses,
-				[calendar.id]: {
-					active: result.active,
-					label: result.active ? 'Active now' : 'Inactive'
-				}
-			};
-		} catch {
-			// Fall back to client-side check
+			activeStatuses = { ...activeStatuses, [calendar.id]: result.active };
+		} catch (err: unknown) {
+			console.error('Calendar status check failed:', err);
 		}
 	}
 
 	function getCalendarStatus(calendarId: number): { active: boolean; label: string } {
-		return activeStatuses[calendarId] || { active: false, label: 'Unknown' };
+		const active = activeStatuses[calendarId];
+		if (active === undefined) return { active: false, label: 'Unknown' };
+		return { active, label: active ? 'Active now' : 'Inactive' };
 	}
 </script>
 

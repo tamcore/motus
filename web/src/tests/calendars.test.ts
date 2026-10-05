@@ -3,7 +3,6 @@ import { describe, it, expect, vi } from "vitest";
 import {
   CALENDAR_TEMPLATES,
   getScheduleSummary,
-  getActiveStatus,
   validateIcalData,
   validateDateRangeConfig,
   buildDateRangeIcal,
@@ -222,38 +221,6 @@ describe("Calendar Management", () => {
         if (t.id === "custom") continue;
         expect(validateIcalData(t.data)).toBeNull();
       }
-    });
-  });
-
-  // -------------------------------------------------------------------------
-  // Active Status
-  // -------------------------------------------------------------------------
-
-  describe("getActiveStatus", () => {
-    it("should return 'No schedule' for empty data", () => {
-      const result = getActiveStatus("");
-      expect(result.active).toBe(false);
-      expect(result.label).toBe("No schedule");
-    });
-
-    it("should return an object with active boolean and label string", () => {
-      const data = makeIcal(
-        "Test",
-        "20240101T000000",
-        "20240101T235959",
-        "FREQ=DAILY",
-      );
-      const result = getActiveStatus(data);
-      expect(typeof result.active).toBe("boolean");
-      expect(typeof result.label).toBe("string");
-    });
-
-    it("should return active=true for 24/7 schedule", () => {
-      const always = CALENDAR_TEMPLATES.find((t) => t.id === "always");
-      const result = getActiveStatus(always!.data);
-      // 24/7 schedule: 00:00 to 23:59:59 daily -- always active
-      expect(result.active).toBe(true);
-      expect(result.label).toBe("Active now");
     });
   });
 

@@ -8,7 +8,6 @@
 	import {
 		CALENDAR_TEMPLATES,
 		getScheduleSummary,
-		getActiveStatus,
 		validateIcalData,
 		validateDateRangeConfig,
 		buildDateRangeIcal,
@@ -71,7 +70,6 @@
 	// Compute preview data based on active mode
 	$: previewData = computePreviewData(activeMode, selectedTemplate, icalData, startDate, endDate, startHour, startMinute, endHour, endMinute, recurrence, weeklyDays);
 	$: scheduleSummary = getScheduleSummary(previewData);
-	$: activeStatus = getActiveStatus(previewData);
 
 	// Compute visual builder validation error
 	$: visualBuilderError = activeMode === 'visual' ? computeVisualBuilderError() : '';
@@ -593,10 +591,6 @@
 						</svg>
 						<span>{scheduleSummary}</span>
 					</div>
-					<div class="preview-status" class:active={activeStatus.active}>
-						<span class="status-dot"></span>
-						<span>{activeStatus.label}</span>
-					</div>
 				</div>
 			</div>
 		{/if}
@@ -953,29 +947,6 @@
 	.preview-summary svg {
 		color: var(--text-secondary);
 		flex-shrink: 0;
-	}
-
-	.preview-status {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-		font-size: var(--text-sm);
-		color: var(--text-secondary);
-	}
-
-	.status-dot {
-		width: 8px;
-		height: 8px;
-		border-radius: 50%;
-		background-color: var(--status-offline);
-	}
-
-	.preview-status.active .status-dot {
-		background-color: var(--status-online);
-	}
-
-	.preview-status.active {
-		color: var(--status-online);
 	}
 
 	/* Accessibility */

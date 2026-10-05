@@ -16,16 +16,6 @@ interface CalendarTemplate {
 
 const ICAL_DAYS = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"] as const;
 
-const DAY_NAMES = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-];
-
 const DAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function makeIcal(
@@ -211,11 +201,6 @@ function dayIndices(days: string[]): number[] {
     .sort((a, b) => a - b);
 }
 
-/** Milliseconds since UTC midnight. */
-function utcTimeOfDayMs(d: Date): number {
-  return (d.getUTCHours() * 3600 + d.getUTCMinutes() * 60 + d.getUTCSeconds()) * 1000;
-}
-
 function formatDayList(days: string[]): string {
   const indices = dayIndices(days);
 
@@ -280,153 +265,6 @@ export function getScheduleSummary(icalData: string): string {
   } catch {
     return "Custom schedule";
   }
-}
-
-/**
- * Get a human-readable status string: "Active now" or "Next active: <description>".
- */
-export function getActiveStatus(icalData: string): {
-  active: boolean;
-  label: string;
-} {
-  if (!icalData || !icalData.trim()) {
-    return { active: false, label: "No schedule" };
-  }
-
-  try {
-    const events = parseIcalEvents(icalData);
-    const now = new Date();
-
-    for (const event of events) {
-      if (isEventActiveAt(event, now)) {
-        return { active: true, label: "Active now" };
-      }
-    }
-
-    // Check if all events are expired (past UNTIL)
-    const allExpired = events.every(
-      (event) => event.until && now > event.until,
-    );
-    if (allExpired) {
-      return { active: false, label: "Expired" };
-    }
-
-    // Find next occurrence
-    const nextLabel = getNextOccurrenceLabel(events, now);
-    return { active: false, label: nextLabel };
-  } catch {
-    return { active: false, label: "Unknown" };
-  }
-}
-
-/**
- * Check if a parsed event is active at the given time.
- * Handles recurring events with RRULE (WEEKLY with BYDAY, DAILY).
- */
-function isEventActiveAt(event: ParsedEvent, t: Date): boolean {
-  if (!event.dtstart || !event.dtend) return false;
-
-  const eventDurationMs = event.dtend.getTime() - event.dtstart.getTime();
-
-  if (!event.rrule) {
-    // Single occurrence
-    return (
-      t.getTime() >= event.dtstart.getTime() &&
-      t.getTime() < event.dtend.getTime()
-    );
-  }
-
-  // Recurring event
-  if (event.freq === "WEEKLY" && event.byDay.length > 0) {
-    return isActiveInWeeklyByDay(event, eventDurationMs, t);
-  }
-
-  if (event.freq === "DAILY") {
-    return isActiveInDailyRecurrence(event, eventDurationMs, t);
-  }
-
-  return false;
-}
-
-/** Whether the time of day of t falls within the window starting at the time of day of start. */
-function inDailyWindow(start: Date, eventDurationMs: number, t: Date): boolean {
-  const startMs = utcTimeOfDayMs(start);
-  const nowMs = utcTimeOfDayMs(t);
-  return nowMs >= startMs && nowMs < startMs + eventDurationMs;
-}
-
-/**
- * Check if time t falls within a WEEKLY BYDAY recurrence.
- */
-function isActiveInWeeklyByDay(
-  event: ParsedEvent,
-  eventDurationMs: number,
-  t: Date,
-): boolean {
-  if (!event.dtstart) return false;
-  if (event.until && t > event.until) return false;
-  if (!event.byDay.includes(ICAL_DAYS[t.getUTCDay()])) return false;
-  return inDailyWindow(event.dtstart, eventDurationMs, t);
-}
-
-/**
- * Check if time t falls within a DAILY recurrence.
- */
-function isActiveInDailyRecurrence(
-  event: ParsedEvent,
-  eventDurationMs: number,
-  t: Date,
-): boolean {
-  if (!event.dtstart) return false;
-  if (event.until && t > event.until) return false;
-
-  const params = event.rrule ? parseRruleParams(event.rrule) : {};
-  const interval = parseInt(params.INTERVAL || "1") || 1;
-  const daysDiff = Math.floor(
-    (t.getTime() - event.dtstart.getTime()) / (86400 * 1000),
-  );
-  if (daysDiff < 0 || daysDiff % interval !== 0) return false;
-  return inDailyWindow(event.dtstart, eventDurationMs, t);
-}
-
-/**
- * Get a description of the next occurrence for display.
- */
-function getNextOccurrenceLabel(events: ParsedEvent[], now: Date): string {
-  for (const event of events) {
-    if (!event.dtstart || !event.freq) continue;
-
-    if (event.freq === "WEEKLY" && event.byDay.length > 0) {
-      const currentDayIdx = now.getUTCDay();
-      const days = dayIndices(event.byDay);
-
-      // Find next matching day
-      for (let offset = 0; offset <= 7; offset++) {
-        const checkDay = (currentDayIdx + offset) % 7;
-        if (days.includes(checkDay)) {
-          if (offset === 0) {
-            // Today - check if the event hasn't started yet
-            if (utcTimeOfDayMs(now) < utcTimeOfDayMs(event.dtstart)) {
-              return `Next: Today at ${formatTime12h(event.dtstart)}`;
-            }
-            continue; // Past today's window, check next day
-          }
-
-          const dayName = offset === 1 ? "Tomorrow" : DAY_NAMES[checkDay];
-          return `Next: ${dayName} at ${formatTime12h(event.dtstart)}`;
-        }
-      }
-    }
-
-    if (event.freq === "DAILY") {
-      if (utcTimeOfDayMs(now) < utcTimeOfDayMs(event.dtstart)) {
-        return `Next: Today at ${formatTime12h(event.dtstart)}`;
-      }
-      return `Next: Tomorrow at ${formatTime12h(event.dtstart)}`;
-    }
-  }
-
-  return "Inactive";
 }
 
 /** Returns null if valid, or an error message. */

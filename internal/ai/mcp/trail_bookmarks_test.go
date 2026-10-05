@@ -28,12 +28,6 @@ func (s *stubTrailBookmarkRepo) ListForUser(_ context.Context, user *model.User,
 func (s *stubTrailBookmarkRepo) Update(context.Context, *model.TrailBookmark) error { return nil }
 func (s *stubTrailBookmarkRepo) Delete(context.Context, int64) error                { return nil }
 
-func callToolRequest(args map[string]any) mcp.CallToolRequest {
-	var req mcp.CallToolRequest
-	req.Params.Arguments = args
-	return req
-}
-
 func resultText(t *testing.T, res *mcp.CallToolResult) string {
 	t.Helper()
 	if res == nil || len(res.Content) == 0 {
@@ -47,7 +41,7 @@ func resultText(t *testing.T, res *mcp.CallToolResult) string {
 }
 
 func TestListTrailBookmarks_RequiresUser(t *testing.T) {
-	res, err := handleListTrailBookmarks(context.Background(), callToolRequest(nil), Deps{TrailBookmarks: &stubTrailBookmarkRepo{}})
+	res, err := handleListTrailBookmarks(context.Background(), toolRequest(nil), Deps{TrailBookmarks: &stubTrailBookmarkRepo{}})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -64,7 +58,7 @@ func TestListTrailBookmarks_ReturnsUserBookmarks(t *testing.T) {
 	}}}
 	ctx := api.ContextWithUser(context.Background(), &model.User{ID: 7, Role: model.RoleUser})
 
-	res, err := handleListTrailBookmarks(ctx, callToolRequest(map[string]any{"device_id": "5"}), Deps{TrailBookmarks: repo})
+	res, err := handleListTrailBookmarks(ctx, toolRequest(map[string]any{"device_id": "5"}), Deps{TrailBookmarks: repo})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -102,7 +96,7 @@ func TestListTrailBookmarks_KeepsFractionalSeconds(t *testing.T) {
 	repo := &stubTrailBookmarkRepo{result: []*model.TrailBookmark{{ID: 3, DeviceID: 5, Name: "Hike", From: from, To: to}}}
 	ctx := api.ContextWithUser(context.Background(), &model.User{ID: 7, Role: model.RoleUser})
 
-	res, err := handleListTrailBookmarks(ctx, callToolRequest(nil), Deps{TrailBookmarks: repo})
+	res, err := handleListTrailBookmarks(ctx, toolRequest(nil), Deps{TrailBookmarks: repo})
 	if err != nil || res.IsError {
 		t.Fatalf("unexpected error: %v %v", err, res)
 	}

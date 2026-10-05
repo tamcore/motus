@@ -33,7 +33,7 @@ func TestNotificationRuleTools_UseSharedService(t *testing.T) {
 	}
 	id := fmt.Sprint(rule.ID)
 
-	res, _ := handleUpdateNotificationRule(ctx, callToolRequest(map[string]any{"id": id, "event_types": "deviceOnline", "enabled": false}), deps)
+	res, _ := handleUpdateNotificationRule(ctx, toolRequest(map[string]any{"id": id, "event_types": "deviceOnline", "enabled": false}), deps)
 	if res.IsError {
 		t.Fatalf("update: %s", resultText(t, res))
 	}
@@ -48,7 +48,7 @@ func TestNotificationRuleTools_UseSharedService(t *testing.T) {
 		t.Error("enabled = true, want false from JSON boolean")
 	}
 
-	res, _ = handleDeleteNotificationRule(ctx, callToolRequest(map[string]any{"id": id}), deps)
+	res, _ = handleDeleteNotificationRule(ctx, toolRequest(map[string]any{"id": id}), deps)
 	if res.IsError {
 		t.Fatalf("delete: %s", resultText(t, res))
 	}
@@ -78,7 +78,7 @@ func TestCreateNotificationRuleTool(t *testing.T) {
 	}
 
 	t.Run("success audits and defaults enabled", func(t *testing.T) {
-		res, _ := handleCreateNotificationRule(ctx, callToolRequest(args(nil)), deps)
+		res, _ := handleCreateNotificationRule(ctx, toolRequest(args(nil)), deps)
 		if res.IsError {
 			t.Fatalf("create: %s", resultText(t, res))
 		}
@@ -110,7 +110,7 @@ func TestCreateNotificationRuleTool(t *testing.T) {
 		"non-webhook channel": {map[string]any{"channel": "command"}, "unsupported channel (supported: webhook)"},
 	} {
 		t.Run(name, func(t *testing.T) {
-			res, _ := handleCreateNotificationRule(ctx, callToolRequest(args(tc.overrides)), deps)
+			res, _ := handleCreateNotificationRule(ctx, toolRequest(args(tc.overrides)), deps)
 			if !res.IsError || !strings.Contains(resultText(t, res), tc.wantErr) {
 				t.Fatalf("got %q (error %v), want %q", resultText(t, res), res.IsError, tc.wantErr)
 			}

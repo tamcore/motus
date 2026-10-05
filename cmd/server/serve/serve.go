@@ -241,7 +241,7 @@ func Run() {
 	}
 
 	var cachedGeocoder *geocoding.CachedGeocoder
-	var forwardGeocoder geocoding.ForwardGeocoder
+	var forwardGeocoder *geocoding.NominatimGeocoder
 	if cfg.Geocoding.Enabled || cfg.AI.Enabled {
 		geocodeLogger := appLogger.With(slog.String("component", "geocoding"))
 		var geocodeLimiter geocoding.Limiter

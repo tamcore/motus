@@ -59,11 +59,12 @@ The generated `oas.Handler` interface is implemented by `handlers.Handler`
 single constructor — pass all repos via `HandlerConfig`. The `SecurityHandler`
 (`handlers.NewSecurityHandler`) validates credentials per-operation using the same repos.
 
-**`RouterConfig.Auth` must use `middleware.LoadAuthContext`, not `middleware.Auth`.**
+**`RouterConfig.Auth` must use `middleware.LoadAuthContext`.**
 `LoadAuthContext` populates user/API-key context from credentials but passes through
 unauthenticated requests unchanged — allowing public endpoints like `GET /api/health` to
 respond without a 401. The ogen `SecurityHandler` enforces per-operation auth requirements.
-`middleware.Auth` (returns 401 for all unauthenticated requests) is only for non-ogen routes.
+Token and session lookups go through `api.ResolveToken` / `api.ResolveSession`
+(`internal/api/auth.go`), shared by the middleware and the `SecurityHandler`.
 
 ## Key Gotchas
 
@@ -207,9 +208,9 @@ afterwards.
 
 ### Demo device cleanup uses configured IMEIs
 `demo.Reset()` accepts a `deviceIMEIs []string` parameter and uses `unique_id = ANY($1)`
-to identify demo devices for cleanup. The default IMEIs are exported as
-`demo.DefaultDeviceIMEIs`. If you change the demo IMEIs via `MOTUS_DEMO_DEVICE_IMEIS`,
-the reset logic must receive the matching values.
+to identify demo devices for cleanup. The IMEIs come from
+`MOTUS_DEMO_DEVICE_IMEIS` (default in `internal/config`); the reset logic must receive
+the same values the simulator uses.
 
 ### AI Chat Feature (`MOTUS_AI_*`)
 

@@ -28,11 +28,6 @@ type Geocoder interface {
 	ReverseGeocode(ctx context.Context, lat, lon float64) (string, error)
 }
 
-// ForwardGeocoder converts a free-text address query into coordinates.
-type ForwardGeocoder interface {
-	ForwardGeocode(ctx context.Context, query string) (lat, lon float64, displayName string, err error)
-}
-
 // NominatimConfig holds configuration for the Nominatim geocoder.
 type NominatimConfig struct {
 	// URL is the base URL for the Nominatim reverse geocoding endpoint.

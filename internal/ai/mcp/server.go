@@ -22,7 +22,7 @@ type Deps struct {
 	Notifications     repository.NotificationRepo
 	NotificationRules *services.NotificationRuleService
 	TrailBookmarks    repository.TrailBookmarkRepo
-	ForwardGeocoder   geocoding.ForwardGeocoder
+	ForwardGeocoder   *geocoding.NominatimGeocoder
 }
 
 // NewServer creates and returns a configured in-process MCP server with all

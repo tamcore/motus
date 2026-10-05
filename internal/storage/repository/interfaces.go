@@ -21,7 +21,6 @@ type DeviceRepo interface {
 	GetUserIDs(ctx context.Context, deviceID int64) ([]int64, error)
 	Create(ctx context.Context, d *model.Device, userID int64) error
 	Update(ctx context.Context, d *model.Device) error
-	SetIgnitionState(ctx context.Context, id int64, on bool, ts time.Time) (bool, error)
 	UpdateProtocol(ctx context.Context, id int64, protocol string) error
 	MarkOnline(ctx context.Context, id, positionID int64, at time.Time, batteryLevel *float64) (*model.Device, error)
 	Delete(ctx context.Context, id int64) error

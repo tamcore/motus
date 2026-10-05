@@ -87,35 +87,6 @@ dev-deploy-k8s: dev-docker-build ## Build dev image, push to IMAGE_REGISTRY, and
 	@echo "Demo login: demo@motus.local / demo"
 	@echo "Admin login: admin@motus.local / admin"
 
-DUMP ?= traccar_dump_20260215.sql
-EMAIL ?= admin@motus.local
-
-IMPORT_DAYS ?= 60
-IMPORT_POSITIONS ?= 0
-GEOCODE_LAST_N ?= 100
-EXCLUDE_UNKNOWN ?= true
-
-import-data: ## Import last 60 days from Traccar dump (override: DUMP=file.sql EMAIL=user@example.com FILTER=name)
-	@echo "Importing Traccar data (last 60 days)..."
-	@kubectl port-forward -n motion statefulset/motus-postgres 5437:5432 > /dev/null 2>&1 & \
-	PF_PID=$$! ; \
-	sleep 3 && \
-	go run ./cmd/motus/ import \
-		--source-dump=$(DUMP) \
-		--target-host=localhost \
-		--target-port=5437 \
-		--target-db=motus \
-		--target-user=motus \
-		--target-password=motus123 \
-		--admin-email=$(EMAIL) \
-		$(if $(FILTER),--device-filter=$(FILTER),) \
-		--recent-days=$(IMPORT_DAYS) \
-		--max-positions=$(IMPORT_POSITIONS) \
-		--geocode-last-n=$(GEOCODE_LAST_N) \
-		--exclude-unknown=$(EXCLUDE_UNKNOWN) ; \
-	kill $$PF_PID 2>/dev/null || true
-	@echo "Import complete"
-
 dev-reset-database:
 	@echo "Resetting database (deleting all data)..."
 	@kubectl exec -n motion statefulset/motus-postgres -- psql -U motus -d motus -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public; GRANT ALL ON SCHEMA public TO motus; CREATE EXTENSION postgis;"

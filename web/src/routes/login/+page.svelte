@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { api } from '$lib/api/client';
+	import { api, request } from '$lib/api/client';
 	import { completeLogin } from '$lib/stores/auth';
 	import {
 		isNativeEnvironment,
@@ -112,11 +112,7 @@
 
 		// Fetch OIDC availability for this server.
 		try {
-			const res = await fetch('/api/auth/oidc/config');
-			if (res.ok) {
-				const data = await res.json();
-				oidcEnabled = data.enabled === true;
-			}
+			oidcEnabled = (await request<{ enabled: boolean }>('/auth/oidc/config')).enabled === true;
 		} catch {
 			// OIDC config unavailable; keep oidcEnabled = false.
 		}

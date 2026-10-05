@@ -11,10 +11,6 @@ import (
 )
 
 const (
-	// MileageSpeedThreshold is the minimum speed in km/h for distance
-	// accumulation. Positions below this are considered stationary.
-	MileageSpeedThreshold = 5.0
-
 	// MinStopDuration is how long a device must be stopped before a trip is
 	// considered complete and pending mileage is committed.
 	MinStopDuration = 5 * time.Minute
@@ -72,7 +68,7 @@ func (s *MileageService) ProcessPosition(ctx context.Context, pos *model.Positio
 	}
 
 	// Accumulate distance when moving.
-	if pos.SpeedOrZero() >= MileageSpeedThreshold {
+	if pos.SpeedOrZero() >= model.MotionThreshold {
 		dist := geo.HaversineDistance(
 			prev.Latitude, prev.Longitude,
 			pos.Latitude, pos.Longitude,
@@ -99,7 +95,7 @@ func (s *MileageService) ProcessPosition(ctx context.Context, pos *model.Positio
 		return nil
 	}
 
-	lastMoving, err := s.positionRepo.GetLastMovingPosition(ctx, pos.DeviceID, MileageSpeedThreshold)
+	lastMoving, err := s.positionRepo.GetLastMovingPosition(ctx, pos.DeviceID, model.MotionThreshold)
 	if err != nil || lastMoving == nil {
 		return nil
 	}

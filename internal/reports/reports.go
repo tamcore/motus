@@ -11,13 +11,11 @@ import (
 )
 
 const (
-	tripSpeedThreshold = 5.0 // km/h
-	tripMinStop        = 300 * time.Second
-	tripMinDuration    = 60 * time.Second
-	tripMaxGap         = time.Hour
+	tripMinStop     = 300 * time.Second
+	tripMinDuration = 60 * time.Second
+	tripMaxGap      = time.Hour
 
-	stopSpeedThreshold = 1.0 // km/h
-	stopMinDuration    = 300 * time.Second
+	stopMinDuration = 300 * time.Second
 )
 
 // Trip is a detected trip. Duration is in seconds, Distance in km, speeds in km/h.
@@ -55,7 +53,7 @@ func (a *tripAcc) add(p *model.Position) {
 		a.distance += geo.HaversineDistance(a.lastLat, a.lastLon, p.Latitude, p.Longitude)
 		a.maxSpeed = max(a.maxSpeed, s)
 	}
-	if s > tripSpeedThreshold {
+	if s > model.MotionThreshold {
 		a.movingSum += s
 		a.movingCount++
 	}
@@ -80,7 +78,7 @@ func (d *TripDetector) Add(p *model.Position) {
 	}
 	d.last = &t
 
-	if p.SpeedOrZero() > tripSpeedThreshold {
+	if p.SpeedOrZero() > model.MotionThreshold {
 		d.stopStart = nil
 		d.cur.add(p)
 		return
@@ -138,7 +136,7 @@ type StopDetector struct {
 
 // Add feeds the next position.
 func (d *StopDetector) Add(p *model.Position) {
-	if p.SpeedOrZero() < stopSpeedThreshold {
+	if p.SpeedOrZero() < model.IdleSpeedThreshold {
 		if d.count == 0 {
 			d.start = p.Timestamp
 		}

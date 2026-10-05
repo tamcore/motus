@@ -10,11 +10,11 @@ import (
 	"github.com/tamcore/motus/internal/websocket"
 )
 
-// MotionDedupWindow suppresses repeat motion events when a device's reported
-// speed oscillates around model.MotionThreshold during a single trip. Without this,
-// a vehicle driving at ~5 km/h emits a motion event for every threshold
-// crossing, flooding the notification webhook.
-const MotionDedupWindow = 5 * time.Minute
+// EventDedupWindow suppresses repeat motion and geofence enter/exit events.
+// A device's speed oscillating around model.MotionThreshold, or its position
+// oscillating across a geofence boundary (GPS jitter, duplicate timestamps,
+// interleaved H02 streams), would otherwise flood the notification webhook.
+const EventDedupWindow = 5 * time.Minute
 
 // MotionService detects when a device transitions from stationary to moving
 // and creates motion events.
@@ -53,9 +53,9 @@ func (s *MotionService) CheckMotion(ctx context.Context, position *model.Positio
 	if prevSpeed < model.MotionThreshold && currSpeed >= model.MotionThreshold {
 		// Suppress duplicates from speed oscillation around the threshold:
 		// only fire a new motion event if no motion event has been recorded
-		// for this device within MotionDedupWindow.
+		// for this device within EventDedupWindow.
 		recent, err := s.eventRepo.GetRecentByDeviceAndType(ctx, position.DeviceID, "motion", 1)
-		if err == nil && len(recent) > 0 && position.Timestamp.Sub(recent[0].Timestamp) < MotionDedupWindow {
+		if err == nil && len(recent) > 0 && position.Timestamp.Sub(recent[0].Timestamp) < EventDedupWindow {
 			return nil
 		}
 

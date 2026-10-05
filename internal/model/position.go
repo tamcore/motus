@@ -2,8 +2,12 @@ package model
 
 import "time"
 
-// MotionThreshold is the minimum speed in km/h to consider a device in motion.
-const MotionThreshold = 5.0
+const (
+	// MotionThreshold is the minimum speed in km/h to consider a device in motion.
+	MotionThreshold = 5.0
+	// IdleSpeedThreshold is the maximum speed in km/h to consider a device stationary.
+	IdleSpeedThreshold = 1.0
+)
 
 // Position represents a GPS position report from a device.
 type Position struct {

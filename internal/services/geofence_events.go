@@ -13,13 +13,6 @@ import (
 	"github.com/tamcore/motus/internal/websocket"
 )
 
-// GeofenceDedupWindow suppresses duplicate enter/exit events when a device's
-// position oscillates across a geofence boundary (GPS jitter, duplicate
-// timestamps, or interleaved stationary/moving position streams from the H02
-// tracker). A real transition will not repeat within this window. Matches
-// MotionDedupWindow.
-const GeofenceDedupWindow = 5 * time.Minute
-
 // GeofenceEventService detects geofence enter/exit events by comparing
 // a new position against the previous one for the same device.
 type GeofenceEventService struct {
@@ -117,7 +110,7 @@ func (s *GeofenceEventService) createEvent(ctx context.Context, position *model.
 	if err == nil {
 		for _, e := range recent {
 			if e.GeofenceID != nil && *e.GeofenceID == geofenceID &&
-				position.Timestamp.Sub(e.Timestamp) < GeofenceDedupWindow {
+				position.Timestamp.Sub(e.Timestamp) < EventDedupWindow {
 				return
 			}
 		}

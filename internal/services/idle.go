@@ -16,9 +16,6 @@ const (
 	// IdleThreshold is how long a device must be stationary before an idle event is created.
 	IdleThreshold = 30 * time.Minute
 
-	// IdleSpeedThreshold is the maximum speed in km/h to consider a device stationary.
-	IdleSpeedThreshold = 1.0
-
 	// IdleCheckInterval is how often the background service checks for idle devices.
 	IdleCheckInterval = 5 * time.Minute
 )
@@ -93,7 +90,7 @@ func (s *IdleService) CheckIdle(ctx context.Context) error {
 		}
 
 		// Check if the device is stationary.
-		if position.SpeedOrZero() >= IdleSpeedThreshold {
+		if position.SpeedOrZero() >= model.IdleSpeedThreshold {
 			continue // Device is moving; not idle.
 		}
 

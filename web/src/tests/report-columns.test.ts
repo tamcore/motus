@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
-import { readable } from "svelte/store";
+import { readable, writable } from "svelte/store";
 
 vi.mock("$app/stores", () => ({
   page: readable({ url: new URL("http://localhost/reports") }),
 }));
+vi.mock("$lib/stores/theme", () => ({ isDark: writable(false) }));
 vi.mock("$lib/api/client", () => ({
   api: {
     getActivityReport: vi.fn().mockResolvedValue({

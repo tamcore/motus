@@ -7,10 +7,9 @@
 	import type { Device, WebSocketMessage } from '$lib/types/api';
 	import { WebSocketManager } from '$lib/stores/websocket';
 	import { persisted } from '$lib/stores/persisted';
-	import { formatRelative, formatSpeed, getCardinalDirection } from '$lib/utils/formatting';
-	import { speedToKmh } from '$lib/api/client';
+	import { formatDate, formatRelative, formatSpeed, getCardinalDirection } from '$lib/utils/formatting';
+	import { APIError, request, speedToKmh } from '$lib/api/client';
 
-	const API_BASE = '/api';
 	const SHARE_UNIT_KEY = 'motus_share_units';
 	const TRAIL_POINT_LIMIT = 200;
 
@@ -78,16 +77,7 @@
 	// --- API ---
 	async function fetchSharedDevice(): Promise<boolean> {
 		try {
-			const response = await fetch(`${API_BASE}/share/${token}`);
-			if (!response.ok) {
-				if (response.status === 404) {
-					error = 'This share link has expired or is invalid.';
-				} else {
-					error = 'Failed to load shared device.';
-				}
-				return false;
-			}
-			const data = await response.json();
+			const data = await request<{ device: Device; positions?: SharedPosition[] }>(`/share/${token}`);
 			device = data.device;
 			positions = (data.positions || []).map((pos: SharedPosition) => speedToKmh(pos));
 
@@ -97,8 +87,12 @@
 				trailPoints = [[latestPos.latitude, latestPos.longitude]];
 			}
 			return true;
-		} catch {
-			error = 'Failed to load shared device. Please try again later.';
+		} catch (err) {
+			if (err instanceof APIError) {
+				error = err.status === 404 ? 'This share link has expired or is invalid.' : 'Failed to load shared device.';
+			} else {
+				error = 'Failed to load shared device. Please try again later.';
+			}
 			return false;
 		} finally {
 			loading = false;
@@ -211,7 +205,7 @@
 		if (!position || !device) return '';
 		const speed = formatSpeedText(position.speed);
 		const course = position.course != null ? `${Math.round(position.course)}deg ${getCardinalDirection(position.course)}` : 'N/A';
-		const time = position.fixTime ? new Date(position.fixTime).toLocaleString() : 'Unknown';
+		const time = position.fixTime ? formatDate(position.fixTime) : 'Unknown';
 		return buildPopupElement([
 			{ type: 'heading', text: device.name },
 			{ type: 'text', text: `Speed: ${speed}` },

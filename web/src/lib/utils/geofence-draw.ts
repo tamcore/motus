@@ -6,11 +6,23 @@
  * touches `window` at import time and cannot be loaded during SSR).
  */
 
+import type { Geofence } from "$lib/types/api";
+import { buildPopupElement, type PopupRow } from "./popup";
+
 export const GEOFENCE_STYLE = {
   color: "#00d4ff",
   weight: 2,
   fillOpacity: 0.15,
 };
+
+/** GeoJSON layer for a geofence with its name/description/schedule popup bound. Throws on invalid geometry JSON. */
+export function geofenceGeoJSON(L: any, gf: Geofence, scheduleName?: string): any {
+  const layer = L.geoJSON(JSON.parse(gf.geometry || "{}"), { style: () => GEOFENCE_STYLE });
+  const rows: PopupRow[] = [{ type: "heading", text: gf.name }];
+  if (gf.description) rows.push({ type: "text", text: gf.description });
+  if (scheduleName) rows.push({ type: "note", text: `Schedule: ${scheduleName}`, className: "text-tertiary" });
+  return layer.bindPopup(buildPopupElement(rows));
+}
 
 /** GeoJSON Polygon geometry as produced by {@link layerToGeoJSON}. */
 interface PolygonGeometry {

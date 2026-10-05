@@ -8,7 +8,7 @@
 	import { refreshHandler } from '$lib/stores/refresh';
 	import { useLeaflet } from '$lib/composables/useLeaflet';
 	import { getOverlayById } from '$lib/utils/map-overlays';
-	import { buildPopupElement, type PopupRow } from '$lib/utils/popup';
+	import { buildPopupElement } from '$lib/utils/popup';
 	import type { Device, DeviceStatus, Position, TrailBookmark, TrailBookmarkPayload } from '$lib/types/api';
 	import {
 		positionToRoutePosition,
@@ -20,7 +20,7 @@
 	import MapLayerControl from '$lib/components/MapLayerControl.svelte';
 	import AllDevicesToggle from '$lib/components/AllDevicesToggle.svelte';
 	import Button from '$lib/components/Button.svelte';
-	import { formatSpeed, formatRelative, getCardinalDirection } from '$lib/utils/formatting';
+	import { formatDate, formatSpeed, formatRelative, getCardinalDirection } from '$lib/utils/formatting';
 	import { useUserLocation, userLocationLayers } from '$lib/composables/useUserLocation';
 	import TrailRangeSelector from '$lib/components/TrailRangeSelector.svelte';
 	import { trailRange } from '$lib/stores/trailRange';
@@ -35,7 +35,7 @@
 	import TrailBookmarkList from '$lib/components/TrailBookmarkList.svelte';
 	import TrailBookmarkModal from '$lib/components/TrailBookmarkModal.svelte';
 	import { bookmarkToTrailRange } from '$lib/utils/trail-bookmarks';
-	import { GEOFENCE_STYLE } from '$lib/utils/geofence-draw';
+	import { geofenceGeoJSON } from '$lib/utils/geofence-draw';
 
 	const leafletMap = useLeaflet();
 	const userLocation = useUserLocation();
@@ -257,7 +257,7 @@
 
 	function getPopupContent(device: Device, pos: Position): HTMLElement {
 		const speed = pos.speed != null ? formatSpeed(pos.speed) : 'N/A';
-		const time = pos.fixTime ? new Date(pos.fixTime).toLocaleString() : 'Unknown';
+		const time = pos.fixTime ? formatDate(pos.fixTime) : 'Unknown';
 		return buildPopupElement([
 			{ type: 'heading', text: device.name },
 			{ type: 'text', text: `Speed: ${speed}` },
@@ -493,7 +493,7 @@
 			weight: 2
 		})
 			.addTo(trailLayer)
-			.bindPopup(`Start: ${new Date(first.fixTime).toLocaleString()}`);
+			.bindPopup(`Start: ${formatDate(first.fixTime)}`);
 	}
 
 	function updateLiveTrail(position: Position) {
@@ -568,12 +568,7 @@
 			for (const gf of geofences) {
 				if (!gf.geometry) continue;
 				try {
-					const geometry = JSON.parse(gf.geometry);
-					const layer = L.geoJSON(geometry, { style: () => GEOFENCE_STYLE });
-					const popupRows: PopupRow[] = [{ type: 'heading', text: gf.name }];
-					if (gf.description) popupRows.push({ type: 'text', text: gf.description });
-					layer.bindPopup(buildPopupElement(popupRows));
-					layer.addTo(geofenceLayer);
+					geofenceGeoJSON(L, gf).addTo(geofenceLayer);
 				} catch {
 					console.error('Failed to parse geofence geometry for', gf.name);
 				}

@@ -502,14 +502,6 @@
 						borderColor: tooltipBorder,
 						borderWidth: 1,
 						padding: 10,
-						callbacks: {
-							title: (items) => {
-								if (items.length > 0) {
-									return chartData.labels[items[0].dataIndex];
-								}
-								return '';
-							},
-						},
 					},
 				},
 				scales: {
@@ -621,10 +613,6 @@
 		isDraggingSeparator = false;
 		document.removeEventListener('mousemove', handleSeparatorMouseMove);
 		document.removeEventListener('mouseup', handleSeparatorMouseUp);
-		// Resize chart after drag
-		if (chartInstance) {
-			chartInstance.resize();
-		}
 	}
 
 	function toggleFullscreen() {

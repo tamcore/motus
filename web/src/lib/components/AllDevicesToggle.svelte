@@ -3,11 +3,11 @@
 	import { isAdmin } from '$lib/stores/auth';
 	import { createEventDispatcher } from 'svelte';
 
-	const dispatch = createEventDispatcher<{ change: boolean }>();
+	const dispatch = createEventDispatcher<{ change: void }>();
 
 	function toggle() {
 		settings.update((s) => ({ ...s, showAllDevices: !s.showAllDevices }));
-		dispatch('change', !$settings.showAllDevices);
+		dispatch('change');
 	}
 </script>
 

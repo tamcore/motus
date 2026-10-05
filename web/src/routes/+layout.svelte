@@ -3,7 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { theme } from '$lib/stores/theme';
-	import { currentUser, currentUserName, isAuthenticated } from '$lib/stores/auth';
+	import { currentUser, currentUserName, isAdmin, isAuthenticated } from '$lib/stores/auth';
 	import { serverInfo, loadServerInfo } from '$lib/stores/server';
 	import { wsManager } from '$lib/stores/websocket';
 	import { pwa } from '$lib/stores/pwa';
@@ -31,8 +31,6 @@
 	let navBarHeight = 0;
 	let isNative = false;
 
-	$: isCurrentUserAdmin = $currentUser?.administrator === true;
-
 	$: navLinks = [
 		{ href: '/', label: 'Dashboard' },
 		{ href: '/devices', label: 'Devices' },
@@ -44,7 +42,7 @@
 		{ href: '/calendars', label: 'Calendars' },
 		...($serverInfo?.aiEnabled ? [{ href: '/chat', label: 'Chat' }] : []),
 		{ href: '/notifications', label: 'Notifications', prefix: '/notifications' },
-		...(isCurrentUserAdmin ? [{ href: '/admin/users', label: 'Admin', prefix: '/admin' }] : []),
+		...($isAdmin ? [{ href: '/admin/users', label: 'Admin', prefix: '/admin' }] : []),
 	];
 
 	$: isPublicRoute = $page.url.pathname.startsWith('/share/') || $page.url.pathname === '/login';

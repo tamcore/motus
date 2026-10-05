@@ -2,6 +2,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { api, fetchNotifications, stripOwnOwnerName } from '$lib/api/client';
 	import { isAdmin } from '$lib/stores/auth';
+	import { formatDate } from '$lib/utils/formatting';
 	import { refreshHandler } from '$lib/stores/refresh';
 	import Button from '$lib/components/Button.svelte';
 	import Input from '$lib/components/Input.svelte';
@@ -376,7 +377,7 @@
 							{#if rule.updatedAt}
 								<div class="rule-detail">
 									<span class="detail-label">Last updated:</span>
-									<span class="detail-value">{new Date(rule.updatedAt).toLocaleString()}</span>
+									<span class="detail-value">{formatDate(rule.updatedAt)}</span>
 								</div>
 							{/if}
 						</div>

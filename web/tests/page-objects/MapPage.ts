@@ -61,10 +61,6 @@ export class MapPage {
     return this.page.locator('.sidebar-toggle');
   }
 
-  get popup() {
-    return this.page.locator('.leaflet-popup');
-  }
-
   get popupContent() {
     return this.page.locator('.leaflet-popup-content');
   }

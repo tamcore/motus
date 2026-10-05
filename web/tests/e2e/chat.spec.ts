@@ -116,7 +116,7 @@ test.describe('Chat page', () => {
     await expect(authedPage.locator('.tool-pending')).toHaveCount(0);
   });
 
-  test('renders markdown tables inside a scrollable container', async ({ authedPage }) => {
+  test('renders markdown tables as horizontally scrollable', async ({ authedPage }) => {
     const tableMarkdown =
       '| Device | Status | Location |\\n|--------|--------|----------|\\n| Car | Online | Berlin |\\n';
     await mockFetch(authedPage, [
@@ -134,12 +134,9 @@ test.describe('Chat page', () => {
     await textarea.fill('List my devices');
     await authedPage.keyboard.press('Enter');
 
-    await expect(authedPage.locator('.assistant-text .table-container')).toBeVisible({
-      timeout: 10000,
-    });
-    await expect(
-      authedPage.locator('.assistant-text .table-container table'),
-    ).toBeVisible({ timeout: 5000 });
+    const table = authedPage.locator('.assistant-text table');
+    await expect(table).toBeVisible({ timeout: 10000 });
+    await expect(table).toHaveCSS('overflow-x', 'auto');
   });
 
   test('assistant bubble does not overflow on mobile viewport', async ({ authedPage }) => {

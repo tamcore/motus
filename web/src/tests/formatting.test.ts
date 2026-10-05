@@ -124,6 +124,15 @@ describe("formatRelative", () => {
   it("returns Unknown for an invalid date", () => {
     expect(formatRelative(new Date("not-a-date"))).toBe("Unknown");
   });
+
+  it.each([
+    [10 * 1000, "now"],
+    [5 * 60 * 1000, "5 minutes ago"],
+    [60 * 60 * 1000, "1 hour ago"],
+    [3 * 24 * 60 * 60 * 1000, "3 days ago"],
+  ])("formats %i ms ago as %s", (ago, expected) => {
+    expect(formatRelative(new Date(Date.now() - ago))).toBe(expected);
+  });
 });
 
 describe("formatMileage", () => {

@@ -13,6 +13,8 @@
 	import type { Trip } from '$lib/utils/trips';
 	import type { Stop } from '$lib/utils/stops';
 	import { Chart, registerables } from 'chart.js';
+	import { chartColors } from '$lib/utils/chart-metrics';
+	import { isDark } from '$lib/stores/theme';
 	import Skeleton from '$lib/components/Skeleton.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import AllDevicesToggle from '$lib/components/AllDevicesToggle.svelte';
@@ -86,6 +88,7 @@
 		? trips.reduce((sum, t) => sum + t.avgSpeed, 0) / trips.length : 0;
 
 	$: if (activeTab === 'summary' && trips.length > 0 && chartCanvas) {
+		$isDark;
 		buildChart();
 	}
 
@@ -93,6 +96,7 @@
 		if (chartInstance) chartInstance.destroy();
 		const ctx = chartCanvas.getContext('2d');
 		if (!ctx) return;
+		const c = chartColors($isDark);
 		const sorted = [...trips].sort(
 			(a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
 		);
@@ -110,10 +114,10 @@
 			},
 			options: {
 				responsive: true, maintainAspectRatio: false,
-				plugins: { legend: { labels: { color: '#a0a0a0' } } },
+				plugins: { legend: { labels: { color: c.tick } } },
 				scales: {
-					x: { ticks: { color: '#a0a0a0', maxRotation: 45 }, grid: { color: '#3a3a3a' } },
-					y: { ticks: { color: '#a0a0a0' }, grid: { color: '#3a3a3a' } }
+					x: { ticks: { color: c.tick, maxRotation: 45 }, grid: { color: c.grid } },
+					y: { ticks: { color: c.tick }, grid: { color: c.grid } }
 				}
 			}
 		});

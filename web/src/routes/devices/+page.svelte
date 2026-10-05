@@ -4,7 +4,7 @@
 	import { slide } from 'svelte/transition';
 	import { api, fetchDevices } from '$lib/api/client';
 	import { refreshHandler } from '$lib/stores/refresh';
-	import { mileageToDisplay, mileageFromDisplay, formatMileage, formatRelative } from '$lib/utils/formatting';
+	import { mileageToDisplay, mileageFromDisplay, formatMileage, formatRelative, formatDate } from '$lib/utils/formatting';
 	import { buildCommandAttributes, commandIntervalLabel, commandSentMessage, COMMAND_TYPE_LABELS } from '$lib/utils/commands';
 	import { settings } from '$lib/stores/settings';
 	import AllDevicesToggle from '$lib/components/AllDevicesToggle.svelte';
@@ -739,7 +739,7 @@
 								<span class="cmd-history-type">{COMMAND_TYPE_LABELS[cmd.type] ?? cmd.type}</span>
 								{#if interval}<span class="cmd-history-interval">{interval}</span>{/if}
 								<span class="cmd-history-status cmd-status-{cmd.status}">{cmd.status}</span>
-								<span class="cmd-history-time">{new Date(cmd.createdAt).toLocaleString()}</span>
+								<span class="cmd-history-time">{formatDate(cmd.createdAt)}</span>
 							</div>
 							{#if cmd.result}
 								<pre class="cmd-history-result">{cmd.result}</pre>

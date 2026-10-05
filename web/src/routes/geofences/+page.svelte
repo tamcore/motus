@@ -5,10 +5,10 @@
 	import { settings } from '$lib/stores/settings';
 	import { useUserLocation, userLocationLayers } from '$lib/composables/useUserLocation';
 	import { useLeaflet } from '$lib/composables/useLeaflet';
-	import { buildPopupElement, type PopupRow } from '$lib/utils/popup';
 	import {
 		GEOFENCE_STYLE,
 		geofenceDrawOptions,
+		geofenceGeoJSON,
 		layerToGeoJSON
 	} from '$lib/utils/geofence-draw';
 	import Button from '$lib/components/Button.svelte';
@@ -96,15 +96,7 @@
 	 * map as a GeoJSON layer. Returns the Leaflet layer.
 	 */
 	function addGeofenceToMap(gf: Geofence): any {
-		const geometry = JSON.parse(gf.geometry || '{}');
-		const layer = L.geoJSON(geometry, { style: () => GEOFENCE_STYLE });
-		const calName = getCalendarName(gf.calendarId);
-		const rows: PopupRow[] = [{ type: 'heading', text: gf.name }];
-		if (gf.description) rows.push({ type: 'text', text: gf.description });
-		if (calName) rows.push({ type: 'note', text: `Schedule: ${calName}`, className: 'text-tertiary' });
-		layer.bindPopup(buildPopupElement(rows));
-		layer.addTo(map);
-		return layer;
+		return geofenceGeoJSON(L, gf, getCalendarName(gf.calendarId)).addTo(map);
 	}
 
 	/**

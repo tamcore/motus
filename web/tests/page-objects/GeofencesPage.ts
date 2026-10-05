@@ -45,10 +45,6 @@ export class GeofencesPage {
     return this.page.locator('[role="dialog"] button:has-text("Save Geofence")');
   }
 
-  get cancelButton() {
-    return this.page.locator('[role="dialog"] button:has-text("Cancel")');
-  }
-
   async expectLoaded() {
     await expect(this.sidebarTitle).toContainText('Geofences');
     await expect(this.mapContainer).toBeVisible();

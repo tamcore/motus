@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { dateValue, resolveDatePreset, type DatePreset } from '$lib/utils/date-range';
+	import { RELATIVE_DATE_PRESETS, resolveDatePreset, type DatePreset } from '$lib/utils/date-range';
 	import { onMount, onDestroy } from 'svelte';
 	import { api, fetchDevices } from '$lib/api/client';
 	import { refreshHandler } from '$lib/stores/refresh';
@@ -229,31 +229,6 @@
 		renderHeatmap();
 	}
 
-	async function exportImage() {
-		try {
-			const html2canvas = (await import('html2canvas')).default;
-			const canvas = await html2canvas(mapContainer, {
-				useCORS: true,
-				allowTaint: true,
-				backgroundColor: null,
-				scale: 2
-			});
-
-			const link = document.createElement('a');
-			link.download = `motus-heatmap-${dateValue(new Date())}.png`;
-			link.href = canvas.toDataURL('image/png');
-			link.click();
-		} catch (err) {
-			console.error('Export failed:', err);
-			// Fallback: prompt user to use browser screenshot
-			const msg =
-				'Image export encountered an issue. You can use your browser\'s screenshot ' +
-				'tool (Ctrl+Shift+S on Firefox, or Ctrl+Shift+I > screenshot on Chrome) ' +
-				'to capture the map.';
-			alert(msg);
-		}
-	}
-
 	// Reactively re-render when slider controls change
 	$: if (mapReady) {
 		// Track reactive dependencies
@@ -298,9 +273,10 @@
 	$: stats = pointStats(positions);
 	$: dataTimeRange = (() => {
 		if (!stats || isNaN(stats.earliest)) return '';
-		const fmt = (d: Date) =>
-			d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-		return `${fmt(new Date(stats.earliest))} - ${fmt(new Date(stats.latest))}`;
+		return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).formatRange(
+			stats.earliest,
+			stats.latest
+		);
 	})();
 
 	// Compute speed stats for display
@@ -335,11 +311,9 @@
 				on:change={handleDateRangeChange}
 				class="field-sm field-full"
 			>
-				<option value="day">Last 24 Hours</option>
-				<option value="week">Last 7 Days</option>
-				<option value="month">Last 30 Days</option>
-				<option value="all">All Time</option>
-				<option value="custom">Custom Range</option>
+				{#each RELATIVE_DATE_PRESETS as p (p.value)}
+					<option value={p.value}>{p.label}</option>
+				{/each}
 			</select>
 
 			{#if dateRange === 'custom'}
@@ -452,9 +426,6 @@
 			</Button>
 			<Button variant="secondary" on:click={fitMapToPositions} disabled={positions.length === 0}>
 				Fit to Data
-			</Button>
-			<Button variant="secondary" on:click={exportImage} disabled={positions.length === 0}>
-				Export Image
 			</Button>
 			<Button variant="secondary" on:click={resetControls}>
 				Reset

@@ -6,17 +6,7 @@
 
 	marked.use({ gfm: true, breaks: true });
 
-	$: {
-		const raw = marked.parse(content) as string;
-		// Wrap every table in a scrollable container so wide tables scroll
-		// horizontally on mobile rather than squashing columns.
-		const wrapped = raw
-			.replace(/<table(\s|>)/g, '<div class="table-container"><table$1')
-			.replace(/<\/table>/g, '</table></div>');
-		html = DOMPurify.sanitize(wrapped);
-	}
-
-	let html = '';
+	$: html = DOMPurify.sanitize(marked.parse(content) as string);
 </script>
 
 <div class="markdown-body">{@html html}</div>
@@ -68,18 +58,13 @@
 		padding: 0;
 		font-size: 0.85em;
 	}
-	.markdown-body :global(.table-container) {
+	.markdown-body :global(table) {
+		display: block;
 		overflow-x: auto;
-		-webkit-overflow-scrolling: touch;
 		max-width: 100%;
-		margin: 0.5em 0;
-	}
-	.markdown-body :global(.table-container table) {
 		border-collapse: collapse;
-		width: auto;
-		min-width: 100%;
 		font-size: 0.9em;
-		margin: 0;
+		margin: 0.5em 0;
 	}
 	.markdown-body :global(th),
 	.markdown-body :global(td) {

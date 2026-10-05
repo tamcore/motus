@@ -10,26 +10,19 @@ export type PopupRow =
  */
 export function buildPopupElement(rows: PopupRow[]): HTMLElement {
 	const container = document.createElement('div');
-
 	for (const row of rows) {
 		if (row.type === 'heading') {
 			const strong = document.createElement('strong');
 			strong.textContent = row.text;
-			container.appendChild(strong);
+			container.append(strong);
+		} else if (row.type === 'note') {
+			const small = document.createElement('small');
+			if (row.className) small.className = row.className;
+			small.textContent = row.text;
+			container.append(document.createElement('br'), small);
 		} else {
-			const br = document.createElement('br');
-			container.appendChild(br);
-
-			if (row.type === 'note') {
-				const small = document.createElement('small');
-				if (row.className) small.className = row.className;
-				small.textContent = row.text;
-				container.appendChild(small);
-			} else {
-				container.appendChild(document.createTextNode(row.text));
-			}
+			container.append(document.createElement('br'), row.text);
 		}
 	}
-
 	return container;
 }

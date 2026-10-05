@@ -2,10 +2,7 @@ package repository
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"log/slog"
-	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -25,16 +22,11 @@ func NewEventRepository(pool *pgxpool.Pool) *EventRepository {
 
 // Create inserts a new event.
 func (r *EventRepository) Create(ctx context.Context, e *model.Event) error {
-	attrs, err := json.Marshal(e.Attributes)
-	if err != nil {
-		return fmt.Errorf("marshal attributes: %w", err)
-	}
-
-	err = r.pool.QueryRow(ctx, `
+	err := r.pool.QueryRow(ctx, `
 		INSERT INTO events (device_id, geofence_id, type, position_id, timestamp, attributes)
 		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id
-	`, e.DeviceID, e.GeofenceID, e.Type, e.PositionID, e.Timestamp, attrs).
+	`, e.DeviceID, e.GeofenceID, e.Type, e.PositionID, e.Timestamp, e.Attributes).
 		Scan(&e.ID)
 	if err != nil {
 		return fmt.Errorf("create event: %w", err)
@@ -116,26 +108,13 @@ func (r *EventRepository) GetByFilters(ctx context.Context, userID int64, device
 	`
 
 	args := []any{userID, from, to}
-	argIdx := 4
-
 	if len(deviceIDs) > 0 {
-		placeholders := make([]string, len(deviceIDs))
-		for i, id := range deviceIDs {
-			placeholders[i] = fmt.Sprintf("$%d", argIdx)
-			args = append(args, id)
-			argIdx++
-		}
-		query += " AND e.device_id IN (" + strings.Join(placeholders, ",") + ")"
+		args = append(args, deviceIDs)
+		query += fmt.Sprintf(" AND e.device_id = ANY($%d)", len(args))
 	}
-
 	if len(eventTypes) > 0 {
-		placeholders := make([]string, len(eventTypes))
-		for i, t := range eventTypes {
-			placeholders[i] = fmt.Sprintf("$%d", argIdx)
-			args = append(args, t)
-			argIdx++
-		}
-		query += " AND e.type IN (" + strings.Join(placeholders, ",") + ")"
+		args = append(args, eventTypes)
+		query += fmt.Sprintf(" AND e.type = ANY($%d)", len(args))
 	}
 
 	query += " ORDER BY e.timestamp DESC LIMIT 1000"
@@ -149,17 +128,8 @@ func (r *EventRepository) GetByFilters(ctx context.Context, userID int64, device
 
 func rowToEvent(row pgx.CollectableRow) (*model.Event, error) {
 	var e model.Event
-	var attrs []byte
-	if err := row.Scan(&e.ID, &e.DeviceID, &e.GeofenceID, &e.Type, &e.PositionID, &e.Timestamp, &attrs); err != nil {
+	if err := row.Scan(&e.ID, &e.DeviceID, &e.GeofenceID, &e.Type, &e.PositionID, &e.Timestamp, &e.Attributes); err != nil {
 		return nil, fmt.Errorf("scan event: %w", err)
-	}
-	if len(attrs) > 0 {
-		if err := json.Unmarshal(attrs, &e.Attributes); err != nil {
-			slog.Warn("failed to unmarshal event attributes",
-				slog.Int64("eventID", e.ID),
-				slog.Any("error", err))
-			e.Attributes = make(map[string]any)
-		}
 	}
 	return &e, nil
 }

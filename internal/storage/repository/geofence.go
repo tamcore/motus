@@ -3,10 +3,8 @@ package repository
 import (
 	"cmp"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"slices"
 	"strings"
 
@@ -71,11 +69,6 @@ func geomParam(g *model.Geofence) (string, string) {
 
 // Create inserts a new geofence. The geometry field accepts GeoJSON or WKT.
 func (r *GeofenceRepository) Create(ctx context.Context, g *model.Geofence) error {
-	attrs, err := json.Marshal(g.Attributes)
-	if err != nil {
-		return fmt.Errorf("marshal attributes: %w", err)
-	}
-
 	geomExpr, geomInput := geomParam(g)
 	query := fmt.Sprintf(`
 		INSERT INTO geofences (name, description, geometry, attributes, calendar_id, created_at, updated_at)
@@ -83,8 +76,8 @@ func (r *GeofenceRepository) Create(ctx context.Context, g *model.Geofence) erro
 		RETURNING id, ST_AsText(geometry), ST_AsGeoJSON(geometry), calendar_id, created_at, updated_at
 	`, geomExpr)
 
-	err = r.pool.QueryRow(ctx, query,
-		g.Name, g.Description, geomInput, attrs, g.CalendarID,
+	err := r.pool.QueryRow(ctx, query,
+		g.Name, g.Description, geomInput, g.Attributes, g.CalendarID,
 	).Scan(&g.ID, &g.Area, &g.Geometry, &g.CalendarID, &g.CreatedAt, &g.UpdatedAt)
 	if err != nil {
 		return geometryError("create geofence", err)
@@ -150,11 +143,6 @@ func (r *GeofenceRepository) GetAllWithOwners(ctx context.Context) ([]*model.Geo
 
 // Update modifies an existing geofence. Accepts GeoJSON or WKT for geometry.
 func (r *GeofenceRepository) Update(ctx context.Context, g *model.Geofence) error {
-	attrs, err := json.Marshal(g.Attributes)
-	if err != nil {
-		return fmt.Errorf("marshal attributes: %w", err)
-	}
-
 	geomExpr, geomInput := geomParam(g)
 	query := fmt.Sprintf(`
 		UPDATE geofences
@@ -162,8 +150,8 @@ func (r *GeofenceRepository) Update(ctx context.Context, g *model.Geofence) erro
 		WHERE id = $6
 	`, geomExpr)
 
-	_, err = r.pool.Exec(ctx, query,
-		g.Name, g.Description, geomInput, attrs, g.CalendarID, g.ID,
+	_, err := r.pool.Exec(ctx, query,
+		g.Name, g.Description, geomInput, g.Attributes, g.CalendarID, g.ID,
 	)
 	if err != nil {
 		return geometryError("update geofence", err)
@@ -227,20 +215,7 @@ func (r *GeofenceRepository) CheckContainmentForDevice(ctx context.Context, devi
 
 // scanGeofence scans a geofence row, followed by extra, into g.
 func scanGeofence(row pgx.Row, g *model.Geofence, extra ...any) error {
-	var attrs []byte
-	dest := append([]any{&g.ID, &g.Name, &g.Description, &g.Area, &g.Geometry, &attrs, &g.CalendarID, &g.CreatedAt, &g.UpdatedAt}, extra...)
-	if err := row.Scan(dest...); err != nil {
-		return err
-	}
-	if len(attrs) > 0 {
-		if err := json.Unmarshal(attrs, &g.Attributes); err != nil {
-			slog.Warn("failed to unmarshal geofence attributes",
-				slog.Int64("geofenceID", g.ID),
-				slog.Any("error", err))
-			g.Attributes = make(map[string]any)
-		}
-	}
-	return nil
+	return row.Scan(append([]any{&g.ID, &g.Name, &g.Description, &g.Area, &g.Geometry, &g.Attributes, &g.CalendarID, &g.CreatedAt, &g.UpdatedAt}, extra...)...)
 }
 
 func rowToGeofence(row pgx.CollectableRow) (*model.Geofence, error) {

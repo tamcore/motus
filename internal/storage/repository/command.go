@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
@@ -22,16 +21,11 @@ func NewCommandRepository(pool *pgxpool.Pool) *CommandRepository {
 
 // Create inserts a new command into the database.
 func (r *CommandRepository) Create(ctx context.Context, cmd *model.Command) error {
-	attrs, err := json.Marshal(cmd.Attributes)
-	if err != nil {
-		return fmt.Errorf("marshal command attributes: %w", err)
-	}
-
-	err = r.pool.QueryRow(ctx,
+	err := r.pool.QueryRow(ctx,
 		`INSERT INTO commands (device_id, type, attributes, status)
 		 VALUES ($1, $2, $3, $4)
 		 RETURNING id, created_at`,
-		cmd.DeviceID, cmd.Type, attrs, cmd.Status,
+		cmd.DeviceID, cmd.Type, cmd.Attributes, cmd.Status,
 	).Scan(&cmd.ID, &cmd.CreatedAt)
 	if err != nil {
 		return fmt.Errorf("create command: %w", err)
@@ -139,15 +133,7 @@ func (r *CommandRepository) GetLatestSentByDevice(ctx context.Context, deviceID 
 
 // scanCommand scans a command row, followed by extra, into cmd.
 func scanCommand(row pgx.Row, cmd *model.Command, extra ...any) error {
-	var attrs []byte
-	dest := append([]any{&cmd.ID, &cmd.DeviceID, &cmd.Type, &attrs, &cmd.Status, &cmd.Result, &cmd.CreatedAt, &cmd.ExecutedAt}, extra...)
-	if err := row.Scan(dest...); err != nil {
-		return err
-	}
-	if len(attrs) > 0 {
-		_ = json.Unmarshal(attrs, &cmd.Attributes)
-	}
-	return nil
+	return row.Scan(append([]any{&cmd.ID, &cmd.DeviceID, &cmd.Type, &cmd.Attributes, &cmd.Status, &cmd.Result, &cmd.CreatedAt, &cmd.ExecutedAt}, extra...)...)
 }
 
 func rowToCommand(row pgx.CollectableRow) (*model.Command, error) {

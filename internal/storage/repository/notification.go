@@ -2,9 +2,7 @@ package repository
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"log/slog"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -23,16 +21,11 @@ func NewNotificationRepository(pool *pgxpool.Pool) *NotificationRepository {
 
 // Create inserts a new notification rule.
 func (r *NotificationRepository) Create(ctx context.Context, rule *model.NotificationRule) error {
-	configJSON, err := json.Marshal(rule.Config)
-	if err != nil {
-		return fmt.Errorf("marshal config: %w", err)
-	}
-
-	err = r.pool.QueryRow(ctx, `
+	err := r.pool.QueryRow(ctx, `
 		INSERT INTO notification_rules (user_id, name, event_types, channel, config, template, enabled, geofence_ids, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
 		RETURNING id, created_at, updated_at
-	`, rule.UserID, rule.Name, rule.EventTypes, rule.Channel, configJSON, rule.Template, rule.Enabled, geofenceIDsParam(rule.GeofenceIDs)).
+	`, rule.UserID, rule.Name, rule.EventTypes, rule.Channel, configParam(rule.Config), rule.Template, rule.Enabled, geofenceIDsParam(rule.GeofenceIDs)).
 		Scan(&rule.ID, &rule.CreatedAt, &rule.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("create notification rule: %w", err)
@@ -101,16 +94,11 @@ func (r *NotificationRepository) GetByEventType(ctx context.Context, userID int6
 
 // Update modifies an existing notification rule.
 func (r *NotificationRepository) Update(ctx context.Context, rule *model.NotificationRule) error {
-	configJSON, err := json.Marshal(rule.Config)
-	if err != nil {
-		return fmt.Errorf("marshal config: %w", err)
-	}
-
-	_, err = r.pool.Exec(ctx, `
+	_, err := r.pool.Exec(ctx, `
 		UPDATE notification_rules
 		SET name = $1, event_types = $2, channel = $3, config = $4, template = $5, enabled = $6, geofence_ids = $9, updated_at = NOW()
 		WHERE id = $7 AND user_id = $8
-	`, rule.Name, rule.EventTypes, rule.Channel, configJSON, rule.Template, rule.Enabled, rule.ID, rule.UserID, geofenceIDsParam(rule.GeofenceIDs))
+	`, rule.Name, rule.EventTypes, rule.Channel, configParam(rule.Config), rule.Template, rule.Enabled, rule.ID, rule.UserID, geofenceIDsParam(rule.GeofenceIDs))
 	if err != nil {
 		return fmt.Errorf("update notification rule: %w", err)
 	}
@@ -165,6 +153,15 @@ func (r *NotificationRepository) GetLogsByRule(ctx context.Context, ruleID int64
 	})
 }
 
+// configParam maps a nil config to JSON null, as the NOT NULL config column
+// rejects the SQL NULL pgx encodes for a nil map.
+func configParam(config map[string]any) any {
+	if config == nil {
+		return "null"
+	}
+	return config
+}
+
 // geofenceIDsParam maps a nil geofence filter to an empty array: pgx encodes
 // a nil slice as NULL, which the NOT NULL geofence_ids column rejects.
 func geofenceIDsParam(ids []int64) []int64 {
@@ -177,24 +174,15 @@ func geofenceIDsParam(ids []int64) []int64 {
 func rowToNotificationRule(withOwner bool) pgx.RowToFunc[*model.NotificationRule] {
 	return func(row pgx.CollectableRow) (*model.NotificationRule, error) {
 		var rule model.NotificationRule
-		var configJSON []byte
 		dest := []any{
 			&rule.ID, &rule.UserID, &rule.Name, &rule.EventTypes, &rule.Channel,
-			&configJSON, &rule.Template, &rule.Enabled, &rule.GeofenceIDs, &rule.CreatedAt, &rule.UpdatedAt,
+			&rule.Config, &rule.Template, &rule.Enabled, &rule.GeofenceIDs, &rule.CreatedAt, &rule.UpdatedAt,
 		}
 		if withOwner {
 			dest = append(dest, &rule.OwnerName)
 		}
 		if err := row.Scan(dest...); err != nil {
 			return nil, fmt.Errorf("scan notification rule: %w", err)
-		}
-		if len(configJSON) > 0 {
-			if err := json.Unmarshal(configJSON, &rule.Config); err != nil {
-				slog.Warn("failed to unmarshal notification config",
-					slog.Int64("ruleID", rule.ID),
-					slog.Any("error", err))
-				rule.Config = make(map[string]any)
-			}
 		}
 		return &rule, nil
 	}

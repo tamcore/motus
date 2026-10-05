@@ -3,9 +3,7 @@ package repository
 import (
 	"cmp"
 	"context"
-	"encoding/json"
 	"fmt"
-	"log/slog"
 	"maps"
 	"slices"
 	"time"
@@ -37,16 +35,6 @@ const qualifiedPositionColumns = `p.id, p.device_id, p.protocol, p.server_time, 
 
 // Create inserts a new position record.
 func (r *PositionRepository) Create(ctx context.Context, p *model.Position) error {
-	attrs, err := json.Marshal(p.Attributes)
-	if err != nil {
-		return fmt.Errorf("marshal attributes: %w", err)
-	}
-
-	var network []byte
-	if p.Network != nil {
-		network, _ = json.Marshal(p.Network)
-	}
-
 	// Default server_time to now if not set.
 	if p.ServerTime == nil || p.ServerTime.IsZero() {
 		now := time.Now().UTC()
@@ -57,14 +45,14 @@ func (r *PositionRepository) Create(ctx context.Context, p *model.Position) erro
 		p.DeviceTime = &p.Timestamp
 	}
 
-	err = r.pool.QueryRow(ctx,
+	err := r.pool.QueryRow(ctx,
 		`INSERT INTO positions (device_id, protocol, server_time, device_time, timestamp, valid,
 			latitude, longitude, altitude, speed, course, address, accuracy, network, geofence_ids, outdated, attributes)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 		 RETURNING id`,
 		p.DeviceID, p.Protocol, p.ServerTime, p.DeviceTime, p.Timestamp, p.Valid,
 		p.Latitude, p.Longitude, p.Altitude, p.Speed, p.Course,
-		p.Address, p.Accuracy, network, p.GeofenceIDs, p.Outdated, attrs,
+		p.Address, p.Accuracy, p.Network, p.GeofenceIDs, p.Outdated, p.Attributes,
 	).Scan(&p.ID)
 	if err != nil {
 		return fmt.Errorf("create position: %w", err)
@@ -430,7 +418,6 @@ func (r *PositionRepository) stream(ctx context.Context, fn func(*model.Position
 
 // scanPosition scans a single row into a Position.
 func scanPosition(scanner pgx.Row, p *model.Position) error {
-	var attrs, network []byte
 	// protocol column is nullable (added in migration 00014 without NOT NULL),
 	// so we scan into *string to handle NULL values from pre-existing rows.
 	var protocol *string
@@ -440,7 +427,7 @@ func scanPosition(scanner pgx.Row, p *model.Position) error {
 	err := scanner.Scan(
 		&p.ID, &p.DeviceID, &protocol, &p.ServerTime, &p.DeviceTime,
 		&p.Timestamp, &p.Valid, &p.Latitude, &p.Longitude, &p.Altitude, &p.Speed, &p.Course,
-		&p.Address, &accuracy, &network, &p.GeofenceIDs, &p.Outdated, &attrs,
+		&p.Address, &accuracy, &p.Network, &p.GeofenceIDs, &p.Outdated, &p.Attributes,
 	)
 	if err != nil {
 		return err
@@ -451,30 +438,10 @@ func scanPosition(scanner pgx.Row, p *model.Position) error {
 	if accuracy != nil {
 		p.Accuracy = *accuracy
 	}
-	if len(attrs) > 0 {
-		if err := json.Unmarshal(attrs, &p.Attributes); err != nil {
-			slog.Warn("failed to unmarshal position attributes",
-				slog.Int64("positionID", p.ID),
-				slog.Any("error", err))
-			p.Attributes = make(map[string]any)
-		}
-	}
-	// Always ensure attributes is a non-nil map for Home Assistant
-	// compatibility. HA expects {} (empty object), never null. The JSONB
-	// value "null" round-trips through json.Unmarshal as a nil map, so we
-	// must handle that case as well as SQL NULL (empty bytes).
+	// Home Assistant expects {}, never null; NULL and JSON null both scan to nil.
 	if p.Attributes == nil {
 		p.Attributes = make(map[string]any)
 	}
-	if len(network) > 0 {
-		if err := json.Unmarshal(network, &p.Network); err != nil {
-			slog.Warn("failed to unmarshal position network",
-				slog.Int64("positionID", p.ID),
-				slog.Any("error", err))
-			p.Network = make(map[string]any)
-		}
-	}
-	// Same treatment for network: must be {} not null for Home Assistant.
 	if p.Network == nil {
 		p.Network = make(map[string]any)
 	}

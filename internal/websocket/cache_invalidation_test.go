@@ -82,22 +82,22 @@ func pollUntil(t *testing.T, cond func() bool) {
 
 func TestInvalidateDevice_LocalInvalidateAlwaysHappens(t *testing.T) {
 	hub := NewHub(nil, &mockAccessChecker{deviceUsers: map[int64][]int64{}}, func(_ *http.Request) int64 { return 0 })
-	hub.accessCache.set(1, []int64{10})
+	hub.accessCache.Set(1, []int64{10})
 
 	hub.InvalidateDevice(1)
 
-	if _, ok := hub.accessCache.get(1); ok {
+	if _, ok := hub.accessCache.Get(1); ok {
 		t.Error("expected cache entry to be removed after InvalidateDevice")
 	}
 }
 
 func TestInvalidateDevice_NoPublishWhenPubSubNil(t *testing.T) {
 	hub := NewHub(nil, &mockAccessChecker{deviceUsers: map[int64][]int64{}}, func(_ *http.Request) int64 { return 0 })
-	hub.accessCache.set(1, []int64{10})
+	hub.accessCache.Set(1, []int64{10})
 
 	hub.InvalidateDevice(1)
 
-	if _, ok := hub.accessCache.get(1); ok {
+	if _, ok := hub.accessCache.Get(1); ok {
 		t.Error("expected cache entry removed")
 	}
 }
@@ -106,7 +106,7 @@ func TestInvalidateDevice_PublishesEnvelopeWhenPubSubSet(t *testing.T) {
 	hub := NewHub(nil, &mockAccessChecker{deviceUsers: map[int64][]int64{}}, func(_ *http.Request) int64 { return 0 })
 	ps := &mockInvalidationPubSub{}
 	hub.SetInvalidationPubSub(ps)
-	hub.accessCache.set(42, []int64{10})
+	hub.accessCache.Set(42, []int64{10})
 
 	hub.InvalidateDevice(42)
 
@@ -120,7 +120,7 @@ func TestInvalidateDevice_PublishesEnvelopeWhenPubSubSet(t *testing.T) {
 	if published[0].OriginPodID != hub.podID {
 		t.Errorf("expected OriginPodID %q, got %q", hub.podID, published[0].OriginPodID)
 	}
-	if _, ok := hub.accessCache.get(42); ok {
+	if _, ok := hub.accessCache.Get(42); ok {
 		t.Error("expected local cache entry removed")
 	}
 }
@@ -129,11 +129,11 @@ func TestInvalidateDevice_LocalInvalidateHappensEvenOnPublishError(t *testing.T)
 	hub := NewHub(nil, &mockAccessChecker{deviceUsers: map[int64][]int64{}}, func(_ *http.Request) int64 { return 0 })
 	ps := &mockInvalidationPubSub{publishErr: errors.New("redis down")}
 	hub.SetInvalidationPubSub(ps)
-	hub.accessCache.set(5, []int64{10})
+	hub.accessCache.Set(5, []int64{10})
 
 	hub.InvalidateDevice(5)
 
-	if _, ok := hub.accessCache.get(5); ok {
+	if _, ok := hub.accessCache.Get(5); ok {
 		t.Error("expected local cache entry removed even when publish fails")
 	}
 }
@@ -142,7 +142,7 @@ func TestStartInvalidationSubscriber_InvalidatesOnRemoteEvent(t *testing.T) {
 	hub := NewHub(nil, &mockAccessChecker{deviceUsers: map[int64][]int64{}}, func(_ *http.Request) int64 { return 0 })
 	ps := &mockInvalidationPubSub{}
 	hub.SetInvalidationPubSub(ps)
-	hub.accessCache.set(7, []int64{10})
+	hub.accessCache.Set(7, []int64{10})
 
 	ctx := t.Context()
 	go hub.StartInvalidationSubscriber(ctx)
@@ -156,7 +156,7 @@ func TestStartInvalidationSubscriber_InvalidatesOnRemoteEvent(t *testing.T) {
 	ps.simulateRemoteInvalidation("other-pod", 7)
 
 	pollUntil(t, func() bool {
-		_, ok := hub.accessCache.get(7)
+		_, ok := hub.accessCache.Get(7)
 		return !ok
 	})
 }
@@ -165,7 +165,7 @@ func TestStartInvalidationSubscriber_IgnoresSelfEcho(t *testing.T) {
 	hub := NewHub(nil, &mockAccessChecker{deviceUsers: map[int64][]int64{}}, func(_ *http.Request) int64 { return 0 })
 	ps := &mockInvalidationPubSub{}
 	hub.SetInvalidationPubSub(ps)
-	hub.accessCache.set(9, []int64{10})
+	hub.accessCache.Set(9, []int64{10})
 
 	ctx := t.Context()
 	go hub.StartInvalidationSubscriber(ctx)
@@ -179,7 +179,7 @@ func TestStartInvalidationSubscriber_IgnoresSelfEcho(t *testing.T) {
 	ps.simulateRemoteInvalidation(hub.podID, 9)
 
 	time.Sleep(50 * time.Millisecond)
-	if _, ok := hub.accessCache.get(9); !ok {
+	if _, ok := hub.accessCache.Get(9); !ok {
 		t.Error("self-echo: cache entry should NOT be removed")
 	}
 }

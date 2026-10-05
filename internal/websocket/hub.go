@@ -15,6 +15,7 @@ import (
 	"github.com/tamcore/motus/internal/metrics"
 	"github.com/tamcore/motus/internal/model"
 	"github.com/tamcore/motus/internal/pubsub"
+	"github.com/tamcore/motus/internal/ttlcache"
 )
 
 const (
@@ -28,6 +29,9 @@ const (
 
 	// writeWait is the time allowed to write a message to the client.
 	writeWait = 10 * time.Second
+
+	// defaultCacheTTL is how long cached user-device access entries remain valid.
+	defaultCacheTTL = 30 * time.Second
 )
 
 // DeviceAccessChecker resolves which users have access to a given device.
@@ -89,7 +93,7 @@ type Hub struct {
 	pubsub             pubsub.PubSub
 	invalidationPubSub pubsub.PubSub
 	podID              string // unique identifier for this pod instance
-	accessCache        *deviceAccessCache
+	accessCache        *ttlcache.Cache[int64, []int64]
 	logger             *slog.Logger
 }
 
@@ -104,7 +108,7 @@ func NewHub(allowedOrigins []string, accessChecker DeviceAccessChecker, extractU
 		accessChecker:  accessChecker,
 		extractUserID:  extractUserID,
 		podID:          rand.Text(),
-		accessCache:    newDeviceAccessCache(),
+		accessCache:    ttlcache.New[int64, []int64](defaultCacheTTL),
 		logger:         slog.Default(),
 	}
 	h.upgrader = websocket.Upgrader{
@@ -153,7 +157,7 @@ func (h *Hub) StartInvalidationSubscriber(ctx context.Context) {
 			slog.Int64("deviceID", env.DeviceID),
 			slog.String("fromPod", env.OriginPodID),
 		)
-		h.accessCache.invalidate(env.DeviceID)
+		h.accessCache.Delete(env.DeviceID)
 	})
 }
 
@@ -550,7 +554,7 @@ func (h *Hub) getAllowedUserIDs(deviceID int64) []int64 {
 	}
 
 	// Check cache first.
-	if ids, ok := h.accessCache.get(deviceID); ok {
+	if ids, ok := h.accessCache.Get(deviceID); ok {
 		return ids
 	}
 
@@ -565,7 +569,7 @@ func (h *Hub) getAllowedUserIDs(deviceID int64) []int64 {
 	}
 
 	// Store in cache for subsequent broadcasts.
-	h.accessCache.set(deviceID, userIDs)
+	h.accessCache.Set(deviceID, userIDs)
 	return userIDs
 }
 
@@ -574,7 +578,7 @@ func (h *Hub) getAllowedUserIDs(deviceID int64) []int64 {
 // so that all other pods evict the same entry immediately. The local eviction
 // always happens regardless of whether the publish succeeds.
 func (h *Hub) InvalidateDevice(deviceID int64) {
-	h.accessCache.invalidate(deviceID)
+	h.accessCache.Delete(deviceID)
 	if h.invalidationPubSub != nil {
 		env := redisEnvelope{OriginPodID: h.podID, DeviceID: deviceID}
 		if err := h.invalidationPubSub.Publish(context.Background(), env); err != nil {

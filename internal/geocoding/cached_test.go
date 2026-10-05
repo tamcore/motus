@@ -84,7 +84,7 @@ func TestCachedGeocoder_Lookup_CacheExpiry(t *testing.T) {
 
 	// Inject test clock.
 	now := time.Now()
-	cg.cache.now = func() time.Time { return now }
+	cg.cache.Now = func() time.Time { return now }
 
 	// Populate cache.
 	cg.Lookup(context.Background(), 52.5200, 13.4050)

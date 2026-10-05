@@ -282,7 +282,7 @@ func TestGetAllowedUserIDs_CacheExpiration(t *testing.T) {
 
 	// Override the cache clock for testing.
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-	hub.accessCache.now = func() time.Time { return now }
+	hub.accessCache.Now = func() time.Time { return now }
 
 	// First call: populates cache.
 	hub.getAllowedUserIDs(10)

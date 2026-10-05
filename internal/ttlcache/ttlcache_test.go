@@ -1,4 +1,4 @@
-package websocket
+package ttlcache
 
 import (
 	"sync"
@@ -6,11 +6,11 @@ import (
 	"time"
 )
 
-func TestDeviceAccessCache_GetSet(t *testing.T) {
-	c := newDeviceAccessCache()
+func TestCache_GetSet(t *testing.T) {
+	c := New[int64, []int64](defaultCacheTTL)
 
 	t.Run("miss on empty cache", func(t *testing.T) {
-		ids, ok := c.get(1)
+		ids, ok := c.Get(1)
 		if ok {
 			t.Error("expected cache miss on empty cache")
 		}
@@ -20,9 +20,9 @@ func TestDeviceAccessCache_GetSet(t *testing.T) {
 	})
 
 	t.Run("hit after set", func(t *testing.T) {
-		c.set(10, []int64{1, 2, 3})
+		c.Set(10, []int64{1, 2, 3})
 
-		ids, ok := c.get(10)
+		ids, ok := c.Get(10)
 		if !ok {
 			t.Fatal("expected cache hit")
 		}
@@ -32,16 +32,16 @@ func TestDeviceAccessCache_GetSet(t *testing.T) {
 	})
 
 	t.Run("miss for different device", func(t *testing.T) {
-		_, ok := c.get(99)
+		_, ok := c.Get(99)
 		if ok {
 			t.Error("expected cache miss for uncached device")
 		}
 	})
 
 	t.Run("set empty slice", func(t *testing.T) {
-		c.set(20, []int64{})
+		c.Set(20, []int64{})
 
-		ids, ok := c.get(20)
+		ids, ok := c.Get(20)
 		if !ok {
 			t.Fatal("expected cache hit for empty slice")
 		}
@@ -51,9 +51,9 @@ func TestDeviceAccessCache_GetSet(t *testing.T) {
 	})
 
 	t.Run("set nil slice", func(t *testing.T) {
-		c.set(30, nil)
+		c.Set(30, nil)
 
-		ids, ok := c.get(30)
+		ids, ok := c.Get(30)
 		if !ok {
 			t.Fatal("expected cache hit for nil slice")
 		}
@@ -63,10 +63,10 @@ func TestDeviceAccessCache_GetSet(t *testing.T) {
 	})
 
 	t.Run("overwrite existing entry", func(t *testing.T) {
-		c.set(10, []int64{1, 2, 3})
-		c.set(10, []int64{4, 5})
+		c.Set(10, []int64{1, 2, 3})
+		c.Set(10, []int64{4, 5})
 
-		ids, ok := c.get(10)
+		ids, ok := c.Get(10)
 		if !ok {
 			t.Fatal("expected cache hit")
 		}
@@ -76,18 +76,18 @@ func TestDeviceAccessCache_GetSet(t *testing.T) {
 	})
 }
 
-func TestDeviceAccessCache_TTLExpiration(t *testing.T) {
-	c := newDeviceAccessCache()
+func TestCache_TTLExpiration(t *testing.T) {
+	c := New[int64, []int64](defaultCacheTTL)
 
 	// Use a controllable clock.
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-	c.now = func() time.Time { return now }
+	c.Now = func() time.Time { return now }
 
-	c.set(10, []int64{1, 2})
+	c.Set(10, []int64{1, 2})
 
 	// Still valid within TTL.
 	now = now.Add(defaultCacheTTL - time.Second)
-	ids, ok := c.get(10)
+	ids, ok := c.Get(10)
 	if !ok {
 		t.Fatal("expected cache hit within TTL")
 	}
@@ -97,53 +97,53 @@ func TestDeviceAccessCache_TTLExpiration(t *testing.T) {
 
 	// Expired after TTL.
 	now = now.Add(2 * time.Second)
-	_, ok = c.get(10)
+	_, ok = c.Get(10)
 	if ok {
 		t.Error("expected cache miss after TTL expiration")
 	}
 
 }
 
-func TestDeviceAccessCache_TTLBoundary(t *testing.T) {
-	c := newDeviceAccessCache()
+func TestCache_TTLBoundary(t *testing.T) {
+	c := New[int64, []int64](defaultCacheTTL)
 
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-	c.now = func() time.Time { return now }
+	c.Now = func() time.Time { return now }
 
-	c.set(10, []int64{1})
+	c.Set(10, []int64{1})
 
 	// At exactly TTL: now == expiresAt, so time.After returns false.
 	// The entry is still considered valid at the exact boundary.
 	now = now.Add(defaultCacheTTL)
-	_, ok := c.get(10)
+	_, ok := c.Get(10)
 	if !ok {
 		t.Error("expected cache hit at exact TTL boundary (time.After is strict >)")
 	}
 
 	// One nanosecond later it is expired.
 	now = now.Add(1 * time.Nanosecond)
-	_, ok = c.get(10)
+	_, ok = c.Get(10)
 	if ok {
 		t.Error("expected cache miss one nanosecond after TTL boundary")
 	}
 }
 
-func TestDeviceAccessCache_Invalidate(t *testing.T) {
-	c := newDeviceAccessCache()
+func TestCache_Invalidate(t *testing.T) {
+	c := New[int64, []int64](defaultCacheTTL)
 
-	c.set(10, []int64{1, 2})
-	c.set(20, []int64{3})
+	c.Set(10, []int64{1, 2})
+	c.Set(20, []int64{3})
 
 	// Invalidate device 10 only.
-	c.invalidate(10)
+	c.Delete(10)
 
-	_, ok := c.get(10)
+	_, ok := c.Get(10)
 	if ok {
 		t.Error("expected cache miss after invalidation")
 	}
 
 	// Device 20 should still be cached.
-	ids, ok := c.get(20)
+	ids, ok := c.Get(20)
 	if !ok {
 		t.Fatal("expected cache hit for non-invalidated device")
 	}
@@ -152,15 +152,15 @@ func TestDeviceAccessCache_Invalidate(t *testing.T) {
 	}
 }
 
-func TestDeviceAccessCache_InvalidateNonexistent(t *testing.T) {
-	c := newDeviceAccessCache()
+func TestCache_InvalidateNonexistent(t *testing.T) {
+	c := New[int64, []int64](defaultCacheTTL)
 
 	// Should not panic or error.
-	c.invalidate(999)
+	c.Delete(999)
 }
 
-func TestDeviceAccessCache_ConcurrentAccess(t *testing.T) {
-	c := newDeviceAccessCache()
+func TestCache_ConcurrentAccess(t *testing.T) {
+	c := New[int64, []int64](defaultCacheTTL)
 
 	const numGoroutines = 100
 	const numOps = 1000
@@ -176,11 +176,11 @@ func TestDeviceAccessCache_ConcurrentAccess(t *testing.T) {
 			for j := range numOps {
 				switch j % 3 {
 				case 0:
-					c.set(deviceID, []int64{int64(id), int64(j)})
+					c.Set(deviceID, []int64{int64(id), int64(j)})
 				case 1:
-					c.get(deviceID)
+					c.Get(deviceID)
 				case 2:
-					c.invalidate(deviceID)
+					c.Delete(deviceID)
 				}
 			}
 		}(i)
@@ -190,8 +190,8 @@ func TestDeviceAccessCache_ConcurrentAccess(t *testing.T) {
 	// If we get here without data races (run with -race), the test passes.
 }
 
-func TestDeviceAccessCache_ConcurrentSetAndGet(t *testing.T) {
-	c := newDeviceAccessCache()
+func TestCache_ConcurrentSetAndGet(t *testing.T) {
+	c := New[int64, []int64](defaultCacheTTL)
 
 	// One goroutine writes, another reads. Should not race.
 	var wg sync.WaitGroup
@@ -200,14 +200,14 @@ func TestDeviceAccessCache_ConcurrentSetAndGet(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		for i := range 10000 {
-			c.set(1, []int64{int64(i)})
+			c.Set(1, []int64{int64(i)})
 		}
 	}()
 
 	go func() {
 		defer wg.Done()
 		for range 10000 {
-			ids, ok := c.get(1)
+			ids, ok := c.Get(1)
 			if ok && len(ids) != 1 {
 				t.Errorf("unexpected IDs length: %d", len(ids))
 			}
@@ -216,3 +216,5 @@ func TestDeviceAccessCache_ConcurrentSetAndGet(t *testing.T) {
 
 	wg.Wait()
 }
+
+const defaultCacheTTL = 30 * time.Second

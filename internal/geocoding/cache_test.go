@@ -71,7 +71,7 @@ func TestCache_Expiration(t *testing.T) {
 
 	// Use injectable clock for deterministic testing.
 	now := time.Now()
-	cache.now = func() time.Time { return now }
+	cache.Now = func() time.Time { return now }
 
 	cache.Set(52.5200, 13.4050, "Berlin, Germany")
 
@@ -135,7 +135,7 @@ func TestCache_Cleanup(t *testing.T) {
 	cache := NewCache(100 * time.Millisecond)
 
 	now := time.Now()
-	cache.now = func() time.Time { return now }
+	cache.Now = func() time.Time { return now }
 
 	cache.Set(52.5200, 13.4050, "Berlin")
 	cache.Set(48.8566, 2.3522, "Paris")
@@ -160,7 +160,7 @@ func TestCache_CleanupPartialExpiry(t *testing.T) {
 	cache := NewCache(1 * time.Minute)
 
 	now := time.Now()
-	cache.now = func() time.Time { return now }
+	cache.Now = func() time.Time { return now }
 
 	cache.Set(52.5200, 13.4050, "Berlin")
 
@@ -220,7 +220,7 @@ func TestCache_LazyExpirationRaceCondition(t *testing.T) {
 	cache := NewCache(50 * time.Millisecond)
 
 	now := time.Now()
-	cache.now = func() time.Time { return now }
+	cache.Now = func() time.Time { return now }
 
 	cache.Set(52.5200, 13.4050, "Berlin")
 

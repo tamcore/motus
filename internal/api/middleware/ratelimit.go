@@ -5,7 +5,6 @@ import (
 	"math"
 	"net/http"
 	"net/netip"
-	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -20,26 +19,6 @@ type RateLimitConfig struct {
 	Max float64
 	// Period is the time window for rate limiting.
 	Period time.Duration
-}
-
-// DefaultLoginRateLimit returns the default rate limit for login endpoints
-// (5 requests per minute). Override with MOTUS_LOGIN_RATE_LIMIT env var.
-func DefaultLoginRateLimit() RateLimitConfig {
-	return perMinuteFromEnv("MOTUS_LOGIN_RATE_LIMIT", 5)
-}
-
-// DefaultAPIRateLimit returns the default rate limit for general API endpoints
-// (100 requests per minute). Override with MOTUS_API_RATE_LIMIT env var.
-func DefaultAPIRateLimit() RateLimitConfig {
-	return perMinuteFromEnv("MOTUS_API_RATE_LIMIT", 100)
-}
-
-// perMinuteFromEnv ignores unset, unparsable or non-positive values.
-func perMinuteFromEnv(key string, def float64) RateLimitConfig {
-	if n, err := strconv.ParseFloat(os.Getenv(key), 64); err == nil && n > 0 {
-		def = n
-	}
-	return RateLimitConfig{Max: def, Period: time.Minute}
 }
 
 type bucket struct {

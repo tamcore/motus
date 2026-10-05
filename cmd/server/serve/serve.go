@@ -237,9 +237,10 @@ func Run() {
 
 	// Login rate limiter: Redis-backed (cluster-wide) when Redis is available,
 	// in-process (per-pod only) otherwise.
-	loginRateLimit := middleware.RateLimit(middleware.DefaultLoginRateLimit())
+	loginRateCfg := middleware.RateLimitConfig{Max: cfg.Security.LoginRateLimit, Period: time.Minute}
+	loginRateLimit := middleware.RateLimit(loginRateCfg)
 	if redisClient != nil {
-		loginRateLimit = middleware.NewRedisLoginRateLimit(redisClient, middleware.DefaultLoginRateLimit())
+		loginRateLimit = middleware.NewRedisLoginRateLimit(redisClient, loginRateCfg)
 	} else if cfg.Redis.Enabled {
 		slog.Warn("Redis enabled but unavailable — login rate limit is per-pod only")
 	}
@@ -318,7 +319,7 @@ func Run() {
 	routerCfg := api.RouterConfig{
 		RealIP:          middleware.RealIP(trustedProxies),
 		LoginRateLimit:  loginRateLimit,
-		APIRateLimit:    middleware.RateLimit(middleware.DefaultAPIRateLimit()),
+		APIRateLimit:    middleware.RateLimit(middleware.RateLimitConfig{Max: cfg.Security.APIRateLimit, Period: time.Minute}),
 		SecurityHeaders: middleware.SecurityHeaders,
 		Auth:            middleware.LoadAuthContext(userRepo, sessionRepo, apiKeyRepo),
 		WriteAccess:     middleware.RequireWriteAccess,

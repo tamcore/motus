@@ -42,6 +42,30 @@ func TestLoadFromEnv_CustomValues(t *testing.T) {
 	}
 }
 
+func TestLoadFromEnv_RateLimits(t *testing.T) {
+	tests := []struct {
+		login, api         string
+		wantLogin, wantAPI float64
+	}{
+		{"", "", 5, 100},
+		{"20", "200", 20, 200},
+		{"0", "-1", 5, 100},
+		{"abc", "1e3", 5, 1000},
+	}
+	for _, tt := range tests {
+		t.Setenv("MOTUS_LOGIN_RATE_LIMIT", tt.login)
+		t.Setenv("MOTUS_API_RATE_LIMIT", tt.api)
+		cfg, err := config.LoadFromEnv()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if cfg.Security.LoginRateLimit != tt.wantLogin || cfg.Security.APIRateLimit != tt.wantAPI {
+			t.Errorf("login=%q api=%q: got %v/%v, want %v/%v", tt.login, tt.api,
+				cfg.Security.LoginRateLimit, cfg.Security.APIRateLimit, tt.wantLogin, tt.wantAPI)
+		}
+	}
+}
+
 func TestLoadFromEnv_OIDCTrustUnverifiedEmail(t *testing.T) {
 	t.Run("defaults to false", func(t *testing.T) {
 		cfg, err := config.LoadFromEnv()

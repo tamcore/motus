@@ -137,7 +137,7 @@ func TestRateLimit_ResponseFormat(t *testing.T) {
 }
 
 func TestLoginRateLimit_BlocksAfterFiveRequests(t *testing.T) {
-	mw := middleware.RateLimit(middleware.DefaultLoginRateLimit())
+	mw := middleware.RateLimit(middleware.RateLimitConfig{Max: 5, Period: time.Minute})
 	handler := mw(http.HandlerFunc(okHandler))
 
 	// LoginRateLimit allows 5 requests per minute (burst of 5).
@@ -162,7 +162,7 @@ func TestLoginRateLimit_BlocksAfterFiveRequests(t *testing.T) {
 }
 
 func TestAPIRateLimit_AllowsManyRequests(t *testing.T) {
-	mw := middleware.RateLimit(middleware.DefaultAPIRateLimit())
+	mw := middleware.RateLimit(middleware.RateLimitConfig{Max: 100, Period: time.Minute})
 	handler := mw(http.HandlerFunc(okHandler))
 
 	// APIRateLimit allows 100 requests per minute (burst of 100).
@@ -175,26 +175,6 @@ func TestAPIRateLimit_AllowsManyRequests(t *testing.T) {
 		if rr.Code != http.StatusOK {
 			t.Errorf("request %d: expected status 200, got %d", i+1, rr.Code)
 		}
-	}
-}
-
-func TestDefaultLoginRateLimit(t *testing.T) {
-	cfg := middleware.DefaultLoginRateLimit()
-	if cfg.Max != 5 {
-		t.Errorf("expected Max 5, got %f", cfg.Max)
-	}
-	if cfg.Period != time.Minute {
-		t.Errorf("expected Period 1m, got %v", cfg.Period)
-	}
-}
-
-func TestDefaultAPIRateLimit(t *testing.T) {
-	cfg := middleware.DefaultAPIRateLimit()
-	if cfg.Max != 100 {
-		t.Errorf("expected Max 100, got %f", cfg.Max)
-	}
-	if cfg.Period != time.Minute {
-		t.Errorf("expected Period 1m, got %v", cfg.Period)
 	}
 }
 

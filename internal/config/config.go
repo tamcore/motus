@@ -2,6 +2,7 @@ package config
 
 import (
 	"cmp"
+	"errors"
 	"fmt"
 	"net/netip"
 	"net/url"
@@ -193,6 +194,12 @@ type SecurityConfig struct {
 	// Loaded from MOTUS_TRUSTED_PROXIES (comma-separated).
 	// Default: loopback and private ranges.
 	TrustedProxies []string
+	// LoginRateLimit is the login requests allowed per minute per IP.
+	// Loaded from MOTUS_LOGIN_RATE_LIMIT. Default: 5.
+	LoginRateLimit float64
+	// APIRateLimit is the API requests allowed per minute per IP.
+	// Loaded from MOTUS_API_RATE_LIMIT. Default: 100.
+	APIRateLimit float64
 }
 
 // IsDevelopment reports whether MOTUS_ENV is "development" (case-insensitive).
@@ -408,6 +415,8 @@ func LoadFromEnv() (*Config, error) {
 			Env:                 getEnv("MOTUS_ENV", "production"),
 			WebhookAllowedHosts: parseEnv("MOTUS_WEBHOOK_ALLOWED_HOSTS", nil, parseList),
 			TrustedProxies:      parseEnv("MOTUS_TRUSTED_PROXIES", defaultTrustedProxies, parseList),
+			LoginRateLimit:      parseEnv("MOTUS_LOGIN_RATE_LIMIT", 5.0, parsePositiveFloat),
+			APIRateLimit:        parseEnv("MOTUS_API_RATE_LIMIT", 100.0, parsePositiveFloat),
 		},
 		Positions: PositionsConfig{
 			RetentionDays: parseEnv("MOTUS_POSITION_RETENTION_DAYS", 0, strconv.Atoi),
@@ -516,6 +525,14 @@ func parseInt32(s string) (int32, error) {
 }
 
 func parseFloat(s string) (float64, error) { return strconv.ParseFloat(s, 64) }
+
+func parsePositiveFloat(s string) (float64, error) {
+	f, err := parseFloat(s)
+	if err == nil && f <= 0 {
+		err = errors.New("must be > 0")
+	}
+	return f, err
+}
 
 func parseList(s string) ([]string, error) { return SplitList(s), nil }
 

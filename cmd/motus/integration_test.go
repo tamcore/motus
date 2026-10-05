@@ -264,6 +264,7 @@ func TestUserSetPassword_DoesNotPrintPassword_Integration(t *testing.T) {
 // --- Device commands ---
 
 func TestDeviceAdd_Integration(t *testing.T) {
+	setValidConfigEnv(t)
 	pool := testutil.SetupTestDB(t)
 	defer injectTestDB(t)()
 	testutil.CleanTables(t, pool)

@@ -13,7 +13,7 @@ import (
 	"github.com/tamcore/motus/internal/model"
 )
 
-// mockShareValidator provides a ShareTokenValidator for testing.
+// mockShareValidator provides a share token validator for testing.
 // It returns a device ID for known tokens, 0 for unknown ones.
 type mockShareValidator struct {
 	tokens map[string]int64 // token -> deviceID

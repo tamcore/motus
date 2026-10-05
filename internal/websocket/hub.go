@@ -39,19 +39,6 @@ type DeviceAccessChecker interface {
 	GetUserIDs(ctx context.Context, deviceID int64) ([]int64, error)
 }
 
-// UserIDExtractor extracts a user ID from an HTTP request. Returns 0
-// if the user is not authenticated.
-type UserIDExtractor func(r *http.Request) int64
-
-// AdminChecker reports whether the user identified by userID has administrator
-// privileges. Called once per WebSocket connection to avoid per-message DB
-// lookups. Return false on error or if the user is not an admin.
-type AdminChecker func(ctx context.Context, userID int64) bool
-
-// ShareTokenValidator validates a share token and returns the associated device ID.
-// Returns deviceID > 0 if valid, 0 if invalid/expired.
-type ShareTokenValidator func(ctx context.Context, token string) (deviceID int64, err error)
-
 // Client represents a connected WebSocket user.
 type Client struct {
 	UserID         int64
@@ -87,9 +74,9 @@ type Hub struct {
 	isDevelopment      bool
 	upgrader           websocket.Upgrader
 	accessChecker      DeviceAccessChecker
-	adminChecker       AdminChecker
-	extractUserID      UserIDExtractor
-	shareValidator     ShareTokenValidator
+	adminChecker       func(ctx context.Context, userID int64) bool
+	extractUserID      func(r *http.Request) int64
+	shareValidator     func(ctx context.Context, token string) (deviceID int64, err error)
 	pubsub             pubsub.PubSub
 	invalidationPubSub pubsub.PubSub
 	podID              string // unique identifier for this pod instance
@@ -100,8 +87,8 @@ type Hub struct {
 // NewHub creates a new WebSocket hub with origin validation and per-user filtering.
 // If allowedOrigins is empty, only localhost origins are permitted (dev mode).
 // accessChecker determines which users can see which device data.
-// extractUserID extracts the authenticated user ID from an HTTP request.
-func NewHub(allowedOrigins []string, accessChecker DeviceAccessChecker, extractUserID UserIDExtractor) *Hub {
+// extractUserID returns the authenticated user ID from a request, or 0.
+func NewHub(allowedOrigins []string, accessChecker DeviceAccessChecker, extractUserID func(r *http.Request) int64) *Hub {
 	h := &Hub{
 		clients:        make(map[*Client]bool),
 		allowedOrigins: allowedOrigins,
@@ -164,14 +151,15 @@ func (h *Hub) StartInvalidationSubscriber(ctx context.Context) {
 // SetShareTokenValidator configures share token validation for the hub.
 // When set, unauthenticated WebSocket connections can provide a shareToken
 // query parameter to receive position updates for a specific shared device.
-func (h *Hub) SetShareTokenValidator(v ShareTokenValidator) {
+// v returns the shared device ID, or 0 if the token is invalid or expired.
+func (h *Hub) SetShareTokenValidator(v func(ctx context.Context, token string) (deviceID int64, err error)) {
 	h.shareValidator = v
 }
 
 // SetAdminChecker configures admin detection for the hub. When set, it is called
 // once per authenticated WebSocket connection. Admin clients bypass per-device
-// access filtering and receive broadcasts for all devices.
-func (h *Hub) SetAdminChecker(fn AdminChecker) {
+// access filtering and receive broadcasts for all devices. fn returns false on error.
+func (h *Hub) SetAdminChecker(fn func(ctx context.Context, userID int64) bool) {
 	h.adminChecker = fn
 }
 

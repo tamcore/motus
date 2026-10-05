@@ -63,7 +63,7 @@ func (e *errSubscribePubSub) Subscribe(_ context.Context, _ func([]byte)) error 
 }
 func (e *errSubscribePubSub) Close() error { return nil }
 
-// dummyExtractor is a UserIDExtractor that always returns 0.
+// dummyExtractor is a user ID extractor that always returns 0.
 func dummyExtractor(_ *http.Request) int64 { return 0 }
 
 func TestCheckOrigin(t *testing.T) {

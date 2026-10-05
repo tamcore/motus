@@ -148,12 +148,7 @@ func (h *Handler) SendCommand(ctx context.Context, req *oas.SendCommandRequest) 
 	}
 	// Validate, encode, persist as pending and deliver immediately when the
 	// device is connected — the same path notification command rules use.
-	submitter := &protocol.CommandSubmitter{
-		Commands: h.cfg.Commands,
-		Encoders: h.cfg.EncoderRegistry,
-		Registry: h.cfg.DeviceRegistry,
-	}
-	cmd, err := submitter.Submit(ctx, device, req.Type, attrs)
+	cmd, err := h.cfg.CommandSubmitter.Submit(ctx, device, req.Type, attrs)
 	switch {
 	case errors.Is(err, protocol.ErrCommandUnsupported):
 		return &oas.SendCommandBadRequest{

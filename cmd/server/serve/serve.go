@@ -117,14 +117,14 @@ func Run() {
 
 	// Command notification rules send device commands through the same path
 	// as POST /api/commands/send (pending queue + immediate delivery).
+	commandSubmitter := &protocol.CommandSubmitter{
+		Commands: commandRepo,
+		Encoders: encoderRegistry,
+		Registry: deviceRegistry,
+	}
 	notificationService := services.NewNotificationService(
 		notificationRepo, deviceRepo, geofenceRepo, positionRepo,
-		&protocol.CommandSubmitter{
-			Commands: commandRepo,
-			Encoders: encoderRegistry,
-			Registry: deviceRegistry,
-		},
-		auditLogger,
+		commandSubmitter, auditLogger,
 	)
 
 	if cfg.OIDC.Enabled {
@@ -225,7 +225,7 @@ func Run() {
 		NotificationRules:   notificationRuleService,
 		GeofenceService:     geofenceService,
 		CalendarService:     calendarService,
-		DeviceRegistry:      deviceRegistry,
+		CommandSubmitter:    commandSubmitter,
 		EncoderRegistry:     encoderRegistry,
 		Hub:                 hub,
 		AuditLogger:         auditLogger,

@@ -100,9 +100,13 @@ func newCommandTestHandler(commands repository.CommandRepo, devices repository.D
 	return handlers.NewHandler(handlers.HandlerConfig{
 		Commands:        commands,
 		Devices:         devices,
-		DeviceRegistry:  registry,
 		EncoderRegistry: encoders,
-		AuditLogger:     audit.NewLogger(nil),
+		CommandSubmitter: &protocol.CommandSubmitter{
+			Commands: commands,
+			Encoders: encoders,
+			Registry: registry,
+		},
+		AuditLogger: audit.NewLogger(nil),
 	})
 }
 

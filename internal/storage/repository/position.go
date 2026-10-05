@@ -289,13 +289,6 @@ func (r *PositionRepository) StreamByUserAndTimeRange(
 	ctx context.Context, userID int64, from, to time.Time, limit int,
 	fn func(*model.Position) error,
 ) error {
-	if err := r.streamUserRange(ctx, userID, from, to, limit, fn); err != nil {
-		return fmt.Errorf("stream positions by user and time range: %w", err)
-	}
-	return nil
-}
-
-func (r *PositionRepository) streamUserRange(ctx context.Context, userID int64, from, to time.Time, limit int, fn func(*model.Position) error) error {
 	plain := `SELECT ` + qualifiedPositionColumns + ` ` + userRangeFilter + ` ORDER BY p.timestamp ASC`
 	if limit <= 0 {
 		return r.stream(ctx, fn, plain, userID, from, to)

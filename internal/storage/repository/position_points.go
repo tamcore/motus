@@ -9,23 +9,14 @@ import (
 )
 
 // PointsByDeviceAndTimeRange returns the points of a device in the time range,
-// ordered by timestamp and sampled like StreamByDeviceAndTimeRange.
+// ordered by timestamp, keeping every ceil(total/limit)-th row (limit<=0 keeps
+// all).
 func (r *PositionRepository) PointsByDeviceAndTimeRange(ctx context.Context, deviceID int64, from, to time.Time, limit int) ([]model.PositionPoint, error) {
-	points, err := r.points(ctx, limit, `FROM positions p
-		 WHERE p.device_id = $1 AND p.timestamp >= $2 AND p.timestamp <= $3`, deviceID, from, to)
-	if err != nil {
-		return nil, fmt.Errorf("points by device and time range: %w", err)
-	}
-	return points, nil
-}
-
-// points keeps every ceil(total/limit)-th row of fromWhere (limit<=0 keeps
-// all). Counting first sizes the result; fromWhere must alias positions as p
-// and use only $1..$3.
-func (r *PositionRepository) points(ctx context.Context, limit int, fromWhere string, args ...any) ([]model.PositionPoint, error) {
+	const fromWhere = `FROM positions p
+		 WHERE p.device_id = $1 AND p.timestamp >= $2 AND p.timestamp <= $3`
 	var total int64
-	if err := r.pool.QueryRow(ctx, `SELECT count(*) `+fromWhere, args...).Scan(&total); err != nil {
-		return nil, fmt.Errorf("count: %w", err)
+	if err := r.pool.QueryRow(ctx, `SELECT count(*) `+fromWhere, deviceID, from, to).Scan(&total); err != nil {
+		return nil, fmt.Errorf("count points by device and time range: %w", err)
 	}
 	if total == 0 {
 		return []model.PositionPoint{}, nil
@@ -44,9 +35,9 @@ func (r *PositionRepository) points(ctx context.Context, limit int, fromWhere st
 		 ) w
 		 WHERE rn % $4 = 0
 		 ORDER BY timestamp ASC
-		 LIMIT $5`, append(args, stride, limit)...)
+		 LIMIT $5`, deviceID, from, to, stride, limit)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("points by device and time range: %w", err)
 	}
 	defer rows.Close()
 

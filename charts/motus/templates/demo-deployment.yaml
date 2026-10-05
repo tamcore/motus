@@ -2,18 +2,18 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "motus.demo.fullname" . }}
+  name: {{ include "motus.componentFullname" (list . "demo") }}
   labels:
     {{- include "motus.componentLabels" (list . "gps-simulator" "demo") | nindent 4 }}
 spec:
   replicas: 1  # Single replica to avoid duplicate GPS injection
   selector:
     matchLabels:
-      {{- include "motus.demo.selectorLabels" . | nindent 6 }}
+      {{- include "motus.componentSelectorLabels" (list . "demo") | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "motus.demo.selectorLabels" . | nindent 8 }}
+        {{- include "motus.componentSelectorLabels" (list . "demo") | nindent 8 }}
     spec:
       initContainers:
       - name: wait-for-db

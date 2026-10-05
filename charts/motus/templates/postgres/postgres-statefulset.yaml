@@ -2,19 +2,19 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: {{ include "motus.postgres.fullname" . }}
+  name: {{ include "motus.componentFullname" (list . "postgres") }}
   labels:
     {{- include "motus.componentLabels" (list . "database" "postgres") | nindent 4 }}
 spec:
-  serviceName: {{ include "motus.postgres.fullname" . }}
+  serviceName: {{ include "motus.componentFullname" (list . "postgres") }}
   replicas: 1
   selector:
     matchLabels:
-      {{- include "motus.postgres.selectorLabels" . | nindent 6 }}
+      {{- include "motus.componentSelectorLabels" (list . "postgres") | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "motus.postgres.selectorLabels" . | nindent 8 }}
+        {{- include "motus.componentSelectorLabels" (list . "postgres") | nindent 8 }}
     spec:
       containers:
       - name: postgres

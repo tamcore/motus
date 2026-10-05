@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "motus.postgres.fullname" . }}
+  name: {{ include "motus.componentFullname" (list . "postgres") }}
   labels:
     {{- include "motus.componentLabels" (list . "database" "postgres") | nindent 4 }}
 spec:
@@ -13,5 +13,5 @@ spec:
     protocol: TCP
     name: postgres
   selector:
-    {{- include "motus.postgres.selectorLabels" . | nindent 4 }}
+    {{- include "motus.componentSelectorLabels" (list . "postgres") | nindent 4 }}
 {{- end }}

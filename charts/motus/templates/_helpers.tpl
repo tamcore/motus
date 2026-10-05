@@ -66,45 +66,17 @@ app: {{ include "motus.name" . }}
 {{- end }}
 
 {{/*
-Postgres selector labels (backward compatible with old format)
+Component selector labels. Usage: include "motus.componentSelectorLabels" (list . "<component>")
 */}}
-{{- define "motus.postgres.selectorLabels" -}}
-app: {{ include "motus.name" . }}-postgres
+{{- define "motus.componentSelectorLabels" -}}
+app: {{ include "motus.name" (index . 0) }}-{{ index . 1 }}
 {{- end }}
 
 {{/*
-Postgres fullname
+Component fullname. Usage: include "motus.componentFullname" (list . "<component>")
 */}}
-{{- define "motus.postgres.fullname" -}}
-{{- printf "%s-postgres" (include "motus.fullname" .) | trunc 63 | trimSuffix "-" }}
-{{- end }}
-
-{{/*
-Redis selector labels (backward compatible with old format)
-*/}}
-{{- define "motus.redis.selectorLabels" -}}
-app: {{ include "motus.name" . }}-redis
-{{- end }}
-
-{{/*
-Redis fullname
-*/}}
-{{- define "motus.redis.fullname" -}}
-{{- printf "%s-redis" (include "motus.fullname" .) | trunc 63 | trimSuffix "-" }}
-{{- end }}
-
-{{/*
-Demo selector labels (backward compatible with old format)
-*/}}
-{{- define "motus.demo.selectorLabels" -}}
-app: {{ include "motus.name" . }}-demo
-{{- end }}
-
-{{/*
-Demo fullname
-*/}}
-{{- define "motus.demo.fullname" -}}
-{{- printf "%s-demo" (include "motus.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- define "motus.componentFullname" -}}
+{{- printf "%s-%s" (include "motus.fullname" (index . 0)) (index . 1) | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
@@ -121,7 +93,7 @@ Redis URL helper
 {{- if .Values.redis.external.enabled }}
 {{- .Values.redis.external.url }}
 {{- else }}
-{{- printf "redis://%s:6379/0" (include "motus.redis.fullname" .) }}
+{{- printf "redis://%s:6379/0" (include "motus.componentFullname" (list . "redis")) }}
 {{- end }}
 {{- end }}
 
@@ -138,7 +110,7 @@ Database connection env vars
 {{- else -}}
 {{- $db := .Values.externalDatabase }}
 {{- if .Values.postgres.enabled }}
-{{- $db = dict "host" (include "motus.postgres.fullname" .) "port" "5432" "database" .Values.postgres.database "username" .Values.postgres.username "sslmode" "disable" }}
+{{- $db = dict "host" (include "motus.componentFullname" (list . "postgres")) "port" "5432" "database" .Values.postgres.database "username" .Values.postgres.username "sslmode" "disable" }}
 {{- end -}}
 - name: MOTUS_DATABASE_HOST
   value: {{ $db.host | quote }}

@@ -2,19 +2,19 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: {{ include "motus.redis.fullname" . }}
+  name: {{ include "motus.componentFullname" (list . "redis") }}
   labels:
     {{- include "motus.componentLabels" (list . "cache" "redis") | nindent 4 }}
 spec:
-  serviceName: {{ include "motus.redis.fullname" . }}
+  serviceName: {{ include "motus.componentFullname" (list . "redis") }}
   replicas: 1
   selector:
     matchLabels:
-      {{- include "motus.redis.selectorLabels" . | nindent 6 }}
+      {{- include "motus.componentSelectorLabels" (list . "redis") | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "motus.redis.selectorLabels" . | nindent 8 }}
+        {{- include "motus.componentSelectorLabels" (list . "redis") | nindent 8 }}
     spec:
       containers:
       - name: redis

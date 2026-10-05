@@ -1,6 +1,10 @@
 package protocol
 
-import "sync"
+import (
+	"maps"
+	"slices"
+	"sync"
+)
 
 // DeviceSession holds protocol details of a live device connection that are
 // needed to encode commands in the format the device speaks.
@@ -97,10 +101,6 @@ func (r *DeviceRegistry) IsOnline(uniqueID string) bool {
 // OnlineDeviceIDs returns a snapshot of all currently registered device unique IDs.
 func (r *DeviceRegistry) OnlineDeviceIDs() []string {
 	r.mu.RLock()
-	ids := make([]string, 0, len(r.conns))
-	for id := range r.conns {
-		ids = append(ids, id)
-	}
-	r.mu.RUnlock()
-	return ids
+	defer r.mu.RUnlock()
+	return slices.Collect(maps.Keys(r.conns))
 }

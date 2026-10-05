@@ -21,7 +21,6 @@ type CommandDispatcher struct {
 	registry *DeviceRegistry
 	cmdRepo  repository.CommandRepo
 	encoders *EncoderRegistry
-	interval time.Duration
 	logger   *slog.Logger
 }
 
@@ -35,7 +34,6 @@ func NewCommandDispatcher(
 		registry: registry,
 		cmdRepo:  cmdRepo,
 		encoders: encoders,
-		interval: dispatchInterval,
 		logger:   slog.Default(),
 	}
 }
@@ -45,7 +43,7 @@ func (d *CommandDispatcher) SetLogger(l *slog.Logger) { d.logger = l }
 
 // Start runs the dispatch loop until ctx is cancelled.
 func (d *CommandDispatcher) Start(ctx context.Context) {
-	ticker.Every(ctx, d.interval, func() { d.dispatch(ctx) })
+	ticker.Every(ctx, dispatchInterval, func() { d.dispatch(ctx) })
 }
 
 // dispatch delivers the pending commands of all locally online devices,

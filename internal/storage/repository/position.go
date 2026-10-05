@@ -435,7 +435,7 @@ func scanPosition(scanner pgx.Row, p *model.Position) error {
 	// so we scan into *string to handle NULL values from pre-existing rows.
 	var protocol *string
 	// accuracy is non-nullable in the model (for Home Assistant compatibility),
-	// but may be NULL in old rows before migration 00026. Scan into pointer and default to 0.0.
+	// but may be NULL in old rows before migration 00026, which leaves it 0.
 	var accuracy *float64
 	err := scanner.Scan(
 		&p.ID, &p.DeviceID, &protocol, &p.ServerTime, &p.DeviceTime,
@@ -450,8 +450,6 @@ func scanPosition(scanner pgx.Row, p *model.Position) error {
 	}
 	if accuracy != nil {
 		p.Accuracy = *accuracy
-	} else {
-		p.Accuracy = 0.0 // Default for Home Assistant compatibility
 	}
 	if len(attrs) > 0 {
 		if err := json.Unmarshal(attrs, &p.Attributes); err != nil {

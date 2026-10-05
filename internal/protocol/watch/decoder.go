@@ -31,6 +31,7 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -197,12 +198,9 @@ func decodeByType(msg *Message) {
 
 // isHealthType reports whether the message type carries health measurements.
 func isHealthType(t string) bool {
-	for _, h := range []string{"PULSE", "HEART", "BLOOD", "BPHRT", "TEMP", "btemp2", "oxygen"} {
-		if strings.EqualFold(t, h) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc([]string{"PULSE", "HEART", "BLOOD", "BPHRT", "TEMP", "btemp2", "oxygen"}, func(h string) bool {
+		return strings.EqualFold(t, h)
+	})
 }
 
 // decodeHealth parses health measurement content, mirroring Traccar:

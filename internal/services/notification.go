@@ -194,7 +194,7 @@ func (s *NotificationService) sendNotification(ctx context.Context, rule *model.
 	}
 
 	if err != nil {
-		logEntry.Status = "failed"
+		logEntry.Status = notificationStatusFailed
 		logEntry.Error = err.Error()
 		s.logger.Error("notification failed",
 			slog.String("ruleName", rule.Name),
@@ -202,7 +202,7 @@ func (s *NotificationService) sendNotification(ctx context.Context, rule *model.
 			slog.Any("error", err),
 		)
 	} else {
-		logEntry.Status = "sent"
+		logEntry.Status = notificationStatusSent
 		s.logger.Info("notification sent",
 			slog.String("ruleName", rule.Name),
 			slog.Int64("eventID", event.ID),

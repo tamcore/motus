@@ -9,7 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/spf13/cobra"
-	"github.com/tamcore/motus/internal/protocol"
+	"github.com/tamcore/motus/internal/model"
 	"github.com/tamcore/motus/internal/storage/repository"
 )
 
@@ -68,7 +68,7 @@ func newUserSessionsListCmd() *cobra.Command {
 					}
 					items[i] = item
 					rows[i] = []string{
-						protocol.Truncate(s.ID, 12),
+						s.TruncatedID(),
 						apiKey,
 						s.CreatedAt.Format("2006-01-02 15:04"),
 						s.ExpiresAt.Format("2006-01-02 15:04"),
@@ -107,7 +107,7 @@ func newUserSessionsRevokeCmd() *cobra.Command {
 				}
 			})
 
-			fmt.Printf("Revoked session: %s\n", protocol.Truncate(id, 12))
+			fmt.Printf("Revoked session: %s\n", (&model.Session{ID: id}).TruncatedID())
 		},
 	}
 

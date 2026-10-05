@@ -100,12 +100,14 @@ resources:
 redis:
   enabled: false  # Disabled by default (single replica is sufficient)
 
-  # External Redis (e.g., redis-ha chart, managed Redis).
-  # Leave empty to deploy the built-in Redis StatefulSet (not HA).
+  # External Redis (e.g., redis-ha chart, managed Redis)
   external:
+    enabled: false
     url: ""  # e.g., redis://redis-ha:6379 or redis://user:password@host:6379/0
 
+  # Built-in Redis (single StatefulSet, not HA)
   builtin:
+    enabled: false
     image: redis:8-alpine
 
 # Demo Mode Configuration (disabled in production)

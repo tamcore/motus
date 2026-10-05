@@ -90,7 +90,11 @@ Container image reference
 Redis URL helper
 */}}
 {{- define "motus.redis.url" -}}
-{{- .Values.redis.external.url | default (printf "redis://%s:6379/0" (include "motus.componentFullname" (list . "redis"))) }}
+{{- if .Values.redis.external.enabled }}
+{{- .Values.redis.external.url }}
+{{- else }}
+{{- printf "redis://%s:6379/0" (include "motus.componentFullname" (list . "redis")) }}
+{{- end }}
 {{- end }}
 
 {{/*

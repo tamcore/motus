@@ -75,9 +75,6 @@ func newUserKeysListCmd() *cobra.Command {
 					}
 				}
 				headers := []string{"ID", "NAME", "PERMISSIONS", "EXPIRES", "LAST USED", "CREATED"}
-				if output == "csv" {
-					headers = []string{"ID", "Name", "Permissions", "ExpiresAt", "LastUsedAt", "CreatedAt"}
-				}
 				render(output, items, headers, rows)
 			})
 		},

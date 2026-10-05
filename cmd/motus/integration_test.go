@@ -385,6 +385,9 @@ func TestDeviceList_Integration(t *testing.T) {
 		if !strings.Contains(out, "LIST-001") {
 			t.Errorf("output=%s missing LIST-001: %q", output, out)
 		}
+		if output == "csv" && !strings.HasPrefix(out, "ID,UNIQUE ID,NAME,PROTOCOL,STATUS,LAST UPDATE\n") {
+			t.Errorf("csv header differs from table header: %q", out)
+		}
 	}
 }
 

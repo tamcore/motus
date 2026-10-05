@@ -69,10 +69,7 @@ func printJSONTo(w io.Writer, data any) {
 func printCSVTo(w io.Writer, headers []string, rows [][]string) {
 	cw := csv.NewWriter(w)
 	_ = cw.Write(headers)
-	for _, row := range rows {
-		_ = cw.Write(row)
-	}
-	cw.Flush()
+	_ = cw.WriteAll(rows)
 }
 
 func printTableTo(w io.Writer, headers []string, rows [][]string) {

@@ -117,7 +117,6 @@ func newDeviceListCmd() *cobra.Command {
 
 				sortList(devices, sortField, deviceSorts)
 
-				isCSV := output == "csv"
 				items := make([]map[string]any, len(devices))
 				rows := make([][]string, len(devices))
 				for i, d := range devices {
@@ -129,23 +128,14 @@ func newDeviceListCmd() *cobra.Command {
 						"status":   d.Status,
 					}
 					lastUpdate := "-"
-					if isCSV {
-						lastUpdate = ""
-					}
 					if d.LastUpdate != nil {
 						item["lastUpdate"] = d.LastUpdate.Format(time.RFC3339)
 						lastUpdate = d.LastUpdate.Format("2006-01-02 15:04")
-						if isCSV {
-							lastUpdate = d.LastUpdate.Format("2006-01-02 15:04:05")
-						}
 					}
 					items[i] = item
 					rows[i] = []string{fmt.Sprint(d.ID), d.UniqueID, d.Name, d.Protocol, d.Status, lastUpdate}
 				}
 				headers := []string{"ID", "UNIQUE ID", "NAME", "PROTOCOL", "STATUS", "LAST UPDATE"}
-				if isCSV {
-					headers = []string{"ID", "UniqueID", "Name", "Protocol", "Status", "LastUpdate"}
-				}
 				render(output, items, headers, rows)
 			})
 		},

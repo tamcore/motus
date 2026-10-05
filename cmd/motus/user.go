@@ -128,9 +128,6 @@ func newUserListCmd() *cobra.Command {
 					}
 				}
 				headers := []string{"ID", "EMAIL", "NAME", "ROLE", "CREATED"}
-				if output == "csv" {
-					headers = []string{"ID", "Email", "Name", "Role", "Created"}
-				}
 				render(output, items, headers, rows)
 			})
 		},

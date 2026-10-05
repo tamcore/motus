@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/tamcore/motus/internal/geocoding"
 	"github.com/tamcore/motus/internal/model"
 	"github.com/tamcore/motus/internal/storage/repository"
 	"github.com/tamcore/motus/internal/ticker"
@@ -22,12 +23,6 @@ const (
 	IdleCheckInterval = 5 * time.Minute
 )
 
-// AddressGeocoder provides reverse geocoding for idle/stopped positions.
-// The returned address is stored in the position's address field in the database.
-type AddressGeocoder interface {
-	Lookup(ctx context.Context, lat, lon float64) string
-}
-
 // IdleService detects devices that have been stationary for longer than
 // the idle threshold and creates deviceIdle events. It runs as a background
 // service, polling at a configured interval.
@@ -36,7 +31,7 @@ type IdleService struct {
 	deviceRepo     repository.DeviceRepo
 	positionRepo   repository.PositionRepo
 	mileageService *MileageService
-	geocoder       AddressGeocoder
+	geocoder       *geocoding.CachedGeocoder
 }
 
 // NewIdleService creates a new idle detection service.
@@ -60,7 +55,7 @@ func NewIdleService(
 // SetGeocoder configures reverse geocoding for idle positions. When set, the
 // service will geocode the stop location and persist the address in the
 // position's address field in the database.
-func (s *IdleService) SetGeocoder(geocoder AddressGeocoder) {
+func (s *IdleService) SetGeocoder(geocoder *geocoding.CachedGeocoder) {
 	s.geocoder = geocoder
 }
 

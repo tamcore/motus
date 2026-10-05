@@ -11,6 +11,7 @@ import (
 	"github.com/tamcore/motus/internal/geocoding"
 	"github.com/tamcore/motus/internal/metrics"
 	"github.com/tamcore/motus/internal/model"
+	"github.com/tamcore/motus/internal/services"
 	"github.com/tamcore/motus/internal/storage/repository"
 	"github.com/tamcore/motus/internal/websocket"
 )
@@ -23,11 +24,6 @@ type GeofenceChecker interface {
 type namedCheck struct {
 	name string
 	run  func(ctx context.Context, position *model.Position) error
-}
-
-// MileageChecker is the interface for tracking device mileage from positions.
-type MileageChecker interface {
-	ProcessPosition(ctx context.Context, position *model.Position, device *model.Device) error
 }
 
 // AddressLookup provides cached reverse geocoding for positions without
@@ -62,7 +58,7 @@ type PositionHandler struct {
 	hub            *websocket.Hub
 	geofenceEvents GeofenceChecker
 	checks         []namedCheck
-	mileage        MileageChecker
+	mileage        *services.MileageService
 	addressLookup  AddressLookup
 	addressMu      sync.Mutex
 	addresses      map[int64]deviceAddress
@@ -93,7 +89,7 @@ func (h *PositionHandler) AddCheck(name string, check func(ctx context.Context, 
 }
 
 // SetMileageChecker sets the mileage tracking service on the handler.
-func (h *PositionHandler) SetMileageChecker(checker MileageChecker) {
+func (h *PositionHandler) SetMileageChecker(checker *services.MileageService) {
 	h.mileage = checker
 }
 

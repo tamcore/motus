@@ -2,19 +2,15 @@ package handlers
 
 import (
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
 	"strings"
 	"time"
 
-	"github.com/go-faster/jx"
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
+	"github.com/gorilla/securecookie"
 	"github.com/tamcore/motus/internal/api"
 	oas "github.com/tamcore/motus/internal/api/oas"
 	"github.com/tamcore/motus/internal/audit"
@@ -27,11 +23,12 @@ const (
 	// SessionData between the begin and finish steps of a ceremony.
 	passkeyRegCookie   = "passkey_reg_session"   // #nosec G101 -- cookie name, not a credential
 	passkeyLoginCookie = "passkey_login_session" // #nosec G101 -- cookie name, not a credential
-	// passkeyChallengeTTL bounds how long a ceremony may take.
-	passkeyChallengeTTL = 5 * time.Minute
 	// defaultPasskeyName labels a passkey when the client sends no name.
 	defaultPasskeyName = "Passkey"
 )
+
+// passkeyChallengeTTL bounds how long a ceremony may take.
+var passkeyChallengeTTL = 5 * time.Minute
 
 // PasskeyRegisterBegin starts a passkey registration for the authenticated user.
 func (h *Handler) PasskeyRegisterBegin(ctx context.Context) (oas.PasskeyRegisterBeginRes, error) {
@@ -85,7 +82,8 @@ func (h *Handler) PasskeyRegisterFinish(ctx context.Context, req oas.WebAuthnAtt
 		return &oas.PasskeyRegisterFinishBadRequest{Error: "registration session expired; please try again"}, nil
 	}
 
-	parsed, err := protocol.ParseCredentialCreationResponseBody(rawObjectReader(req))
+	body, _ := req.MarshalJSON()
+	parsed, err := protocol.ParseCredentialCreationResponseBytes(body)
 	if err != nil {
 		return &oas.PasskeyRegisterFinishBadRequest{Error: "invalid attestation"}, nil
 	}
@@ -155,7 +153,8 @@ func (h *Handler) PasskeyLoginFinish(ctx context.Context, req oas.WebAuthnAssert
 		return &oas.PasskeyLoginFinishUnauthorized{Error: "login session expired; please try again"}, nil
 	}
 
-	parsed, err := protocol.ParseCredentialRequestResponseBody(rawObjectReader(req))
+	body, _ := req.MarshalJSON()
+	parsed, err := protocol.ParseCredentialRequestResponseBytes(body)
 	if err != nil {
 		return &oas.PasskeyLoginFinishUnauthorized{Error: "invalid assertion"}, nil
 	}
@@ -272,7 +271,6 @@ var (
 	errPasskeyDemoUnavailable = errors.New("demo passkey login is temporarily unavailable")
 	errPasskeyNoWriter        = errors.New("no response writer in context")
 	errPasskeyNoRequest       = errors.New("no request in context")
-	errPasskeyBadCookie       = errors.New("invalid challenge cookie")
 )
 
 // loadWebauthnUser builds a webauthn.User adapter for the given user with all
@@ -305,6 +303,13 @@ func passkeyToOAS(c *model.PasskeyCredential) oas.PasskeyCredentialInfo {
 	}
 }
 
+// challengeCodec signs challenge cookies and rejects them after passkeyChallengeTTL.
+func (h *Handler) challengeCodec() *securecookie.SecureCookie {
+	return securecookie.New(h.cfg.WebAuthnCookieKey, nil).
+		MaxAge(int(passkeyChallengeTTL.Seconds())).
+		SetSerializer(securecookie.JSONEncoder{})
+}
+
 // setChallengeCookie serializes and signs the WebAuthn SessionData into a
 // short-lived HttpOnly cookie.
 func (h *Handler) setChallengeCookie(ctx context.Context, name string, sd *webauthn.SessionData) error {
@@ -312,11 +317,10 @@ func (h *Handler) setChallengeCookie(ctx context.Context, name string, sd *webau
 	if w == nil {
 		return errPasskeyNoWriter
 	}
-	payload, err := json.Marshal(sd)
+	value, err := h.challengeCodec().Encode(name, sd)
 	if err != nil {
 		return err
 	}
-	value := base64.RawURLEncoding.EncodeToString(payload) + "." + h.signPayload(payload)
 	http.SetCookie(w, &http.Cookie{
 		Name:     name,
 		Value:    value,
@@ -353,60 +357,9 @@ func (h *Handler) consumeChallengeCookie(ctx context.Context, name string) (*web
 		})
 	}
 
-	encoded, sig, ok := strings.Cut(cookie.Value, ".")
-	if !ok {
-		return nil, errPasskeyBadCookie
-	}
-	payload, err := base64.RawURLEncoding.DecodeString(encoded)
-	if err != nil {
-		return nil, err
-	}
-	if !hmac.Equal([]byte(h.signPayload(payload)), []byte(sig)) {
-		return nil, errPasskeyBadCookie
-	}
-
 	var sd webauthn.SessionData
-	if err := json.Unmarshal(payload, &sd); err != nil {
+	if err := h.challengeCodec().Decode(name, cookie.Value, &sd); err != nil {
 		return nil, err
-	}
-	if !sd.Expires.IsZero() && time.Now().After(sd.Expires) {
-		return nil, errPasskeyBadCookie
 	}
 	return &sd, nil
-}
-
-// signPayload returns the base64url HMAC-SHA256 of payload using the cookie key.
-func (h *Handler) signPayload(payload []byte) string {
-	mac := hmac.New(sha256.New, h.cfg.WebAuthnCookieKey)
-	mac.Write(payload)
-	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
-}
-
-// toRawObject marshals a value into an ogen free-form object type
-// (map[string]jx.Raw), preserving the JSON structure per key.
-func toRawObject[T ~map[string]jx.Raw](v any) (T, error) {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return nil, err
-	}
-	var m map[string]json.RawMessage
-	if err := json.Unmarshal(b, &m); err != nil {
-		return nil, err
-	}
-	out := make(T, len(m))
-	for k, val := range m {
-		out[k] = jx.Raw(val)
-	}
-	return out, nil
-}
-
-// rawObjectReader marshals an ogen free-form object (map[string]jx.Raw) back to
-// a JSON byte reader for the WebAuthn parser.
-func rawObjectReader[T ~map[string]jx.Raw](v T) *strings.Reader {
-	m := make(map[string]json.RawMessage, len(v))
-	for k, val := range v {
-		m[k] = json.RawMessage(val)
-	}
-	b, _ := json.Marshal(m)
-	return strings.NewReader(string(b))
 }

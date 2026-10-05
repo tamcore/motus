@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"maps"
 	"net/url"
 	"strconv"
 	"time"
@@ -12,34 +13,38 @@ import (
 	"github.com/tamcore/motus/internal/model"
 )
 
-// rawToAttrs converts a jx.Raw attribute map to map[string]interface{}.
+// rawToAttrs converts an ogen free-form object to a plain attribute map.
 func rawToAttrs(raw map[string]jx.Raw) map[string]any {
 	if raw == nil {
 		return nil
 	}
-	out := make(map[string]any, len(raw))
-	for k, v := range raw {
-		// nosemgrep: go.lang.security.deserialization.unsafe-deserialization-interface.go-unsafe-deserialization-interface -- decodes pre-validated jx.Raw JSON for attribute maps, not arbitrary user input
-		var x any
-		if err := json.Unmarshal(v, &x); err == nil {
-			out[k] = x
-		}
-	}
+	b, _ := oas.Attributes(raw).MarshalJSON()
+	// nosemgrep: go.lang.security.deserialization.unsafe-deserialization-interface.go-unsafe-deserialization-interface -- decodes pre-validated jx.Raw JSON for attribute maps, not arbitrary user input
+	var out map[string]any
+	_ = json.Unmarshal(b, &out)
 	return out
 }
 
-// attrsToRaw converts a map[string]interface{} to a jx.Raw attribute map.
+// attrsToRaw converts a plain attribute map to an ogen free-form object.
 func attrsToRaw(attrs map[string]any) map[string]jx.Raw {
 	if attrs == nil {
 		return nil
 	}
-	out := make(map[string]jx.Raw, len(attrs))
-	for k, v := range attrs {
-		if b, err := json.Marshal(v); err == nil {
-			out[k] = jx.Raw(b)
-		}
+	raw, _ := toRawObject[map[string]jx.Raw](attrs)
+	return raw
+}
+
+// toRawObject marshals v into an ogen free-form object type.
+func toRawObject[T ~map[string]jx.Raw](v any) (T, error) {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return nil, err
 	}
-	return out
+	var out oas.Attributes
+	if err := out.UnmarshalJSON(b); err != nil {
+		return nil, err
+	}
+	return T(out), nil
 }
 
 // optStr wraps a non-empty string in OptString.
@@ -146,17 +151,11 @@ func positionAttrsToOAS(attrs map[string]any) oas.PositionAttributes {
 		Iccid:      attrString(attrs, "iccid"),
 		Satellites: attrInt(attrs, "satellites"),
 	}
-	for k, v := range attrs {
-		if _, known := positionKnownKeys[k]; known {
-			continue
-		}
-		if pa.AdditionalProps == nil {
-			pa.AdditionalProps = make(oas.PositionAttributesAdditional)
-		}
-		if b, err := json.Marshal(v); err == nil {
-			pa.AdditionalProps[k] = jx.Raw(b)
-		}
-	}
+	pa.AdditionalProps = attrsToRaw(attrs)
+	maps.DeleteFunc(pa.AdditionalProps, func(k string, _ jx.Raw) bool {
+		_, known := positionKnownKeys[k]
+		return known
+	})
 	return pa
 }
 

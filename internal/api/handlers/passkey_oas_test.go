@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 	"time"
 
@@ -31,7 +33,7 @@ func TestDecodeUserHandleRejectsWrongLength(t *testing.T) {
 }
 
 // TestRawObjectRoundTrip confirms a JSON object survives the
-// value -> ogen free-form map -> JSON reader passthrough unchanged.
+// value -> ogen free-form map -> JSON passthrough unchanged.
 func TestRawObjectRoundTrip(t *testing.T) {
 	src := map[string]any{
 		"challenge": "abc123",
@@ -45,9 +47,16 @@ func TestRawObjectRoundTrip(t *testing.T) {
 		t.Fatalf("expected challenge key, got %v", opts)
 	}
 
-	r := rawObjectReader(oas.WebAuthnAttestationResponse(opts))
-	if r == nil {
-		t.Fatal("nil reader")
+	b, err := oas.WebAuthnAttestationResponse(opts).MarshalJSON()
+	if err != nil {
+		t.Fatalf("MarshalJSON: %v", err)
+	}
+	var got map[string]any
+	if err := json.Unmarshal(b, &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if !reflect.DeepEqual(got, src) {
+		t.Fatalf("round trip: got %v want %v", got, src)
 	}
 }
 
@@ -117,5 +126,33 @@ func TestChallengeCookieWrongKeyRejected(t *testing.T) {
 
 	if _, err := reader.consumeChallengeCookie(ctx, passkeyRegCookie); err == nil {
 		t.Fatal("expected cookie signed with a different key to be rejected")
+	}
+}
+
+func TestChallengeCookieExpiredRejected(t *testing.T) {
+	if testing.Short() {
+		t.Skip("waits for the cookie max age to pass")
+	}
+	ttl := passkeyChallengeTTL
+	passkeyChallengeTTL = time.Second
+	t.Cleanup(func() { passkeyChallengeTTL = ttl })
+
+	h := &Handler{cfg: HandlerConfig{WebAuthnCookieKey: []byte("test-key-32-bytes-long-padding!!")}}
+	sd := &webauthn.SessionData{Challenge: "x", Expires: time.Now().Add(time.Minute)}
+
+	rec := httptest.NewRecorder()
+	if err := h.setChallengeCookie(api.ContextWithResponseWriter(t.Context(), rec), passkeyRegCookie, sd); err != nil {
+		t.Fatalf("setChallengeCookie: %v", err)
+	}
+	cookie := rec.Result().Cookies()[0]
+
+	time.Sleep(2100 * time.Millisecond)
+
+	req := httptest.NewRequest(http.MethodPost, "/x", nil)
+	req.AddCookie(cookie)
+	ctx := api.ContextWithResponseWriter(api.ContextWithRequest(t.Context(), req), httptest.NewRecorder())
+
+	if _, err := h.consumeChallengeCookie(ctx, passkeyRegCookie); err == nil {
+		t.Fatal("expected expired cookie to be rejected")
 	}
 }

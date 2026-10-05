@@ -717,3 +717,42 @@ END:VCALENDAR`
 		t.Error("expected inactive on Saturday")
 	}
 }
+
+func TestIsActiveAt_LongRunningRecurrence(t *testing.T) {
+	ical := func(dtstart, dtend, rrule string) string {
+		return "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Motus//Test//EN\nBEGIN:VEVENT\n" +
+			"DTSTART:" + dtstart + "\nDTEND:" + dtend + "\nRRULE:" + rrule + "\nEND:VEVENT\nEND:VCALENDAR"
+	}
+	tests := []struct {
+		name string
+		data string
+		at   time.Time
+		want bool
+	}{
+		{"daily 24/7 template after 1000 days", ical("20240101T000000", "20240101T235959", "FREQ=DAILY"),
+			time.Date(2026, 10, 5, 12, 0, 0, 0, time.UTC), true},
+		{"daily window inside", ical("20200101T090000Z", "20200101T170000Z", "FREQ=DAILY"),
+			time.Date(2026, 10, 5, 10, 0, 0, 0, time.UTC), true},
+		{"daily window outside", ical("20200101T090000Z", "20200101T170000Z", "FREQ=DAILY"),
+			time.Date(2026, 10, 5, 18, 0, 0, 0, time.UTC), false},
+		{"every other day off-cycle", ical("20200101T090000Z", "20200101T170000Z", "FREQ=DAILY;INTERVAL=2"),
+			time.Date(2026, 10, 5, 10, 0, 0, 0, time.UTC), false},
+		{"every other day on-cycle", ical("20200101T090000Z", "20200101T170000Z", "FREQ=DAILY;INTERVAL=2"),
+			time.Date(2026, 10, 6, 10, 0, 0, 0, time.UTC), true},
+		{"weekly BYDAY after 1000 weeks", ical("20000103T090000Z", "20000103T170000Z", "FREQ=WEEKLY;BYDAY=MO"),
+			time.Date(2026, 10, 5, 10, 0, 0, 0, time.UTC), true},
+		{"daily COUNT exhausted", ical("20260101T090000Z", "20260101T170000Z", "FREQ=DAILY;COUNT=10"),
+			time.Date(2026, 10, 5, 10, 0, 0, 0, time.UTC), false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := calendar.IsActiveAt(tt.data, tt.at)
+			if err != nil {
+				t.Fatalf("IsActiveAt: %v", err)
+			}
+			if got != tt.want {
+				t.Errorf("IsActiveAt = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

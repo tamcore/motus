@@ -70,50 +70,21 @@ func newSSRFSafeTransport() *http.Transport {
 	}
 }
 
-// ssrfSafeDial performs the SSRF-safe TCP dial: it allows loopback and
-// allowlisted hosts to dial through unchanged, otherwise resolves DNS and
-// rejects any private IP target before pinning the first resolved IP.
+// ssrfSafeDial runs checkHost on the target and dials the pinned IP when
+// one was resolved, so DNS cannot rebind between check and connect.
 func ssrfSafeDial(ctx context.Context, dialer *net.Dialer, network, addr string) (net.Conn, error) {
 	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
 		return nil, fmt.Errorf("parse addr: %w", err)
 	}
-
-	if host == "localhost" || host == "127.0.0.1" || host == "::1" {
-		return dialer.DialContext(ctx, network, addr)
-	}
-
-	// Operator-configured allowlist for self-hosted services on internal
-	// networks. Bypasses the private-IP check at dial time so webhook URLs
-	// that legitimately resolve into RFC1918 space can be reached.
-	if isHostAllowed(host) {
-		return dialer.DialContext(ctx, network, addr)
-	}
-
-	// For explicit IP addresses there is no DNS to rebound; validate
-	// the IP directly. Loopback is already handled above.
-	if ip := net.ParseIP(host); ip != nil {
-		if isPrivateIP(ip) {
-			return nil, fmt.Errorf("webhook URL resolves to private IP address")
-		}
-		return dialer.DialContext(ctx, network, addr)
-	}
-
-	addrs, err := net.DefaultResolver.LookupIPAddr(ctx, host)
+	ip, err := checkHost(ctx, host)
 	if err != nil {
-		return nil, fmt.Errorf("resolve %s: %w", host, err)
+		return nil, err
 	}
-	if len(addrs) == 0 {
-		return nil, fmt.Errorf("no addresses for %s", host)
+	if ip != nil {
+		addr = net.JoinHostPort(ip.String(), port)
 	}
-	for _, a := range addrs {
-		if isPrivateIP(a.IP) {
-			return nil, fmt.Errorf("webhook URL resolves to private IP address")
-		}
-	}
-
-	pinnedAddr := net.JoinHostPort(addrs[0].IP.String(), port)
-	return dialer.DialContext(ctx, network, pinnedAddr)
+	return dialer.DialContext(ctx, network, addr)
 }
 
 // Send dispatches a notification based on the rule's channel type.

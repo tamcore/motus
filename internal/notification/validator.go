@@ -1,11 +1,14 @@
 package notification
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/url"
-	"slices"
 )
+
+var errPrivateIP = errors.New("webhook URL resolves to private IP address")
 
 // ValidateWebhookURL checks if a webhook URL is safe to use. It rejects
 // URLs that resolve to private/internal IP addresses to prevent SSRF attacks.
@@ -28,41 +31,45 @@ func ValidateWebhookURL(urlStr string) error {
 		return fmt.Errorf("webhook URL must use http or https")
 	}
 
-	// Skip IP resolution for localhost (test/dev convenience).
-	if u.Hostname() == "localhost" || u.Hostname() == "127.0.0.1" {
-		return nil
-	}
+	_, err = checkHost(context.Background(), u.Hostname())
+	return err
+}
 
-	hostname := u.Hostname()
+// checkHost rejects hosts that are, or resolve to, private IPs. Loopback
+// names (dev convenience) and allowlisted hosts pass unchecked. It returns
+// the resolved IP to pin the connection to, or nil to dial host as is.
+func checkHost(ctx context.Context, host string) (net.IP, error) {
+	if host == "localhost" || host == "127.0.0.1" || host == "::1" {
+		return nil, nil
+	}
 
 	// Operator-configured allowlist for self-hosted services on internal
-	// networks (e.g. ntfy.example.lan). Skips the private-IP check so
-	// webhook URLs that legitimately resolve into RFC1918 space can be
-	// configured without disabling SSRF protection globally.
-	if isHostAllowed(hostname) {
-		return nil
+	// networks (e.g. ntfy.example.lan) that legitimately resolve into
+	// RFC1918 space.
+	if isHostAllowed(host) {
+		return nil, nil
 	}
 
-	// If the hostname is already an IP address, check it directly.
-	if ip := net.ParseIP(hostname); ip != nil {
+	if ip := net.ParseIP(host); ip != nil {
 		if isPrivateIP(ip) {
-			return fmt.Errorf("webhook URL resolves to private IP address")
+			return nil, errPrivateIP
 		}
-		return nil
+		return nil, nil
 	}
 
-	// Resolve hostname to IP addresses.
-	ips, err := net.LookupIP(hostname)
+	addrs, err := net.DefaultResolver.LookupIPAddr(ctx, host)
 	if err != nil {
-		return fmt.Errorf("could not resolve hostname: %w", err)
+		return nil, fmt.Errorf("could not resolve hostname %s: %w", host, err)
 	}
-
-	// Block private/internal IP ranges to prevent SSRF.
-	if slices.ContainsFunc(ips, isPrivateIP) {
-		return fmt.Errorf("webhook URL resolves to private IP address")
+	if len(addrs) == 0 {
+		return nil, fmt.Errorf("no addresses for %s", host)
 	}
-
-	return nil
+	for _, a := range addrs {
+		if isPrivateIP(a.IP) {
+			return nil, errPrivateIP
+		}
+	}
+	return addrs[0].IP, nil
 }
 
 // isPrivateIP returns true if the IP belongs to a private, loopback or link-local range.

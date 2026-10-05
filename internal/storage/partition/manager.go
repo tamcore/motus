@@ -15,25 +15,15 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"regexp"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/tamcore/motus/internal/ticker"
 )
 
-// validPartitionNameRE matches the canonical partition name format: positions_yYYYYmMM.
-// Only names that match this pattern are safe to interpolate into DDL statements.
-var validPartitionNameRE = regexp.MustCompile(`^positions_y\d{4}m\d{2}$`)
-
-// validatePartitionName returns an error if name does not match the expected
-// positions_yYYYYmMM format, preventing identifier injection in DDL.
-func validatePartitionName(name string) error {
-	if !validPartitionNameRE.MatchString(name) {
-		return fmt.Errorf("invalid partition name %q: must match positions_yYYYYmMM", name)
-	}
-	return nil
-}
+// lookaheadMonths is how many months ahead partitions are created.
+const lookaheadMonths = 3
 
 // Manager handles automatic partition creation and optional retention for the
 // positions table. It runs as a background goroutine, periodically checking
@@ -42,7 +32,6 @@ type Manager struct {
 	pool          *pgxpool.Pool
 	retentionDays int
 	checkInterval time.Duration
-	lookahead     int // months ahead to create partitions
 	logger        *slog.Logger
 }
 
@@ -58,7 +47,6 @@ func NewManager(pool *pgxpool.Pool, retentionDays int, checkInterval time.Durati
 		pool:          pool,
 		retentionDays: retentionDays,
 		checkInterval: checkInterval,
-		lookahead:     3, // create partitions 3 months ahead
 		logger:        cmp.Or(logger, slog.Default()),
 	}
 }
@@ -70,7 +58,7 @@ func (m *Manager) Start(ctx context.Context) {
 	m.logger.Info("partition manager started",
 		slog.Int("retentionDays", m.retentionDays),
 		slog.String("interval", m.checkInterval.String()),
-		slog.Int("lookaheadMonths", m.lookahead),
+		slog.Int("lookaheadMonths", lookaheadMonths),
 	)
 
 	run := func() {
@@ -105,7 +93,7 @@ func (m *Manager) ensureFuturePartitions(ctx context.Context) error {
 	// Start from the current month.
 	start := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
 
-	for i := 0; i <= m.lookahead; i++ {
+	for i := range lookaheadMonths + 1 {
 		partStart := start.AddDate(0, i, 0)
 		partEnd := partStart.AddDate(0, 1, 0)
 		name := PartitionName(partStart)
@@ -129,10 +117,6 @@ func (m *Manager) ensureFuturePartitions(ctx context.Context) error {
 // createPartitionIfNotExists creates a partition with the given name and range
 // if it does not already exist. Returns true if a new partition was created.
 func (m *Manager) createPartitionIfNotExists(ctx context.Context, name string, start, end time.Time) (bool, error) {
-	if err := validatePartitionName(name); err != nil {
-		return false, err
-	}
-
 	// Check if the partition already exists by querying pg_class.
 	var exists bool
 	err := m.pool.QueryRow(ctx,
@@ -162,7 +146,7 @@ func (m *Manager) createPartitionIfNotExists(ctx context.Context, name string, s
 		return false, fmt.Errorf("detach default: %w", err)
 	}
 
-	// name is validated above; dates come from time.Time and are safe to embed.
+	// name and dates come from time.Format and are safe to embed.
 	createSQL := fmt.Sprintf(
 		`CREATE TABLE %s PARTITION OF positions FOR VALUES FROM ('%s') TO ('%s')`,
 		name,
@@ -176,7 +160,6 @@ func (m *Manager) createPartitionIfNotExists(ctx context.Context, name string, s
 	}
 
 	// Move any rows from default that now belong in the new partition.
-	// name is validated above; use parameters for the timestamp bounds.
 	moveSQL := fmt.Sprintf(
 		`WITH moved AS (
 			DELETE FROM positions_default
@@ -221,15 +204,7 @@ func (m *Manager) dropExpiredPartitions(ctx context.Context) error {
 				slog.String("cutoff", cutoffMonth.Format("2006-01-02")),
 			)
 
-			if err := validatePartitionName(p.Name); err != nil {
-				m.logger.Error("skipping drop: partition name failed validation",
-					slog.String("name", p.Name),
-					slog.Any("error", err),
-				)
-				continue
-			}
-			dropSQL := fmt.Sprintf(`DROP TABLE IF EXISTS %s`, p.Name)
-			if _, err := m.pool.Exec(ctx, dropSQL); err != nil {
+			if _, err := m.pool.Exec(ctx, `DROP TABLE IF EXISTS `+pgx.Identifier{p.Name}.Sanitize()); err != nil {
 				return fmt.Errorf("drop partition %s: %w", p.Name, err)
 			}
 		}

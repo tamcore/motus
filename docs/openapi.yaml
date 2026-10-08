@@ -907,7 +907,7 @@ components:
 
     NotificationLog:
       type: object
-      required: [id, ruleId, status]
+      required: [id, ruleId, status, createdAt]
       properties:
         id: { type: integer, format: int64 }
         ruleId: { type: integer, format: int64 }
@@ -916,6 +916,16 @@ components:
         sentAt: { type: string, format: date-time, nullable: true }
         error: { type: string }
         responseCode: { type: integer }
+        createdAt: { type: string, format: date-time }
+        eventType: { type: string, description: "Type of the triggering event (absent when the event was deleted or the delivery was a test)" }
+        eventTime: { type: string, format: date-time }
+        deviceId: { type: integer, format: int64 }
+        deviceName: { type: string }
+        geofenceName: { type: string }
+        eventAttributes:
+          type: object
+          additionalProperties: true
+          description: "Attributes of the triggering event, e.g. speed/previousSpeed or ignition state"
 
     DeviceShare:
       type: object

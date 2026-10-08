@@ -143,4 +143,13 @@ type NotificationLog struct {
 	Error        string     `json:"error,omitempty"`
 	ResponseCode int        `json:"responseCode,omitempty"`
 	CreatedAt    time.Time  `json:"createdAt"`
+
+	// Context of the triggering event, joined in on read. Empty when the
+	// event was deleted (event_id ON DELETE SET NULL) or for test deliveries.
+	EventType       string         `json:"eventType,omitempty"`
+	EventTime       *time.Time     `json:"eventTime,omitempty"`
+	EventAttributes map[string]any `json:"eventAttributes,omitempty"`
+	DeviceID        *int64         `json:"deviceId,omitempty"`
+	DeviceName      string         `json:"deviceName,omitempty"`
+	GeofenceName    string         `json:"geofenceName,omitempty"`
 }

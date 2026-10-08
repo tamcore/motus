@@ -4674,6 +4674,15 @@ type NotificationLog struct {
 	SentAt       OptNilDateTime `json:"sentAt"`
 	Error        OptString      `json:"error"`
 	ResponseCode OptInt         `json:"responseCode"`
+	CreatedAt    time.Time      `json:"createdAt"`
+	// Type of the triggering event (absent when the event was deleted or the delivery was a test).
+	EventType    OptString   `json:"eventType"`
+	EventTime    OptDateTime `json:"eventTime"`
+	DeviceId     OptInt64    `json:"deviceId"`
+	DeviceName   OptString   `json:"deviceName"`
+	GeofenceName OptString   `json:"geofenceName"`
+	// Attributes of the triggering event, e.g. speed/previousSpeed or ignition state.
+	EventAttributes OptNotificationLogEventAttributes `json:"eventAttributes"`
 }
 
 // GetID returns the value of ID.
@@ -4711,6 +4720,41 @@ func (s *NotificationLog) GetResponseCode() OptInt {
 	return s.ResponseCode
 }
 
+// GetCreatedAt returns the value of CreatedAt.
+func (s *NotificationLog) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetEventType returns the value of EventType.
+func (s *NotificationLog) GetEventType() OptString {
+	return s.EventType
+}
+
+// GetEventTime returns the value of EventTime.
+func (s *NotificationLog) GetEventTime() OptDateTime {
+	return s.EventTime
+}
+
+// GetDeviceId returns the value of DeviceId.
+func (s *NotificationLog) GetDeviceId() OptInt64 {
+	return s.DeviceId
+}
+
+// GetDeviceName returns the value of DeviceName.
+func (s *NotificationLog) GetDeviceName() OptString {
+	return s.DeviceName
+}
+
+// GetGeofenceName returns the value of GeofenceName.
+func (s *NotificationLog) GetGeofenceName() OptString {
+	return s.GeofenceName
+}
+
+// GetEventAttributes returns the value of EventAttributes.
+func (s *NotificationLog) GetEventAttributes() OptNotificationLogEventAttributes {
+	return s.EventAttributes
+}
+
 // SetID sets the value of ID.
 func (s *NotificationLog) SetID(val int64) {
 	s.ID = val
@@ -4744,6 +4788,53 @@ func (s *NotificationLog) SetError(val OptString) {
 // SetResponseCode sets the value of ResponseCode.
 func (s *NotificationLog) SetResponseCode(val OptInt) {
 	s.ResponseCode = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *NotificationLog) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetEventType sets the value of EventType.
+func (s *NotificationLog) SetEventType(val OptString) {
+	s.EventType = val
+}
+
+// SetEventTime sets the value of EventTime.
+func (s *NotificationLog) SetEventTime(val OptDateTime) {
+	s.EventTime = val
+}
+
+// SetDeviceId sets the value of DeviceId.
+func (s *NotificationLog) SetDeviceId(val OptInt64) {
+	s.DeviceId = val
+}
+
+// SetDeviceName sets the value of DeviceName.
+func (s *NotificationLog) SetDeviceName(val OptString) {
+	s.DeviceName = val
+}
+
+// SetGeofenceName sets the value of GeofenceName.
+func (s *NotificationLog) SetGeofenceName(val OptString) {
+	s.GeofenceName = val
+}
+
+// SetEventAttributes sets the value of EventAttributes.
+func (s *NotificationLog) SetEventAttributes(val OptNotificationLogEventAttributes) {
+	s.EventAttributes = val
+}
+
+// Attributes of the triggering event, e.g. speed/previousSpeed or ignition state.
+type NotificationLogEventAttributes map[string]jx.Raw
+
+func (s *NotificationLogEventAttributes) init() NotificationLogEventAttributes {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
 }
 
 type NotificationLogsForbidden Error
@@ -5958,6 +6049,52 @@ func (o OptNotificationConfigWebhookHeaders) Get() (v NotificationConfigWebhookH
 
 // Or returns value if set, or given parameter if does not.
 func (o OptNotificationConfigWebhookHeaders) Or(d NotificationConfigWebhookHeaders) NotificationConfigWebhookHeaders {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNotificationLogEventAttributes returns new OptNotificationLogEventAttributes with value set to v.
+func NewOptNotificationLogEventAttributes(v NotificationLogEventAttributes) OptNotificationLogEventAttributes {
+	return OptNotificationLogEventAttributes{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNotificationLogEventAttributes is optional NotificationLogEventAttributes.
+type OptNotificationLogEventAttributes struct {
+	Value NotificationLogEventAttributes
+	Set   bool
+}
+
+// IsSet returns true if OptNotificationLogEventAttributes was set.
+func (o OptNotificationLogEventAttributes) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNotificationLogEventAttributes) Reset() {
+	var v NotificationLogEventAttributes
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptNotificationLogEventAttributes) SetTo(v NotificationLogEventAttributes) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNotificationLogEventAttributes) Get() (v NotificationLogEventAttributes, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNotificationLogEventAttributes) Or(d NotificationLogEventAttributes) NotificationLogEventAttributes {
 	if v, ok := o.Get(); ok {
 		return v
 	}

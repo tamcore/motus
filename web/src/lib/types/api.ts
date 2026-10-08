@@ -242,6 +242,14 @@ export interface NotificationLog {
   sentAt?: string | null;
   error?: string;
   responseCode?: number;
+  createdAt: string;
+  /** Context of the triggering event; absent when the event was deleted. */
+  eventType?: string;
+  eventTime?: string;
+  eventAttributes?: Record<string, unknown>;
+  deviceId?: number;
+  deviceName?: string;
+  geofenceName?: string;
 }
 
 export interface DeviceShare {

@@ -954,3 +954,51 @@ func TestBuildAuditMetadata_TypeMatchesAction(t *testing.T) {
 		}
 	}
 }
+
+func TestNotificationLogToOAS(t *testing.T) {
+	created := time.Date(2026, 10, 8, 12, 30, 0, 0, time.UTC)
+	l := &model.NotificationLog{
+		ID:           9,
+		RuleID:       3,
+		EventID:      new(int64(42)),
+		Status:       "sent",
+		ResponseCode: 200,
+		CreatedAt:    created,
+		EventType:    "geofenceEnter",
+		DeviceID:     new(int64(7)),
+		DeviceName:   "Car",
+		GeofenceName: "Home",
+	}
+	got := notificationLogToOAS(l)
+	if !got.CreatedAt.Equal(created) {
+		t.Errorf("CreatedAt = %v, want %v", got.CreatedAt, created)
+	}
+	if got.EventType.Value != "geofenceEnter" || got.DeviceName.Value != "Car" || got.GeofenceName.Value != "Home" {
+		t.Errorf("event context = %+v / %+v / %+v", got.EventType, got.DeviceName, got.GeofenceName)
+	}
+	if !got.DeviceId.Set || got.DeviceId.Value != 7 {
+		t.Errorf("DeviceId = %+v", got.DeviceId)
+	}
+}
+
+func TestNotificationLogToOAS_NoEvent(t *testing.T) {
+	got := notificationLogToOAS(&model.NotificationLog{ID: 1, RuleID: 1, Status: "failed", CreatedAt: time.Now()})
+	if got.EventType.Set || got.DeviceName.Set || got.GeofenceName.Set || got.DeviceId.Set {
+		t.Errorf("expected unset event context, got %+v", got)
+	}
+}
+
+func TestNotificationLogToOAS_EventAttributes(t *testing.T) {
+	eventTime := time.Date(2026, 10, 8, 12, 29, 0, 0, time.UTC)
+	got := notificationLogToOAS(&model.NotificationLog{
+		ID: 1, RuleID: 1, Status: "sent", CreatedAt: eventTime,
+		EventType: "motion", EventTime: &eventTime,
+		EventAttributes: map[string]any{"speed": 45.5, "previousSpeed": 0},
+	})
+	if !got.EventTime.Set || !got.EventTime.Value.Equal(eventTime) {
+		t.Errorf("EventTime = %+v", got.EventTime)
+	}
+	if !got.EventAttributes.Set || string(got.EventAttributes.Value["speed"]) != "45.5" || string(got.EventAttributes.Value["previousSpeed"]) != "0" {
+		t.Errorf("EventAttributes = %+v", got.EventAttributes)
+	}
+}

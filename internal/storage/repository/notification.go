@@ -134,10 +134,15 @@ func (r *NotificationRepository) GetLogsByRule(ctx context.Context, ruleID int64
 	}
 
 	rows, err := r.pool.Query(ctx, `
-		SELECT id, rule_id, event_id, status, sent_at, error, response_code, created_at
-		FROM notification_log
-		WHERE rule_id = $1
-		ORDER BY created_at DESC
+		SELECT nl.id, nl.rule_id, nl.event_id, nl.status, nl.sent_at, nl.error, nl.response_code, nl.created_at,
+		       COALESCE(e.type, ''), e.timestamp, e.attributes, e.device_id,
+		       COALESCE(d.name, ''), COALESCE(g.name, '')
+		FROM notification_log nl
+		LEFT JOIN events e ON e.id = nl.event_id
+		LEFT JOIN devices d ON d.id = e.device_id
+		LEFT JOIN geofences g ON g.id = e.geofence_id
+		WHERE nl.rule_id = $1
+		ORDER BY nl.created_at DESC
 		LIMIT $2
 	`, ruleID, limit)
 	if err != nil {
@@ -145,7 +150,8 @@ func (r *NotificationRepository) GetLogsByRule(ctx context.Context, ruleID int64
 	}
 	return pgx.AppendRows([]*model.NotificationLog(nil), rows, func(row pgx.CollectableRow) (*model.NotificationLog, error) {
 		var l model.NotificationLog
-		if err := row.Scan(&l.ID, &l.RuleID, &l.EventID, &l.Status, &l.SentAt, &l.Error, &l.ResponseCode, &l.CreatedAt); err != nil {
+		if err := row.Scan(&l.ID, &l.RuleID, &l.EventID, &l.Status, &l.SentAt, &l.Error, &l.ResponseCode, &l.CreatedAt,
+			&l.EventType, &l.EventTime, &l.EventAttributes, &l.DeviceID, &l.DeviceName, &l.GeofenceName); err != nil {
 			return nil, fmt.Errorf("scan notification log: %w", err)
 		}
 		return &l, nil

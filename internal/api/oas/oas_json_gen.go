@@ -14600,16 +14600,63 @@ func (s *NotificationLog) encodeFields(e *jx.Encoder) {
 			s.ResponseCode.Encode(e)
 		}
 	}
+	{
+		e.FieldStart("createdAt")
+		json.EncodeDateTime(e, s.CreatedAt)
+	}
+	{
+		if s.EventType.Set {
+			e.FieldStart("eventType")
+			s.EventType.Encode(e)
+		}
+	}
+	{
+		if s.EventTime.Set {
+			e.FieldStart("eventTime")
+			s.EventTime.Encode(e, json.EncodeDateTime)
+		}
+	}
+	{
+		if s.DeviceId.Set {
+			e.FieldStart("deviceId")
+			s.DeviceId.Encode(e)
+		}
+	}
+	{
+		if s.DeviceName.Set {
+			e.FieldStart("deviceName")
+			s.DeviceName.Encode(e)
+		}
+	}
+	{
+		if s.GeofenceName.Set {
+			e.FieldStart("geofenceName")
+			s.GeofenceName.Encode(e)
+		}
+	}
+	{
+		if s.EventAttributes.Set {
+			e.FieldStart("eventAttributes")
+			s.EventAttributes.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfNotificationLog = [7]string{
-	0: "id",
-	1: "ruleId",
-	2: "eventId",
-	3: "status",
-	4: "sentAt",
-	5: "error",
-	6: "responseCode",
+var jsonFieldsNameOfNotificationLog = [14]string{
+	0:  "id",
+	1:  "ruleId",
+	2:  "eventId",
+	3:  "status",
+	4:  "sentAt",
+	5:  "error",
+	6:  "responseCode",
+	7:  "createdAt",
+	8:  "eventType",
+	9:  "eventTime",
+	10: "deviceId",
+	11: "deviceName",
+	12: "geofenceName",
+	13: "eventAttributes",
 }
 
 // Decode decodes NotificationLog from json.
@@ -14617,7 +14664,7 @@ func (s *NotificationLog) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode NotificationLog to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -14697,6 +14744,78 @@ func (s *NotificationLog) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"responseCode\"")
 			}
+		case "createdAt":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				v, err := json.DecodeDateTime(d)
+				s.CreatedAt = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"createdAt\"")
+			}
+		case "eventType":
+			if err := func() error {
+				s.EventType.Reset()
+				if err := s.EventType.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"eventType\"")
+			}
+		case "eventTime":
+			if err := func() error {
+				s.EventTime.Reset()
+				if err := s.EventTime.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"eventTime\"")
+			}
+		case "deviceId":
+			if err := func() error {
+				s.DeviceId.Reset()
+				if err := s.DeviceId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"deviceId\"")
+			}
+		case "deviceName":
+			if err := func() error {
+				s.DeviceName.Reset()
+				if err := s.DeviceName.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"deviceName\"")
+			}
+		case "geofenceName":
+			if err := func() error {
+				s.GeofenceName.Reset()
+				if err := s.GeofenceName.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"geofenceName\"")
+			}
+		case "eventAttributes":
+			if err := func() error {
+				s.EventAttributes.Reset()
+				if err := s.EventAttributes.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"eventAttributes\"")
+			}
 		default:
 			return d.Skip()
 		}
@@ -14706,8 +14825,9 @@ func (s *NotificationLog) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
-		0b00001011,
+	for i, mask := range [2]uint8{
+		0b10001011,
+		0b00000000,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -14749,6 +14869,64 @@ func (s *NotificationLog) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *NotificationLog) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s NotificationLogEventAttributes) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields implements json.Marshaler.
+func (s NotificationLogEventAttributes) encodeFields(e *jx.Encoder) {
+	for k, elem := range s {
+		e.FieldStart(k)
+
+		if len(elem) != 0 {
+			e.Raw(elem)
+		}
+	}
+}
+
+// Decode decodes NotificationLogEventAttributes from json.
+func (s *NotificationLogEventAttributes) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode NotificationLogEventAttributes to nil")
+	}
+	m := s.init()
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		var elem jx.Raw
+		if err := func() error {
+			v, err := d.RawAppend(nil)
+			elem = jx.Raw(v)
+			if err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrapf(err, "decode field %q", k)
+		}
+		m[string(k)] = elem
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode NotificationLogEventAttributes")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NotificationLogEventAttributes) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NotificationLogEventAttributes) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -16279,6 +16457,40 @@ func (s OptNotificationConfigWebhookHeaders) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OptNotificationConfigWebhookHeaders) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes NotificationLogEventAttributes as json.
+func (o OptNotificationLogEventAttributes) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes NotificationLogEventAttributes from json.
+func (o *OptNotificationLogEventAttributes) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptNotificationLogEventAttributes to nil")
+	}
+	o.Set = true
+	o.Value = make(NotificationLogEventAttributes)
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptNotificationLogEventAttributes) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptNotificationLogEventAttributes) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

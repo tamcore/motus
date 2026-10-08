@@ -454,7 +454,7 @@ func notificationLogToOAS(l *model.NotificationLog) oas.NotificationLog {
 	if l.ResponseCode != 0 {
 		code = oas.OptInt{Value: l.ResponseCode, Set: true}
 	}
-	return oas.NotificationLog{
+	out := oas.NotificationLog{
 		ID:           l.ID,
 		RuleId:       l.RuleID,
 		EventId:      ptrToOptInt64(l.EventID),
@@ -462,7 +462,21 @@ func notificationLogToOAS(l *model.NotificationLog) oas.NotificationLog {
 		SentAt:       ptrToOptTime(l.SentAt),
 		Error:        optStr(l.Error),
 		ResponseCode: code,
+		CreatedAt:    l.CreatedAt,
+		EventType:    optStr(l.EventType),
+		DeviceName:   optStr(l.DeviceName),
+		GeofenceName: optStr(l.GeofenceName),
 	}
+	if l.EventTime != nil {
+		out.EventTime = oas.NewOptDateTime(*l.EventTime)
+	}
+	if l.DeviceID != nil {
+		out.DeviceId = oas.NewOptInt64(*l.DeviceID)
+	}
+	if len(l.EventAttributes) > 0 {
+		out.EventAttributes = oas.NewOptNotificationLogEventAttributes(attrsToRaw(l.EventAttributes))
+	}
+	return out
 }
 
 // deviceShareToOAS converts a model.DeviceShare to oas.DeviceShare.

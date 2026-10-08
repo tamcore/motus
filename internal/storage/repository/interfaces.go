@@ -23,6 +23,8 @@ type DeviceRepo interface {
 	Update(ctx context.Context, d *model.Device) error
 	UpdateProtocol(ctx context.Context, id int64, protocol string) error
 	MarkOnline(ctx context.Context, id, positionID int64, at time.Time, batteryLevel *float64) (*model.Device, error)
+	GetGeofenceIDs(ctx context.Context, deviceIDs []int64) (map[int64][]int64, error)
+	SetGeofences(ctx context.Context, deviceID int64, geofenceIDs []int64) error
 	Delete(ctx context.Context, id int64) error
 }
 
@@ -99,6 +101,7 @@ type GeofenceRepo interface {
 	AssociateUser(ctx context.Context, userID, geofenceID int64) error
 	UserHasAccess(ctx context.Context, user *model.User, geofenceID int64) bool
 	CheckContainmentForDevice(ctx context.Context, deviceID int64, lat, lon float64) ([]int64, error)
+	GetDeviceGeofenceIDs(ctx context.Context, deviceID int64) ([]int64, error)
 }
 
 // CommandRepo defines the operations on the commands table.

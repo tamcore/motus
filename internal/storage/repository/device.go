@@ -270,6 +270,54 @@ func (r *DeviceRepository) Delete(ctx context.Context, id int64) error {
 	return nil
 }
 
+// GetGeofenceIDs returns the attached geofence IDs (sorted) of the given
+// devices. Devices without attachments are absent from the map.
+func (r *DeviceRepository) GetGeofenceIDs(ctx context.Context, deviceIDs []int64) (map[int64][]int64, error) {
+	result := make(map[int64][]int64)
+	if len(deviceIDs) == 0 {
+		return result, nil
+	}
+	rows, err := r.pool.Query(ctx,
+		`SELECT device_id, geofence_id FROM device_geofences
+		 WHERE device_id = ANY($1)
+		 ORDER BY device_id, geofence_id`, deviceIDs)
+	if err != nil {
+		return nil, fmt.Errorf("get device geofence ids: %w", err)
+	}
+	var deviceID, geofenceID int64
+	_, err = pgx.ForEachRow(rows, []any{&deviceID, &geofenceID}, func() error {
+		result[deviceID] = append(result[deviceID], geofenceID)
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("scan device geofence ids: %w", err)
+	}
+	return result, nil
+}
+
+// SetGeofences replaces the geofences attached to a device. An empty slice
+// clears all attachments.
+func (r *DeviceRepository) SetGeofences(ctx context.Context, deviceID int64, geofenceIDs []int64) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin set device geofences: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if _, err := tx.Exec(ctx, `DELETE FROM device_geofences WHERE device_id = $1`, deviceID); err != nil {
+		return fmt.Errorf("clear device geofences: %w", err)
+	}
+	if len(geofenceIDs) > 0 {
+		if _, err := tx.Exec(ctx,
+			`INSERT INTO device_geofences (device_id, geofence_id)
+			 SELECT $1, unnest($2::bigint[])
+			 ON CONFLICT DO NOTHING`, deviceID, geofenceIDs); err != nil {
+			return fmt.Errorf("attach device geofences: %w", err)
+		}
+	}
+	return tx.Commit(ctx)
+}
+
 func rowToDevice(row pgx.CollectableRow) (model.Device, error) {
 	var d model.Device
 	if err := scanDevice(row, &d); err != nil {

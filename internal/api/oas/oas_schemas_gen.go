@@ -3059,9 +3059,12 @@ type Device struct {
 	// Watch and OsmAnd). Null when the device never reported a battery percentage (e.g. H02).
 	BatteryLevel OptNilFloat64 `json:"batteryLevel"`
 	Attributes   Attributes    `json:"attributes"`
-	OwnerName    OptString     `json:"ownerName"`
-	CreatedAt    time.Time     `json:"createdAt"`
-	UpdatedAt    time.Time     `json:"updatedAt"`
+	// Geofences attached to the device. When non-empty, geofence enter/exit events are only evaluated for
+	// these geofences; when empty, for all geofences of the device's users.
+	GeofenceIds []int64   `json:"geofenceIds"`
+	OwnerName   OptString `json:"ownerName"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
 // GetID returns the value of ID.
@@ -3157,6 +3160,11 @@ func (s *Device) GetBatteryLevel() OptNilFloat64 {
 // GetAttributes returns the value of Attributes.
 func (s *Device) GetAttributes() Attributes {
 	return s.Attributes
+}
+
+// GetGeofenceIds returns the value of GeofenceIds.
+func (s *Device) GetGeofenceIds() []int64 {
+	return s.GeofenceIds
 }
 
 // GetOwnerName returns the value of OwnerName.
@@ -3269,6 +3277,11 @@ func (s *Device) SetAttributes(val Attributes) {
 	s.Attributes = val
 }
 
+// SetGeofenceIds sets the value of GeofenceIds.
+func (s *Device) SetGeofenceIds(val []int64) {
+	s.GeofenceIds = val
+}
+
 // SetOwnerName sets the value of OwnerName.
 func (s *Device) SetOwnerName(val OptString) {
 	s.OwnerName = val
@@ -3304,6 +3317,10 @@ type DeviceInput struct {
 	// Odometer in km; absent keeps the stored value.
 	Mileage    OptNilFloat64 `json:"mileage"`
 	Attributes OptAttributes `json:"attributes"`
+	// Geofences to attach to the device (replaces the current set). Absent keeps the stored attachments,
+	// [] clears them. Each geofence must be accessible to the caller; attachments to geofences the caller
+	// cannot see are preserved.
+	GeofenceIds []int64 `json:"geofenceIds"`
 }
 
 // GetName returns the value of Name.
@@ -3366,6 +3383,11 @@ func (s *DeviceInput) GetAttributes() OptAttributes {
 	return s.Attributes
 }
 
+// GetGeofenceIds returns the value of GeofenceIds.
+func (s *DeviceInput) GetGeofenceIds() []int64 {
+	return s.GeofenceIds
+}
+
 // SetName sets the value of Name.
 func (s *DeviceInput) SetName(val string) {
 	s.Name = val
@@ -3424,6 +3446,11 @@ func (s *DeviceInput) SetMileage(val OptNilFloat64) {
 // SetAttributes sets the value of Attributes.
 func (s *DeviceInput) SetAttributes(val OptAttributes) {
 	s.Attributes = val
+}
+
+// SetGeofenceIds sets the value of GeofenceIds.
+func (s *DeviceInput) SetGeofenceIds(val []int64) {
+	s.GeofenceIds = val
 }
 
 // Ref: #/components/schemas/DeviceShare

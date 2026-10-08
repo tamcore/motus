@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import type { Device } from '$lib/types/api';
-	import { api, fetchDevices } from '$lib/api/client';
+	import type { Device, Geofence } from '$lib/types/api';
+	import { api, fetchDevices, fetchGeofences } from '$lib/api/client';
+	import { describeDeviceGeofences, deviceGeofencePayload, toggleId } from '$lib/utils/deviceGeofences';
 	import { refreshHandler } from '$lib/stores/refresh';
 	import { mileageToDisplay, mileageFromDisplay, formatMileage, formatRelative, formatDate } from '$lib/utils/formatting';
 	import { buildCommandAttributes, commandIntervalLabel, commandSentMessage, COMMAND_TYPE_LABELS } from '$lib/utils/commands';
@@ -146,6 +147,11 @@
 	let formCategory = '';
 	let formProtocol = '';
 	let formMileage: number | null = null;
+	let formGeofenceIds: number[] = [];
+
+	// Geofences that can be attached to devices (same scope as the device list).
+	// null when loading failed: the form then leaves attachments untouched.
+	let geofences: Geofence[] | null = [];
 
 	$: filtered = devices.filter(
 		(d) =>
@@ -163,7 +169,11 @@
 	async function loadDevices() {
 		loading = true;
 		try {
-			devices = await fetchDevices();
+			[devices, geofences] = await Promise.all([
+				fetchDevices(),
+				// Geofence attachments are optional; devices still load without them.
+				fetchGeofences().catch(() => null)
+			]);
 		} catch {
 			console.error('Failed to load devices');
 		} finally {
@@ -180,6 +190,7 @@
 		formCategory = '';
 		formProtocol = '';
 		formMileage = null;
+		formGeofenceIds = [];
 		error = '';
 		showModal = true;
 	}
@@ -193,6 +204,7 @@
 		formCategory = device.category || '';
 		formProtocol = device.protocol || '';
 		formMileage = device.mileage != null ? Math.round(mileageToDisplay(device.mileage)) : null;
+		formGeofenceIds = [...(device.geofenceIds ?? [])];
 		error = '';
 		showModal = true;
 	}
@@ -249,7 +261,8 @@
 				model: formModel.trim() || undefined,
 				category: formCategory.trim() || undefined,
 				protocol: formProtocol.trim(),
-				mileage: mileageKm ?? (editingDevice ? null : undefined)
+				mileage: mileageKm ?? (editingDevice ? null : undefined),
+				geofenceIds: geofences ? deviceGeofencePayload(formGeofenceIds, geofences) : undefined
 			};
 
 			if (editingDevice) {
@@ -352,6 +365,11 @@
 										<span class="device-name">{device.name}</span>
 										{#if device.ownerName}
 											<span class="owner-badge" title="Owned by {device.ownerName}">{device.ownerName}</span>
+										{/if}
+										{#if device.geofenceIds?.length}
+											<span class="device-geofence-names" title="Attached geofences">
+												{describeDeviceGeofences(device.geofenceIds, geofences ?? [])}
+											</span>
 										{/if}
 									</td>
 									<td class="td-uid">
@@ -498,6 +516,12 @@
 											<span class="detail-value">—</span>
 										</div>
 										{/if}
+										<div class="detail-item">
+											<span class="detail-label">Geofences</span>
+											<span class="detail-value device-geofence-names">
+												{describeDeviceGeofences(device.geofenceIds, geofences ?? []) || 'All'}
+											</span>
+										</div>
 									</div>
 
 									<div class="detail-actions" role="group" aria-label="Device actions">
@@ -622,6 +646,39 @@
 			type="number"
 			bind:value={formMileage}
 		/>
+
+		{#if geofences}
+			<div class="input-group device-geofences" data-testid="device-geofences">
+				<span class="input-label">Geofences</span>
+				{#if geofences.length === 0}
+					<span class="form-hint">No geofences yet. Create one on the <a href="/geofences">Geofences page</a>.</span>
+				{:else}
+					<div class="geofence-grid">
+						{#each geofences as g (g.id)}
+							<label class="geofence-checkbox">
+								<input
+									type="checkbox"
+									value={g.id}
+									checked={formGeofenceIds.includes(g.id)}
+									on:change={(e) => {
+										const target = e.target;
+										if (target instanceof HTMLInputElement) {
+											formGeofenceIds = toggleId(formGeofenceIds, g.id, target.checked);
+										}
+									}}
+								/>
+								<span>{g.ownerName ? `${g.name} (${g.ownerName})` : g.name}</span>
+							</label>
+						{/each}
+					</div>
+					<span class="form-hint">
+						{deviceGeofencePayload(formGeofenceIds, geofences).length === 0
+							? 'No geofence selected: enter/exit events are checked for all your geofences.'
+							: 'Enter/exit events are only checked for the selected geofences.'}
+					</span>
+				{/if}
+			</div>
+		{/if}
 
 		{#if error}
 			<div class="form-error" role="alert">{error}</div>
@@ -1141,5 +1198,40 @@
 
 	.owner-badge {
 		vertical-align: middle;
+	}
+
+	/* Geofence attachments */
+	.geofence-grid {
+		display: grid;
+		grid-template-columns: repeat(2, 1fr);
+		gap: var(--space-1) var(--space-3);
+	}
+	.geofence-checkbox {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		font-size: var(--text-sm);
+		color: var(--text-primary);
+		cursor: pointer;
+		user-select: none;
+	}
+	.geofence-checkbox input[type="checkbox"] {
+		width: 0.9rem;
+		height: 0.9rem;
+		accent-color: var(--accent-primary);
+		cursor: pointer;
+		margin: 0;
+	}
+	.device-geofences .form-hint {
+		font-size: var(--text-xs);
+		color: var(--text-secondary);
+	}
+	.device-geofences a {
+		color: var(--accent-primary);
+	}
+	.td-name .device-geofence-names {
+		display: block;
+		font-size: var(--text-xs);
+		color: var(--text-secondary);
 	}
 </style>

@@ -98,6 +98,25 @@ export class DevicesPage {
     return row;
   }
 
+  /** Opens the edit modal from the desktop-table row of the device. */
+  async openEditModal(uniqueId: string) {
+    await this.tableRows.filter({ hasText: uniqueId }).locator('button:has-text("Edit")').click();
+    await expect(this.modal).toBeVisible();
+  }
+
+  /** Geofence checkbox in the device form. */
+  geofenceCheckbox(geofenceName: string) {
+    return this.page
+      .locator('[role="dialog"] [data-testid="device-geofences"] label')
+      .filter({ hasText: geofenceName })
+      .locator('input[type="checkbox"]');
+  }
+
+  /** Attached geofence names in the desktop-table row of the device. */
+  geofenceNames(uniqueId: string) {
+    return this.tableRows.filter({ hasText: uniqueId }).locator('.device-geofence-names');
+  }
+
   /** Battery cell of the desktop-table row for the named device. */
   batteryCell(deviceName: string) {
     return this.tableRows.filter({ hasText: deviceName }).locator('td.td-battery');

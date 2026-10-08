@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"slices"
 
 	"github.com/go-faster/jx"
 	"github.com/tamcore/motus/internal/api"
@@ -21,6 +22,43 @@ func (h *Handler) deviceOut(ctx context.Context, d *model.Device) oas.Device {
 	return out
 }
 
+// loadGeofenceIDs fills in the attached geofences of devices.
+func (h *Handler) loadGeofenceIDs(ctx context.Context, devices ...*model.Device) error {
+	ids := make([]int64, len(devices))
+	for i, d := range devices {
+		ids[i] = d.ID
+	}
+	attached, err := h.cfg.Devices.GetGeofenceIDs(ctx, ids)
+	if err != nil {
+		return err
+	}
+	for _, d := range devices {
+		d.GeofenceIDs = attached[d.ID]
+	}
+	return nil
+}
+
+// resolveGeofenceIDs validates the requested attachments of a device and
+// returns the set to store. Every requested geofence must be accessible to
+// the user; attachments to geofences the user cannot see (another owner's on
+// a shared device) are kept. current is nil for a new device.
+func (h *Handler) resolveGeofenceIDs(ctx context.Context, user *model.User, requested, current []int64) ([]int64, string) {
+	result := make([]int64, 0, len(requested)+len(current))
+	for _, id := range requested {
+		if !h.cfg.Geofences.UserHasAccess(ctx, user, id) {
+			return nil, "geofence not found"
+		}
+		result = append(result, id)
+	}
+	for _, id := range current {
+		if !h.cfg.Geofences.UserHasAccess(ctx, user, id) {
+			result = append(result, id)
+		}
+	}
+	slices.Sort(result)
+	return slices.Compact(result), ""
+}
+
 // ListDevices returns all devices for the authenticated user.
 func (h *Handler) ListDevices(ctx context.Context) (oas.ListDevicesRes, error) {
 	user := api.UserFromContext(ctx)
@@ -29,6 +67,9 @@ func (h *Handler) ListDevices(ctx context.Context) (oas.ListDevicesRes, error) {
 	}
 	devices, err := h.cfg.Devices.GetByUser(ctx, user.ID)
 	if err != nil {
+		return &oas.Error{Error: "failed to list devices"}, nil
+	}
+	if err := h.loadGeofenceIDs(ctx, devices...); err != nil {
 		return &oas.Error{Error: "failed to list devices"}, nil
 	}
 	return new(mapSlice[oas.ListDevicesOKApplicationJSON](devices, func(d *model.Device) oas.Device {
@@ -49,6 +90,9 @@ func (h *Handler) GetDevice(ctx context.Context, params oas.GetDeviceParams) (oa
 	if err != nil {
 		return &oas.GetDeviceNotFound{Error: "device not found"}, nil
 	}
+	if err := h.loadGeofenceIDs(ctx, device); err != nil {
+		return &oas.GetDeviceNotFound{Error: "device not found"}, nil
+	}
 	return new(h.deviceOut(ctx, device)), nil
 }
 
@@ -64,9 +108,22 @@ func (h *Handler) CreateDevice(ctx context.Context, req *oas.DeviceInput) (oas.C
 	if err := validation.ValidateName(req.Name); err != nil {
 		return &oas.CreateDeviceBadRequest{Error: err.Error()}, nil
 	}
+	var geofenceIDs []int64
+	if req.GeofenceIds != nil {
+		var msg string
+		if geofenceIDs, msg = h.resolveGeofenceIDs(ctx, user, req.GeofenceIds, nil); msg != "" {
+			return &oas.CreateDeviceBadRequest{Error: msg}, nil
+		}
+	}
 	device := applyDeviceInputFields(&model.Device{UniqueID: req.UniqueId, Name: req.Name, Status: "unknown"}, req)
 	if err := h.cfg.Devices.Create(ctx, device, user.ID); err != nil {
 		return &oas.CreateDeviceBadRequest{Error: "failed to create device"}, nil
+	}
+	if len(geofenceIDs) > 0 {
+		if err := h.cfg.Devices.SetGeofences(ctx, device.ID, geofenceIDs); err != nil {
+			return &oas.CreateDeviceBadRequest{Error: "failed to attach geofences"}, nil
+		}
+		device.GeofenceIDs = geofenceIDs
 	}
 	h.cfg.AuditLogger.Log(ctx, &user.ID,
 		audit.ActionDeviceCreate, audit.ResourceDevice, &device.ID,
@@ -87,6 +144,16 @@ func (h *Handler) UpdateDevice(ctx context.Context, req *oas.DeviceInput, params
 	if err != nil {
 		return &oas.UpdateDeviceNotFound{Error: "device not found"}, nil
 	}
+	if err := h.loadGeofenceIDs(ctx, device); err != nil {
+		return &oas.UpdateDeviceNotFound{Error: "device not found"}, nil
+	}
+	var geofenceIDs []int64
+	if req.GeofenceIds != nil {
+		var msg string
+		if geofenceIDs, msg = h.resolveGeofenceIDs(ctx, user, req.GeofenceIds, device.GeofenceIDs); msg != "" {
+			return &oas.UpdateDeviceBadRequest{Error: msg}, nil
+		}
+	}
 	updated := applyDeviceInputFields(device, req)
 	if req.UniqueId != "" && req.UniqueId != device.UniqueID {
 		if err := validation.ValidateDeviceUniqueID(req.UniqueId); err != nil {
@@ -103,6 +170,12 @@ func (h *Handler) UpdateDevice(ctx context.Context, req *oas.DeviceInput, params
 	device = updated
 	if err := h.cfg.Devices.Update(ctx, device); err != nil {
 		return &oas.UpdateDeviceBadRequest{Error: "failed to update device"}, nil
+	}
+	if req.GeofenceIds != nil {
+		if err := h.cfg.Devices.SetGeofences(ctx, device.ID, geofenceIDs); err != nil {
+			return &oas.UpdateDeviceBadRequest{Error: "failed to attach geofences"}, nil
+		}
+		device.GeofenceIDs = geofenceIDs
 	}
 	h.cfg.AuditLogger.Log(ctx, &user.ID,
 		audit.ActionDeviceUpdate, audit.ResourceDevice, &device.ID,
@@ -137,6 +210,9 @@ func (h *Handler) AdminListDevices(ctx context.Context) (oas.AdminListDevicesRes
 	if err != nil {
 		return &oas.AdminListDevicesForbidden{Error: "failed to list devices"}, nil
 	}
+	if err := h.loadGeofenceIDs(ctx, devices...); err != nil {
+		return &oas.AdminListDevicesForbidden{Error: "failed to list devices"}, nil
+	}
 	return new(mapSlice[oas.AdminListDevicesOKApplicationJSON](devices, deviceToOAS)), nil
 }
 
@@ -147,6 +223,9 @@ func (h *Handler) AdminListUserDevices(ctx context.Context, params oas.AdminList
 	}
 	devices, err := h.cfg.Devices.GetByUser(ctx, params.ID)
 	if err != nil {
+		return &oas.AdminListUserDevicesNotFound{Error: "user or devices not found"}, nil
+	}
+	if err := h.loadGeofenceIDs(ctx, devices...); err != nil {
 		return &oas.AdminListUserDevicesNotFound{Error: "user or devices not found"}, nil
 	}
 	return new(mapSlice[oas.AdminListUserDevicesOKApplicationJSON](devices, deviceToOAS)), nil

@@ -176,6 +176,18 @@ separate request, so there is no connection whose close marks the device offline
 device timeout service, so the Traccar Client reporting interval must be shorter than
 `MOTUS_DEVICE_TIMEOUT_MINUTES` (app default 300 s equals the 5-minute default).
 
+### Geofences attached to devices are an opt-in filter
+`device_geofences` (many-to-many, managed via `geofenceIds` on the device in
+`PUT /api/devices/{id}` / the Devices page edit form) limits geofence evaluation:
+a device with **at least one** attached geofence is only checked against those
+(`GeofenceRepository.CheckContainmentForDevice`); a device with **none** is
+checked against all geofences of its users, as before. Attaching never grants
+access — the geofence must still belong to one of the device's users. Absent
+`geofenceIds` keeps the attachments, `[]` clears them, and attachments to
+geofences the caller cannot see (another owner's, on a shared device) are kept.
+`CheckGeofences` drops stored previous membership outside the attached set, so
+attaching does not emit spurious exits.
+
 ### OIDC email linking requires a verified email
 On first OIDC login the handler links the OIDC subject to an existing local account
 by email **only when the IdP asserts `email_verified`** (boolean `true` or string

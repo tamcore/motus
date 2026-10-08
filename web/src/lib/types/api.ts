@@ -47,6 +47,8 @@ export interface Device {
   attributes?: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
+  /** Attached geofences; non-empty limits geofence events to these. */
+  geofenceIds?: number[];
   /** Present only in admin list-all responses. */
   ownerName?: string;
 }
@@ -63,6 +65,8 @@ export interface DevicePayload {
   speedLimit?: number | null;
   mileage?: number | null;
   attributes?: Record<string, unknown>;
+  /** Replaces the attached geofences; omit to keep, [] to clear. */
+  geofenceIds?: number[];
 }
 
 export interface Position {

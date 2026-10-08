@@ -190,6 +190,8 @@ func (r *GeofenceRepository) UserHasAccess(ctx context.Context, user *model.User
 // with any user who owns the device that contain the specified point.
 // This collapses per-user containment into a single device-scoped query,
 // preventing duplicate event rows when a device is shared across multiple users.
+// Devices with attached geofences (device_geofences) are only checked against
+// those; devices without attachments against all geofences of their users.
 func (r *GeofenceRepository) CheckContainmentForDevice(ctx context.Context, deviceID int64, lat, lon float64) ([]int64, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT DISTINCT g.id
@@ -198,9 +200,22 @@ func (r *GeofenceRepository) CheckContainmentForDevice(ctx context.Context, devi
 		JOIN user_devices ud ON ud.user_id = ug.user_id
 		WHERE ud.device_id = $1
 		  AND ST_Contains(g.geometry, ST_SetSRID(ST_MakePoint($2, $3), 4326))
+		  AND (NOT EXISTS (SELECT 1 FROM device_geofences WHERE device_id = $1)
+		       OR EXISTS (SELECT 1 FROM device_geofences dg WHERE dg.device_id = $1 AND dg.geofence_id = g.id))
 	`, deviceID, lon, lat) // PostGIS: ST_MakePoint(lon, lat)
 	if err != nil {
 		return nil, fmt.Errorf("check geofence containment for device: %w", err)
+	}
+	return pgx.AppendRows([]int64(nil), rows, pgx.RowTo[int64])
+}
+
+// GetDeviceGeofenceIDs returns the geofences attached to a device, sorted by
+// ID. Empty means the device is checked against all geofences of its users.
+func (r *GeofenceRepository) GetDeviceGeofenceIDs(ctx context.Context, deviceID int64) ([]int64, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT geofence_id FROM device_geofences WHERE device_id = $1 ORDER BY geofence_id`, deviceID)
+	if err != nil {
+		return nil, fmt.Errorf("get device geofence ids: %w", err)
 	}
 	return pgx.AppendRows([]int64(nil), rows, pgx.RowTo[int64])
 }

@@ -159,6 +159,7 @@ func CleanTables(t *testing.T, pool *pgxpool.Pool) {
 		notification_log,
 		notification_rules,
 		events,
+		device_geofences,
 		user_geofences,
 		geofences,
 		commands,

@@ -255,6 +255,8 @@ type mockDeviceRepo struct {
 	createFn           func(ctx context.Context, d *model.Device, userID int64) error
 	updateFn           func(ctx context.Context, d *model.Device) error
 	deleteFn           func(ctx context.Context, id int64) error
+	getGeofenceIDsFn   func(ctx context.Context, deviceIDs []int64) (map[int64][]int64, error)
+	setGeofencesFn     func(ctx context.Context, deviceID int64, geofenceIDs []int64) error
 }
 
 // Compile-time assertion that mockDeviceRepo satisfies repository.DeviceRepo.
@@ -331,6 +333,20 @@ func (m *mockDeviceRepo) UpdateProtocol(_ context.Context, _ int64, _ string) er
 
 func (m *mockDeviceRepo) MarkOnline(_ context.Context, _, _ int64, _ time.Time, _ *float64) (*model.Device, error) {
 	return nil, nil
+}
+
+func (m *mockDeviceRepo) GetGeofenceIDs(ctx context.Context, deviceIDs []int64) (map[int64][]int64, error) {
+	if m.getGeofenceIDsFn != nil {
+		return m.getGeofenceIDsFn(ctx, deviceIDs)
+	}
+	return map[int64][]int64{}, nil
+}
+
+func (m *mockDeviceRepo) SetGeofences(ctx context.Context, deviceID int64, geofenceIDs []int64) error {
+	if m.setGeofencesFn != nil {
+		return m.setGeofencesFn(ctx, deviceID, geofenceIDs)
+	}
+	return nil
 }
 
 func ctxAs(id int64, role string) context.Context {

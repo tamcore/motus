@@ -88,6 +88,21 @@ func (s *GeofenceEventService) CheckGeofences(ctx context.Context, position *mod
 		}
 	}
 
+	// Attached geofences limit evaluation to themselves (opt-in filter). The
+	// stored membership may predate the attachment, so drop geofences that are
+	// no longer evaluated instead of reporting a spurious exit for them.
+	if len(prevGeofences) > 0 {
+		attached, err := s.geofenceRepo.GetDeviceGeofenceIDs(ctx, position.DeviceID)
+		if err != nil {
+			return err
+		}
+		if len(attached) > 0 {
+			prevGeofences = slices.DeleteFunc(slices.Clone(prevGeofences), func(gid int64) bool {
+				return !slices.Contains(attached, gid)
+			})
+		}
+	}
+
 	for _, gid := range currentGeofences {
 		if !slices.Contains(prevGeofences, gid) {
 			s.createEvent(ctx, position, gid, "geofenceEnter")

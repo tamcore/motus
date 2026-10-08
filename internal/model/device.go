@@ -31,4 +31,8 @@ type Device struct {
 
 	// OwnerName is populated only in admin list-all responses.
 	OwnerName string `json:"ownerName,omitempty"`
+
+	// GeofenceIDs are the attached geofences (device_geofences), loaded by the
+	// API handlers only. Non-empty limits geofence event evaluation to them.
+	GeofenceIDs []int64 `json:"geofenceIds,omitempty"`
 }

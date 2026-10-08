@@ -9857,6 +9857,16 @@ func (s *Device) encodeFields(e *jx.Encoder) {
 		s.Attributes.Encode(e)
 	}
 	{
+		if s.GeofenceIds != nil {
+			e.FieldStart("geofenceIds")
+			e.ArrStart()
+			for _, elem := range s.GeofenceIds {
+				e.Int64(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		if s.OwnerName.Set {
 			e.FieldStart("ownerName")
 			s.OwnerName.Encode(e)
@@ -9872,7 +9882,7 @@ func (s *Device) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfDevice = [22]string{
+var jsonFieldsNameOfDevice = [23]string{
 	0:  "id",
 	1:  "uniqueId",
 	2:  "name",
@@ -9892,9 +9902,10 @@ var jsonFieldsNameOfDevice = [22]string{
 	16: "mileage",
 	17: "batteryLevel",
 	18: "attributes",
-	19: "ownerName",
-	20: "createdAt",
-	21: "updatedAt",
+	19: "geofenceIds",
+	20: "ownerName",
+	21: "createdAt",
+	22: "updatedAt",
 }
 
 // Decode decodes Device from json.
@@ -10106,6 +10117,25 @@ func (s *Device) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"attributes\"")
 			}
+		case "geofenceIds":
+			if err := func() error {
+				s.GeofenceIds = make([]int64, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem int64
+					v, err := d.Int64()
+					elem = int64(v)
+					if err != nil {
+						return err
+					}
+					s.GeofenceIds = append(s.GeofenceIds, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"geofenceIds\"")
+			}
 		case "ownerName":
 			if err := func() error {
 				s.OwnerName.Reset()
@@ -10117,7 +10147,7 @@ func (s *Device) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"ownerName\"")
 			}
 		case "createdAt":
-			requiredBitSet[2] |= 1 << 4
+			requiredBitSet[2] |= 1 << 5
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.CreatedAt = v
@@ -10129,7 +10159,7 @@ func (s *Device) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"createdAt\"")
 			}
 		case "updatedAt":
-			requiredBitSet[2] |= 1 << 5
+			requiredBitSet[2] |= 1 << 6
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.UpdatedAt = v
@@ -10152,7 +10182,7 @@ func (s *Device) Decode(d *jx.Decoder) error {
 	for i, mask := range [3]uint8{
 		0b00010111,
 		0b10000000,
-		0b00110100,
+		0b01100100,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -10275,9 +10305,19 @@ func (s *DeviceInput) encodeFields(e *jx.Encoder) {
 			s.Attributes.Encode(e)
 		}
 	}
+	{
+		if s.GeofenceIds != nil {
+			e.FieldStart("geofenceIds")
+			e.ArrStart()
+			for _, elem := range s.GeofenceIds {
+				e.Int64(elem)
+			}
+			e.ArrEnd()
+		}
+	}
 }
 
-var jsonFieldsNameOfDeviceInput = [12]string{
+var jsonFieldsNameOfDeviceInput = [13]string{
 	0:  "name",
 	1:  "uniqueId",
 	2:  "phone",
@@ -10290,6 +10330,7 @@ var jsonFieldsNameOfDeviceInput = [12]string{
 	9:  "disabled",
 	10: "mileage",
 	11: "attributes",
+	12: "geofenceIds",
 }
 
 // Decode decodes DeviceInput from json.
@@ -10424,6 +10465,25 @@ func (s *DeviceInput) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"attributes\"")
+			}
+		case "geofenceIds":
+			if err := func() error {
+				s.GeofenceIds = make([]int64, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem int64
+					v, err := d.Int64()
+					elem = int64(v)
+					if err != nil {
+						return err
+					}
+					s.GeofenceIds = append(s.GeofenceIds, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"geofenceIds\"")
 			}
 		default:
 			return d.Skip()

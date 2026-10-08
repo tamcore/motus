@@ -181,6 +181,7 @@ func deviceToOAS(d *model.Device) oas.Device {
 		Mileage:        ptrToOptFloat64(d.Mileage),
 		BatteryLevel:   ptrToOptFloat64(d.BatteryLevel),
 		Attributes:     oas.Attributes(attrsToRaw(d.Attributes)),
+		GeofenceIds:    append([]int64{}, d.GeofenceIDs...), // [] rather than absent
 		OwnerName:      optStr(d.OwnerName),
 		CreatedAt:      d.CreatedAt,
 		UpdatedAt:      d.UpdatedAt,

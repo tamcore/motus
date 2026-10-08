@@ -105,5 +105,7 @@ func (h *Handler) GetSharedDevice(ctx context.Context, params oas.GetSharedDevic
 		return &oas.Error{Error: "device not found"}, nil
 	}
 
-	return new(h.deviceOut(ctx, device)), nil
+	out := h.deviceOut(ctx, device)
+	out.GeofenceIds = nil // geofence attachments are not part of a public share
+	return &out, nil
 }

@@ -121,6 +121,13 @@ components:
             device never reported a battery percentage (e.g. H02).
         attributes:
           $ref: '#/components/schemas/Attributes'
+        geofenceIds:
+          type: array
+          items: { type: integer, format: int64 }
+          description: |
+            Geofences attached to the device. When non-empty, geofence
+            enter/exit events are only evaluated for these geofences; when
+            empty, for all geofences of the device's users.
         ownerName: { type: string }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
@@ -536,6 +543,14 @@ components:
         mileage: { type: number, format: double, nullable: true, minimum: 0, description: Odometer in km; absent keeps the stored value, null disables mileage tracking }
         attributes:
           $ref: '#/components/schemas/Attributes'
+        geofenceIds:
+          type: array
+          items: { type: integer, format: int64 }
+          description: |
+            Geofences to attach to the device (replaces the current set). Absent
+            keeps the stored attachments, [] clears them. Each geofence must be
+            accessible to the caller; attachments to geofences the caller cannot
+            see are preserved.
 
     PositionPoint:
       type: object

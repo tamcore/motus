@@ -1,6 +1,10 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
+  DEFAULT_AWAY_INTERVAL,
+  DEFAULT_HOME_INTERVAL,
   NOTIFICATION_COMMAND_TYPES,
+  buildIntervalAutomationRules,
+  createAllOrNone,
   buildCommandConfig,
   commandEventConflict,
   commandFormValues,
@@ -189,5 +193,74 @@ describe("device filter", () => {
       { id: 8, label: "Device #8 (unavailable)", unavailable: true },
       { id: 9, label: "Device #9 (unavailable)", unavailable: true },
     ]);
+  });
+});
+
+describe("buildIntervalAutomationRules", () => {
+  const build = (deviceIds: number[], awayInterval: string, homeInterval: string) =>
+    buildIntervalAutomationRules({ geofenceId: 7, geofenceName: "Home", deviceIds, awayInterval, homeInterval });
+
+  it("creates a fast-interval exit rule and a slow-interval enter rule for the geofence and devices", () => {
+    expect(build([4, 2, 4], String(DEFAULT_AWAY_INTERVAL), String(DEFAULT_HOME_INTERVAL))).toEqual([
+      {
+        name: "Left Home: report every 20 s",
+        eventTypes: ["geofenceExit"],
+        channel: "command",
+        geofenceIds: [7],
+        deviceIds: [2, 4],
+        config: {
+          channel: "command",
+          commandType: "positionPeriodic",
+          attributes: { type: "positionPeriodic", frequency: 20 },
+        },
+        enabled: true,
+      },
+      {
+        name: "Entered Home: report every 300 s (5 min)",
+        eventTypes: ["geofenceEnter"],
+        channel: "command",
+        geofenceIds: [7],
+        deviceIds: [2, 4],
+        config: {
+          channel: "command",
+          commandType: "positionPeriodic",
+          attributes: { type: "positionPeriodic", frequency: 300 },
+        },
+        enabled: true,
+      },
+    ]);
+  });
+
+  it("requires at least one device", () => {
+    expect(() => build([], "20", "300")).toThrow(/device/i);
+  });
+
+  it("rejects intervals the reporting interval command does not accept", () => {
+    expect(() => build([2], "0", "300")).toThrow(/interval/i);
+    expect(() => build([2], "20", "1.5")).toThrow(/interval/i);
+    expect(() => build([2], "20", "86401")).toThrow(/1 day/);
+  });
+});
+
+describe("createAllOrNone", () => {
+  it("creates every rule in order", async () => {
+    const create = vi.fn().mockResolvedValueOnce({ id: 1 }).mockResolvedValueOnce({ id: 2 });
+    const remove = vi.fn();
+    await expect(createAllOrNone(["a", "b"], create, remove)).resolves.toEqual([1, 2]);
+    expect(create.mock.calls).toEqual([["a"], ["b"]]);
+    expect(remove).not.toHaveBeenCalled();
+  });
+
+  it("deletes the rules already created when a later one fails", async () => {
+    const create = vi.fn().mockResolvedValueOnce({ id: 1 }).mockRejectedValueOnce(new Error("boom"));
+    const remove = vi.fn().mockResolvedValue(undefined);
+    await expect(createAllOrNone(["a", "b"], create, remove)).rejects.toThrow("boom");
+    expect(remove.mock.calls).toEqual([[1]]);
+  });
+
+  it("still reports the create error when the cleanup fails", async () => {
+    const create = vi.fn().mockResolvedValueOnce({ id: 1 }).mockRejectedValueOnce(new Error("boom"));
+    const remove = vi.fn().mockRejectedValue(new Error("gone"));
+    await expect(createAllOrNone(["a", "b"], create, remove)).rejects.toThrow("boom");
   });
 });

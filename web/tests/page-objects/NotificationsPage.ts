@@ -135,6 +135,37 @@ export class NotificationsPage {
     return this.page.locator('[role="dialog"] .geofence-unavailable-hint');
   }
 
+  get automationButton() {
+    return this.page.locator('button:has-text("Interval Automation")');
+  }
+
+  get automationGeofenceSelect() {
+    return this.page.locator('[role="dialog"] #automation-geofence');
+  }
+
+  /** Device checkbox in the interval automation dialog. */
+  automationDeviceCheckbox(name: string) {
+    return this.page
+      .locator('[role="dialog"] .automation-device-checkbox')
+      .filter({ hasText: name })
+      .locator('input[type="checkbox"]');
+  }
+
+  /** Preset button of the "after leaving" (away) or "after entering" (home) interval picker. */
+  automationPreset(picker: 'away' | 'home', label: string) {
+    return this.page
+      .locator(`[role="dialog"] .automation-${picker} button.interval-preset`)
+      .filter({ hasText: new RegExp(`^${label}$`) });
+  }
+
+  get homeIntervalInput() {
+    return this.page.locator('[role="dialog"] input[name="homeInterval"]');
+  }
+
+  get createRulesButton() {
+    return this.page.locator('[role="dialog"] button:has-text("Create Rules")');
+  }
+
   /** Rule card whose name contains the given text. */
   ruleCard(name: string) {
     return this.ruleCards.filter({ has: this.page.locator('.rule-name', { hasText: name }) });

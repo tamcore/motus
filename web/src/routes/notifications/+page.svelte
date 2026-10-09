@@ -10,6 +10,7 @@
 	import AllDevicesToggle from '$lib/components/AllDevicesToggle.svelte';
 	import CommandParamFields from '$lib/components/CommandParamFields.svelte';
 	import RuleFilterCheckboxes from '$lib/components/RuleFilterCheckboxes.svelte';
+	import ReportingIntervalPicker from '$lib/components/ReportingIntervalPicker.svelte';
 	import type {
 		Device,
 		Geofence,
@@ -24,8 +25,12 @@
 		CHANNELS,
 		TEMPLATE_VARIABLES,
 		DEFAULT_TEMPLATE,
+		DEFAULT_AWAY_INTERVAL,
+		DEFAULT_HOME_INTERVAL,
 		NOTIFICATION_COMMAND_TYPES,
 		buildCommandConfig,
+		buildIntervalAutomationRules,
+		createAllOrNone,
 		commandEventConflict,
 		commandFormValues,
 		describeCommandAction,
@@ -71,6 +76,20 @@
 	$: deviceOptions = deviceFilterOptions(formDeviceIds, devices, editingRule?.deviceIds ?? []);
 	$: commandConflict =
 		formChannel === 'command' ? commandEventConflict(formCommandType, formEventTypes) : null;
+
+	// Interval automation (e.g. pet tracking). The rules are created for the
+	// current user, so the dialog offers only the user's own geofences and
+	// devices, loaded when it opens (not inferred from ownerName).
+	let showAutomationModal = false;
+	let automationGeofences: Geofence[] = [];
+	let automationDevices: Device[] = [];
+	let automationGeofenceId: number | null = null;
+	let automationDeviceIds: number[] = [];
+	let automationAway = String(DEFAULT_AWAY_INTERVAL);
+	let automationHome = String(DEFAULT_HOME_INTERVAL);
+	let automationError = '';
+	let automationLoading = false;
+	let automationSaving = false;
 
 	// Test notification state
 	let testingId: number | null = null;
@@ -141,6 +160,60 @@
 		formSpeed = '';
 		formText = '';
 		formError = '';
+	}
+
+	async function openAutomation() {
+		automationAway = String(DEFAULT_AWAY_INTERVAL);
+		automationHome = String(DEFAULT_HOME_INTERVAL);
+		automationError = '';
+		automationLoading = true;
+		showAutomationModal = true;
+		try {
+			[automationGeofences, automationDevices] = await Promise.all([api.getGeofences(), api.getDevices()]);
+		} catch (err: any) {
+			automationGeofences = [];
+			automationDevices = [];
+			automationError = 'Failed to load geofences and devices';
+			console.error(err);
+		} finally {
+			automationLoading = false;
+		}
+		automationGeofenceId = automationGeofences[0]?.id ?? null;
+		// Preselect the only device; with several, the user must choose.
+		automationDeviceIds = automationDevices.length === 1 ? [automationDevices[0].id] : [];
+	}
+
+	async function handleCreateAutomation() {
+		automationError = '';
+		const geofence = automationGeofences.find((g) => g.id === automationGeofenceId);
+		if (!geofence) {
+			automationError = 'Select a geofence';
+			return;
+		}
+		let rules;
+		try {
+			rules = buildIntervalAutomationRules({
+				geofenceId: geofence.id,
+				geofenceName: geofence.name,
+				deviceIds: automationDeviceIds,
+				awayInterval: automationAway,
+				homeInterval: automationHome
+			});
+		} catch (err: any) {
+			automationError = err.message;
+			return;
+		}
+		automationSaving = true;
+		try {
+			await createAllOrNone(rules, api.createNotification, api.deleteNotification);
+			showAutomationModal = false;
+		} catch (err: any) {
+			automationError = 'Failed to create rules' + (err?.message ? `: ${err.message}` : '');
+			console.error(err);
+		} finally {
+			automationSaving = false;
+			await loadRules();
+		}
 	}
 
 	function openCreate() {
@@ -328,6 +401,7 @@
 					</svg>
 					History
 				</a>
+				<Button variant="secondary" on:click={openAutomation}>Interval Automation</Button>
 				<Button on:click={openCreate}>+ Create Rule</Button>
 			</div>
 		</div>
@@ -586,9 +660,86 @@
 	</svelte:fragment>
 </Modal>
 
+<!-- Reporting Interval Automation Modal -->
+<Modal
+	open={showAutomationModal}
+	title="Reporting Interval Automation"
+	on:close={() => (showAutomationModal = false)}
+>
+	<form on:submit|preventDefault={handleCreateAutomation} class="notification-form automation-form">
+		<p class="automation-intro">
+			Report frequently while a device is away from a geofence and save battery once it is back,
+			e.g. to track a pet that leaves home. This creates two Device Command rules for the selected
+			geofence and devices: one on exit and one on enter.
+		</p>
+		{#if automationLoading}
+			<p class="form-hint">Loading geofences and devices...</p>
+		{:else if automationGeofences.length === 0}
+			<p class="form-hint">
+				Create a geofence (e.g. "Home") on the <a href="/geofences">Geofences page</a> first.
+			</p>
+		{:else if automationDevices.length === 0}
+			<p class="form-hint">Add a device on the <a href="/devices">Devices page</a> first.</p>
+		{:else}
+			<div class="form-group">
+				<label for="automation-geofence" class="form-label">Geofence</label>
+				<select id="automation-geofence" bind:value={automationGeofenceId} class="select">
+					{#each automationGeofences as g (g.id)}
+						<option value={g.id}>{g.name}</option>
+					{/each}
+				</select>
+			</div>
+			<div class="form-group">
+				<span class="form-label">Devices</span>
+				<div class="event-type-grid">
+					{#each automationDevices as d (d.id)}
+						<label class="event-type-checkbox automation-device-checkbox">
+							<input type="checkbox" value={d.id} bind:group={automationDeviceIds} />
+							<span>{d.name}</span>
+						</label>
+					{/each}
+				</div>
+				<span class="form-hint">Only the selected devices change their reporting interval.</span>
+			</div>
+			<div class="automation-away">
+				<ReportingIntervalPicker name="awayInterval" label="Interval after leaving" bind:value={automationAway} />
+			</div>
+			<div class="automation-home">
+				<ReportingIntervalPicker name="homeInterval" label="Interval after entering" bind:value={automationHome} />
+			</div>
+		{/if}
+		{#if automationError}
+			<div class="form-error" role="alert">{automationError}</div>
+		{/if}
+	</form>
+
+	<svelte:fragment slot="footer">
+		<Button variant="secondary" on:click={() => (showAutomationModal = false)}>Cancel</Button>
+		<Button
+			loading={automationSaving}
+			disabled={automationLoading || automationGeofences.length === 0 || automationDevices.length === 0}
+			on:click={handleCreateAutomation}
+		>Create Rules</Button>
+	</svelte:fragment>
+</Modal>
+
 <style>
 	.notifications-page {
 		padding: var(--space-6) 0;
+	}
+	/* The header gains a third action; wrap instead of overflowing on phones. */
+	.header-actions {
+		flex-wrap: wrap;
+		justify-content: flex-end;
+		max-width: 100%;
+	}
+	.automation-intro {
+		margin: 0;
+		font-size: var(--text-sm);
+		color: var(--text-secondary);
+	}
+	.automation-form a {
+		color: var(--accent-primary);
 	}
 	.history-link,
 	.logs-link {

@@ -1,4 +1,4 @@
-import type { NotificationConfigCommand } from "$lib/types/api";
+import type { NotificationConfigCommand, NotificationPayload } from "$lib/types/api";
 import { buildCommandAttributes, COMMAND_TYPE_LABELS, type CommandFormValues, formatInterval } from "./commands";
 
 export const EVENT_TYPES = [
@@ -187,4 +187,67 @@ export function deviceFilterOptions(
   stored: number[] = [],
 ): FilterOption[] {
   return filterOptions("Device", selected, devices, stored);
+}
+
+/** Reporting interval (seconds) while the device is outside the geofence. */
+export const DEFAULT_AWAY_INTERVAL = 20;
+/** Reporting interval (seconds) while the device is inside the geofence. */
+export const DEFAULT_HOME_INTERVAL = 300;
+
+/**
+ * Builds the two rules of the adaptive reporting interval automation (e.g.
+ * pet tracking): report frequently after leaving the geofence and save
+ * battery once back inside. Both rules are limited to the selected devices,
+ * so other devices crossing the geofence keep their interval. Intervals are
+ * the seconds entered in ReportingIntervalPicker. Throws a user-facing error
+ * for a missing device selection or invalid intervals.
+ */
+export function buildIntervalAutomationRules(opts: {
+  geofenceId: number;
+  geofenceName: string;
+  deviceIds: number[];
+  awayInterval: string;
+  homeInterval: string;
+}): NotificationPayload[] {
+  const { geofenceId, geofenceName } = opts;
+  if (opts.deviceIds.length === 0) throw new Error("Select at least one device");
+  const deviceIds = [...new Set(opts.deviceIds)].sort((a, b) => a - b);
+  const rule = (prefix: string, eventType: string, frequency: string): NotificationPayload => {
+    const { config, error } = buildCommandConfig("positionPeriodic", { frequency });
+    if (!config) throw new Error(error);
+    const seconds = config.attributes?.frequency as number;
+    return {
+      name: `${prefix} ${geofenceName}: report every ${formatInterval(seconds)}`,
+      eventTypes: [eventType],
+      channel: "command",
+      geofenceIds: [geofenceId],
+      deviceIds,
+      config,
+      enabled: true,
+    };
+  };
+  return [
+    rule("Left", "geofenceExit", opts.awayInterval),
+    rule("Entered", "geofenceEnter", opts.homeInterval),
+  ];
+}
+
+/**
+ * Creates items one after another; if one fails, deletes those already
+ * created (best effort) and rethrows, so a retry does not duplicate them.
+ * Returns the created IDs.
+ */
+export async function createAllOrNone<T>(
+  items: readonly T[],
+  create: (item: T) => Promise<{ id: number }>,
+  remove: (id: number) => Promise<unknown>,
+): Promise<number[]> {
+  const created: number[] = [];
+  try {
+    for (const item of items) created.push((await create(item)).id);
+  } catch (err) {
+    await Promise.allSettled(created.map((id) => remove(id)));
+    throw err;
+  }
+  return created;
 }

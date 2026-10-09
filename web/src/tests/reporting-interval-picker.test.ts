@@ -84,3 +84,17 @@ describe('ReportingIntervalPicker', () => {
 		expect(custom.getAttribute('aria-pressed')).toBe('true');
 	});
 });
+
+describe('ReportingIntervalPicker label and name', () => {
+	it('labels the group and names the custom input, so two pickers can share a form', async () => {
+		const { container } = render(ReportingIntervalHost, {
+			props: { value: '45', label: 'Interval after leaving', name: 'awayInterval' }
+		});
+		await tick();
+		const group = container.querySelector('[role="group"]')!;
+		const labelEl = container.querySelector(`#${group.getAttribute('aria-labelledby')}`)!;
+		expect(labelEl.textContent).toBe('Interval after leaving');
+		expect(group.getAttribute('aria-labelledby')).toBe('awayInterval-presets-label');
+		expect(container.querySelector('input[name="awayInterval"]')).not.toBeNull();
+	});
+});

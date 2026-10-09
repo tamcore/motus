@@ -164,6 +164,8 @@ test.describe('Notifications Page', () => {
 test.describe('Notification geofence filter and command actions', () => {
   let notifPage: NotificationsPage;
   const geofenceName = `PW Home ${Date.now()}`;
+  const deviceName = `PW Pet ${Date.now()}`;
+  let deviceId: number;
   let geofenceId: number;
 
   async function csrfToken(page: Page): Promise<string> {
@@ -183,12 +185,21 @@ test.describe('Notification geofence filter and command actions', () => {
     });
     expect(res.status()).toBe(201);
     geofenceId = (await res.json()).id;
+    const deviceRes = await page.request.post('/api/devices', {
+      headers: { 'X-CSRF-Token': await csrfToken(page) },
+      data: { name: deviceName, uniqueId: `pw-pet-${Date.now()}` },
+    });
+    expect(deviceRes.ok()).toBeTruthy();
+    deviceId = (await deviceRes.json()).id;
     await ctx.close();
   });
 
   test.afterAll(async ({ browser }) => {
     const ctx = await browser.newContext({ storageState: '.auth/user.json' });
     const page = await ctx.newPage();
+    await page.request.delete(`/api/devices/${deviceId}`, {
+      headers: { 'X-CSRF-Token': await csrfToken(page) },
+    });
     await page.request.delete(`/api/geofences/${geofenceId}`, {
       headers: { 'X-CSRF-Token': await csrfToken(page) },
     });
@@ -214,7 +225,7 @@ test.describe('Notification geofence filter and command actions', () => {
     }
   });
 
-  test('offers Device Command channel with interval presets instead of webhook fields', async ({ authedPage }) => {
+  test('offers Device Command channel with interval presets instead of webhook fields', async () => {
     await notifPage.createButton.click();
     await notifPage.channelSelect.selectOption('command');
 
@@ -227,9 +238,7 @@ test.describe('Notification geofence filter and command actions', () => {
     await expect(notifPage.webhookUrlInput).toHaveCount(0);
     await expect(notifPage.templateTextarea).toHaveCount(0);
     await expect(notifPage.commandTypeSelect.locator('option[value="factoryReset"]')).toHaveCount(0);
-    // The Interval Automation dialog was removed; the rule form covers it.
     await notifPage.cancelButton.click();
-    await expect(authedPage.locator('button:has-text("Interval Automation")')).toHaveCount(0);
   });
 
   test('shows the geofence filter only for geofence events', async () => {
@@ -360,6 +369,49 @@ test.describe('Notification geofence filter and command actions', () => {
 
     await expect(notifPage.modal).toHaveCount(0, { timeout: 10000 });
     await expect(card.locator('.rule-geofences')).toHaveText(geofenceName);
+  });
+
+  test('interval automation creates exit and enter rules for the geofence and device', async () => {
+    await notifPage.automationButton.click();
+    await expect(notifPage.modal).toBeVisible();
+    await notifPage.automationGeofenceSelect.selectOption({ label: geofenceName });
+    await notifPage.automationDeviceCheckbox(deviceName).check();
+    // Same ReportingIntervalPicker as the rule form, preset to 20 s / 5 min.
+    await expect(notifPage.automationPreset('away', '20 sec')).toHaveAttribute('aria-pressed', 'true');
+    await expect(notifPage.automationPreset('home', '5 min')).toHaveAttribute('aria-pressed', 'true');
+    await notifPage.createRulesButton.click();
+
+    await expect(notifPage.modal).toHaveCount(0, { timeout: 10000 });
+    const exitRule = notifPage.ruleCard(`Left ${geofenceName}: report every 20 s`);
+    const enterRule = notifPage.ruleCard(`Entered ${geofenceName}: report every 300 s (5 min)`);
+    await expect(exitRule.locator('.rule-destination')).toHaveText('Set Reporting Interval: 20 s');
+    await expect(enterRule.locator('.rule-destination')).toHaveText('Set Reporting Interval: 300 s (5 min)');
+    for (const rule of [exitRule, enterRule]) {
+      await expect(rule.locator('.rule-geofences')).toHaveText(geofenceName);
+      await expect(rule.locator('.rule-devices')).toHaveText(deviceName);
+    }
+  });
+
+  test('interval automation requires a device', async () => {
+    await notifPage.automationButton.click();
+    await notifPage.automationGeofenceSelect.selectOption({ label: geofenceName });
+    // Other devices may exist; make sure none is selected.
+    const boxes = notifPage.modal.locator('.automation-device-checkbox input[type="checkbox"]');
+    for (let i = 0; i < (await boxes.count()); i++) await boxes.nth(i).uncheck();
+    await notifPage.createRulesButton.click();
+    await expect(notifPage.formError).toContainText('Select at least one device');
+    await expect(notifPage.modal).toBeVisible();
+  });
+
+  test('interval automation rejects an interval above one day', async () => {
+    await notifPage.automationButton.click();
+    await notifPage.automationGeofenceSelect.selectOption({ label: geofenceName });
+    await notifPage.automationDeviceCheckbox(deviceName).check();
+    await notifPage.automationPreset('home', 'Custom').click();
+    await notifPage.homeIntervalInput.fill('86401');
+    await notifPage.createRulesButton.click();
+    await expect(notifPage.formError).toContainText('1 day');
+    await expect(notifPage.modal).toBeVisible();
   });
 });
 

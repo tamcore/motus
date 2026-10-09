@@ -4,6 +4,9 @@
 
 	/** Reporting interval in seconds, as entered text (parsed by the caller). */
 	export let value = '';
+	export let label = 'Interval';
+	/** Name of the custom input; also keys the label id, so pickers can share a form. */
+	export let name = 'frequency';
 
 	const isPreset = (v: string) => REPORTING_INTERVAL_PRESETS.some((p) => String(p.seconds) === v);
 
@@ -18,8 +21,8 @@
 </script>
 
 <div class="interval-picker">
-	<span class="form-label" id="interval-presets-label">Interval</span>
-	<div class="interval-presets" role="group" aria-labelledby="interval-presets-label">
+	<span class="form-label" id="{name}-presets-label">{label}</span>
+	<div class="interval-presets" role="group" aria-labelledby="{name}-presets-label">
 		{#each REPORTING_INTERVAL_PRESETS as preset}
 			<button
 				type="button"
@@ -42,7 +45,7 @@
 		</button>
 	</div>
 	{#if custom}
-		<Input name="frequency" label="Interval (seconds)" placeholder="30" bind:value />
+		<Input {name} label="{label} (seconds)" placeholder="30" bind:value />
 	{/if}
 </div>
 

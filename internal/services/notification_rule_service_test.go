@@ -52,6 +52,15 @@ func (a allowGeofenceRepo) UserHasAccess(_ context.Context, _ *model.User, id in
 	return slices.Contains(a.allowed, id)
 }
 
+type allowDeviceRepo struct {
+	repository.DeviceRepo
+	allowed []int64
+}
+
+func (a allowDeviceRepo) UserHasAccess(_ context.Context, _ *model.User, id int64) bool {
+	return slices.Contains(a.allowed, id)
+}
+
 func webhookRuleInput() NotificationRuleInput {
 	return NotificationRuleInput{
 		Name:       "Home",
@@ -68,7 +77,7 @@ func newRuleServiceWith(rules ...*model.NotificationRule) (*NotificationRuleServ
 	for _, r := range rules {
 		repo.rules[r.ID] = r
 	}
-	return NewNotificationRuleService(repo, allowGeofenceRepo{allowed: []int64{5}}, nil), repo
+	return NewNotificationRuleService(repo, allowGeofenceRepo{allowed: []int64{5}}, allowDeviceRepo{allowed: []int64{3}}, nil), repo
 }
 
 func TestNotificationRuleService_CreateValidation(t *testing.T) {
@@ -83,6 +92,8 @@ func TestNotificationRuleService_CreateValidation(t *testing.T) {
 		"bad webhook url":  func(in *NotificationRuleInput) { in.Config = map[string]any{"webhookUrl": "ftp://x"} },
 		"missing webhook":  func(in *NotificationRuleInput) { in.Config = nil },
 		"geofence denied":  func(in *NotificationRuleInput) { in.GeofenceIDs = []int64{6} },
+		"device denied":    func(in *NotificationRuleInput) { in.DeviceIDs = []int64{4} },
+		"invalid device":   func(in *NotificationRuleInput) { in.DeviceIDs = []int64{0} },
 		"bad command type": func(in *NotificationRuleInput) {
 			in.Channel, in.Config = model.NotificationChannelCommand, map[string]any{"commandType": model.CommandFactoryReset}
 		},
@@ -194,7 +205,7 @@ func TestNotificationRuleService_AuditsAllMutations(t *testing.T) {
 	ctx := t.Context()
 	user := testutil.CreateUser(t, "rule-audit@example.com")
 	logger := audit.NewLogger(pool)
-	svc := NewNotificationRuleService(repository.NewNotificationRepository(pool), repository.NewGeofenceRepository(pool), logger)
+	svc := NewNotificationRuleService(repository.NewNotificationRepository(pool), repository.NewGeofenceRepository(pool), repository.NewDeviceRepository(pool), logger)
 
 	r, err := svc.CreateForUser(ctx, user, webhookRuleInput())
 	if err != nil {
@@ -224,4 +235,65 @@ func TestNotificationRuleService_AuditsAllMutations(t *testing.T) {
 			t.Errorf("%s: %d entries (err %v), want 1", action, total, err)
 		}
 	}
+}
+
+func TestNotificationRuleService_CreateNormalizesDeviceFilter(t *testing.T) {
+	svc, repo := newRuleServiceWith()
+	in := webhookRuleInput()
+	in.EventTypes = []string{model.EventTypeDeviceOnline}
+	in.DeviceIDs = []int64{3, 3}
+	r, err := svc.CreateForUser(t.Context(), &model.User{ID: 1}, in)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if got := repo.rules[r.ID].DeviceIDs; !slices.Equal(got, []int64{3}) {
+		t.Fatalf("devices = %v, want [3]", got)
+	}
+
+	plain, err := svc.CreateForUser(t.Context(), &model.User{ID: 1}, webhookRuleInput())
+	if err != nil {
+		t.Fatalf("create without device filter: %v", err)
+	}
+	if got := repo.rules[plain.ID].DeviceIDs; got == nil || len(got) != 0 {
+		t.Fatalf("devices = %#v, want empty non-nil slice", got)
+	}
+}
+
+func TestNotificationRuleService_UpdateDeviceFilter(t *testing.T) {
+	stored := func() *model.NotificationRule {
+		return &model.NotificationRule{ID: 1, UserID: 1, EventTypes: []string{model.EventTypeGeofenceEnter}, DeviceIDs: []int64{8}}
+	}
+	user := &model.User{ID: 1}
+
+	t.Run("absent keeps stored filter even if no longer accessible", func(t *testing.T) {
+		svc, repo := newRuleServiceWith(stored())
+		if _, err := svc.UpdateForUser(t.Context(), user, 1, webhookRuleInput()); err != nil {
+			t.Fatalf("update: %v", err)
+		}
+		if got := repo.rules[1].DeviceIDs; !slices.Equal(got, []int64{8}) {
+			t.Fatalf("devices = %v, want [8]", got)
+		}
+	})
+	t.Run("stored device may be resent with a new accessible one", func(t *testing.T) {
+		svc, repo := newRuleServiceWith(stored())
+		in := webhookRuleInput()
+		in.DeviceIDs = []int64{8, 3}
+		if _, err := svc.UpdateForUser(t.Context(), user, 1, in); err != nil {
+			t.Fatalf("update: %v", err)
+		}
+		if got := repo.rules[1].DeviceIDs; !slices.Equal(got, []int64{3, 8}) {
+			t.Fatalf("devices = %v, want [3 8]", got)
+		}
+	})
+	t.Run("explicit empty clears", func(t *testing.T) {
+		svc, repo := newRuleServiceWith(stored())
+		in := webhookRuleInput()
+		in.DeviceIDs = []int64{}
+		if _, err := svc.UpdateForUser(t.Context(), user, 1, in); err != nil {
+			t.Fatalf("update: %v", err)
+		}
+		if got := repo.rules[1].DeviceIDs; len(got) != 0 {
+			t.Fatalf("devices = %v, want []", got)
+		}
+	})
 }

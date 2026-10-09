@@ -107,7 +107,7 @@ func Run() {
 
 	geofenceService := services.NewGeofenceService(geofenceRepo, auditLogger)
 	calendarService := services.NewCalendarService(calendarRepo, auditLogger)
-	notificationRuleService := services.NewNotificationRuleService(notificationRepo, geofenceRepo, auditLogger)
+	notificationRuleService := services.NewNotificationRuleService(notificationRepo, geofenceRepo, deviceRepo, auditLogger)
 
 	deviceRegistry := protocol.NewDeviceRegistry()
 

@@ -136,3 +136,51 @@ func TestNotificationRepository_LogDeliveryQueued(t *testing.T) {
 		t.Error("expected CHECK constraint to reject unknown status")
 	}
 }
+
+// TestNotificationRepository_DeviceIDs verifies that the device filter
+// round-trips through every read path and that a nil filter is stored as an
+// empty array (migration 00049, NOT NULL column).
+func TestNotificationRepository_DeviceIDs(t *testing.T) {
+	pool := testutil.SetupTestDB(t)
+	testutil.CleanTables(t, pool)
+	notifRepo := repository.NewNotificationRepository(pool)
+	userRepo := repository.NewUserRepository(pool)
+	ctx := context.Background()
+
+	user := &model.User{Email: "notifdev@example.com", PasswordHash: "hash", Name: "Notif Dev"}
+	if err := userRepo.Create(ctx, user); err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+	rule := &model.NotificationRule{
+		UserID: user.ID, Name: "Pet", EventTypes: []string{"geofenceExit"},
+		DeviceIDs: []int64{21, 22},
+		Channel:   model.NotificationChannelCommand,
+		Config:    map[string]any{"commandType": model.CommandPositionSingle},
+		Enabled:   true,
+	}
+	if err := notifRepo.Create(ctx, rule); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	got, err := notifRepo.GetByID(ctx, rule.ID)
+	if err != nil || !slices.Equal(got.DeviceIDs, []int64{21, 22}) {
+		t.Fatalf("GetByID DeviceIDs = %+v, %v", got, err)
+	}
+	byType, err := notifRepo.GetByEventType(ctx, user.ID, "geofenceExit")
+	if err != nil || len(byType) != 1 || !slices.Equal(byType[0].DeviceIDs, []int64{21, 22}) {
+		t.Fatalf("GetByEventType = %+v, %v", byType, err)
+	}
+	all, err := notifRepo.GetAll(ctx)
+	if err != nil || len(all) != 1 || !slices.Equal(all[0].DeviceIDs, []int64{21, 22}) {
+		t.Fatalf("GetAll = %+v, %v", all, err)
+	}
+
+	rule.DeviceIDs = nil
+	if err := notifRepo.Update(ctx, rule); err != nil {
+		t.Fatalf("Update with nil device filter: %v", err)
+	}
+	got, _ = notifRepo.GetByID(ctx, rule.ID)
+	if got.DeviceIDs == nil || len(got.DeviceIDs) != 0 {
+		t.Errorf("DeviceIDs after clearing = %#v, want empty", got.DeviceIDs)
+	}
+}

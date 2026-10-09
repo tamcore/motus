@@ -54,6 +54,36 @@ func TestNotificationRule_MatchesEvent(t *testing.T) {
 			event: Event{Type: "alarm"},
 			want:  true,
 		},
+		{
+			name:  "device filter matches selected device",
+			rule:  NotificationRule{EventTypes: []string{"geofenceEnter"}, DeviceIDs: []int64{3, 4}},
+			event: Event{Type: "geofenceEnter", DeviceID: 4, GeofenceID: new(int64(42))},
+			want:  true,
+		},
+		{
+			name:  "device filter rejects other device",
+			rule:  NotificationRule{EventTypes: []string{"geofenceEnter"}, DeviceIDs: []int64{3}},
+			event: Event{Type: "geofenceEnter", DeviceID: 4, GeofenceID: new(int64(42))},
+			want:  false,
+		},
+		{
+			name:  "device filter applies to non-geofence events",
+			rule:  NotificationRule{EventTypes: []string{"alarm"}, DeviceIDs: []int64{3}},
+			event: Event{Type: "alarm", DeviceID: 4},
+			want:  false,
+		},
+		{
+			name:  "device and geofence filters must both match",
+			rule:  NotificationRule{EventTypes: []string{"geofenceExit"}, DeviceIDs: []int64{3}, GeofenceIDs: []int64{7}},
+			event: Event{Type: "geofenceExit", DeviceID: 3, GeofenceID: new(int64(42))},
+			want:  false,
+		},
+		{
+			name:  "empty device filter matches every device",
+			rule:  NotificationRule{EventTypes: []string{"alarm"}, DeviceIDs: []int64{}},
+			event: Event{Type: "alarm", DeviceID: 4},
+			want:  true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

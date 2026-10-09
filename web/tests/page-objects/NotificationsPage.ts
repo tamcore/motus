@@ -99,6 +99,14 @@ export class NotificationsPage {
       .locator('input[type="checkbox"]');
   }
 
+  /** Device filter checkbox for the device with the given name. */
+  deviceCheckbox(name: string) {
+    return this.page
+      .locator('[role="dialog"] .device-checkbox')
+      .filter({ hasText: name })
+      .locator('input[type="checkbox"]');
+  }
+
   get formError() {
     return this.page.locator('[role="dialog"] .form-error');
   }

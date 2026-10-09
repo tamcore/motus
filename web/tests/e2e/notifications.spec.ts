@@ -363,6 +363,61 @@ test.describe('Notification geofence filter and command actions', () => {
   });
 });
 
+// Device filter: a rule can be limited to selected devices (any event type).
+test.describe('Notification device filter', () => {
+  const deviceName = `PW Filter Device ${Date.now()}`;
+  const ruleName = `PW Device Rule ${Date.now()}`;
+  let deviceId: number;
+
+  async function csrfToken(page: Page): Promise<string> {
+    const res = await page.request.get('/api/session');
+    return res.headers()['x-csrf-token'] ?? '';
+  }
+
+  test.beforeAll(async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: '.auth/user.json' });
+    const page = await ctx.newPage();
+    const res = await page.request.post('/api/devices', {
+      headers: { 'X-CSRF-Token': await csrfToken(page) },
+      data: { name: deviceName, uniqueId: `pw-filter-${Date.now()}` },
+    });
+    expect(res.ok()).toBeTruthy();
+    deviceId = (await res.json()).id;
+    await ctx.close();
+  });
+
+  test.afterAll(async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: '.auth/user.json' });
+    const page = await ctx.newPage();
+    const csrf = await csrfToken(page);
+    const rules: Array<{ id: number; name: string }> = await (await page.request.get('/api/notifications')).json();
+    for (const rule of rules.filter((r) => r.name === ruleName)) {
+      await page.request.delete(`/api/notifications/${rule.id}`, { headers: { 'X-CSRF-Token': csrf } });
+    }
+    await page.request.delete(`/api/devices/${deviceId}`, { headers: { 'X-CSRF-Token': csrf } });
+    await ctx.close();
+  });
+
+  test('limits a rule to the selected device', async ({ authedPage }) => {
+    const notifPage = new NotificationsPage(authedPage);
+    await notifPage.goto();
+    await notifPage.createButton.click();
+    await notifPage.nameInput.fill(ruleName);
+    await notifPage.selectEventTypes('deviceOnline');
+    await notifPage.webhookUrlInput.fill('https://example.com/hook');
+    await notifPage.deviceCheckbox(deviceName).check();
+    await notifPage.submitButton.click();
+    await expect(notifPage.modal).toHaveCount(0, { timeout: 10000 });
+
+    const card = notifPage.ruleCard(ruleName);
+    await expect(card.locator('.rule-devices')).toHaveText(deviceName);
+
+    await card.locator('button:has-text("Edit")').click();
+    await expect(notifPage.deviceCheckbox(deviceName)).toBeChecked();
+    await notifPage.cancelButton.click();
+  });
+});
+
 test.describe('Delivery logs', () => {
   const rule = (id: number, name: string) => ({
     id, userId: 1, name, eventTypes: ['deviceOnline'], channel: 'webhook',

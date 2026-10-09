@@ -89,19 +89,26 @@ type NotificationRule struct {
 	Enabled    bool           `json:"enabled"`
 	// GeofenceIDs restricts geofenceEnter/geofenceExit events to these
 	// geofences. Empty means the rule applies to all geofences.
-	GeofenceIDs []int64   `json:"geofenceIds"`
-	CreatedAt   time.Time `json:"createdAt"`
-	UpdatedAt   time.Time `json:"updatedAt"`
+	GeofenceIDs []int64 `json:"geofenceIds"`
+	// DeviceIDs restricts the rule to events of these devices. Empty means
+	// the rule applies to all devices.
+	DeviceIDs []int64   `json:"deviceIds"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
 
 	// OwnerName is populated only in admin list-all responses.
 	OwnerName string `json:"ownerName,omitempty"`
 }
 
-// MatchesEvent reports whether the rule subscribes to the event's type and,
-// for geofence events, whether the event's geofence passes the rule's
-// geofence filter. It does not check Enabled.
+// MatchesEvent reports whether the rule subscribes to the event's type, the
+// event's device passes the rule's device filter and, for geofence events,
+// the event's geofence passes the rule's geofence filter. It does not check
+// Enabled.
 func (r *NotificationRule) MatchesEvent(e *Event) bool {
 	if !slices.Contains(r.EventTypes, e.Type) {
+		return false
+	}
+	if len(r.DeviceIDs) > 0 && !slices.Contains(r.DeviceIDs, e.DeviceID) {
 		return false
 	}
 	if !IsGeofenceEventType(e.Type) || len(r.GeofenceIDs) == 0 {

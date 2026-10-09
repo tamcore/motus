@@ -13,23 +13,24 @@ import (
 )
 
 // NotificationRuleService bundles notification rule validation, ownership,
-// geofence filter resolution and audit logging so the OAS handler and MCP
+// geofence/device filter resolution and audit logging so the OAS handler and MCP
 // tools share identical behaviour.
 type NotificationRuleService struct {
 	repo        repository.NotificationRepo
 	geofences   repository.GeofenceRepo
+	devices     repository.DeviceRepo
 	auditLogger *audit.Logger
 }
 
 // NewNotificationRuleService returns a NotificationRuleService. auditLogger
 // may be nil (audit entries are silently skipped).
-func NewNotificationRuleService(repo repository.NotificationRepo, geofences repository.GeofenceRepo, auditLogger *audit.Logger) *NotificationRuleService {
-	return &NotificationRuleService{repo: repo, geofences: geofences, auditLogger: auditLogger}
+func NewNotificationRuleService(repo repository.NotificationRepo, geofences repository.GeofenceRepo, devices repository.DeviceRepo, auditLogger *audit.Logger) *NotificationRuleService {
+	return &NotificationRuleService{repo: repo, geofences: geofences, devices: devices, auditLogger: auditLogger}
 }
 
 // NotificationRuleInput holds all rule fields. Config is the stored channel
 // config: {webhookUrl, headers?} or {commandType, attributes?}. On update a nil
-// GeofenceIDs keeps the stored filter; an empty slice clears it.
+// GeofenceIDs/DeviceIDs keeps the stored filter; an empty slice clears it.
 type NotificationRuleInput struct {
 	Name        string
 	EventTypes  []string
@@ -38,6 +39,7 @@ type NotificationRuleInput struct {
 	Template    string
 	Enabled     bool
 	GeofenceIDs []int64
+	DeviceIDs   []int64
 }
 
 // validateRuleInput checks in and returns the template to store. Webhook
@@ -75,45 +77,68 @@ func validateRuleInput(in NotificationRuleInput, isCreate bool) (string, error) 
 	}
 }
 
-// resolveGeofenceIDs returns the normalized geofence filter (sorted, unique;
-// empty = all geofences). IDs already stored in existing are accepted as-is
-// even if the geofence was deleted or is no longer accessible, so the rule
-// stays editable; only newly added IDs must be accessible to user.
-func (s *NotificationRuleService) resolveGeofenceIDs(ctx context.Context, user *model.User, in NotificationRuleInput, existing *model.NotificationRule) ([]int64, error) {
-	ids := in.GeofenceIDs
-	var stored []int64
-	if existing != nil {
-		stored = existing.GeofenceIDs
-		if ids == nil {
-			ids = stored
-		}
+// resolveIDFilter returns the normalized ID filter (sorted, unique; empty =
+// all). On update a nil ids inherits stored. IDs already in stored are
+// accepted as-is even if the resource was deleted or is no longer
+// accessible, so the rule stays editable; only newly added IDs must pass
+// hasAccess. kind names the resource in errors.
+func resolveIDFilter(ids, stored []int64, kind string, hasAccess func(int64) bool) ([]int64, error) {
+	if ids == nil {
+		ids = stored
 	}
 	if len(ids) == 0 {
 		return []int64{}, nil
-	}
-	if !slices.ContainsFunc(in.EventTypes, model.IsGeofenceEventType) {
-		if in.GeofenceIDs == nil {
-			// The inherited filter has no effect without geofence events.
-			return []int64{}, nil
-		}
-		return nil, errors.New("geofenceIds require a geofenceEnter or geofenceExit event type")
 	}
 	out := slices.Compact(slices.Sorted(slices.Values(ids)))
 	for _, id := range out {
 		if slices.Contains(stored, id) {
 			continue
 		}
-		if id <= 0 || s.geofences == nil || !s.geofences.UserHasAccess(ctx, user, id) {
-			return nil, fmt.Errorf("geofence %d not found or access denied", id)
+		if id <= 0 || !hasAccess(id) {
+			return nil, fmt.Errorf("%s %d not found or access denied", kind, id)
 		}
 	}
 	return out, nil
 }
 
-// buildRule resolves the geofence filter of the validated in and returns the
-// rule it describes.
+// resolveGeofenceIDs returns the geofence filter of in. It requires a
+// geofence event type; an inherited filter is dropped without one.
+func (s *NotificationRuleService) resolveGeofenceIDs(ctx context.Context, user *model.User, in NotificationRuleInput, existing *model.NotificationRule) ([]int64, error) {
+	var stored []int64
+	if existing != nil {
+		stored = existing.GeofenceIDs
+	}
+	if !slices.ContainsFunc(in.EventTypes, model.IsGeofenceEventType) {
+		if len(in.GeofenceIDs) > 0 {
+			return nil, errors.New("geofenceIds require a geofenceEnter or geofenceExit event type")
+		}
+		// The inherited filter has no effect without geofence events.
+		return []int64{}, nil
+	}
+	return resolveIDFilter(in.GeofenceIDs, stored, "geofence", func(id int64) bool {
+		return s.geofences != nil && s.geofences.UserHasAccess(ctx, user, id)
+	})
+}
+
+// resolveDeviceIDs returns the device filter of in (any event type).
+func (s *NotificationRuleService) resolveDeviceIDs(ctx context.Context, user *model.User, in NotificationRuleInput, existing *model.NotificationRule) ([]int64, error) {
+	var stored []int64
+	if existing != nil {
+		stored = existing.DeviceIDs
+	}
+	return resolveIDFilter(in.DeviceIDs, stored, "device", func(id int64) bool {
+		return s.devices != nil && s.devices.UserHasAccess(ctx, user, id)
+	})
+}
+
+// buildRule resolves the geofence and device filters of the validated in and
+// returns the rule it describes.
 func (s *NotificationRuleService) buildRule(ctx context.Context, user *model.User, in NotificationRuleInput, tmpl string, existing *model.NotificationRule) (*model.NotificationRule, error) {
 	geofenceIDs, err := s.resolveGeofenceIDs(ctx, user, in, existing)
+	if err != nil {
+		return nil, invalid(err)
+	}
+	deviceIDs, err := s.resolveDeviceIDs(ctx, user, in, existing)
 	if err != nil {
 		return nil, invalid(err)
 	}
@@ -125,6 +150,7 @@ func (s *NotificationRuleService) buildRule(ctx context.Context, user *model.Use
 		Template:    tmpl,
 		Enabled:     in.Enabled,
 		GeofenceIDs: geofenceIDs,
+		DeviceIDs:   deviceIDs,
 	}, nil
 }
 

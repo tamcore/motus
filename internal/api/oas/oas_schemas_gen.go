@@ -4774,10 +4774,12 @@ type NotificationRule struct {
 	Enabled    bool                   `json:"enabled"`
 	// Geofences that geofenceEnter/geofenceExit events must reference for the rule to fire. Empty means
 	// all geofences.
-	GeofenceIds []int64   `json:"geofenceIds"`
-	OwnerName   OptString `json:"ownerName"`
-	CreatedAt   time.Time `json:"createdAt"`
-	UpdatedAt   time.Time `json:"updatedAt"`
+	GeofenceIds []int64 `json:"geofenceIds"`
+	// Devices whose events trigger the rule. Empty means all devices.
+	DeviceIds []int64   `json:"deviceIds"`
+	OwnerName OptString `json:"ownerName"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
 }
 
 // GetID returns the value of ID.
@@ -4823,6 +4825,11 @@ func (s *NotificationRule) GetEnabled() bool {
 // GetGeofenceIds returns the value of GeofenceIds.
 func (s *NotificationRule) GetGeofenceIds() []int64 {
 	return s.GeofenceIds
+}
+
+// GetDeviceIds returns the value of DeviceIds.
+func (s *NotificationRule) GetDeviceIds() []int64 {
+	return s.DeviceIds
 }
 
 // GetOwnerName returns the value of OwnerName.
@@ -4883,6 +4890,11 @@ func (s *NotificationRule) SetEnabled(val bool) {
 // SetGeofenceIds sets the value of GeofenceIds.
 func (s *NotificationRule) SetGeofenceIds(val []int64) {
 	s.GeofenceIds = val
+}
+
+// SetDeviceIds sets the value of DeviceIds.
+func (s *NotificationRule) SetDeviceIds(val []int64) {
+	s.DeviceIds = val
 }
 
 // SetOwnerName sets the value of OwnerName.
@@ -4988,6 +5000,11 @@ type NotificationRuleInput struct {
 	// geofence must be accessible; IDs already stored in the rule (e.g. of a deleted geofence) may be
 	// resent unchanged.
 	GeofenceIds []int64 `json:"geofenceIds"`
+	// Restrict the rule to events of these devices (any event type). An empty list matches all devices. On
+	// create, omitting the field also matches all devices; on update, omitting it keeps the current filter
+	// and only an explicit empty list clears it. Every newly added device must be accessible; IDs already
+	// stored in the rule (e.g. of a deleted device) may be resent unchanged.
+	DeviceIds []int64 `json:"deviceIds"`
 }
 
 // GetName returns the value of Name.
@@ -5025,6 +5042,11 @@ func (s *NotificationRuleInput) GetGeofenceIds() []int64 {
 	return s.GeofenceIds
 }
 
+// GetDeviceIds returns the value of DeviceIds.
+func (s *NotificationRuleInput) GetDeviceIds() []int64 {
+	return s.DeviceIds
+}
+
 // SetName sets the value of Name.
 func (s *NotificationRuleInput) SetName(val string) {
 	s.Name = val
@@ -5058,6 +5080,11 @@ func (s *NotificationRuleInput) SetEnabled(val OptBool) {
 // SetGeofenceIds sets the value of GeofenceIds.
 func (s *NotificationRuleInput) SetGeofenceIds(val []int64) {
 	s.GeofenceIds = val
+}
+
+// SetDeviceIds sets the value of DeviceIds.
+func (s *NotificationRuleInput) SetDeviceIds(val []int64) {
+	s.DeviceIds = val
 }
 
 // Ref: #/components/schemas/OIDCConfig

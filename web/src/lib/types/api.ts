@@ -218,6 +218,8 @@ export interface NotificationRule {
   enabled: boolean;
   /** Geofence filter for geofence enter/exit events; empty = all geofences. */
   geofenceIds: number[];
+  /** Device filter for all event types; empty = all devices. */
+  deviceIds: number[];
   createdAt: string;
   updatedAt: string;
   /** Present only in admin list-all responses. */
@@ -232,6 +234,7 @@ export interface NotificationPayload {
   template?: string;
   enabled?: boolean;
   geofenceIds?: number[];
+  deviceIds?: number[];
 }
 
 export interface NotificationLog {

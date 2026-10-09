@@ -432,8 +432,13 @@ func notificationRuleToOAS(n *model.NotificationRule) oas.NotificationRule {
 	if geofenceIDs == nil {
 		geofenceIDs = []int64{}
 	}
+	deviceIDs := n.DeviceIDs
+	if deviceIDs == nil {
+		deviceIDs = []int64{}
+	}
 	return oas.NotificationRule{
 		GeofenceIds: geofenceIDs,
+		DeviceIds:   deviceIDs,
 		ID:          n.ID,
 		UserId:      n.UserID,
 		Name:        n.Name,

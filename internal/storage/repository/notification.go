@@ -22,10 +22,10 @@ func NewNotificationRepository(pool *pgxpool.Pool) *NotificationRepository {
 // Create inserts a new notification rule.
 func (r *NotificationRepository) Create(ctx context.Context, rule *model.NotificationRule) error {
 	err := r.pool.QueryRow(ctx, `
-		INSERT INTO notification_rules (user_id, name, event_types, channel, config, template, enabled, geofence_ids, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+		INSERT INTO notification_rules (user_id, name, event_types, channel, config, template, enabled, geofence_ids, device_ids, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
 		RETURNING id, created_at, updated_at
-	`, rule.UserID, rule.Name, rule.EventTypes, rule.Channel, configParam(rule.Config), rule.Template, rule.Enabled, geofenceIDsParam(rule.GeofenceIDs)).
+	`, rule.UserID, rule.Name, rule.EventTypes, rule.Channel, configParam(rule.Config), rule.Template, rule.Enabled, idsParam(rule.GeofenceIDs), idsParam(rule.DeviceIDs)).
 		Scan(&rule.ID, &rule.CreatedAt, &rule.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("create notification rule: %w", err)
@@ -95,9 +95,9 @@ func (r *NotificationRepository) GetByEventType(ctx context.Context, userID int6
 func (r *NotificationRepository) Update(ctx context.Context, rule *model.NotificationRule) error {
 	_, err := r.pool.Exec(ctx, `
 		UPDATE notification_rules
-		SET name = $1, event_types = $2, channel = $3, config = $4, template = $5, enabled = $6, geofence_ids = $9, updated_at = NOW()
+		SET name = $1, event_types = $2, channel = $3, config = $4, template = $5, enabled = $6, geofence_ids = $9, device_ids = $10, updated_at = NOW()
 		WHERE id = $7 AND user_id = $8
-	`, rule.Name, rule.EventTypes, rule.Channel, configParam(rule.Config), rule.Template, rule.Enabled, rule.ID, rule.UserID, geofenceIDsParam(rule.GeofenceIDs))
+	`, rule.Name, rule.EventTypes, rule.Channel, configParam(rule.Config), rule.Template, rule.Enabled, rule.ID, rule.UserID, idsParam(rule.GeofenceIDs), idsParam(rule.DeviceIDs))
 	if err != nil {
 		return fmt.Errorf("update notification rule: %w", err)
 	}
@@ -161,9 +161,9 @@ func configParam(config map[string]any) any {
 	return config
 }
 
-// geofenceIDsParam maps a nil geofence filter to an empty array: pgx encodes
-// a nil slice as NULL, which the NOT NULL geofence_ids column rejects.
-func geofenceIDsParam(ids []int64) []int64 {
+// idsParam maps a nil geofence or device filter to an empty array: pgx encodes
+// a nil slice as NULL, which the NOT NULL geofence_ids/device_ids columns reject.
+func idsParam(ids []int64) []int64 {
 	if ids == nil {
 		return []int64{}
 	}
@@ -171,14 +171,14 @@ func geofenceIDsParam(ids []int64) []int64 {
 }
 
 const notificationRuleColumns = `nr.id, nr.user_id, nr.name, nr.event_types, nr.channel, nr.config,
-	nr.template, nr.enabled, nr.geofence_ids, nr.created_at, nr.updated_at`
+	nr.template, nr.enabled, nr.geofence_ids, nr.device_ids, nr.created_at, nr.updated_at`
 
 func rowToNotificationRule(withOwner bool) pgx.RowToFunc[*model.NotificationRule] {
 	return func(row pgx.CollectableRow) (*model.NotificationRule, error) {
 		var rule model.NotificationRule
 		dest := []any{
 			&rule.ID, &rule.UserID, &rule.Name, &rule.EventTypes, &rule.Channel,
-			&rule.Config, &rule.Template, &rule.Enabled, &rule.GeofenceIDs, &rule.CreatedAt, &rule.UpdatedAt,
+			&rule.Config, &rule.Template, &rule.Enabled, &rule.GeofenceIDs, &rule.DeviceIDs, &rule.CreatedAt, &rule.UpdatedAt,
 		}
 		if withOwner {
 			dest = append(dest, &rule.OwnerName)

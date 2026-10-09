@@ -112,30 +112,56 @@ export function describeCommandAction(config: NotificationConfigCommand): string
   }
 }
 
-function unavailableGeofenceLabel(id: number): string {
-  return `Geofence #${id} (unavailable)`;
+type FilterKind = "Geofence" | "Device";
+type FilterItem = { id: number; name: string; ownerName?: string };
+
+function unavailableLabel(kind: FilterKind, id: number): string {
+  return `${kind} #${id} (unavailable)`;
+}
+
+function describeFilter(kind: FilterKind, ids: number[] | undefined, items: ReadonlyArray<FilterItem>): string {
+  if (!ids || ids.length === 0) return `All ${kind.toLowerCase()}s`;
+  return ids.map((id) => items.find((i) => i.id === id)?.name ?? unavailableLabel(kind, id)).join(", ");
+}
+
+/** A checkbox of the geofence or device filter in the rule editor. */
+interface FilterOption {
+  id: number;
+  label: string;
+  /** Selected in the rule but not in the lookup (deleted or inaccessible). */
+  unavailable: boolean;
+}
+
+function filterOptions(
+  kind: FilterKind,
+  selected: number[],
+  items: ReadonlyArray<FilterItem>,
+  stored: number[],
+): FilterOption[] {
+  const options: FilterOption[] = items.map((i) => ({
+    id: i.id,
+    label: i.ownerName ? `${i.name} (${i.ownerName})` : i.name,
+    unavailable: false,
+  }));
+  for (const id of new Set([...stored, ...selected])) {
+    if (!items.some((i) => i.id === id)) {
+      options.push({ id, label: unavailableLabel(kind, id), unavailable: true });
+    }
+  }
+  return options;
 }
 
 /**
  * Summary of a rule's geofence filter ("All geofences" when empty). IDs not
  * in the lookup (deleted, or not accessible) are flagged as unavailable.
  */
-export function describeGeofenceFilter(
-  ids: number[] | undefined,
-  geofences: ReadonlyArray<{ id: number; name: string }>,
-): string {
-  if (!ids || ids.length === 0) return "All geofences";
-  return ids
-    .map((id) => geofences.find((g) => g.id === id)?.name ?? unavailableGeofenceLabel(id))
-    .join(", ");
+export function describeGeofenceFilter(ids: number[] | undefined, geofences: ReadonlyArray<FilterItem>): string {
+  return describeFilter("Geofence", ids, geofences);
 }
 
-/** A checkbox of the geofence filter in the rule editor. */
-interface GeofenceFilterOption {
-  id: number;
-  label: string;
-  /** Selected in the rule but not in the lookup (deleted or inaccessible). */
-  unavailable: boolean;
+/** Summary of a rule's device filter ("All devices" when empty). */
+export function describeDeviceFilter(ids: number[] | undefined, devices: ReadonlyArray<FilterItem>): string {
+  return describeFilter("Device", ids, devices);
 }
 
 /**
@@ -148,18 +174,17 @@ interface GeofenceFilterOption {
  */
 export function geofenceFilterOptions(
   selected: number[],
-  geofences: ReadonlyArray<{ id: number; name: string; ownerName?: string }>,
+  geofences: ReadonlyArray<FilterItem>,
   stored: number[] = [],
-): GeofenceFilterOption[] {
-  const options: GeofenceFilterOption[] = geofences.map((g) => ({
-    id: g.id,
-    label: g.ownerName ? `${g.name} (${g.ownerName})` : g.name,
-    unavailable: false,
-  }));
-  for (const id of new Set([...stored, ...selected])) {
-    if (!geofences.some((g) => g.id === id)) {
-      options.push({ id, label: unavailableGeofenceLabel(id), unavailable: true });
-    }
-  }
-  return options;
+): FilterOption[] {
+  return filterOptions("Geofence", selected, geofences, stored);
+}
+
+/** Checkboxes of the device filter; same rules as geofenceFilterOptions. */
+export function deviceFilterOptions(
+  selected: number[],
+  devices: ReadonlyArray<FilterItem>,
+  stored: number[] = [],
+): FilterOption[] {
+  return filterOptions("Device", selected, devices, stored);
 }

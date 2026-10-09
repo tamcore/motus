@@ -5,7 +5,9 @@ import {
   commandEventConflict,
   commandFormValues,
   describeCommandAction,
+  describeDeviceFilter,
   describeGeofenceFilter,
+  deviceFilterOptions,
   geofenceFilterOptions,
   hasGeofenceEvent,
 } from "./notificationRules";
@@ -164,6 +166,28 @@ describe("geofenceFilterOptions", () => {
       { id: 1, label: "Home", unavailable: false },
       { id: 2, label: "Park (Alice)", unavailable: false },
       { id: 9, label: "Geofence #9 (unavailable)", unavailable: true },
+    ]);
+  });
+});
+
+describe("device filter", () => {
+  const devices = [
+    { id: 2, name: "Rex" },
+    { id: 4, name: "Car", ownerName: "Alice" },
+  ];
+
+  it("summarizes the filter", () => {
+    expect(describeDeviceFilter([], devices)).toBe("All devices");
+    expect(describeDeviceFilter(undefined, devices)).toBe("All devices");
+    expect(describeDeviceFilter([2, 9], devices)).toBe("Rex, Device #9 (unavailable)");
+  });
+
+  it("lists available devices plus unavailable selected or stored ones", () => {
+    expect(deviceFilterOptions([9], devices, [8])).toEqual([
+      { id: 2, label: "Rex", unavailable: false },
+      { id: 4, label: "Car (Alice)", unavailable: false },
+      { id: 8, label: "Device #8 (unavailable)", unavailable: true },
+      { id: 9, label: "Device #9 (unavailable)", unavailable: true },
     ]);
   });
 });

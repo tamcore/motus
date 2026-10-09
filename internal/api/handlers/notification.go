@@ -28,6 +28,7 @@ func notificationRuleInputFromOAS(req *oas.NotificationRuleInput) (services.Noti
 		Template:    tmpl,
 		Enabled:     enabled,
 		GeofenceIDs: req.GeofenceIds,
+		DeviceIDs:   req.DeviceIds,
 	}, nil
 }
 

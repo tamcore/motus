@@ -855,7 +855,7 @@ components:
 
     NotificationRule:
       type: object
-      required: [id, userId, name, eventTypes, channel, config, template, enabled, geofenceIds, createdAt, updatedAt]
+      required: [id, userId, name, eventTypes, channel, config, template, enabled, geofenceIds, deviceIds, createdAt, updatedAt]
       properties:
         id: { type: integer, format: int64 }
         userId: { type: integer, format: int64 }
@@ -873,6 +873,11 @@ components:
           description: >-
             Geofences that geofenceEnter/geofenceExit events must reference
             for the rule to fire. Empty means all geofences.
+          items: { type: integer, format: int64 }
+        deviceIds:
+          type: array
+          description: >-
+            Devices whose events trigger the rule. Empty means all devices.
           items: { type: integer, format: int64 }
         ownerName: { type: string }
         createdAt: { type: string, format: date-time }
@@ -903,6 +908,16 @@ components:
             a geofence event type. Every newly added geofence must be
             accessible; IDs already stored in the rule (e.g. of a deleted
             geofence) may be resent unchanged.
+          items: { type: integer, format: int64 }
+        deviceIds:
+          type: array
+          description: >-
+            Restrict the rule to events of these devices (any event type).
+            An empty list matches all devices. On create, omitting the field
+            also matches all devices; on update, omitting it keeps the current
+            filter and only an explicit empty list clears it. Every newly
+            added device must be accessible; IDs already stored in the rule
+            (e.g. of a deleted device) may be resent unchanged.
           items: { type: integer, format: int64 }
 
     NotificationLog:

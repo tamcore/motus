@@ -9,7 +9,9 @@
 	import Modal from '$lib/components/Modal.svelte';
 	import AllDevicesToggle from '$lib/components/AllDevicesToggle.svelte';
 	import CommandParamFields from '$lib/components/CommandParamFields.svelte';
+	import RuleFilterCheckboxes from '$lib/components/RuleFilterCheckboxes.svelte';
 	import type {
+		Device,
 		Geofence,
 		NotificationRule,
 		NotificationChannel,
@@ -27,7 +29,9 @@
 		commandEventConflict,
 		commandFormValues,
 		describeCommandAction,
+		describeDeviceFilter,
 		describeGeofenceFilter,
+		deviceFilterOptions,
 		geofenceFilterOptions,
 		getEventLabel,
 		hasGeofenceEvent
@@ -44,6 +48,8 @@
 	// every geofence, so the filters of other users' rules (admin "All users"
 	// toggle) resolve as well.
 	let geofences: Geofence[] = [];
+	// Device lookup for the device filter, loaded with the same scope.
+	let devices: Device[] = [];
 
 	// Form state
 	let formName = '';
@@ -53,6 +59,7 @@
 	let formHeaders: Array<{ key: string; value: string }> = [];
 	let formTemplate = DEFAULT_TEMPLATE;
 	let formGeofenceIds: number[] = [];
+	let formDeviceIds: number[] = [];
 	let formCommandType = NOTIFICATION_COMMAND_TYPES[0];
 	let formFrequency = String(DEFAULT_REPORTING_INTERVAL_SECONDS);
 	let formSosNumber = '';
@@ -61,6 +68,7 @@
 
 	$: showGeofenceFilter = hasGeofenceEvent(formEventTypes);
 	$: geofenceOptions = geofenceFilterOptions(formGeofenceIds, geofences, editingRule?.geofenceIds ?? []);
+	$: deviceOptions = deviceFilterOptions(formDeviceIds, devices, editingRule?.deviceIds ?? []);
 	$: commandConflict =
 		formChannel === 'command' ? commandEventConflict(formCommandType, formEventTypes) : null;
 
@@ -68,12 +76,12 @@
 	let testingId: number | null = null;
 
 	onMount(async () => {
-		await Promise.all([loadRules(), loadGeofences()]);
+		await Promise.all([loadRules(), loadGeofences(), loadDevices()]);
 		$refreshHandler = refresh;
 	});
 
 	async function refresh() {
-		await Promise.all([loadRules(), loadGeofences()]);
+		await Promise.all([loadRules(), loadGeofences(), loadDevices()]);
 	}
 
 	async function loadGeofences() {
@@ -89,6 +97,16 @@
 			// The geofence filter is optional; rules still work without it.
 			console.error('Failed to load geofences:', err);
 			geofences = [];
+		}
+	}
+
+	async function loadDevices() {
+		try {
+			devices = $isAdmin ? stripOwnOwnerName(await api.getAllDevices()) : await api.getDevices();
+		} catch (err) {
+			// The device filter is optional; rules still work without it.
+			console.error('Failed to load devices:', err);
+			devices = [];
 		}
 	}
 
@@ -116,6 +134,7 @@
 		formHeaders = [];
 		formTemplate = DEFAULT_TEMPLATE;
 		formGeofenceIds = [];
+		formDeviceIds = [];
 		formCommandType = NOTIFICATION_COMMAND_TYPES[0];
 		formFrequency = String(DEFAULT_REPORTING_INTERVAL_SECONDS);
 		formSosNumber = '';
@@ -137,6 +156,7 @@
 		formEventTypes = [...rule.eventTypes];
 		formChannel = rule.channel;
 		formGeofenceIds = [...(rule.geofenceIds ?? [])];
+		formDeviceIds = [...(rule.deviceIds ?? [])];
 
 		if (rule.config?.channel === 'command') {
 			formCommandType = rule.config.commandType;
@@ -166,12 +186,6 @@
 			cfg.headers = Object.fromEntries(filteredHeaders.map((h) => [h.key, h.value]));
 		}
 		return cfg;
-	}
-
-	function toggleGeofence(id: number, checked: boolean) {
-		formGeofenceIds = checked
-			? [...formGeofenceIds, id]
-			: formGeofenceIds.filter((g) => g !== id);
 	}
 
 	async function handleSubmit() {
@@ -207,7 +221,9 @@
 			template: formChannel === 'webhook' ? formTemplate : '',
 			enabled: editingRule ? editingRule.enabled : true,
 			// An empty filter means "all geofences".
-			geofenceIds: showGeofenceFilter ? formGeofenceIds : []
+			geofenceIds: showGeofenceFilter ? formGeofenceIds : [],
+			// An empty filter means "all devices".
+			deviceIds: formDeviceIds
 		};
 
 		try {
@@ -238,7 +254,8 @@
 				config: rule.config,
 				template: rule.template,
 				enabled: !rule.enabled,
-				geofenceIds: rule.geofenceIds ?? []
+				geofenceIds: rule.geofenceIds ?? [],
+				deviceIds: rule.deviceIds ?? []
 			});
 			await loadRules();
 		} catch (err: any) {
@@ -374,6 +391,12 @@
 									<span class="detail-value truncate rule-geofences">{describeGeofenceFilter(rule.geofenceIds, geofences)}</span>
 								</div>
 							{/if}
+							{#if rule.deviceIds?.length}
+								<div class="rule-detail">
+									<span class="detail-label">Devices:</span>
+									<span class="detail-value truncate rule-devices">{describeDeviceFilter(rule.deviceIds, devices)}</span>
+								</div>
+							{/if}
 							{#if rule.updatedAt}
 								<div class="rule-detail">
 									<span class="detail-label">Last updated:</span>
@@ -457,46 +480,26 @@
 		</div>
 
 		{#if showGeofenceFilter}
-			<div class="form-group geofence-filter">
-				<span class="form-label">Geofences</span>
-				{#if geofenceOptions.length === 0}
-					<span class="form-hint">No geofences yet. The rule applies to all geofences.</span>
-				{:else}
-					<div class="event-type-grid">
-						{#each geofenceOptions as g (g.id)}
-							<label
-								class="event-type-checkbox geofence-checkbox"
-								class:geofence-unavailable={g.unavailable}
-								title={g.unavailable
-									? 'This geofence was deleted or is no longer accessible. Untick it to remove it from the rule.'
-									: undefined}
-							>
-								<input
-									type="checkbox"
-									value={g.id}
-									checked={formGeofenceIds.includes(g.id)}
-									on:change={(e) => {
-										const target = e.target;
-										if (target instanceof HTMLInputElement) toggleGeofence(g.id, target.checked);
-									}}
-								/>
-								<span>{g.label}</span>
-							</label>
-						{/each}
-					</div>
-					{#if geofenceOptions.some((g) => g.unavailable && formGeofenceIds.includes(g.id))}
-						<span class="form-hint form-hint--warning geofence-unavailable-hint">
-							Unavailable geofences never trigger this rule. Untick them to remove them.
-						</span>
-					{/if}
-					<span class="form-hint geofence-filter-hint">
-						{formGeofenceIds.length === 0
-							? 'No geofence selected: geofence events of all geofences trigger this rule.'
-							: 'Only enter/exit events of the selected geofences trigger this rule.'}
-					</span>
-				{/if}
-			</div>
+			<RuleFilterCheckboxes
+				name="geofence"
+				label="Geofences"
+				options={geofenceOptions}
+				bind:selected={formGeofenceIds}
+				noOptionsHint="No geofences yet. The rule applies to all geofences."
+				allHint="No geofence selected: geofence events of all geofences trigger this rule."
+				someHint="Only enter/exit events of the selected geofences trigger this rule."
+			/>
 		{/if}
+
+		<RuleFilterCheckboxes
+			name="device"
+			label="Devices"
+			options={deviceOptions}
+			bind:selected={formDeviceIds}
+			noOptionsHint="No devices yet. The rule applies to all devices."
+			allHint="No device selected: events of all devices trigger this rule."
+			someHint="Only events of the selected devices trigger this rule."
+		/>
 
 		<div class="form-group">
 			<label for="channel" class="form-label">Channel</label>
@@ -754,13 +757,13 @@
 		text-decoration: underline;
 	}
 
-	.event-type-grid {
+	.notification-form :global(.event-type-grid) {
 		display: grid;
 		grid-template-columns: repeat(2, 1fr);
 		gap: var(--space-1) var(--space-3);
 	}
 
-	.event-type-checkbox {
+	.notification-form :global(.event-type-checkbox) {
 		display: flex;
 		align-items: center;
 		gap: var(--space-2);
@@ -770,7 +773,7 @@
 		user-select: none;
 	}
 
-	.event-type-checkbox input[type="checkbox"] {
+	.notification-form :global(.event-type-checkbox input[type="checkbox"]) {
 		width: 0.9rem;
 		height: 0.9rem;
 		accent-color: var(--accent-primary);
@@ -778,7 +781,7 @@
 		margin: 0;
 	}
 
-	.form-hint {
+	.notification-form :global(.form-hint) {
 		font-size: var(--text-xs);
 		color: var(--text-secondary);
 	}
@@ -794,12 +797,8 @@
 		color: var(--error);
 		font-size: var(--text-sm);
 	}
-	.form-hint--warning {
+	.notification-form :global(.form-hint--warning) {
 		font-size: var(--text-xs);
-		color: var(--warning);
-	}
-	.geofence-unavailable span {
-		font-style: italic;
 		color: var(--warning);
 	}
 

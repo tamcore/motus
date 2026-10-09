@@ -14971,6 +14971,14 @@ func (s *NotificationRule) encodeFields(e *jx.Encoder) {
 		e.ArrEnd()
 	}
 	{
+		e.FieldStart("deviceIds")
+		e.ArrStart()
+		for _, elem := range s.DeviceIds {
+			e.Int64(elem)
+		}
+		e.ArrEnd()
+	}
+	{
 		if s.OwnerName.Set {
 			e.FieldStart("ownerName")
 			s.OwnerName.Encode(e)
@@ -14986,7 +14994,7 @@ func (s *NotificationRule) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfNotificationRule = [12]string{
+var jsonFieldsNameOfNotificationRule = [13]string{
 	0:  "id",
 	1:  "userId",
 	2:  "name",
@@ -14996,9 +15004,10 @@ var jsonFieldsNameOfNotificationRule = [12]string{
 	6:  "template",
 	7:  "enabled",
 	8:  "geofenceIds",
-	9:  "ownerName",
-	10: "createdAt",
-	11: "updatedAt",
+	9:  "deviceIds",
+	10: "ownerName",
+	11: "createdAt",
+	12: "updatedAt",
 }
 
 // Decode decodes NotificationRule from json.
@@ -15132,6 +15141,26 @@ func (s *NotificationRule) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"geofenceIds\"")
 			}
+		case "deviceIds":
+			requiredBitSet[1] |= 1 << 1
+			if err := func() error {
+				s.DeviceIds = make([]int64, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem int64
+					v, err := d.Int64()
+					elem = int64(v)
+					if err != nil {
+						return err
+					}
+					s.DeviceIds = append(s.DeviceIds, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"deviceIds\"")
+			}
 		case "ownerName":
 			if err := func() error {
 				s.OwnerName.Reset()
@@ -15143,7 +15172,7 @@ func (s *NotificationRule) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"ownerName\"")
 			}
 		case "createdAt":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.CreatedAt = v
@@ -15155,7 +15184,7 @@ func (s *NotificationRule) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"createdAt\"")
 			}
 		case "updatedAt":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.UpdatedAt = v
@@ -15177,7 +15206,7 @@ func (s *NotificationRule) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00001101,
+		0b00011011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -15388,9 +15417,19 @@ func (s *NotificationRuleInput) encodeFields(e *jx.Encoder) {
 			e.ArrEnd()
 		}
 	}
+	{
+		if s.DeviceIds != nil {
+			e.FieldStart("deviceIds")
+			e.ArrStart()
+			for _, elem := range s.DeviceIds {
+				e.Int64(elem)
+			}
+			e.ArrEnd()
+		}
+	}
 }
 
-var jsonFieldsNameOfNotificationRuleInput = [7]string{
+var jsonFieldsNameOfNotificationRuleInput = [8]string{
 	0: "name",
 	1: "eventTypes",
 	2: "channel",
@@ -15398,6 +15437,7 @@ var jsonFieldsNameOfNotificationRuleInput = [7]string{
 	4: "template",
 	5: "enabled",
 	6: "geofenceIds",
+	7: "deviceIds",
 }
 
 // Decode decodes NotificationRuleInput from json.
@@ -15501,6 +15541,25 @@ func (s *NotificationRuleInput) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"geofenceIds\"")
+			}
+		case "deviceIds":
+			if err := func() error {
+				s.DeviceIds = make([]int64, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem int64
+					v, err := d.Int64()
+					elem = int64(v)
+					if err != nil {
+						return err
+					}
+					s.DeviceIds = append(s.DeviceIds, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"deviceIds\"")
 			}
 		default:
 			return d.Skip()

@@ -40,7 +40,7 @@ func newNotificationTestHandler(notifications repository.NotificationRepo) *hand
 	return handlers.NewHandler(handlers.HandlerConfig{
 		Notifications:       notifications,
 		NotificationService: svc,
-		NotificationRules:   services.NewNotificationRuleService(notifications, nil, nil),
+		NotificationRules:   services.NewNotificationRuleService(notifications, nil, nil, nil),
 		AuditLogger:         audit.NewLogger(nil),
 	})
 }

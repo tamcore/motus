@@ -21,7 +21,7 @@ func TestNotificationRuleTools_UseSharedService(t *testing.T) {
 	ctx := api.ContextWithUser(t.Context(), user)
 	rules := repository.NewNotificationRepository(pool)
 	logger := audit.NewLogger(pool)
-	deps := Deps{NotificationRules: services.NewNotificationRuleService(rules, repository.NewGeofenceRepository(pool), logger)}
+	deps := Deps{NotificationRules: services.NewNotificationRuleService(rules, repository.NewGeofenceRepository(pool), repository.NewDeviceRepository(pool), logger)}
 
 	rule := &model.NotificationRule{
 		UserID: user.ID, Name: "Home", EventTypes: []string{model.EventTypeGeofenceEnter},
@@ -67,7 +67,7 @@ func TestCreateNotificationRuleTool(t *testing.T) {
 	ctx := api.ContextWithUser(t.Context(), user)
 	rules := repository.NewNotificationRepository(pool)
 	logger := audit.NewLogger(pool)
-	deps := Deps{NotificationRules: services.NewNotificationRuleService(rules, repository.NewGeofenceRepository(pool), logger)}
+	deps := Deps{NotificationRules: services.NewNotificationRuleService(rules, repository.NewGeofenceRepository(pool), repository.NewDeviceRepository(pool), logger)}
 	args := func(overrides map[string]any) map[string]any {
 		a := map[string]any{
 			"name": "Offline", "event_types": "deviceOffline", "channel": "webhook",

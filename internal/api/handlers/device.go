@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"slices"
 
 	"github.com/go-faster/jx"
@@ -42,11 +44,11 @@ func (h *Handler) loadGeofenceIDs(ctx context.Context, devices ...*model.Device)
 // returns the set to store. Every requested geofence must be accessible to
 // the user; attachments to geofences the user cannot see (another owner's on
 // a shared device) are kept. current is nil for a new device.
-func (h *Handler) resolveGeofenceIDs(ctx context.Context, user *model.User, requested, current []int64) ([]int64, string) {
+func (h *Handler) resolveGeofenceIDs(ctx context.Context, user *model.User, requested, current []int64) ([]int64, error) {
 	result := make([]int64, 0, len(requested)+len(current))
 	for _, id := range requested {
 		if !h.cfg.Geofences.UserHasAccess(ctx, user, id) {
-			return nil, "geofence not found"
+			return nil, errors.New("geofence not found")
 		}
 		result = append(result, id)
 	}
@@ -56,7 +58,7 @@ func (h *Handler) resolveGeofenceIDs(ctx context.Context, user *model.User, requ
 		}
 	}
 	slices.Sort(result)
-	return slices.Compact(result), ""
+	return slices.Compact(result), nil
 }
 
 // ListDevices returns all devices for the authenticated user.
@@ -91,7 +93,7 @@ func (h *Handler) GetDevice(ctx context.Context, params oas.GetDeviceParams) (oa
 		return &oas.GetDeviceNotFound{Error: "device not found"}, nil
 	}
 	if err := h.loadGeofenceIDs(ctx, device); err != nil {
-		return &oas.GetDeviceNotFound{Error: "device not found"}, nil
+		return nil, fmt.Errorf("load device geofences: %w", err)
 	}
 	return new(h.deviceOut(ctx, device)), nil
 }
@@ -108,22 +110,15 @@ func (h *Handler) CreateDevice(ctx context.Context, req *oas.DeviceInput) (oas.C
 	if err := validation.ValidateName(req.Name); err != nil {
 		return &oas.CreateDeviceBadRequest{Error: err.Error()}, nil
 	}
-	var geofenceIDs []int64
-	if req.GeofenceIds != nil {
-		var msg string
-		if geofenceIDs, msg = h.resolveGeofenceIDs(ctx, user, req.GeofenceIds, nil); msg != "" {
-			return &oas.CreateDeviceBadRequest{Error: msg}, nil
-		}
+	geofenceIDs, err := h.resolveGeofenceIDs(ctx, user, req.GeofenceIds, nil)
+	if err != nil {
+		return &oas.CreateDeviceBadRequest{Error: err.Error()}, nil
 	}
 	device := applyDeviceInputFields(&model.Device{UniqueID: req.UniqueId, Name: req.Name, Status: "unknown"}, req)
+	// Attached in the same transaction as the device (Create).
+	device.GeofenceIDs = geofenceIDs
 	if err := h.cfg.Devices.Create(ctx, device, user.ID); err != nil {
 		return &oas.CreateDeviceBadRequest{Error: "failed to create device"}, nil
-	}
-	if len(geofenceIDs) > 0 {
-		if err := h.cfg.Devices.SetGeofences(ctx, device.ID, geofenceIDs); err != nil {
-			return &oas.CreateDeviceBadRequest{Error: "failed to attach geofences"}, nil
-		}
-		device.GeofenceIDs = geofenceIDs
 	}
 	h.cfg.AuditLogger.Log(ctx, &user.ID,
 		audit.ActionDeviceCreate, audit.ResourceDevice, &device.ID,
@@ -145,13 +140,12 @@ func (h *Handler) UpdateDevice(ctx context.Context, req *oas.DeviceInput, params
 		return &oas.UpdateDeviceNotFound{Error: "device not found"}, nil
 	}
 	if err := h.loadGeofenceIDs(ctx, device); err != nil {
-		return &oas.UpdateDeviceNotFound{Error: "device not found"}, nil
+		return nil, fmt.Errorf("load device geofences: %w", err)
 	}
 	var geofenceIDs []int64
 	if req.GeofenceIds != nil {
-		var msg string
-		if geofenceIDs, msg = h.resolveGeofenceIDs(ctx, user, req.GeofenceIds, device.GeofenceIDs); msg != "" {
-			return &oas.UpdateDeviceBadRequest{Error: msg}, nil
+		if geofenceIDs, err = h.resolveGeofenceIDs(ctx, user, req.GeofenceIds, device.GeofenceIDs); err != nil {
+			return &oas.UpdateDeviceBadRequest{Error: err.Error()}, nil
 		}
 	}
 	updated := applyDeviceInputFields(device, req)

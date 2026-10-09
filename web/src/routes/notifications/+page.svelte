@@ -9,7 +9,7 @@
 	import Modal from '$lib/components/Modal.svelte';
 	import AllDevicesToggle from '$lib/components/AllDevicesToggle.svelte';
 	import CommandParamFields from '$lib/components/CommandParamFields.svelte';
-	import RuleFilterCheckboxes from '$lib/components/RuleFilterCheckboxes.svelte';
+	import FilterCheckboxes from '$lib/components/FilterCheckboxes.svelte';
 	import ReportingIntervalPicker from '$lib/components/ReportingIntervalPicker.svelte';
 	import type {
 		Device,
@@ -554,7 +554,7 @@
 		</div>
 
 		{#if showGeofenceFilter}
-			<RuleFilterCheckboxes
+			<FilterCheckboxes
 				name="geofence"
 				label="Geofences"
 				options={geofenceOptions}
@@ -565,7 +565,7 @@
 			/>
 		{/if}
 
-		<RuleFilterCheckboxes
+		<FilterCheckboxes
 			name="device"
 			label="Devices"
 			options={deviceOptions}
@@ -908,13 +908,13 @@
 		text-decoration: underline;
 	}
 
-	.notification-form :global(.event-type-grid) {
+	.event-type-grid {
 		display: grid;
 		grid-template-columns: repeat(2, 1fr);
 		gap: var(--space-1) var(--space-3);
 	}
 
-	.notification-form :global(.event-type-checkbox) {
+	.event-type-checkbox {
 		display: flex;
 		align-items: center;
 		gap: var(--space-2);
@@ -924,7 +924,7 @@
 		user-select: none;
 	}
 
-	.notification-form :global(.event-type-checkbox input[type="checkbox"]) {
+	.event-type-checkbox input[type="checkbox"] {
 		width: 0.9rem;
 		height: 0.9rem;
 		accent-color: var(--accent-primary);
@@ -932,7 +932,7 @@
 		margin: 0;
 	}
 
-	.notification-form :global(.form-hint) {
+	.form-hint {
 		font-size: var(--text-xs);
 		color: var(--text-secondary);
 	}
@@ -947,10 +947,6 @@
 		background-color: color-mix(in srgb, var(--error) 12%, transparent);
 		color: var(--error);
 		font-size: var(--text-sm);
-	}
-	.notification-form :global(.form-hint--warning) {
-		font-size: var(--text-xs);
-		color: var(--warning);
 	}
 
 	/* Headers */

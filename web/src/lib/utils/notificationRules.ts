@@ -119,9 +119,30 @@ function unavailableLabel(kind: FilterKind, id: number): string {
   return `${kind} #${id} (unavailable)`;
 }
 
-function describeFilter(kind: FilterKind, ids: number[] | undefined, items: ReadonlyArray<FilterItem>): string {
+/**
+ * How IDs missing from the lookup are shown: "label" flags each one as
+ * unavailable (deleted or inaccessible); "count" summarizes them as "N other"
+ * (e.g. another owner's geofences attached to a shared device).
+ */
+type UnavailableMode = "label" | "count";
+
+function describeFilter(
+  kind: FilterKind,
+  ids: number[] | undefined,
+  items: ReadonlyArray<FilterItem>,
+  unavailable: UnavailableMode = "label",
+): string {
   if (!ids || ids.length === 0) return `All ${kind.toLowerCase()}s`;
-  return ids.map((id) => items.find((i) => i.id === id)?.name ?? unavailableLabel(kind, id)).join(", ");
+  const names: string[] = [];
+  let hidden = 0;
+  for (const id of ids) {
+    const name = items.find((i) => i.id === id)?.name;
+    if (name !== undefined) names.push(name);
+    else if (unavailable === "count") hidden++;
+    else names.push(unavailableLabel(kind, id));
+  }
+  if (hidden > 0) names.push(`${hidden} other`);
+  return names.join(", ");
 }
 
 /** A checkbox of the geofence or device filter in the rule editor. */
@@ -153,10 +174,15 @@ function filterOptions(
 
 /**
  * Summary of a rule's geofence filter ("All geofences" when empty). IDs not
- * in the lookup (deleted, or not accessible) are flagged as unavailable.
+ * in the lookup (deleted, or not accessible) are flagged as unavailable, or
+ * counted as "N other" with unavailable = "count".
  */
-export function describeGeofenceFilter(ids: number[] | undefined, geofences: ReadonlyArray<FilterItem>): string {
-  return describeFilter("Geofence", ids, geofences);
+export function describeGeofenceFilter(
+  ids: number[] | undefined,
+  geofences: ReadonlyArray<FilterItem>,
+  unavailable: UnavailableMode = "label",
+): string {
+  return describeFilter("Geofence", ids, geofences, unavailable);
 }
 
 /** Summary of a rule's device filter ("All devices" when empty). */

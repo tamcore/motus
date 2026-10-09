@@ -1,5 +1,5 @@
-import type { Page } from '@playwright/test';
 import { test, expect } from '../fixtures/auth-fixture';
+import { csrfToken } from '../helpers/csrf';
 import { NotificationsPage } from '../page-objects/NotificationsPage';
 import { mockFetch } from '../helpers/mock-fetch';
 
@@ -167,11 +167,6 @@ test.describe('Notification geofence filter and command actions', () => {
   const deviceName = `PW Pet ${Date.now()}`;
   let deviceId: number;
   let geofenceId: number;
-
-  async function csrfToken(page: Page): Promise<string> {
-    const res = await page.request.get('/api/session');
-    return res.headers()['x-csrf-token'] ?? '';
-  }
 
   test.beforeAll(async ({ browser }) => {
     const ctx = await browser.newContext({ storageState: '.auth/user.json' });
@@ -420,11 +415,6 @@ test.describe('Notification device filter', () => {
   const deviceName = `PW Filter Device ${Date.now()}`;
   const ruleName = `PW Device Rule ${Date.now()}`;
   let deviceId: number;
-
-  async function csrfToken(page: Page): Promise<string> {
-    const res = await page.request.get('/api/session');
-    return res.headers()['x-csrf-token'] ?? '';
-  }
 
   test.beforeAll(async ({ browser }) => {
     const ctx = await browser.newContext({ storageState: '.auth/user.json' });

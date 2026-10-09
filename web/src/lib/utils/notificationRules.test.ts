@@ -129,6 +129,13 @@ describe("describeGeofenceFilter", () => {
     expect(describeGeofenceFilter(undefined, geofences)).toBe("All geofences");
   });
 
+  it("counts geofences the user cannot see as 'N other' in count mode", () => {
+    // Device attachments may include another owner's geofences on a shared device.
+    expect(describeGeofenceFilter([1, 7, 8], geofences, "count")).toBe("Home, 2 other");
+    expect(describeGeofenceFilter([9], geofences, "count")).toBe("1 other");
+    expect(describeGeofenceFilter([2, 1], geofences, "count")).toBe("Park, Home");
+  });
+
   it("lists geofence names and flags unavailable ones", () => {
     expect(describeGeofenceFilter([1, 2], geofences)).toBe("Home, Park");
     expect(describeGeofenceFilter([1, 9], geofences)).toBe("Home, Geofence #9 (unavailable)");

@@ -184,24 +184,26 @@ func TestUpdateDevice_PreservesHiddenGeofences_OAS(t *testing.T) {
 	}
 }
 
-func TestCreateDevice_SetsGeofences_OAS(t *testing.T) {
-	var set []int64
+// The attachments are stored with the device in one transaction (Create),
+// so a failure cannot leave a device behind that a retry would collide with.
+func TestCreateDevice_AttachesGeofencesAtomically_OAS(t *testing.T) {
+	var createdWith []int64
+	setCalled := false
 	mock := &mockDeviceRepo{
-		setGeofencesFn: func(_ context.Context, deviceID int64, ids []int64) error {
-			if deviceID != 42 {
-				return errors.New("unexpected device")
-			}
-			set = slices.Clone(ids)
+		createFn: func(_ context.Context, d *model.Device, _ int64) error {
+			d.ID = 42
+			createdWith = slices.Clone(d.GeofenceIDs)
 			return nil
 		},
-		getGeofenceIDsFn: func(context.Context, []int64) (map[int64][]int64, error) {
-			return map[int64][]int64{42: slices.Clone(set)}, nil
+		setGeofencesFn: func(context.Context, int64, []int64) error {
+			setCalled = true
+			return nil
 		},
 	}
-	h := newDeviceGeofenceHandler(mock, 5)
+	h := newDeviceGeofenceHandler(mock, 5, 6)
 
 	res, err := h.CreateDevice(ctxAs(1, model.RoleUser), &oas.DeviceInput{
-		Name: "Cat", UniqueId: "geo-new", GeofenceIds: []int64{5},
+		Name: "Cat", UniqueId: "geo-new", GeofenceIds: []int64{6, 5},
 	})
 	if err != nil {
 		t.Fatalf("CreateDevice: %v", err)
@@ -210,8 +212,39 @@ func TestCreateDevice_SetsGeofences_OAS(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected *oas.Device, got %T", res)
 	}
-	if !slices.Equal(set, []int64{5}) || !slices.Equal(device.GeofenceIds, []int64{5}) {
-		t.Errorf("set = %v, response = %v, want [5]", set, device.GeofenceIds)
+	if !slices.Equal(createdWith, []int64{5, 6}) || !slices.Equal(device.GeofenceIds, []int64{5, 6}) {
+		t.Errorf("created with %v, response %v, want [5 6]", createdWith, device.GeofenceIds)
+	}
+	if setCalled {
+		t.Error("SetGeofences must not run separately after Create")
+	}
+}
+
+// A failure loading the attachments is a server error, not a missing device.
+func TestGetDevice_GeofenceLoadErrorIsServerError_OAS(t *testing.T) {
+	mock := deviceGeofenceMock(new([]int64), new([]int64))
+	mock.getGeofenceIDsFn = func(context.Context, []int64) (map[int64][]int64, error) {
+		return nil, errors.New("db down")
+	}
+	h := newDeviceGeofenceHandler(mock)
+
+	res, err := h.GetDevice(ctxAs(1, model.RoleUser), oas.GetDeviceParams{ID: 10})
+	if err == nil {
+		t.Fatalf("expected an error (500), got %T", res)
+	}
+}
+
+func TestUpdateDevice_GeofenceLoadErrorIsServerError_OAS(t *testing.T) {
+	mock := deviceGeofenceMock(new([]int64), new([]int64))
+	mock.getGeofenceIDsFn = func(context.Context, []int64) (map[int64][]int64, error) {
+		return nil, errors.New("db down")
+	}
+	h := newDeviceGeofenceHandler(mock)
+
+	res, err := h.UpdateDevice(ctxAs(1, model.RoleUser), &oas.DeviceInput{Name: "Dog", UniqueId: "geo-10"},
+		oas.UpdateDeviceParams{ID: 10})
+	if err == nil {
+		t.Fatalf("expected an error (500), got %T", res)
 	}
 }
 

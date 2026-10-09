@@ -49,18 +49,44 @@ func NewGeofenceEventService(
 // using a device-scoped union so that shared devices emit one event row
 // per physical transition regardless of how many users own the device.
 func (s *GeofenceEventService) CheckGeofences(ctx context.Context, position *model.Position) error {
-	currentGeofences, err := s.geofenceRepo.CheckContainmentForDevice(ctx, position.DeviceID, position.Latitude, position.Longitude)
+	prevPosition, err := s.positionRepo.GetPreviousByDevice(ctx, position.DeviceID, position.Timestamp)
 	if err != nil {
 		return err
+	}
+
+	// Use the geofence membership stored on the previous position (written by the
+	// protocol handler via UpdateGeofenceIDs). This avoids re-evaluating the prior
+	// location against the current (possibly edited) polygon, which would produce
+	// spurious enter/exit events after a geofence shape change. The same query
+	// drops stored geofences that are no longer evaluated for the device
+	// (attached geofences are an opt-in filter), so attaching a geofence does
+	// not report a spurious exit for the others.
+	// Fall back to live recomputation only when no stored membership exists
+	// (e.g. very first position after a new deployment, or test helpers that
+	// skip the UpdateGeofenceIDs step).
+	var currentGeofences, prevGeofences []int64
+	if prevPosition != nil && len(prevPosition.GeofenceIDs) > 0 {
+		currentGeofences, prevGeofences, err = s.geofenceRepo.EvaluateGeofences(ctx, position.DeviceID,
+			position.Latitude, position.Longitude, prevPosition.GeofenceIDs)
+		if err != nil {
+			return err
+		}
+	} else {
+		currentGeofences, err = s.geofenceRepo.CheckContainmentForDevice(ctx, position.DeviceID, position.Latitude, position.Longitude)
+		if err != nil {
+			return err
+		}
+		if prevPosition != nil {
+			prevGeofences, err = s.geofenceRepo.CheckContainmentForDevice(ctx, position.DeviceID, prevPosition.Latitude, prevPosition.Longitude)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	// Expose current geofence membership for Home Assistant / Traccar clients.
 	position.GeofenceIDs = currentGeofences
 
-	prevPosition, err := s.positionRepo.GetPreviousByDevice(ctx, position.DeviceID, position.Timestamp)
-	if err != nil {
-		return err
-	}
 	if prevPosition == nil {
 		// Genuinely first position for this device: emit enters for all containing
 		// geofences. The dedup window in createEvent suppresses repeats caused by
@@ -69,38 +95,6 @@ func (s *GeofenceEventService) CheckGeofences(ctx context.Context, position *mod
 			s.createEvent(ctx, position, gid, "geofenceEnter")
 		}
 		return nil
-	}
-
-	// Use the geofence membership stored on the previous position (written by the
-	// protocol handler via UpdateGeofenceIDs). This avoids re-evaluating the prior
-	// location against the current (possibly edited) polygon, which would produce
-	// spurious enter/exit events after a geofence shape change.
-	// Fall back to live recomputation only when no stored membership exists
-	// (e.g. very first position after a new deployment, or test helpers that
-	// skip the UpdateGeofenceIDs step).
-	var prevGeofences []int64
-	if len(prevPosition.GeofenceIDs) > 0 {
-		prevGeofences = prevPosition.GeofenceIDs
-	} else {
-		prevGeofences, err = s.geofenceRepo.CheckContainmentForDevice(ctx, position.DeviceID, prevPosition.Latitude, prevPosition.Longitude)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Attached geofences limit evaluation to themselves (opt-in filter). The
-	// stored membership may predate the attachment, so drop geofences that are
-	// no longer evaluated instead of reporting a spurious exit for them.
-	if len(prevGeofences) > 0 {
-		attached, err := s.geofenceRepo.GetDeviceGeofenceIDs(ctx, position.DeviceID)
-		if err != nil {
-			return err
-		}
-		if len(attached) > 0 {
-			prevGeofences = slices.DeleteFunc(slices.Clone(prevGeofences), func(gid int64) bool {
-				return !slices.Contains(attached, gid)
-			})
-		}
 	}
 
 	for _, gid := range currentGeofences {

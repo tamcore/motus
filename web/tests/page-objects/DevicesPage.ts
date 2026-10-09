@@ -107,7 +107,7 @@ export class DevicesPage {
   /** Geofence checkbox in the device form. */
   geofenceCheckbox(geofenceName: string) {
     return this.page
-      .locator('[role="dialog"] [data-testid="device-geofences"] label')
+      .locator('[role="dialog"] .geofence-filter .geofence-checkbox')
       .filter({ hasText: geofenceName })
       .locator('input[type="checkbox"]');
   }

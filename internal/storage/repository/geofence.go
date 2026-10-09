@@ -193,31 +193,44 @@ func (r *GeofenceRepository) UserHasAccess(ctx context.Context, user *model.User
 // Devices with attached geofences (device_geofences) are only checked against
 // those; devices without attachments against all geofences of their users.
 func (r *GeofenceRepository) CheckContainmentForDevice(ctx context.Context, deviceID int64, lat, lon float64) ([]int64, error) {
-	rows, err := r.pool.Query(ctx, `
-		SELECT DISTINCT g.id
-		FROM geofences g
-		JOIN user_geofences ug ON g.id = ug.geofence_id
-		JOIN user_devices ud ON ud.user_id = ug.user_id
-		WHERE ud.device_id = $1
-		  AND ST_Contains(g.geometry, ST_SetSRID(ST_MakePoint($2, $3), 4326))
-		  AND (NOT EXISTS (SELECT 1 FROM device_geofences WHERE device_id = $1)
-		       OR EXISTS (SELECT 1 FROM device_geofences dg WHERE dg.device_id = $1 AND dg.geofence_id = g.id))
-	`, deviceID, lon, lat) // PostGIS: ST_MakePoint(lon, lat)
-	if err != nil {
-		return nil, fmt.Errorf("check geofence containment for device: %w", err)
-	}
-	return pgx.AppendRows([]int64(nil), rows, pgx.RowTo[int64])
+	current, _, err := r.EvaluateGeofences(ctx, deviceID, lat, lon, nil)
+	return current, err
 }
 
-// GetDeviceGeofenceIDs returns the geofences attached to a device, sorted by
-// ID. Empty means the device is checked against all geofences of its users.
-func (r *GeofenceRepository) GetDeviceGeofenceIDs(ctx context.Context, deviceID int64) ([]int64, error) {
-	rows, err := r.pool.Query(ctx,
-		`SELECT geofence_id FROM device_geofences WHERE device_id = $1 ORDER BY geofence_id`, deviceID)
+// EvaluateGeofences returns, in one query, the geofences containing the point
+// (as CheckContainmentForDevice) and prev filtered to the geofences evaluated
+// for the device: all of prev without attachments, otherwise only the attached
+// ones. Membership stored before an attachment then cannot produce a spurious
+// exit for a geofence that is no longer evaluated. Empty results are nil.
+func (r *GeofenceRepository) EvaluateGeofences(ctx context.Context, deviceID int64, lat, lon float64, prev []int64) (current, prevEvaluated []int64, err error) {
+	err = r.pool.QueryRow(ctx, `
+		WITH attached AS (SELECT geofence_id FROM device_geofences WHERE device_id = $1)
+		SELECT
+			ARRAY(
+				SELECT DISTINCT g.id
+				FROM geofences g
+				JOIN user_geofences ug ON g.id = ug.geofence_id
+				JOIN user_devices ud ON ud.user_id = ug.user_id
+				WHERE ud.device_id = $1
+				  AND ST_Contains(g.geometry, ST_SetSRID(ST_MakePoint($2, $3), 4326))
+				  AND (NOT EXISTS (SELECT 1 FROM attached) OR g.id IN (SELECT geofence_id FROM attached))
+			),
+			ARRAY(
+				SELECT p.id FROM unnest($4::bigint[]) WITH ORDINALITY AS p(id, n)
+				WHERE NOT EXISTS (SELECT 1 FROM attached) OR p.id IN (SELECT geofence_id FROM attached)
+				ORDER BY p.n
+			)
+	`, deviceID, lon, lat, prev).Scan(&current, &prevEvaluated) // PostGIS: ST_MakePoint(lon, lat)
 	if err != nil {
-		return nil, fmt.Errorf("get device geofence ids: %w", err)
+		return nil, nil, fmt.Errorf("evaluate geofences for device: %w", err)
 	}
-	return pgx.AppendRows([]int64(nil), rows, pgx.RowTo[int64])
+	if len(current) == 0 {
+		current = nil
+	}
+	if len(prevEvaluated) == 0 {
+		prevEvaluated = nil
+	}
+	return current, prevEvaluated, nil
 }
 
 // scanGeofence scans a geofence row, followed by extra, into g.

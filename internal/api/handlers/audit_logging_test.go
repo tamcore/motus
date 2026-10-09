@@ -213,8 +213,8 @@ func (m *auditMockGeofenceRepo) CheckContainment(_ context.Context, _ int64, _, 
 func (m *auditMockGeofenceRepo) CheckContainmentForDevice(_ context.Context, _ int64, _, _ float64) ([]int64, error) {
 	return nil, nil
 }
-func (m *auditMockGeofenceRepo) GetDeviceGeofenceIDs(_ context.Context, _ int64) ([]int64, error) {
-	return nil, nil
+func (m *auditMockGeofenceRepo) EvaluateGeofences(_ context.Context, _ int64, _, _ float64, _ []int64) ([]int64, []int64, error) {
+	return nil, nil, nil
 }
 
 // auditMockCalendarRepo is a minimal test double for repository.CalendarRepo.

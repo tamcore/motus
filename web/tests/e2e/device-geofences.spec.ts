@@ -1,5 +1,5 @@
-import type { Page } from '@playwright/test';
 import { test, expect } from '../fixtures/auth-fixture';
+import { csrfToken } from '../helpers/csrf';
 import { DevicesPage } from '../page-objects/DevicesPage';
 
 // Attaching geofences to devices from the device edit form. A device with
@@ -10,11 +10,6 @@ test.describe('Device geofence attachments', () => {
   const parkName = `PW Park ${suffix}`;
   const uniqueId = `pwgeo${suffix}`;
   const geofenceIds: number[] = [];
-
-  async function csrfToken(page: Page): Promise<string> {
-    const res = await page.request.get('/api/session');
-    return res.headers()['x-csrf-token'] ?? '';
-  }
 
   test.beforeAll(async ({ browser }) => {
     const ctx = await browser.newContext({ storageState: '.auth/user.json' });

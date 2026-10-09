@@ -125,8 +125,14 @@ func TestGeofenceRepository_CheckContainmentForDevice_AttachedOptIn(t *testing.T
 	if got := contained(); !slices.Equal(got, []int64{inner.ID}) {
 		t.Fatalf("attached [inner]: got %v, want [%d]", got, inner.ID)
 	}
-	if got, err := geoRepo.GetDeviceGeofenceIDs(ctx, device.ID); err != nil || !slices.Equal(got, []int64{inner.ID}) {
-		t.Fatalf("GetDeviceGeofenceIDs = %v, %v", got, err)
+	// One query also filters the previous membership to the evaluated set,
+	// so the ingest path needs no second device_geofences lookup.
+	current, prev, err := geoRepo.EvaluateGeofences(ctx, device.ID, 52.52, 13.37, []int64{outer.ID, inner.ID})
+	if err != nil {
+		t.Fatalf("EvaluateGeofences: %v", err)
+	}
+	if !slices.Equal(current, []int64{inner.ID}) || !slices.Equal(prev, []int64{inner.ID}) {
+		t.Fatalf("EvaluateGeofences = %v / %v, want [%d] / [%d]", current, prev, inner.ID, inner.ID)
 	}
 
 	if err := deviceRepo.SetGeofences(ctx, device.ID, nil); err != nil {
@@ -134,5 +140,67 @@ func TestGeofenceRepository_CheckContainmentForDevice_AttachedOptIn(t *testing.T
 	}
 	if got := contained(); !slices.Equal(got, all) {
 		t.Fatalf("cleared: got %v, want %v", got, all)
+	}
+}
+
+// TestGeofenceRepository_EvaluateGeofences_NoAttachments keeps the previous
+// membership unfiltered while the device has no attachments.
+func TestGeofenceRepository_EvaluateGeofences_NoAttachments(t *testing.T) {
+	pool := testutil.SetupTestDB(t)
+	testutil.CleanTables(t, pool)
+	geoRepo := repository.NewGeofenceRepository(pool)
+	ctx := context.Background()
+
+	user := testutil.CreateUser(t, "devgeo-eval@example.com")
+	device := testutil.CreateDevice(t, user.ID, "devgeo-eval")
+	g := &model.Geofence{Name: "Home", Geometry: berlinPolygonGeoJSON}
+	if err := geoRepo.Create(ctx, g); err != nil {
+		t.Fatalf("create geofence: %v", err)
+	}
+	if err := geoRepo.AssociateUser(ctx, user.ID, g.ID); err != nil {
+		t.Fatalf("associate: %v", err)
+	}
+
+	current, prev, err := geoRepo.EvaluateGeofences(ctx, device.ID, 52.52, 13.37, []int64{g.ID, 777})
+	if err != nil {
+		t.Fatalf("EvaluateGeofences: %v", err)
+	}
+	if !slices.Equal(current, []int64{g.ID}) || !slices.Equal(prev, []int64{g.ID, 777}) {
+		t.Fatalf("EvaluateGeofences = %v / %v, want [%d] / [%d 777]", current, prev, g.ID, g.ID)
+	}
+	if _, prev, _ := geoRepo.EvaluateGeofences(ctx, device.ID, 52.52, 13.37, nil); len(prev) != 0 {
+		t.Fatalf("nil previous membership = %v, want empty", prev)
+	}
+}
+
+// TestDeviceRepository_CreateWithGeofences attaches geofences in the same
+// transaction as the device; an invalid geofence leaves no device behind.
+func TestDeviceRepository_CreateWithGeofences(t *testing.T) {
+	pool := testutil.SetupTestDB(t)
+	testutil.CleanTables(t, pool)
+	deviceRepo := repository.NewDeviceRepository(pool)
+	geoRepo := repository.NewGeofenceRepository(pool)
+	ctx := context.Background()
+
+	user := testutil.CreateUser(t, "devgeo-create@example.com")
+	g := &model.Geofence{Name: "Home", Geometry: berlinPolygonGeoJSON}
+	if err := geoRepo.Create(ctx, g); err != nil {
+		t.Fatalf("create geofence: %v", err)
+	}
+
+	d := &model.Device{UniqueID: "devgeo-create-ok", Name: "Ok", Status: "unknown", GeofenceIDs: []int64{g.ID}}
+	if err := deviceRepo.Create(ctx, d, user.ID); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if got, _ := deviceRepo.GetGeofenceIDs(ctx, []int64{d.ID}); !slices.Equal(got[d.ID], []int64{g.ID}) {
+		t.Fatalf("attached = %v, want [%d]", got[d.ID], g.ID)
+	}
+
+	bad := &model.Device{UniqueID: "devgeo-create-bad", Name: "Bad", Status: "unknown", GeofenceIDs: []int64{999999}}
+	if err := deviceRepo.Create(ctx, bad, user.ID); err == nil {
+		t.Fatal("expected FK error for unknown geofence")
+	}
+	if _, err := deviceRepo.GetByUniqueID(ctx, "devgeo-create-bad"); err == nil {
+		t.Fatal("device must not exist after a failed create")
 	}
 }

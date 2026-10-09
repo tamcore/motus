@@ -145,7 +145,7 @@ type NotificationLog struct {
 	CreatedAt    time.Time  `json:"createdAt"`
 
 	// Context of the triggering event, joined in on read. Empty when the
-	// event was deleted (event_id ON DELETE SET NULL) or for test deliveries.
+	// event was deleted (event_id ON DELETE SET NULL).
 	EventType       string         `json:"eventType,omitempty"`
 	EventTime       *time.Time     `json:"eventTime,omitempty"`
 	EventAttributes map[string]any `json:"eventAttributes,omitempty"`

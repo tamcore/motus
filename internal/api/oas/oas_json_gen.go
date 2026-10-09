@@ -14873,64 +14873,6 @@ func (s *NotificationLog) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
-// Encode implements json.Marshaler.
-func (s NotificationLogEventAttributes) Encode(e *jx.Encoder) {
-	e.ObjStart()
-	s.encodeFields(e)
-	e.ObjEnd()
-}
-
-// encodeFields implements json.Marshaler.
-func (s NotificationLogEventAttributes) encodeFields(e *jx.Encoder) {
-	for k, elem := range s {
-		e.FieldStart(k)
-
-		if len(elem) != 0 {
-			e.Raw(elem)
-		}
-	}
-}
-
-// Decode decodes NotificationLogEventAttributes from json.
-func (s *NotificationLogEventAttributes) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode NotificationLogEventAttributes to nil")
-	}
-	m := s.init()
-	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
-		var elem jx.Raw
-		if err := func() error {
-			v, err := d.RawAppend(nil)
-			elem = jx.Raw(v)
-			if err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrapf(err, "decode field %q", k)
-		}
-		m[string(k)] = elem
-		return nil
-	}); err != nil {
-		return errors.Wrap(err, "decode NotificationLogEventAttributes")
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s NotificationLogEventAttributes) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *NotificationLogEventAttributes) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
 // Encode encodes NotificationLogsForbidden as json.
 func (s *NotificationLogsForbidden) Encode(e *jx.Encoder) {
 	unwrapped := (*Error)(s)
@@ -16457,40 +16399,6 @@ func (s OptNotificationConfigWebhookHeaders) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OptNotificationConfigWebhookHeaders) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes NotificationLogEventAttributes as json.
-func (o OptNotificationLogEventAttributes) Encode(e *jx.Encoder) {
-	if !o.Set {
-		return
-	}
-	o.Value.Encode(e)
-}
-
-// Decode decodes NotificationLogEventAttributes from json.
-func (o *OptNotificationLogEventAttributes) Decode(d *jx.Decoder) error {
-	if o == nil {
-		return errors.New("invalid: unable to decode OptNotificationLogEventAttributes to nil")
-	}
-	o.Set = true
-	o.Value = make(NotificationLogEventAttributes)
-	if err := o.Value.Decode(d); err != nil {
-		return err
-	}
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s OptNotificationLogEventAttributes) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *OptNotificationLogEventAttributes) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

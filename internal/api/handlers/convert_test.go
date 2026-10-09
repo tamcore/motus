@@ -983,8 +983,11 @@ func TestNotificationLogToOAS(t *testing.T) {
 
 func TestNotificationLogToOAS_NoEvent(t *testing.T) {
 	got := notificationLogToOAS(&model.NotificationLog{ID: 1, RuleID: 1, Status: "failed", CreatedAt: time.Now()})
-	if got.EventType.Set || got.DeviceName.Set || got.GeofenceName.Set || got.DeviceId.Set {
+	if got.EventType.Set || got.DeviceName.Set || got.GeofenceName.Set || got.EventAttributes.Set {
 		t.Errorf("expected unset event context, got %+v", got)
+	}
+	if !got.DeviceId.Null || !got.EventTime.Null {
+		t.Errorf("DeviceId = %+v, EventTime = %+v, want null", got.DeviceId, got.EventTime)
 	}
 }
 
@@ -993,12 +996,13 @@ func TestNotificationLogToOAS_EventAttributes(t *testing.T) {
 	got := notificationLogToOAS(&model.NotificationLog{
 		ID: 1, RuleID: 1, Status: "sent", CreatedAt: eventTime,
 		EventType: "motion", EventTime: &eventTime,
-		EventAttributes: map[string]any{"speed": 45.5, "previousSpeed": 0},
+		EventAttributes: map[string]any{"speed": 45.5, "previousSpeed": 0.0},
 	})
-	if !got.EventTime.Set || !got.EventTime.Value.Equal(eventTime) {
+	if !got.EventTime.Set || got.EventTime.Null || !got.EventTime.Value.Equal(eventTime) {
 		t.Errorf("EventTime = %+v", got.EventTime)
 	}
-	if !got.EventAttributes.Set || string(got.EventAttributes.Value["speed"]) != "45.5" || string(got.EventAttributes.Value["previousSpeed"]) != "0" {
+	motion, ok := got.EventAttributes.Value.GetEventAttrMotion()
+	if !got.EventAttributes.Set || !ok || motion.Type != "motion" || motion.Speed != 45.5 || motion.PreviousSpeed != 0 {
 		t.Errorf("EventAttributes = %+v", got.EventAttributes)
 	}
 }

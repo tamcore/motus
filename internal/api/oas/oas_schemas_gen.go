@@ -4675,14 +4675,13 @@ type NotificationLog struct {
 	Error        OptString      `json:"error"`
 	ResponseCode OptInt         `json:"responseCode"`
 	CreatedAt    time.Time      `json:"createdAt"`
-	// Type of the triggering event (absent when the event was deleted or the delivery was a test).
-	EventType    OptString   `json:"eventType"`
-	EventTime    OptDateTime `json:"eventTime"`
-	DeviceId     OptInt64    `json:"deviceId"`
-	DeviceName   OptString   `json:"deviceName"`
-	GeofenceName OptString   `json:"geofenceName"`
-	// Attributes of the triggering event, e.g. speed/previousSpeed or ignition state.
-	EventAttributes OptNotificationLogEventAttributes `json:"eventAttributes"`
+	// Type of the triggering event (absent when the event was deleted).
+	EventType       OptString          `json:"eventType"`
+	EventTime       OptNilDateTime     `json:"eventTime"`
+	DeviceId        OptNilInt64        `json:"deviceId"`
+	DeviceName      OptString          `json:"deviceName"`
+	GeofenceName    OptString          `json:"geofenceName"`
+	EventAttributes OptEventAttributes `json:"eventAttributes"`
 }
 
 // GetID returns the value of ID.
@@ -4731,12 +4730,12 @@ func (s *NotificationLog) GetEventType() OptString {
 }
 
 // GetEventTime returns the value of EventTime.
-func (s *NotificationLog) GetEventTime() OptDateTime {
+func (s *NotificationLog) GetEventTime() OptNilDateTime {
 	return s.EventTime
 }
 
 // GetDeviceId returns the value of DeviceId.
-func (s *NotificationLog) GetDeviceId() OptInt64 {
+func (s *NotificationLog) GetDeviceId() OptNilInt64 {
 	return s.DeviceId
 }
 
@@ -4751,7 +4750,7 @@ func (s *NotificationLog) GetGeofenceName() OptString {
 }
 
 // GetEventAttributes returns the value of EventAttributes.
-func (s *NotificationLog) GetEventAttributes() OptNotificationLogEventAttributes {
+func (s *NotificationLog) GetEventAttributes() OptEventAttributes {
 	return s.EventAttributes
 }
 
@@ -4801,12 +4800,12 @@ func (s *NotificationLog) SetEventType(val OptString) {
 }
 
 // SetEventTime sets the value of EventTime.
-func (s *NotificationLog) SetEventTime(val OptDateTime) {
+func (s *NotificationLog) SetEventTime(val OptNilDateTime) {
 	s.EventTime = val
 }
 
 // SetDeviceId sets the value of DeviceId.
-func (s *NotificationLog) SetDeviceId(val OptInt64) {
+func (s *NotificationLog) SetDeviceId(val OptNilInt64) {
 	s.DeviceId = val
 }
 
@@ -4821,20 +4820,8 @@ func (s *NotificationLog) SetGeofenceName(val OptString) {
 }
 
 // SetEventAttributes sets the value of EventAttributes.
-func (s *NotificationLog) SetEventAttributes(val OptNotificationLogEventAttributes) {
+func (s *NotificationLog) SetEventAttributes(val OptEventAttributes) {
 	s.EventAttributes = val
-}
-
-// Attributes of the triggering event, e.g. speed/previousSpeed or ignition state.
-type NotificationLogEventAttributes map[string]jx.Raw
-
-func (s *NotificationLogEventAttributes) init() NotificationLogEventAttributes {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
 }
 
 type NotificationLogsForbidden Error
@@ -6049,52 +6036,6 @@ func (o OptNotificationConfigWebhookHeaders) Get() (v NotificationConfigWebhookH
 
 // Or returns value if set, or given parameter if does not.
 func (o OptNotificationConfigWebhookHeaders) Or(d NotificationConfigWebhookHeaders) NotificationConfigWebhookHeaders {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewOptNotificationLogEventAttributes returns new OptNotificationLogEventAttributes with value set to v.
-func NewOptNotificationLogEventAttributes(v NotificationLogEventAttributes) OptNotificationLogEventAttributes {
-	return OptNotificationLogEventAttributes{
-		Value: v,
-		Set:   true,
-	}
-}
-
-// OptNotificationLogEventAttributes is optional NotificationLogEventAttributes.
-type OptNotificationLogEventAttributes struct {
-	Value NotificationLogEventAttributes
-	Set   bool
-}
-
-// IsSet returns true if OptNotificationLogEventAttributes was set.
-func (o OptNotificationLogEventAttributes) IsSet() bool { return o.Set }
-
-// Reset unsets value.
-func (o *OptNotificationLogEventAttributes) Reset() {
-	var v NotificationLogEventAttributes
-	o.Value = v
-	o.Set = false
-}
-
-// SetTo sets value to v.
-func (o *OptNotificationLogEventAttributes) SetTo(v NotificationLogEventAttributes) {
-	o.Set = true
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o OptNotificationLogEventAttributes) Get() (v NotificationLogEventAttributes, ok bool) {
-	if !o.Set {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o OptNotificationLogEventAttributes) Or(d NotificationLogEventAttributes) NotificationLogEventAttributes {
 	if v, ok := o.Get(); ok {
 		return v
 	}

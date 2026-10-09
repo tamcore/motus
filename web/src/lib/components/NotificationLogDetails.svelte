@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { NotificationLog } from '$lib/types/api';
-	import { formatLogTime, logChanges, logSubject } from '$lib/utils/notificationLog';
+	import { formatDate } from '$lib/utils/formatting';
+	import { logChanges, logSubject } from '$lib/utils/notificationLog';
 
 	export let log: NotificationLog;
 
@@ -14,7 +15,7 @@
 			<div class="log-subject">
 				{subject}
 				{#if log.eventTime}
-					<span class="log-event-time">@ {formatLogTime(log.eventTime)}</span>
+					<span class="log-event-time">@ {formatDate(log.eventTime)}</span>
 				{/if}
 			</div>
 		{/if}

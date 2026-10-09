@@ -245,9 +245,9 @@ export interface NotificationLog {
   createdAt: string;
   /** Context of the triggering event; absent when the event was deleted. */
   eventType?: string;
-  eventTime?: string;
+  eventTime?: string | null;
   eventAttributes?: Record<string, unknown>;
-  deviceId?: number;
+  deviceId?: number | null;
   deviceName?: string;
   geofenceName?: string;
 }

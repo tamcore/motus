@@ -917,15 +917,13 @@ components:
         error: { type: string }
         responseCode: { type: integer }
         createdAt: { type: string, format: date-time }
-        eventType: { type: string, description: "Type of the triggering event (absent when the event was deleted or the delivery was a test)" }
-        eventTime: { type: string, format: date-time }
-        deviceId: { type: integer, format: int64 }
+        eventType: { type: string, description: "Type of the triggering event (absent when the event was deleted)" }
+        eventTime: { type: string, format: date-time, nullable: true }
+        deviceId: { type: integer, format: int64, nullable: true }
         deviceName: { type: string }
         geofenceName: { type: string }
         eventAttributes:
-          type: object
-          additionalProperties: true
-          description: "Attributes of the triggering event, e.g. speed/previousSpeed or ignition state"
+          $ref: '#/components/schemas/EventAttributes'
 
     DeviceShare:
       type: object

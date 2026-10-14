@@ -4,7 +4,7 @@
 package mcp
 
 import (
-	"github.com/mark3labs/mcp-go/server"
+	"github.com/mark3labs/mcp-go/v2/server"
 	"github.com/tamcore/motus/internal/geocoding"
 	"github.com/tamcore/motus/internal/services"
 	"github.com/tamcore/motus/internal/storage/repository"

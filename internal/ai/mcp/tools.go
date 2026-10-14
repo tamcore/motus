@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mark3labs/mcp-go/mcp"
-	"github.com/mark3labs/mcp-go/server"
+	"github.com/mark3labs/mcp-go/v2/mcp"
+	"github.com/mark3labs/mcp-go/v2/server"
 	"github.com/tamcore/motus/internal/api"
 	"github.com/tamcore/motus/internal/config"
 	"github.com/tamcore/motus/internal/model"

@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	mcpserver "github.com/mark3labs/mcp-go/server"
+	mcpserver "github.com/mark3labs/mcp-go/v2/server"
 )
 
 // captureSink records every event sent by the service.

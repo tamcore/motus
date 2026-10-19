@@ -4,7 +4,7 @@ go 1.27.2
 
 require (
 	github.com/alicebob/miniredis/v2 v2.40.0
-	github.com/arran4/golang-ical v0.3.7
+	github.com/arran4/golang-ical v0.3.8
 	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/go-chi/chi/v5 v5.5.0
 	github.com/go-faster/errors v0.8.0

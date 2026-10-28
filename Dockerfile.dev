@@ -4,7 +4,7 @@
 # Frontend is embedded into the Go binary via //go:embed.
 
 # Stage 1: Build SvelteKit frontend
-FROM node:24-alpine AS frontend
+FROM node:26-alpine AS frontend
 WORKDIR /app/web
 COPY web/package.json web/package-lock.json web/.npmrc ./
 RUN npm ci

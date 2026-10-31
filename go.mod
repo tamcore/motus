@@ -14,7 +14,7 @@ require (
 	github.com/gorilla/csrf v1.7.3
 	github.com/gorilla/securecookie v1.1.2
 	github.com/gorilla/websocket v1.5.3
-	github.com/jackc/pgx/v5 v5.11.0
+	github.com/jackc/pgx/v5 v5.12.0
 	github.com/mark3labs/mcp-go v1.3.0
 	github.com/ogen-go/ogen v1.24.0
 	github.com/openai/openai-go/v3 v3.78.0
